@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,10 +6,9 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,52 +18,127 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
+# Create the main app
 app = FastAPI()
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# ================== MODELS ==================
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
+class AlarmSettings(BaseModel):
+    enabled: bool = False
+    datetime: Optional[str] = None
+    sound: str = "bell"  # bell, chime, signal
+    haptic: bool = False
+
+class NoteBase(BaseModel):
+    title: str
+    content: str = ""
+    color: str = "purple"  # purple, cyan, lime, pink, orange
+    alarm: Optional[AlarmSettings] = None
+
+class NoteCreate(NoteBase):
+    pass
+
+class NoteUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    color: Optional[str] = None
+    alarm: Optional[AlarmSettings] = None
+
+class Note(NoteBase):
+    model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+class AppSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = "app_settings"
+    logo_url: str = "https://images.unsplash.com/photo-1759262305289-5f9abe6dbade?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGNyZWF0aXZlJTIwdGVjaCUyMGNvbXBhbnklMjBsb2dvJTIwd2hpdGUlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3MzE2MzY5NHww&ixlib=rb-4.1.0&q=85"
+    header_bg: str = "https://images.unsplash.com/photo-1771814536315-ae11952227fc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHw0fHxkYXJrJTIwZnV0dXJpc3RpYyUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3NzMxNjM2OTR8MA&ixlib=rb-4.1.0&q=85"
+    website_url: str = "https://example.com"
+    company_name: str = "LuminaTask"
 
-# Add your routes to the router instead of directly to app
+class SettingsUpdate(BaseModel):
+    logo_url: Optional[str] = None
+    header_bg: Optional[str] = None
+    website_url: Optional[str] = None
+    company_name: Optional[str] = None
+
+# ================== NOTES ENDPOINTS ==================
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "LuminaTask API"}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+@api_router.post("/notes", response_model=Note)
+async def create_note(note_input: NoteCreate):
+    note = Note(**note_input.model_dump())
+    doc = note.model_dump()
+    await db.notes.insert_one(doc)
+    return note
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/notes", response_model=List[Note])
+async def get_notes():
+    notes = await db.notes.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return notes
+
+@api_router.get("/notes/{note_id}", response_model=Note)
+async def get_note(note_id: str):
+    note = await db.notes.find_one({"id": note_id}, {"_id": 0})
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+@api_router.put("/notes/{note_id}", response_model=Note)
+async def update_note(note_id: str, note_update: NoteUpdate):
+    existing = await db.notes.find_one({"id": note_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Note not found")
     
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
+    update_data = {k: v for k, v in note_update.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
-    return status_checks
+    if "alarm" in update_data and update_data["alarm"]:
+        update_data["alarm"] = update_data["alarm"].model_dump() if hasattr(update_data["alarm"], 'model_dump') else update_data["alarm"]
+    
+    await db.notes.update_one({"id": note_id}, {"$set": update_data})
+    updated = await db.notes.find_one({"id": note_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/notes/{note_id}")
+async def delete_note(note_id: str):
+    result = await db.notes.delete_one({"id": note_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"message": "Note deleted"}
+
+# ================== SETTINGS ENDPOINTS ==================
+
+@api_router.get("/settings", response_model=AppSettings)
+async def get_settings():
+    settings = await db.settings.find_one({"id": "app_settings"}, {"_id": 0})
+    if not settings:
+        default = AppSettings()
+        await db.settings.insert_one(default.model_dump())
+        return default
+    return settings
+
+@api_router.put("/settings", response_model=AppSettings)
+async def update_settings(settings_update: SettingsUpdate):
+    update_data = {k: v for k, v in settings_update.model_dump().items() if v is not None}
+    
+    existing = await db.settings.find_one({"id": "app_settings"}, {"_id": 0})
+    if not existing:
+        default = AppSettings(**update_data)
+        await db.settings.insert_one(default.model_dump())
+        return default
+    
+    await db.settings.update_one({"id": "app_settings"}, {"$set": update_data})
+    updated = await db.settings.find_one({"id": "app_settings"}, {"_id": 0})
+    return updated
 
 # Include the router in the main app
 app.include_router(api_router)
