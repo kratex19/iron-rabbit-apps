@@ -73,7 +73,10 @@ class SettingsUpdate(BaseModel):
 async def root():
     return {"message": "LuminaTask API"}
 
-@api_router.post("/notes", response_model=Note)
+from fastapi import status
+from fastapi.responses import JSONResponse
+
+@api_router.post("/notes", response_model=Note, status_code=status.HTTP_201_CREATED)
 async def create_note(note_input: NoteCreate):
     note = Note(**note_input.model_dump())
     doc = note.model_dump()
