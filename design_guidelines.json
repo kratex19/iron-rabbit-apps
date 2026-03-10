@@ -1,0 +1,147 @@
+{
+  "design_system": {
+    "identity": {
+      "name": "LuminaTask",
+      "tone": "Futuristic, distinct, organized chaos, bioluminescent",
+      "persona": "The Architect's Midnight Console",
+      "visual_metaphor": "Glowing sticky notes on a dark obsidian glass wall"
+    },
+    "typography": {
+      "primary": {
+        "font_family": "Manrope",
+        "usage": "Headings, UI Controls, Buttons",
+        "weights": ["400", "600", "800"]
+      },
+      "secondary": {
+        "font_family": "JetBrains Mono",
+        "usage": "Dates, Times, Calculator, tabular data",
+        "weights": ["400", "500"]
+      },
+      "scale": {
+        "h1": "text-5xl md:text-7xl font-extrabold tracking-tight",
+        "h2": "text-3xl md:text-5xl font-bold tracking-tight",
+        "h3": "text-2xl font-semibold",
+        "body": "text-base leading-relaxed text-slate-300",
+        "caption": "text-xs uppercase tracking-widest text-slate-500 font-mono"
+      }
+    },
+    "colors": {
+      "theme_strategy": "Deep Bioluminescence",
+      "palette": {
+        "background": {
+          "main": "#020617",
+          "card": "#0F172A",
+          "sidebar": "#0B1221"
+        },
+        "brand": {
+          "primary": "#6366F1",
+          "glow": "0 0 20px rgba(99, 102, 241, 0.5)"
+        },
+        "notes": [
+          {
+            "name": "Electric Purple",
+            "bg": "bg-purple-500/10",
+            "border": "border-purple-500/30",
+            "text": "text-purple-100",
+            "glow": "shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+          },
+          {
+            "name": "Neon Cyan",
+            "bg": "bg-cyan-500/10",
+            "border": "border-cyan-500/30",
+            "text": "text-cyan-100",
+            "glow": "shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+          },
+          {
+            "name": "Acid Green",
+            "bg": "bg-lime-500/10",
+            "border": "border-lime-500/30",
+            "text": "text-lime-100",
+            "glow": "shadow-[0_0_15px_rgba(132,204,22,0.15)]"
+          },
+          {
+            "name": "Hot Pink",
+            "bg": "bg-pink-500/10",
+            "border": "border-pink-500/30",
+            "text": "text-pink-100",
+            "glow": "shadow-[0_0_15px_rgba(236,72,153,0.15)]"
+          },
+          {
+            "name": "Solar Orange",
+            "bg": "bg-orange-500/10",
+            "border": "border-orange-500/30",
+            "text": "text-orange-100",
+            "glow": "shadow-[0_0_15px_rgba(249,115,22,0.15)]"
+          }
+        ]
+      }
+    },
+    "layout_strategy": {
+      "grid_system": {
+        "base": "grid gap-6 transition-all duration-500 ease-in-out",
+        "controls": "User-controlled grid-cols-1 to grid-cols-5 (desktop), grid-cols-1 to grid-cols-2 (tablet)"
+      },
+      "spacing": {
+        "container": "p-6 md:p-12 max-w-[1920px] mx-auto",
+        "card_internal": "p-6"
+      }
+    },
+    "component_styling": {
+      "cards": {
+        "default": "backdrop-blur-xl border border-white/5 rounded-2xl bg-white/5 hover:bg-white/10 transition-all duration-300 group relative overflow-hidden",
+        "note": "rounded-xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+      },
+      "buttons": {
+        "primary": "bg-white text-black hover:bg-slate-200 font-bold rounded-full px-8 py-3 transition-transform active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]",
+        "ghost": "text-slate-400 hover:text-white hover:bg-white/5 rounded-lg px-4 py-2 transition-colors",
+        "icon": "p-3 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+      },
+      "inputs": {
+        "default": "bg-black/20 border-white/10 focus:border-white/30 text-white placeholder:text-slate-600 rounded-xl px-4 py-3 outline-none transition-all focus:ring-1 focus:ring-white/20"
+      },
+      "modals": {
+        "overlay": "bg-black/60 backdrop-blur-sm",
+        "content": "bg-[#0B1221] border border-white/10 shadow-2xl sm:rounded-2xl p-0 overflow-hidden"
+      }
+    },
+    "visual_enhancers": {
+      "glassmorphism": "backdrop-blur-xl bg-black/40 border border-white/10",
+      "gradients": "Use strictly for glows and accents, never for full backgrounds unless overlaid with noise/texture",
+      "shadows": "Colored shadows matching the note color (glow effect)",
+      "borders": "1px solid rgba(255,255,255,0.08)"
+    },
+    "motion": {
+      "principles": "Snappy, staggered, physics-based",
+      "transitions": "transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1)",
+      "hover": "translate-y-[-2px] scale-[1.01]"
+    }
+  },
+  "images": {
+    "header_bg": "https://images.unsplash.com/photo-1771814536315-ae11952227fc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHw0fHxkYXJrJTIwZnV0dXJpc3RpYyUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3NzMxNjM2OTR8MA&ixlib=rb-4.1.0&q=85",
+    "company_logo": "https://images.unsplash.com/photo-1759262305289-5f9abe6dbade?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA0MTJ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGNyZWF0aXZlJTIwdGVjaCUyMGNvbXBhbnklMjBsb2dvJTIwd2hpdGUlMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc3MzE2MzY5NHww&ixlib=rb-4.1.0&q=85"
+  },
+  "components_map": {
+    "calculator": "Use Shadcn Dialog or a draggable custom component. Style it like a Teenage Engineering synth - tactile, mono fonts, high contrast.",
+    "color_picker": "Popover with circular swatches. Must show the glow effect on hover.",
+    "grid_controls": "A slider or button group (1x, 2x, 3x, 4x, 5x) to dynamically change grid-cols className.",
+    "alarm_settings": "Dialog with sound selection (Bell, Chime, Signal), Haptic toggle (switch), and Time picker.",
+    "share_modal": "Dialog with 'Copy Link', 'Send Email', 'Send Message' buttons using big icons."
+  },
+  "instructions_to_main_agent": [
+    "Install 'lucide-react' for icons.",
+    "Use 'date-fns' for time formatting.",
+    "IMPLEMENT THE GRID CONTROL: The user specifically asked for '1 row or 7 rows' control. Create a UI element (slider or segmented control) that updates the main grid's 'grid-cols-X' class.",
+    "CALCULATOR: Build a functional calculator (add, sub, mul, div) inside a modal or a side widget. Don't just make it UI.",
+    "NOTES: Each note must have a 'Created at' timestamp (use JetBrains Mono) and an 'Alarm' indicator if set.",
+    "HEADER: Use the provided 'header_bg' as a subtle background image with a gradient overlay (to black) so text remains readable. Place the 'company_logo' on the left.",
+    "Ensure the app is fully responsive. Mobile defaults to 1 column.",
+    "Use 'sonner' for toast notifications when sharing or setting alarms.",
+    "Do NOT use gradients for note backgrounds - use solid colors with very low opacity (10-20%) and colored borders/shadows to achieve the 'glass' look."
+  ],
+  "universal_guidelines": {
+    "theme": "Dark Mode Only (forced)",
+    "contrast": "Ensure text is legible on colored note backgrounds. Use white text for all dark notes.",
+    "interactions": "All interactive elements must have :hover and :active states.",
+    "accessibility": "Use aria-labels on all icon-only buttons."
+  }
+}
