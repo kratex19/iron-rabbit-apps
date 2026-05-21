@@ -1,72 +1,60 @@
-# LuminaTask - PRD
+# Iron Rabbit - PRD
 
 ## Original Problem Statement
-Build a daily, weekly, monthly reminder list of things to do with:
-- Add note plus sign to add new note
-- Title to note
-- Date, time note created
-- Alarm with settings (Haptic, bells, sounds)
-- Way to share each note to messages, email, etc
-- Colorize each individual note a different color
-- Way to organize notes into columns, rows with controls (1-7 rows/columns)
-- Way to use calculator in notes for hours worked
-- Company logo on header with background picture and link to website
+Build a daily, weekly, monthly reminder list with all the bells and whistles.
+
+## Branding
+- **App Name**: Iron Rabbit
+- **Website**: https://otropis.com
 
 ## Architecture
 - **Frontend**: React + Tailwind CSS + Shadcn UI
 - **Backend**: FastAPI (Python)
 - **Database**: MongoDB
 
-## User Personas
-- Productivity-focused individuals
-- Freelancers tracking work hours
-- Anyone needing organized reminders
+## What's Been Implemented (March 2026)
 
-## Core Requirements
-1. Note CRUD operations
-2. Color-coded notes (5 colors)
-3. Alarm/reminder system with sounds
-4. Built-in calculator
-5. Grid layout control
-6. Share functionality
-7. Customizable header branding
+### Core Features
+- ✅ Note CRUD (create, edit, delete)
+- ✅ 5 glowing color options (purple, cyan, lime, pink, orange)
+- ✅ Timestamps on all notes
+- ✅ FAB button for quick note creation
 
-## What's Been Implemented (March 10, 2026)
-- ✅ Full backend API for notes and settings
-- ✅ Create/Edit/Delete notes with color selection
-- ✅ Alarm system with date/time picker, sound options, haptic toggle
-- ✅ Grid layout control (1-5 columns)
-- ✅ Functional calculator with insert-to-note feature
+### Alarm System
+- ✅ Date/time picker for alarms
+- ✅ Sound options (bell, chime, signal)
+- ✅ Haptic feedback toggle
+- ✅ Browser notifications
+
+### Recurring Reminders
+- ✅ Daily/Weekly/Monthly frequency
+- ✅ Day selector for weekly recurrence (Mon-Sun)
+
+### Organization Features
+- ✅ Grid layout (1-5 columns on desktop)
+- ✅ Accordion/List view toggle
+- ✅ Search across title, content, categories
+- ✅ Filter: All Notes, Today, This Week, This Month
+- ✅ Sort: A-Z, Z-A, Newest, Oldest, Recently Viewed, By Category
+- ✅ Note categories/tags
+
+### Theme & Design
+- ✅ Dark/Light theme toggle
+- ✅ Auto theme based on ambient light sensor
+- ✅ Hover border highlight on notes
+- ✅ Mobile responsive (1 column on mobile)
+
+### Sharing & Calculator
 - ✅ Share via copy, email, SMS
-- ✅ Customizable header (logo, background, company name, URL)
-- ✅ Browser notifications for alarms
-- ✅ Dark bioluminescent theme with glowing note cards
+- ✅ Built-in calculator with insert-to-note
+- ✅ Customizable header (logo, background, URL)
 
 ## API Endpoints
-- `GET /api/notes` - List all notes
-- `POST /api/notes` - Create note
-- `PUT /api/notes/{id}` - Update note
-- `DELETE /api/notes/{id}` - Delete note
-- `GET /api/settings` - Get app settings
-- `PUT /api/settings` - Update settings
-
-## Prioritized Backlog
-
-### P0 (Critical)
-- All implemented ✅
-
-### P1 (High Priority)
-- Daily/Weekly/Monthly view filtering
-- Search notes functionality
-- Note categories/tags
-
-### P2 (Nice to Have)
-- Recurring reminders
-- Export notes as PDF
-- Dark/Light theme toggle
-- Note templates
+- `GET/POST /api/notes` - List/Create notes
+- `GET/PUT/DELETE /api/notes/{id}` - Read/Update/Delete note
+- `GET/PUT /api/settings` - App settings
 
 ## Next Tasks
-1. Add view filtering (Today, This Week, This Month)
-2. Implement search across notes
-3. Add note categories/tags
+- Export notes as PDF
+- Note templates
+- Drag-and-drop reordering

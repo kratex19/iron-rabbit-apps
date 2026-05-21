@@ -13,19 +13,125 @@
     background: linear-gradient(to bottom, rgba(2, 6, 23, 0.3), rgba(2, 6, 23, 0.95));
 }
 
-.note-card {
-    @apply rounded-xl border backdrop-blur-md transition-all duration-300;
-    @apply hover:-translate-y-1 hover:shadow-xl;
+.header-bg.light::before {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(249, 250, 251, 0.98));
 }
 
+.header-bg.light h1,
+.header-bg.light a {
+    color: #111827 !important;
+}
+
+/* Note card styles */
+.note-card {
+    @apply rounded-xl border backdrop-blur-md transition-all duration-300;
+    @apply hover:-translate-y-1;
+}
+
+.note-card:hover {
+    border-width: 2px;
+}
+
+/* Dark theme note colors */
+.note-purple {
+    background: rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+}
+.note-purple:hover { border-color: rgba(168, 85, 247, 0.6); box-shadow: 0 0 25px rgba(168, 85, 247, 0.3); }
+
+.note-cyan {
+    background: rgba(6, 182, 212, 0.1);
+    border-color: rgba(6, 182, 212, 0.3);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+}
+.note-cyan:hover { border-color: rgba(6, 182, 212, 0.6); box-shadow: 0 0 25px rgba(6, 182, 212, 0.3); }
+
+.note-lime {
+    background: rgba(132, 204, 22, 0.1);
+    border-color: rgba(132, 204, 22, 0.3);
+    box-shadow: 0 0 15px rgba(132, 204, 22, 0.15);
+}
+.note-lime:hover { border-color: rgba(132, 204, 22, 0.6); box-shadow: 0 0 25px rgba(132, 204, 22, 0.3); }
+
+.note-pink {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.3);
+    box-shadow: 0 0 15px rgba(236, 72, 153, 0.15);
+}
+.note-pink:hover { border-color: rgba(236, 72, 153, 0.6); box-shadow: 0 0 25px rgba(236, 72, 153, 0.3); }
+
+.note-orange {
+    background: rgba(249, 115, 22, 0.1);
+    border-color: rgba(249, 115, 22, 0.3);
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.15);
+}
+.note-orange:hover { border-color: rgba(249, 115, 22, 0.6); box-shadow: 0 0 25px rgba(249, 115, 22, 0.3); }
+
+/* Light theme note colors */
+.note-purple.light {
+    background: rgba(168, 85, 247, 0.08);
+    border-color: rgba(168, 85, 247, 0.4);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.12);
+}
+.note-purple.light:hover { border-color: rgba(168, 85, 247, 0.7); box-shadow: 0 8px 20px rgba(168, 85, 247, 0.2); }
+
+.note-cyan.light {
+    background: rgba(6, 182, 212, 0.08);
+    border-color: rgba(6, 182, 212, 0.4);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.12);
+}
+.note-cyan.light:hover { border-color: rgba(6, 182, 212, 0.7); box-shadow: 0 8px 20px rgba(6, 182, 212, 0.2); }
+
+.note-lime.light {
+    background: rgba(132, 204, 22, 0.08);
+    border-color: rgba(132, 204, 22, 0.4);
+    box-shadow: 0 4px 12px rgba(132, 204, 22, 0.12);
+}
+.note-lime.light:hover { border-color: rgba(132, 204, 22, 0.7); box-shadow: 0 8px 20px rgba(132, 204, 22, 0.2); }
+
+.note-pink.light {
+    background: rgba(236, 72, 153, 0.08);
+    border-color: rgba(236, 72, 153, 0.4);
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.12);
+}
+.note-pink.light:hover { border-color: rgba(236, 72, 153, 0.7); box-shadow: 0 8px 20px rgba(236, 72, 153, 0.2); }
+
+.note-orange.light {
+    background: rgba(249, 115, 22, 0.08);
+    border-color: rgba(249, 115, 22, 0.4);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.12);
+}
+.note-orange.light:hover { border-color: rgba(249, 115, 22, 0.7); box-shadow: 0 8px 20px rgba(249, 115, 22, 0.2); }
+
+/* Accordion items with note colors */
+.note-accordion-item.note-purple { background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.3); }
+.note-accordion-item.note-cyan { background: rgba(6, 182, 212, 0.1); border-color: rgba(6, 182, 212, 0.3); }
+.note-accordion-item.note-lime { background: rgba(132, 204, 22, 0.1); border-color: rgba(132, 204, 22, 0.3); }
+.note-accordion-item.note-pink { background: rgba(236, 72, 153, 0.1); border-color: rgba(236, 72, 153, 0.3); }
+.note-accordion-item.note-orange { background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.3); }
+
+.note-accordion-item.light.note-purple { background: rgba(168, 85, 247, 0.08); border-color: rgba(168, 85, 247, 0.4); }
+.note-accordion-item.light.note-cyan { background: rgba(6, 182, 212, 0.08); border-color: rgba(6, 182, 212, 0.4); }
+.note-accordion-item.light.note-lime { background: rgba(132, 204, 22, 0.08); border-color: rgba(132, 204, 22, 0.4); }
+.note-accordion-item.light.note-pink { background: rgba(236, 72, 153, 0.08); border-color: rgba(236, 72, 153, 0.4); }
+.note-accordion-item.light.note-orange { background: rgba(249, 115, 22, 0.08); border-color: rgba(249, 115, 22, 0.4); }
+
+/* FAB button */
 .fab-button {
     @apply fixed bottom-8 right-8 w-14 h-14 rounded-full;
-    @apply bg-white text-black flex items-center justify-center;
-    @apply shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(255,255,255,0.5)];
+    @apply bg-indigo-500 text-white flex items-center justify-center;
+    @apply shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)];
     @apply transition-all duration-300 hover:scale-110 active:scale-95;
     @apply z-50;
 }
 
+.fab-button.light {
+    @apply bg-indigo-600;
+    @apply shadow-[0_4px_20px_rgba(99,102,241,0.3)] hover:shadow-[0_8px_30px_rgba(99,102,241,0.4)];
+}
+
+/* Color swatches */
 .color-swatch {
     @apply w-8 h-8 rounded-full cursor-pointer transition-all duration-200;
     @apply hover:scale-110 hover:ring-2 hover:ring-white/50;
@@ -47,17 +153,6 @@
     50% { opacity: 0.6; }
 }
 
-/* Modal styles */
-.modal-overlay {
-    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50;
-    @apply flex items-center justify-center p-4;
-}
-
-.modal-content {
-    @apply bg-[#0B1221] border border-white/10 shadow-2xl rounded-2xl;
-    @apply w-full max-w-lg max-h-[90vh] overflow-auto;
-}
-
 /* Grid control buttons */
 .grid-control-btn {
     @apply px-3 py-2 rounded-lg font-mono text-sm transition-all duration-200;
@@ -69,12 +164,26 @@
     @apply bg-indigo-500/20 border-indigo-500/50 text-indigo-300;
 }
 
+.grid-control-btn.light {
+    @apply bg-gray-100 border-gray-200 text-gray-500;
+    @apply hover:bg-gray-200 hover:text-gray-700;
+}
+
+.grid-control-btn.light.active {
+    @apply bg-indigo-100 border-indigo-300 text-indigo-600;
+}
+
 /* Share buttons */
 .share-btn {
     @apply flex flex-col items-center gap-2 p-4 rounded-xl;
     @apply bg-white/5 border border-white/10 text-slate-300;
     @apply hover:bg-white/10 hover:border-white/20 hover:text-white;
     @apply transition-all duration-200 cursor-pointer;
+}
+
+.share-btn.light {
+    @apply bg-gray-50 border-gray-200 text-gray-600;
+    @apply hover:bg-gray-100 hover:border-gray-300 hover:text-gray-800;
 }
 
 /* Sound selection */
@@ -86,4 +195,57 @@
 
 .sound-option.active {
     @apply bg-indigo-500/20 border-indigo-500/50;
+}
+
+.sound-option.light {
+    @apply bg-gray-50 border-gray-200;
+    @apply hover:bg-gray-100;
+}
+
+.sound-option.light.active {
+    @apply bg-indigo-100 border-indigo-300;
+}
+
+/* Calculator styling */
+.calc-btn {
+    @apply p-3 rounded-lg font-mono text-lg transition-all duration-150;
+    @apply bg-white/5 border border-white/10 text-white;
+    @apply hover:bg-white/10 hover:border-white/20;
+    @apply active:scale-95 active:bg-white/15;
+}
+
+.calc-btn.light {
+    @apply bg-gray-100 border-gray-200 text-gray-800;
+    @apply hover:bg-gray-200;
+    @apply active:bg-gray-300;
+}
+
+.calc-btn-operator {
+    @apply bg-indigo-500/20 border-indigo-500/30 text-indigo-300;
+    @apply hover:bg-indigo-500/30;
+}
+
+.calc-btn-operator.light {
+    @apply bg-indigo-100 border-indigo-200 text-indigo-600;
+    @apply hover:bg-indigo-200;
+}
+
+.calc-btn-equals {
+    @apply bg-indigo-500 text-white font-bold border-indigo-500;
+    @apply hover:bg-indigo-600;
+}
+
+/* Glass morphism */
+.glass {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .fab-button {
+        @apply bottom-6 right-6 w-12 h-12;
+    }
 }

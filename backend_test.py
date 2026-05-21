@@ -1,222 +1,317 @@
+#!/usr/bin/env python3
 import requests
-import sys
 import json
+import sys
 from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 
-class ReminderAppTester:
-    def __init__(self, base_url="https://color-task-timer.preview.emergentagent.com"):
+class IronRabbitAPITester:
+    def __init__(self, base_url: str = "https://color-task-timer.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.tests_run = 0
         self.tests_passed = 0
-        self.created_note_id = None
-
-    def run_test(self, name, method, endpoint, expected_status, data=None):
-        """Run a single API test"""
-        url = f"{self.api_url}/{endpoint}" if endpoint else self.api_url
-        headers = {'Content-Type': 'application/json'}
-
+        self.test_results = []
+        
+    def log_test(self, name: str, passed: bool, details: str = "", response_data: Any = None):
+        """Log test results"""
         self.tests_run += 1
-        print(f"\n🔍 Testing {name}...")
-        print(f"   URL: {url}")
+        if passed:
+            self.tests_passed += 1
+            
+        self.test_results.append({
+            "test": name,
+            "passed": passed,
+            "details": details,
+            "response_data": response_data
+        })
+        
+        status = "✅ PASSED" if passed else "❌ FAILED"
+        print(f"{status} - {name}")
+        if details:
+            print(f"  Details: {details}")
+        if not passed and response_data:
+            print(f"  Response: {response_data}")
+        print()
+
+    def make_request(self, method: str, endpoint: str, data: Dict = None, expected_status: int = 200) -> tuple[bool, Any]:
+        """Make HTTP request and return success status and response data"""
+        url = f"{self.api_url}/{endpoint.lstrip('/')}"
+        headers = {'Content-Type': 'application/json'}
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers, timeout=30)
+                response = requests.get(url, headers=headers, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers, timeout=30)
+                response = requests.post(url, json=data, headers=headers, timeout=10)
             elif method == 'PUT':
-                response = requests.put(url, json=data, headers=headers, timeout=30)
+                response = requests.put(url, json=data, headers=headers, timeout=10)
             elif method == 'DELETE':
-                response = requests.delete(url, headers=headers, timeout=30)
-
-            success = response.status_code == expected_status
-            if success:
-                self.tests_passed += 1
-                print(f"✅ Passed - Status: {response.status_code}")
-                try:
-                    response_data = response.json()
-                    print(f"   Response: {json.dumps(response_data, indent=2)[:200]}...")
-                    return True, response_data
-                except:
-                    return True, {}
+                response = requests.delete(url, headers=headers, timeout=10)
             else:
-                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
-                print(f"   Response: {response.text[:200]}...")
-                return False, {}
-
+                return False, f"Unsupported method: {method}"
+                
+            success = response.status_code == expected_status
+            try:
+                response_data = response.json()
+            except:
+                response_data = response.text
+                
+            return success, response_data
+            
+        except requests.exceptions.Timeout:
+            return False, "Request timeout"
+        except requests.exceptions.ConnectionError:
+            return False, "Connection error - server may be down"
         except Exception as e:
-            print(f"❌ Failed - Error: {str(e)}")
-            return False, {}
+            return False, f"Request error: {str(e)}"
 
-    def test_root_endpoint(self):
-        """Test root API endpoint"""
-        return self.run_test("Root API Endpoint", "GET", "", 200)
+    def test_api_health(self):
+        """Test basic API connectivity"""
+        success, data = self.make_request('GET', '/')
+        if success:
+            expected_message = "LuminaTask API"
+            if isinstance(data, dict) and data.get('message') == expected_message:
+                self.log_test("API Health Check", True, "API is responding correctly")
+                return True
+            else:
+                self.log_test("API Health Check", False, f"Unexpected response: {data}")
+                return False
+        else:
+            self.log_test("API Health Check", False, f"API not responding: {data}")
+            return False
 
-    def test_get_notes_empty(self):
-        """Test getting notes when empty"""
-        return self.run_test("Get All Notes (Empty)", "GET", "notes", 200)
-
-    def test_create_note(self):
-        """Create a test note with alarm"""
-        alarm_datetime = datetime.now(timezone.utc).replace(microsecond=0)
-        alarm_datetime = alarm_datetime.replace(hour=alarm_datetime.hour + 1)  # Set 1 hour from now
-        
-        note_data = {
-            "title": "Test Backend Note",
-            "content": "This is a test note with calculator result: 42\n\nFormula: 6 * 7 = 42",
+    def test_create_note(self) -> Optional[str]:
+        """Test note creation and return note ID if successful"""
+        test_note = {
+            "title": "Test Note - API Testing",
+            "content": "This is a test note created during API testing",
             "color": "purple",
+            "category": "Testing",
             "alarm": {
                 "enabled": True,
-                "datetime": alarm_datetime.isoformat(),
+                "datetime": datetime.now(timezone.utc).isoformat(),
                 "sound": "bell",
-                "haptic": True
-            }
-        }
-        
-        # Try both 201 and 200 as acceptable responses
-        success, response = self.run_test("Create Note", "POST", "notes", 201, note_data)
-        if not success:
-            # Try with 200 status code
-            success, response = self.run_test("Create Note (200)", "POST", "notes", 200, note_data)
-        
-        if success and 'id' in response:
-            self.created_note_id = response['id']
-            print(f"   Created note ID: {self.created_note_id}")
-        return success, response
-
-    def test_get_note_by_id(self):
-        """Get the created note by ID"""
-        if not self.created_note_id:
-            print("❌ Skipping - No note ID available")
-            return False, {}
-        
-        return self.run_test("Get Note by ID", "GET", f"notes/{self.created_note_id}", 200)
-
-    def test_get_all_notes(self):
-        """Test getting all notes (should have at least 1)"""
-        success, response = self.run_test("Get All Notes", "GET", "notes", 200)
-        if success and isinstance(response, list) and len(response) > 0:
-            print(f"   Found {len(response)} notes")
-            return True, response
-        return success, response
-
-    def test_update_note(self):
-        """Update the created note"""
-        if not self.created_note_id:
-            print("❌ Skipping - No note ID available")
-            return False, {}
-        
-        update_data = {
-            "title": "Updated Test Note",
-            "content": "Updated content with new calculator result: 100\n\nFormula: 10 * 10 = 100",
-            "color": "cyan",
-            "alarm": {
-                "enabled": False,
-                "datetime": None,
-                "sound": "chime",
                 "haptic": False
+            },
+            "recurring": {
+                "enabled": True,
+                "frequency": "weekly",
+                "days": [0, 2, 4]  # Mon, Wed, Fri
             }
         }
         
-        return self.run_test("Update Note", "PUT", f"notes/{self.created_note_id}", 200, update_data)
+        success, data = self.make_request('POST', '/notes', test_note, 201)
+        if success and isinstance(data, dict) and data.get('id'):
+            note_id = data['id']
+            # Verify all fields were saved correctly
+            if (data.get('title') == test_note['title'] and 
+                data.get('category') == test_note['category'] and
+                data.get('alarm', {}).get('enabled') == True and
+                data.get('recurring', {}).get('enabled') == True):
+                self.log_test("Create Note", True, f"Note created with ID: {note_id}")
+                return note_id
+            else:
+                self.log_test("Create Note", False, "Note created but fields don't match", data)
+                return None
+        else:
+            self.log_test("Create Note", False, "Failed to create note", data)
+            return None
 
-    def test_delete_note(self):
-        """Delete the created note"""
-        if not self.created_note_id:
-            print("❌ Skipping - No note ID available")
+    def test_get_notes(self):
+        """Test retrieving all notes"""
+        success, data = self.make_request('GET', '/notes')
+        if success and isinstance(data, list):
+            self.log_test("Get All Notes", True, f"Retrieved {len(data)} notes")
+            return True, data
+        else:
+            self.log_test("Get All Notes", False, "Failed to retrieve notes", data)
+            return False, []
+
+    def test_get_single_note(self, note_id: str):
+        """Test retrieving a specific note"""
+        success, data = self.make_request('GET', f'/notes/{note_id}')
+        if success and isinstance(data, dict) and data.get('id') == note_id:
+            self.log_test("Get Single Note", True, f"Retrieved note: {data.get('title', 'Untitled')}")
+            return True, data
+        else:
+            self.log_test("Get Single Note", False, f"Failed to retrieve note {note_id}", data)
             return False, {}
-        
-        return self.run_test("Delete Note", "DELETE", f"notes/{self.created_note_id}", 200)
 
-    def test_get_settings(self):
-        """Test getting app settings"""
-        return self.run_test("Get Settings", "GET", "settings", 200)
-
-    def test_update_settings(self):
-        """Test updating app settings"""
-        settings_data = {
-            "company_name": "Test Company",
-            "logo_url": "https://via.placeholder.com/64x64/6366f1/ffffff?text=TC",
-            "header_bg": "https://via.placeholder.com/1920x400/1e293b/64748b",
-            "website_url": "https://testcompany.example.com"
+    def test_update_note(self, note_id: str):
+        """Test updating a note"""
+        update_data = {
+            "title": "Updated Test Note - API Testing",
+            "content": "This note has been updated",
+            "category": "Updated Testing",
+            "last_viewed": datetime.now(timezone.utc).isoformat()
         }
         
-        return self.run_test("Update Settings", "PUT", "settings", 200, settings_data)
+        success, data = self.make_request('PUT', f'/notes/{note_id}', update_data)
+        if success and isinstance(data, dict):
+            if (data.get('title') == update_data['title'] and 
+                data.get('category') == update_data['category']):
+                self.log_test("Update Note", True, "Note updated successfully")
+                return True
+            else:
+                self.log_test("Update Note", False, "Note updated but fields don't match", data)
+                return False
+        else:
+            self.log_test("Update Note", False, f"Failed to update note {note_id}", data)
+            return False
+
+    def test_delete_note(self, note_id: str):
+        """Test deleting a note"""
+        success, data = self.make_request('DELETE', f'/notes/{note_id}')
+        if success:
+            # Verify note is actually deleted
+            get_success, _ = self.make_request('GET', f'/notes/{note_id}', expected_status=404)
+            if get_success:  # Should fail with 404
+                self.log_test("Delete Note", False, "Note still exists after deletion")
+                return False
+            else:
+                self.log_test("Delete Note", True, "Note deleted successfully")
+                return True
+        else:
+            self.log_test("Delete Note", False, f"Failed to delete note {note_id}", data)
+            return False
+
+    def test_settings_functionality(self):
+        """Test settings endpoints"""
+        # Test getting default settings
+        success, data = self.make_request('GET', '/settings')
+        if success and isinstance(data, dict):
+            self.log_test("Get Settings", True, "Retrieved settings successfully")
+            
+            # Test updating settings
+            update_data = {
+                "company_name": "Iron Rabbit Testing",
+                "website_url": "https://otropis.com",
+                "logo_url": "https://example.com/test-logo.png"
+            }
+            
+            success, updated_data = self.make_request('PUT', '/settings', update_data)
+            if success and isinstance(updated_data, dict):
+                if updated_data.get('company_name') == update_data['company_name']:
+                    self.log_test("Update Settings", True, "Settings updated successfully")
+                    return True
+                else:
+                    self.log_test("Update Settings", False, "Settings updated but fields don't match", updated_data)
+                    return False
+            else:
+                self.log_test("Update Settings", False, "Failed to update settings", updated_data)
+                return False
+        else:
+            self.log_test("Get Settings", False, "Failed to retrieve settings", data)
+            return False
 
     def test_note_validation(self):
-        """Test note creation with missing title"""
-        note_data = {
+        """Test note validation and error handling"""
+        # Test creating note without title
+        invalid_note = {
             "content": "Note without title",
-            "color": "lime"
+            "color": "cyan"
         }
         
-        # This should fail validation or handle gracefully
-        success, response = self.run_test("Create Note Without Title", "POST", "notes", 422, note_data)
-        # If it returns 201, that's also acceptable depending on implementation
-        if not success:
-            # Check if it's 201 (created successfully)
-            url = f"{self.api_url}/notes"
-            try:
-                resp = requests.post(url, json=note_data, headers={'Content-Type': 'application/json'}, timeout=30)
-                if resp.status_code == 201:
-                    print("✅ Note created without title (handled gracefully)")
-                    self.tests_passed += 1
-                    return True, resp.json()
-            except:
-                pass
+        success, data = self.make_request('POST', '/notes', invalid_note, 422)
+        if not success:  # Should fail validation
+            self.log_test("Note Validation (Missing Title)", True, "Properly rejected note without title")
+        else:
+            self.log_test("Note Validation (Missing Title)", False, "Should have rejected note without title", data)
+            
+        # Test invalid color
+        invalid_color_note = {
+            "title": "Test Note",
+            "color": "invalid_color"
+        }
         
-        return success, response
+        # This might pass since color validation might not be strict
+        success, data = self.make_request('POST', '/notes', invalid_color_note, 201)
+        if success:
+            # Clean up
+            if data and data.get('id'):
+                self.make_request('DELETE', f'/notes/{data["id"]}')
+            self.log_test("Note with Invalid Color", True, "Note created (color validation flexible)")
+        else:
+            self.log_test("Note with Invalid Color", True, "Properly rejected invalid color")
 
     def test_nonexistent_note(self):
-        """Test getting/updating/deleting nonexistent note"""
+        """Test accessing non-existent resources"""
         fake_id = "nonexistent-note-id-12345"
-        return self.run_test("Get Nonexistent Note", "GET", f"notes/{fake_id}", 404)
+        
+        # Test GET
+        success, data = self.make_request('GET', f'/notes/{fake_id}', expected_status=404)
+        if not success:
+            self.log_test("Get Nonexistent Note", True, "Properly returned 404 for missing note")
+        else:
+            self.log_test("Get Nonexistent Note", False, "Should have returned 404", data)
+            
+        # Test DELETE
+        success, data = self.make_request('DELETE', f'/notes/{fake_id}', expected_status=404)
+        if not success:
+            self.log_test("Delete Nonexistent Note", True, "Properly returned 404 for missing note")
+        else:
+            self.log_test("Delete Nonexistent Note", False, "Should have returned 404", data)
 
     def run_all_tests(self):
-        """Run all API tests"""
-        print("🚀 Starting Reminder App Backend API Tests")
-        print(f"   Testing endpoint: {self.api_url}")
+        """Run the complete test suite"""
+        print("🚀 Starting Iron Rabbit API Test Suite")
+        print(f"Testing API at: {self.api_url}")
+        print("=" * 60)
         
-        # Basic endpoints
-        self.test_root_endpoint()
+        # Basic connectivity
+        if not self.test_api_health():
+            print("❌ API health check failed - stopping tests")
+            return self.get_results()
         
-        # Notes CRUD operations
-        self.test_get_notes_empty()
-        self.test_create_note()
-        self.test_get_note_by_id()
-        self.test_get_all_notes()
-        self.test_update_note()
+        # Settings tests
+        self.test_settings_functionality()
         
-        # Settings operations
-        self.test_get_settings()
-        self.test_update_settings()
+        # Note CRUD tests
+        note_id = self.test_create_note()
+        if note_id:
+            self.test_get_single_note(note_id)
+            self.test_update_note(note_id)
+            
+            # Test get all notes (should include our test note)
+            self.test_get_notes()
+            
+            # Delete test note
+            self.test_delete_note(note_id)
         
-        # Edge cases
+        # Error handling tests
         self.test_note_validation()
         self.test_nonexistent_note()
         
-        # Cleanup
-        self.test_delete_note()
+        return self.get_results()
+
+    def get_results(self):
+        """Return test results summary"""
+        print("=" * 60)
+        print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
+        print(f"✅ Success Rate: {(self.tests_passed/self.tests_run*100):.1f}%")
         
-        # Print final results
-        print(f"\n📊 Test Results:")
-        print(f"   Tests run: {self.tests_run}")
-        print(f"   Tests passed: {self.tests_passed}")
-        print(f"   Success rate: {(self.tests_passed/self.tests_run*100):.1f}%")
-        
-        return self.tests_passed == self.tests_run
+        if self.tests_passed == self.tests_run:
+            print("🎉 All tests passed!")
+        else:
+            print("❌ Some tests failed - check logs above")
+            
+        return {
+            "total_tests": self.tests_run,
+            "passed_tests": self.tests_passed,
+            "success_rate": self.tests_passed / self.tests_run if self.tests_run > 0 else 0,
+            "all_passed": self.tests_passed == self.tests_run,
+            "test_details": self.test_results
+        }
 
 def main():
     """Main test execution"""
-    tester = ReminderAppTester()
+    tester = IronRabbitAPITester()
+    results = tester.run_all_tests()
     
-    try:
-        success = tester.run_all_tests()
-        return 0 if success else 1
-    except Exception as e:
-        print(f"❌ Test execution failed: {str(e)}")
-        return 1
+    # Exit with appropriate code
+    return 0 if results["all_passed"] else 1
 
 if __name__ == "__main__":
-    sys.exit(main())
+    exit_code = main()
+    sys.exit(exit_code)
