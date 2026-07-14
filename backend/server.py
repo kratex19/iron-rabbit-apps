@@ -42,8 +42,11 @@ class NoteBase(BaseModel):
     content: str = ""
     color: str = "purple"  # purple, cyan, lime, pink, orange
     category: str = ""  # user-defined category/tag
+    subcategory: str = ""  # subcategory under main category
     alarm: Optional[AlarmSettings] = None
     recurring: Optional[RecurringSettings] = None
+    order: int = 0  # for drag-and-drop ordering
+    template_id: Optional[str] = None  # if created from template
 
 class NoteCreate(NoteBase):
     pass
@@ -63,6 +66,27 @@ class Note(NoteBase):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     last_viewed: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class NoteTemplate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    title: str = ""
+    content: str = ""
+    color: str = "purple"
+    category: str = ""
+    subcategory: str = ""
+
+class NoteTemplateCreate(BaseModel):
+    name: str
+    title: str = ""
+    content: str = ""
+    color: str = "purple"
+    category: str = ""
+    subcategory: str = ""
+
+class ReorderRequest(BaseModel):
+    note_ids: List[str]  # ordered list of note IDs
 
 class AppSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -131,6 +155,53 @@ async def delete_note(note_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Note not found")
     return {"message": "Note deleted"}
+
+# ================== REORDER ENDPOINT ==================
+
+@api_router.post("/notes/reorder")
+async def reorder_notes(reorder: ReorderRequest):
+    for index, note_id in enumerate(reorder.note_ids):
+        await db.notes.update_one({"id": note_id}, {"$set": {"order": index}})
+    return {"message": "Notes reordered"}
+
+# ================== TEMPLATES ENDPOINTS ==================
+
+@api_router.post("/templates", response_model=NoteTemplate, status_code=status.HTTP_201_CREATED)
+async def create_template(template_input: NoteTemplateCreate):
+    template = NoteTemplate(**template_input.model_dump())
+    doc = template.model_dump()
+    await db.templates.insert_one(doc)
+    return template
+
+@api_router.get("/templates", response_model=List[NoteTemplate])
+async def get_templates():
+    templates = await db.templates.find({}, {"_id": 0}).to_list(100)
+    return templates
+
+@api_router.delete("/templates/{template_id}")
+async def delete_template(template_id: str):
+    result = await db.templates.delete_one({"id": template_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"message": "Template deleted"}
+
+# ================== CATEGORIES ENDPOINT ==================
+
+@api_router.get("/categories")
+async def get_categories():
+    """Get all unique categories and subcategories"""
+    notes = await db.notes.find({}, {"_id": 0, "category": 1, "subcategory": 1}).to_list(1000)
+    categories = {}
+    for note in notes:
+        cat = note.get("category", "")
+        subcat = note.get("subcategory", "")
+        if cat:
+            if cat not in categories:
+                categories[cat] = set()
+            if subcat:
+                categories[cat].add(subcat)
+    # Convert sets to lists for JSON
+    return {cat: list(subs) for cat, subs in categories.items()}
 
 # ================== SETTINGS ENDPOINTS ==================
 

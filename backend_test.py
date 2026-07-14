@@ -253,6 +253,185 @@ class IronRabbitAPITester:
         else:
             self.log_test("Delete Nonexistent Note", False, "Should have returned 404", data)
 
+    def test_categories_endpoint(self):
+        """Test categories endpoint"""
+        success, data = self.make_request('GET', '/categories')
+        if success and isinstance(data, dict):
+            self.log_test("Get Categories", True, f"Retrieved categories: {list(data.keys())}")
+            return True, data
+        else:
+            self.log_test("Get Categories", False, "Failed to retrieve categories", data)
+            return False, {}
+
+    def test_templates_crud(self):
+        """Test template creation, retrieval, and deletion"""
+        # Create a template
+        test_template = {
+            "name": "Test Template",
+            "title": "Template Title",
+            "content": "Template content here",
+            "color": "cyan",
+            "category": "Work",
+            "subcategory": "Meetings"
+        }
+        
+        success, data = self.make_request('POST', '/templates', test_template, 201)
+        if success and isinstance(data, dict) and data.get('id'):
+            template_id = data['id']
+            if (data.get('name') == test_template['name'] and 
+                data.get('category') == test_template['category'] and
+                data.get('subcategory') == test_template['subcategory']):
+                self.log_test("Create Template", True, f"Template created with ID: {template_id}")
+                
+                # Get all templates
+                success, templates = self.make_request('GET', '/templates')
+                if success and isinstance(templates, list):
+                    found = any(t.get('id') == template_id for t in templates)
+                    if found:
+                        self.log_test("Get Templates", True, f"Retrieved {len(templates)} templates")
+                    else:
+                        self.log_test("Get Templates", False, "Created template not found in list")
+                else:
+                    self.log_test("Get Templates", False, "Failed to retrieve templates", templates)
+                
+                # Delete template
+                success, del_data = self.make_request('DELETE', f'/templates/{template_id}')
+                if success:
+                    self.log_test("Delete Template", True, "Template deleted successfully")
+                else:
+                    self.log_test("Delete Template", False, f"Failed to delete template {template_id}", del_data)
+                
+                return True
+            else:
+                self.log_test("Create Template", False, "Template created but fields don't match", data)
+                return False
+        else:
+            self.log_test("Create Template", False, "Failed to create template", data)
+            return False
+
+    def test_note_reordering(self):
+        """Test note reordering endpoint"""
+        # Create multiple notes
+        note_ids = []
+        for i in range(3):
+            test_note = {
+                "title": f"Reorder Test Note {i+1}",
+                "content": f"Content {i+1}",
+                "color": "purple",
+                "order": i
+            }
+            success, data = self.make_request('POST', '/notes', test_note, 201)
+            if success and data.get('id'):
+                note_ids.append(data['id'])
+        
+        if len(note_ids) == 3:
+            # Reverse the order
+            reversed_ids = list(reversed(note_ids))
+            reorder_data = {"note_ids": reversed_ids}
+            
+            success, data = self.make_request('POST', '/notes/reorder', reorder_data)
+            if success:
+                self.log_test("Reorder Notes", True, "Notes reordered successfully")
+                
+                # Verify the order was updated
+                success, notes = self.make_request('GET', '/notes')
+                if success:
+                    # Check if our notes have the correct order
+                    our_notes = [n for n in notes if n['id'] in note_ids]
+                    orders = [n.get('order', 0) for n in our_notes]
+                    if len(set(orders)) == len(orders):  # All different orders
+                        self.log_test("Verify Reorder", True, "Order values updated correctly")
+                    else:
+                        self.log_test("Verify Reorder", False, "Order values not updated properly")
+            else:
+                self.log_test("Reorder Notes", False, "Failed to reorder notes", data)
+            
+            # Cleanup
+            for note_id in note_ids:
+                self.make_request('DELETE', f'/notes/{note_id}')
+        else:
+            self.log_test("Reorder Notes", False, f"Failed to create test notes (only {len(note_ids)} created)")
+
+    def test_category_subcategory_fields(self):
+        """Test category and subcategory fields in notes"""
+        test_note = {
+            "title": "Category Test Note",
+            "content": "Testing categories",
+            "color": "lime",
+            "category": "Work",
+            "subcategory": "Projects"
+        }
+        
+        success, data = self.make_request('POST', '/notes', test_note, 201)
+        if success and isinstance(data, dict) and data.get('id'):
+            note_id = data['id']
+            if (data.get('category') == test_note['category'] and 
+                data.get('subcategory') == test_note['subcategory']):
+                self.log_test("Category/Subcategory Fields", True, "Category and subcategory saved correctly")
+                
+                # Verify categories endpoint includes our new category
+                success, cats = self.make_request('GET', '/categories')
+                if success and isinstance(cats, dict):
+                    if 'Work' in cats and 'Projects' in cats.get('Work', []):
+                        self.log_test("Categories Endpoint Update", True, "New category/subcategory reflected in categories endpoint")
+                    else:
+                        self.log_test("Categories Endpoint Update", False, "Category not found in categories endpoint", cats)
+                
+                # Cleanup
+                self.make_request('DELETE', f'/notes/{note_id}')
+                return True
+            else:
+                self.log_test("Category/Subcategory Fields", False, "Fields don't match", data)
+                self.make_request('DELETE', f'/notes/{note_id}')
+                return False
+        else:
+            self.log_test("Category/Subcategory Fields", False, "Failed to create note", data)
+            return False
+
+    def test_timestamps(self):
+        """Test created_at and updated_at timestamps"""
+        import time
+        
+        test_note = {
+            "title": "Timestamp Test Note",
+            "content": "Testing timestamps",
+            "color": "orange"
+        }
+        
+        success, data = self.make_request('POST', '/notes', test_note, 201)
+        if success and isinstance(data, dict) and data.get('id'):
+            note_id = data['id']
+            created_at = data.get('created_at')
+            updated_at = data.get('updated_at')
+            
+            if created_at and updated_at:
+                self.log_test("Timestamps Present", True, "Both created_at and updated_at present on creation")
+                
+                # Wait a moment then update
+                time.sleep(1)
+                update_data = {"title": "Updated Timestamp Test"}
+                success, updated = self.make_request('PUT', f'/notes/{note_id}', update_data)
+                
+                if success and updated.get('updated_at'):
+                    new_updated_at = updated.get('updated_at')
+                    if new_updated_at != updated_at:
+                        self.log_test("Timestamp Update", True, "updated_at changed after edit")
+                    else:
+                        self.log_test("Timestamp Update", False, "updated_at did not change after edit")
+                else:
+                    self.log_test("Timestamp Update", False, "Failed to update note")
+                
+                # Cleanup
+                self.make_request('DELETE', f'/notes/{note_id}')
+                return True
+            else:
+                self.log_test("Timestamps Present", False, "Missing timestamps", data)
+                self.make_request('DELETE', f'/notes/{note_id}')
+                return False
+        else:
+            self.log_test("Timestamps Present", False, "Failed to create note", data)
+            return False
+
     def run_all_tests(self):
         """Run the complete test suite"""
         print("🚀 Starting Iron Rabbit API Test Suite")
@@ -282,6 +461,26 @@ class IronRabbitAPITester:
         # Error handling tests
         self.test_note_validation()
         self.test_nonexistent_note()
+        
+        # NEW FEATURE TESTS
+        print("\n" + "=" * 60)
+        print("🆕 Testing New Features")
+        print("=" * 60)
+        
+        # Test categories endpoint
+        self.test_categories_endpoint()
+        
+        # Test templates CRUD
+        self.test_templates_crud()
+        
+        # Test note reordering
+        self.test_note_reordering()
+        
+        # Test category/subcategory fields
+        self.test_category_subcategory_fields()
+        
+        # Test timestamps
+        self.test_timestamps()
         
         return self.get_results()
 
