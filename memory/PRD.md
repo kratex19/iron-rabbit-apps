@@ -35,8 +35,12 @@ Build a daily, weekly, monthly reminder list with all the bells and whistles.
 - ✅ Accordion/List view toggle
 - ✅ Search across title, content, categories
 - ✅ Filter: All Notes, Today, This Week, This Month
-- ✅ Sort: A-Z, Z-A, Newest, Oldest, Recently Viewed, By Category
-- ✅ Note categories/tags
+- ✅ Sort: Custom Order, A-Z, Z-A, Newest, Oldest, Recently Viewed, Recently Edited, By Category
+- ✅ Note categories AND subcategories
+- ✅ **Drag-and-drop reordering** (when sorted by Custom Order)
+- ✅ **Note templates** (5 default templates: Work Meeting, Daily Standup, Shopping List, Health Appointment, Project Task)
+- ✅ **Export notes as PDF**
+- ✅ **Created time + Edited time** shown separately on each note
 
 ### Theme & Design
 - ✅ Dark/Light theme toggle
