@@ -6,7 +6,7 @@ import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import jsPDF from "jspdf";
 import {
-  Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X,
+  Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X, Upload, Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -396,19 +396,136 @@ const ShareModal = ({ isOpen, onClose, note, isDark }) => {
 const SettingsModal = ({ isOpen, onClose, settings, onSave, isDark }) => {
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingHeader, setUploadingHeader] = useState(false);
+  
   useEffect(() => { if (settings) setFormData(settings); }, [settings]);
+  
   const handleSave = async () => { setSaving(true); await onSave(formData); setSaving(false); onClose(); toast.success("Saved!"); };
+  
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingLogo(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+    
+    try {
+      const res = await axios.post(`${API}/upload/logo`, formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const fullUrl = `${BACKEND_URL}${res.data.url}`;
+      setFormData(prev => ({ ...prev, logo_url: fullUrl }));
+      toast.success("Logo uploaded!");
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error(err.response?.data?.detail || "Upload failed");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+  
+  const handleHeaderUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingHeader(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+    
+    try {
+      const res = await axios.post(`${API}/upload/header`, formDataUpload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const fullUrl = `${BACKEND_URL}${res.data.url}`;
+      setFormData(prev => ({ ...prev, header_bg: fullUrl }));
+      toast.success("Header image uploaded!");
+    } catch (err) {
+      console.error("Upload error:", err);
+      toast.error(err.response?.data?.detail || "Upload failed");
+    } finally {
+      setUploadingHeader(false);
+    }
+  };
+  
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-md ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
+      <DialogContent className={`max-w-md ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`} data-testid="settings-modal">
         <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><Settings className="w-5 h-5 text-indigo-500" /> Settings</DialogTitle></DialogHeader>
-        <div className="space-y-3">
-          <div><label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Company Name</label><Input value={formData.company_name} onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} /></div>
-          <div><label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Logo URL</label><Input value={formData.logo_url} onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} /></div>
-          <div><label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Header Background</label><Input value={formData.header_bg} onChange={(e) => setFormData(prev => ({ ...prev, header_bg: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} /></div>
-          <div><label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Website URL</label><Input value={formData.website_url} onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} /></div>
+        <div className="space-y-4">
+          <div>
+            <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Company Name</label>
+            <Input value={formData.company_name} onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-company-name" />
+          </div>
+          
+          {/* Logo Upload Section */}
+          <div>
+            <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Logo</label>
+            <div className="flex gap-2 items-start">
+              {formData.logo_url && (
+                <img src={formData.logo_url} alt="Logo preview" className="w-12 h-12 rounded-lg object-cover border border-white/20 flex-shrink-0" />
+              )}
+              <div className="flex-1 space-y-2">
+                <Input 
+                  value={formData.logo_url} 
+                  onChange={(e) => setFormData(prev => ({ ...prev, logo_url: e.target.value }))} 
+                  placeholder="Paste URL or upload below"
+                  className={`h-9 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-500' : ''}`} 
+                  data-testid="settings-logo-url"
+                />
+                <label className={`flex items-center justify-center gap-2 h-9 rounded-md cursor-pointer transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600'}`}>
+                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={uploadingLogo} />
+                  {uploadingLogo ? (
+                    <span className="text-xs">Uploading...</span>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span className="text-xs">Upload from device</span>
+                    </>
+                  )}
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          {/* Header Background Upload Section */}
+          <div>
+            <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Header Background</label>
+            <div className="space-y-2">
+              {formData.header_bg && (
+                <div className="w-full h-16 rounded-lg overflow-hidden border border-white/20">
+                  <img src={formData.header_bg} alt="Header preview" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <Input 
+                value={formData.header_bg} 
+                onChange={(e) => setFormData(prev => ({ ...prev, header_bg: e.target.value }))} 
+                placeholder="Paste URL or upload below"
+                className={`h-9 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-500' : ''}`} 
+                data-testid="settings-header-bg"
+              />
+              <label className={`flex items-center justify-center gap-2 h-9 rounded-md cursor-pointer transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600'}`}>
+                <input type="file" accept="image/*" onChange={handleHeaderUpload} className="hidden" disabled={uploadingHeader} />
+                {uploadingHeader ? (
+                  <span className="text-xs">Uploading...</span>
+                ) : (
+                  <>
+                    <Image className="w-4 h-4" />
+                    <span className="text-xs">Upload from device</span>
+                  </>
+                )}
+              </label>
+            </div>
+          </div>
+          
+          <div>
+            <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Website URL</label>
+            <Input value={formData.website_url} onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-website-url" />
+          </div>
+          
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">{saving ? "..." : "Save"}</Button>
