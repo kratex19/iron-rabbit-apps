@@ -195,6 +195,49 @@ export const StorageService = {
     return true;
   },
 
+  // ========== MIGRATION FROM BACKEND ==========
+  async migrateFromBackend(backendUrl, force = false) {
+    const alreadyMigrated = await metadataStore.getItem('migrated_from_backend');
+    if (alreadyMigrated && !force) return { migrated: false, reason: 'already_migrated' };
+
+    try {
+      // Try to fetch from backend
+      const [notesRes, settingsRes, templatesRes] = await Promise.all([
+        fetch(`${backendUrl}/api/notes`).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${backendUrl}/api/settings`).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${backendUrl}/api/templates`).then(r => r.ok ? r.json() : []).catch(() => []),
+      ]);
+
+      // Get existing note IDs to avoid duplicates
+      const existingIds = new Set();
+      await notesStore.iterate((value, key) => { existingIds.add(key); });
+
+      let notesCount = 0;
+      for (const note of notesRes) {
+        if (!existingIds.has(note.id)) {
+          await notesStore.setItem(note.id, note);
+          notesCount++;
+        }
+      }
+
+      let templatesCount = 0;
+      const existingTemplateIds = new Set();
+      await templatesStore.iterate((value, key) => { existingTemplateIds.add(key); });
+      for (const template of templatesRes) {
+        if (!existingTemplateIds.has(template.id)) {
+          await templatesStore.setItem(template.id, template);
+          templatesCount++;
+        }
+      }
+
+      await metadataStore.setItem('migrated_from_backend', true);
+      return { migrated: true, notes: notesCount, templates: templatesCount };
+    } catch (err) {
+      console.error('Migration failed:', err);
+      return { migrated: false, reason: 'error', error: err.message };
+    }
+  },
+
   // ========== STORAGE QUOTA ==========
   async getStorageInfo() {
     if ('storage' in navigator && 'estimate' in navigator.storage) {

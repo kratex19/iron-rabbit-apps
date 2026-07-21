@@ -412,7 +412,7 @@ const ShareModal = ({ isOpen, onClose, note, isDark }) => {
 };
 
 // Settings Modal
-const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData, onInstallPWA, canInstallPWA, storageInfo, isDark }) => {
+const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData, onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, isDark }) => {
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -558,9 +558,20 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore,
               </Button>
               <label className={`flex-1 h-9 flex items-center justify-center gap-1.5 rounded-md cursor-pointer transition-colors text-sm border ${isDark ? 'bg-transparent hover:bg-white/5 border-white/10 text-slate-300' : 'bg-transparent hover:bg-gray-50 border-gray-200 text-gray-700'}`}>
                 <input type="file" accept=".json" onChange={onRestore} className="hidden" data-testid="restore-input" />
-                <Upload className="w-4 h-4" /> Restore
+                <Upload className="w-4 h-4" /> Restore File
               </label>
             </div>
+            {onRestoreFromServer && (
+              <Button 
+                onClick={onRestoreFromServer} 
+                variant="outline"
+                size="sm"
+                className={`w-full h-9 mt-2 ${isDark ? 'border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10' : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'}`}
+                data-testid="restore-server-btn"
+              >
+                <Cloud className="w-4 h-4 mr-1.5" /> Recover Old Notes from Server
+              </Button>
+            )}
           </div>
           
           {/* Storage Usage */}
@@ -651,6 +662,12 @@ function App() {
 
   const fetchData = useCallback(async () => {
     try {
+      // One-time migration from backend for existing users
+      const migration = await StorageService.migrateFromBackend(BACKEND_URL);
+      if (migration.migrated) {
+        toast.success(`Restored ${migration.notes} notes from server`, { duration: 5000 });
+      }
+
       const [notesData, settingsData, catsData, templatesData, storageData] = await Promise.all([
         StorageService.getAllNotes(),
         StorageService.getSettings(),
@@ -709,6 +726,22 @@ function App() {
     } catch (err) {
       console.error("Clear error:", err);
       toast.error("Failed to clear data");
+    }
+  };
+
+  const handleRestoreFromServer = async () => {
+    try {
+      toast.info("Checking server for your notes...");
+      const result = await StorageService.migrateFromBackend(BACKEND_URL, true);
+      if (result.migrated) {
+        toast.success(`Restored ${result.notes} notes and ${result.templates} templates from server`, { duration: 5000 });
+        fetchData();
+      } else {
+        toast.info("No additional notes found on server");
+      }
+    } catch (err) {
+      console.error("Restore error:", err);
+      toast.error("Failed to restore from server");
     }
   };
 
@@ -952,7 +985,7 @@ function App() {
       <NoteModal isOpen={noteModalOpen} onClose={() => { setNoteModalOpen(false); setEditingNote(null); }} note={editingNote} onSave={handleSaveNote} onOpenCalculator={openCalculatorWithCallback} isDark={isDark} categories={categories} templates={templates} />
       <CalculatorWidget isOpen={calculatorOpen} onClose={() => { setCalculatorOpen(false); setCalculatorCallback(null); }} onInsertResult={calculatorCallback} isDark={isDark} />
       <ShareModal isOpen={shareModalOpen} onClose={() => { setShareModalOpen(false); setSharingNote(null); }} note={sharingNote} isDark={isDark} />
-      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} onBackup={handleBackup} onRestore={handleRestore} onClearData={handleClearAllData} onInstallPWA={handleInstallPWA} canInstallPWA={!!deferredPrompt} storageInfo={storageInfo} isDark={isDark} />
+      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} onBackup={handleBackup} onRestore={handleRestore} onClearData={handleClearAllData} onInstallPWA={handleInstallPWA} canInstallPWA={!!deferredPrompt} storageInfo={storageInfo} onRestoreFromServer={handleRestoreFromServer} isDark={isDark} />
       <FullScreenNote note={fullScreenNote} isOpen={!!fullScreenNote} onClose={() => setFullScreenNote(null)} onEdit={openEditModal} onDelete={handleDeleteNote} onShare={openShareModal} isDark={isDark} />
     </div>
   );
