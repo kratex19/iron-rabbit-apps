@@ -1,67 +1,40 @@
-# Iron Rabbit - Offline-First Architecture
+# Iron Rabbit Apps - Company Website + Notes App
 
-## Original Problem Statement
-Refactor into an offline-first application with virtually no ongoing server costs.
+## What's Live
+
+### Public Website (otropis.com)
+- **Home** (`/`) — Hero, value props, featured app, why-us, CTA band
+- **Apps** (`/apps`) — Auto-generated list from `data/apps.js`
+- **App Detail** (`/apps/:slug`) — Screenshots-ready page with features, FAQs, version history
+- **About** (`/about`) — Mission
+- **Support** (`/support`) — Contact card + FAQ
+- **Privacy** (`/privacy`) — Full policy
+- **Terms** (`/terms`) — Full terms
+- **Contact** (`/contact`) — Form opens user's email client (no server)
+- **404** — Not found page
+
+### Notes App (embedded)
+- **`/apps/iron-rabbit-notes/launch`** — Full offline notes app
 
 ## Architecture
+- **Single source of truth** for apps: `/app/frontend/src/data/apps.js`
+  - To add an app: append an object with slug, name, tagline, features, FAQs, version history, store URLs
+  - It automatically appears on Home (featured), Apps listing, and gets its own detail page
+- **Layout components** in `/app/frontend/src/site/components/` (Header, Footer, Layout, AppCard)
+- **Pages** in `/app/frontend/src/site/pages/`
+- **Notes app** preserved as `/app/frontend/src/NotesApp.jsx`
+- **Router** in `/app/frontend/src/App.js` with react-router-dom v7
 
-### Storage Layer (Modular - Cloud-Ready)
-- **StorageService** (`/app/frontend/src/storage/storageService.js`)
-  - Abstract interface for all data operations
-  - Currently backed by IndexedDB via localforage
-  - Future cloud sync can implement same interface without changing app code
+## SEO
+- ✅ Per-page `<title>` and meta description via `usePageMeta`
+- ✅ `robots.txt` and `sitemap.xml` in `/public`
+- ✅ Manifest.json for PWA install
+- ✅ Semantic HTML (header/main/footer/section)
 
-### Local Storage Stores
-- **notes** - All user notes stored in IndexedDB
-- **settings** - App preferences stored in IndexedDB
-- **templates** - Custom templates stored in IndexedDB
-- **metadata** - App metadata
+## Design System
+- **Palette**: Cream (#FAF7F2) + Charcoal (#1C1917) + Burnt Sienna (#B34A2C)
+- **Font**: Manrope + JetBrains Mono (for tech accents)
+- **Style**: Editorial, warm, professional — not the generic tech blue/purple
 
-### Notification System
-- **notificationService** (`/app/frontend/src/notifications/notificationService.js`)
-  - Uses browser's native `Notification` API
-  - Web Audio API for sounds (no external files)
-  - `navigator.vibrate` for haptic feedback
-  - Interval-based alarm checking (30s polling)
-
-## Features (All Offline)
-- ✅ Notes CRUD - stored in IndexedDB
-- ✅ Categories & subcategories - derived from local notes
-- ✅ Templates - stored locally, 5 defaults built-in
-- ✅ Alarms & notifications - device-native
-- ✅ Recurring reminders - configured per note
-- ✅ Search/filter/sort - client-side only
-- ✅ Drag-and-drop reordering - local order field
-- ✅ Calculator widget
-- ✅ PDF export - client-side jsPDF
-- ✅ Logo/header uploads - base64 stored locally
-- ✅ Backup & Restore - JSON file export/import
-- ✅ Dark/Light theme
-- ✅ Accordion notes with full-screen view
-
-## Backup & Restore
-- Export: All data → JSON file downloaded via file-saver
-- Import: JSON file → restores notes, templates, settings
-- Format: `{ version, app, exported_at, data: { notes, settings, templates } }`
-
-## Future Cloud Sync (Not Implemented)
-Isolated behind StorageService interface. Can be added later as premium feature:
-- User accounts
-- Cross-device sync
-- Shared notes
-- Collaboration
-- Cloud backup
-- Messaging
-
-## No Backend Required
-- Removed: All axios calls to `/api/*` endpoints
-- Retained: FastAPI backend exists but is NOT USED by the frontend
-- Free version runs entirely on user's device
-- Zero ongoing hosting costs per user
-
-## Dependencies
-- localforage - IndexedDB wrapper
-- file-saver - File download
-- uuid - Unique IDs (client-side)
-- jspdf - PDF export
-- @hello-pangea/dnd - Drag and drop
+## Bug Fix (verified iteration_4.json)
+Auto-migration on first load pulls user's old notes from backend into local IndexedDB. Manual "Recover Old Notes from Server" button in Settings for retries. Toasts only show when work happened. StrictMode-safe.
