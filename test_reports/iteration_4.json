@@ -1,0 +1,34 @@
+{
+  "summary": "Retested offline-first migration fixes from iteration 3. All three review scenarios now pass on the preview URL. (1) Fresh IndexedDB → migration pulls 4 notes from /api/notes and shows 'Restored 4 notes from server' success toast + 4 notes render. (2) Reload after migration → NO 'Restored 0 notes' toast (previously spurious due to StrictMode double-run). (3) Manual 'Recover Old Notes from Server' with everything already present → shows info toast 'No additional notes to restore' instead of misleading 'Restored 0 notes and 0 templates' success. Migration flag set atomically before await IO, and toasts are gated on count > 0.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Settings dialog", "issues": ["Radix warning in console: 'Missing Description or aria-describedby={undefined} for {DialogContent}' on Settings modal (accessibility a11y warning, non-blocking)."]}
+    ]
+  },
+  "passed_tests": [
+    "Phase 1 - Fresh migration: after indexedDB.deleteDatabase('IronRabbit') + reload, 4 notes rendered (Test #4, Test Backend Note, Test Reminder Note, Test Note), success toast 'Restored 4 notes from server' visible, metadataStore.migrated_from_backend = True",
+    "Phase 2 - No duplicate toast: reload after migration shows 0 toasts and no 'Restored' text; 4 notes still rendered from local IndexedDB",
+    "Phase 3 - Manual restore idempotent + correct UX: clicking [data-testid='restore-server-btn'] with all notes already local shows 'Checking server for your notes...' then 'No additional notes to restore' (info toast). No 'Restored 0 notes and 0 templates' toast.",
+    "Route /apps/iron-rabbit-notes/launch loads NotesApp correctly after site refactor",
+    "StrictMode race resolved: metadataStore flag is set BEFORE the fetch/await IO in migrateFromBackend so the second concurrent StrictMode invocation short-circuits"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "(Optional / minor) Add aria-describedby or <DialogDescription> to Settings DialogContent to silence Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "storageService.migrateFromBackend now sets the migrated flag before await IO for non-force calls — this correctly prevents StrictMode double-runs from both proceeding to write.",
+    "handleRestoreFromServer correctly gates the success toast on (result.notes > 0 || result.templates > 0) and falls through to the info toast otherwise.",
+    "fetchData also correctly gates its success toast on migration.notes > 0."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% - all 5 review scenarios pass"},
+  "seed_data_creation": "None - used existing 4 backend notes at /api/notes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Notes app is at /apps/iron-rabbit-notes/launch. Backend /api/notes returns 4 test notes. To reset local storage use page.evaluate with indexedDB.deleteDatabase('IronRabbit') then reload. Restore-from-server button is [data-testid='restore-server-btn'] inside Settings modal.",
+  "rca of the issue": "Original bug: user's notes disappeared after refactor to offline-first because frontend stopped reading from backend. Fix in iteration 3 (verified in iteration 4): (a) storageService.migrateFromBackend fetches from /api/notes on first load and writes to IndexedDB, then sets migrated_from_backend flag; (b) flag is set BEFORE the await fetch to make it StrictMode-safe (idempotent); (c) success toast in fetchData is gated on migration.notes > 0 so no 'Restored 0 notes' appears; (d) manual restore branches on notes+templates > 0 to distinguish 'restored X' vs 'no additional to restore'. All fixes verified working via Playwright on preview URL."
+}
