@@ -195,6 +195,25 @@ export const StorageService = {
     return true;
   },
 
+  // ========== STORAGE QUOTA ==========
+  async getStorageInfo() {
+    if ('storage' in navigator && 'estimate' in navigator.storage) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        return {
+          usage: estimate.usage || 0,
+          quota: estimate.quota || 0,
+          usageMB: ((estimate.usage || 0) / (1024 * 1024)).toFixed(2),
+          quotaMB: ((estimate.quota || 0) / (1024 * 1024)).toFixed(2),
+          percentUsed: estimate.quota ? ((estimate.usage / estimate.quota) * 100).toFixed(2) : 0,
+        };
+      } catch (err) {
+        console.error('Storage estimate error:', err);
+      }
+    }
+    return { usage: 0, quota: 0, usageMB: '0', quotaMB: 'Unknown', percentUsed: 0 };
+  },
+
   // ========== METADATA ==========
   async getMetadata(key) {
     return await metadataStore.getItem(key);

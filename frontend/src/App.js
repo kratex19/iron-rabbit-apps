@@ -412,7 +412,7 @@ const ShareModal = ({ isOpen, onClose, note, isDark }) => {
 };
 
 // Settings Modal
-const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore, isDark }) => {
+const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData, onInstallPWA, canInstallPWA, storageInfo, isDark }) => {
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -561,8 +561,56 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore,
                 <Upload className="w-4 h-4" /> Restore
               </label>
             </div>
-            <p className={`text-xs mt-2 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-              All data stored locally on your device.
+          </div>
+          
+          {/* Storage Usage */}
+          {storageInfo && (
+            <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  <HardDrive className="w-3.5 h-3.5" /> Storage Used
+                </span>
+                <span className={`text-xs font-mono ${isDark ? 'text-slate-300' : 'text-gray-700'}`} data-testid="storage-usage">
+                  {storageInfo.usageMB} MB / {storageInfo.quotaMB} MB
+                </span>
+              </div>
+              <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+                <div 
+                  className={`h-full transition-all ${storageInfo.percentUsed > 80 ? 'bg-red-500' : storageInfo.percentUsed > 50 ? 'bg-yellow-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${Math.min(storageInfo.percentUsed, 100)}%` }}
+                />
+              </div>
+              <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+                {storageInfo.percentUsed}% used · All data stored locally on your device
+              </p>
+            </div>
+          )}
+          
+          {/* PWA Install Button */}
+          {canInstallPWA && (
+            <Button 
+              onClick={onInstallPWA} 
+              variant="outline" 
+              className={`w-full h-9 ${isDark ? 'border-indigo-500/50 text-indigo-300 hover:bg-indigo-500/10' : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'}`}
+              data-testid="pwa-install-btn"
+            >
+              <Smartphone className="w-4 h-4 mr-1.5" /> Install as App
+            </Button>
+          )}
+          
+          {/* Clear All Data */}
+          <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+            <Button 
+              onClick={onClearData} 
+              variant="outline"
+              size="sm"
+              className={`w-full h-9 text-red-500 hover:text-red-400 ${isDark ? 'border-red-500/30 hover:bg-red-500/10' : 'border-red-200 hover:bg-red-50'}`}
+              data-testid="clear-data-btn"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" /> Clear All Data
+            </Button>
+            <p className={`text-xs mt-1.5 text-center ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+              Permanently deletes all notes, templates and settings
             </p>
           </div>
           
@@ -588,6 +636,9 @@ function App() {
   const [filterBy, setFilterBy] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isDark, setIsDark] = useState(true);
+  const [storageInfo, setStorageInfo] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
@@ -600,15 +651,17 @@ function App() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [notesData, settingsData, catsData, templatesData] = await Promise.all([
+      const [notesData, settingsData, catsData, templatesData, storageData] = await Promise.all([
         StorageService.getAllNotes(),
         StorageService.getSettings(),
         StorageService.getCategories(),
         StorageService.getTemplates(),
+        StorageService.getStorageInfo(),
       ]);
       setNotes(notesData);
       setSettings(settingsData);
       setCategories(catsData);
+      setStorageInfo(storageData);
       if (templatesData.length > 0) setTemplates(templatesData);
     } catch (err) {
       console.error("Error:", err);
@@ -617,6 +670,47 @@ function App() {
       setLoading(false);
     }
   }, []);
+
+  // PWA install prompt handler
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) {
+      toast.info("App is already installed or install not available on this browser");
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      toast.success("App installed!");
+    }
+    setDeferredPrompt(null);
+  };
+
+  const handleClearAllData = async () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      toast.warning("Click again within 5 seconds to confirm", { duration: 5000 });
+      setTimeout(() => setConfirmClear(false), 5000);
+      return;
+    }
+    try {
+      await StorageService.clearAllData();
+      toast.success("All data cleared");
+      setConfirmClear(false);
+      fetchData();
+    } catch (err) {
+      console.error("Clear error:", err);
+      toast.error("Failed to clear data");
+    }
+  };
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -858,7 +952,7 @@ function App() {
       <NoteModal isOpen={noteModalOpen} onClose={() => { setNoteModalOpen(false); setEditingNote(null); }} note={editingNote} onSave={handleSaveNote} onOpenCalculator={openCalculatorWithCallback} isDark={isDark} categories={categories} templates={templates} />
       <CalculatorWidget isOpen={calculatorOpen} onClose={() => { setCalculatorOpen(false); setCalculatorCallback(null); }} onInsertResult={calculatorCallback} isDark={isDark} />
       <ShareModal isOpen={shareModalOpen} onClose={() => { setShareModalOpen(false); setSharingNote(null); }} note={sharingNote} isDark={isDark} />
-      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} onBackup={handleBackup} onRestore={handleRestore} isDark={isDark} />
+      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} onBackup={handleBackup} onRestore={handleRestore} onClearData={handleClearAllData} onInstallPWA={handleInstallPWA} canInstallPWA={!!deferredPrompt} storageInfo={storageInfo} isDark={isDark} />
       <FullScreenNote note={fullScreenNote} isOpen={!!fullScreenNote} onClose={() => setFullScreenNote(null)} onEdit={openEditModal} onDelete={handleDeleteNote} onShare={openShareModal} isDark={isDark} />
     </div>
   );
