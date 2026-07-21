@@ -200,15 +200,16 @@ export const StorageService = {
     const alreadyMigrated = await metadataStore.getItem('migrated_from_backend');
     if (alreadyMigrated && !force) return { migrated: false, reason: 'already_migrated' };
 
+    // Set flag immediately to prevent concurrent duplicate runs (StrictMode)
+    if (!force) await metadataStore.setItem('migrated_from_backend', true);
+
     try {
-      // Try to fetch from backend
       const [notesRes, settingsRes, templatesRes] = await Promise.all([
         fetch(`${backendUrl}/api/notes`).then(r => r.ok ? r.json() : []).catch(() => []),
         fetch(`${backendUrl}/api/settings`).then(r => r.ok ? r.json() : null).catch(() => null),
         fetch(`${backendUrl}/api/templates`).then(r => r.ok ? r.json() : []).catch(() => []),
       ]);
 
-      // Get existing note IDs to avoid duplicates
       const existingIds = new Set();
       await notesStore.iterate((value, key) => { existingIds.add(key); });
 
@@ -230,7 +231,7 @@ export const StorageService = {
         }
       }
 
-      await metadataStore.setItem('migrated_from_backend', true);
+      if (force) await metadataStore.setItem('migrated_from_backend', true);
       return { migrated: true, notes: notesCount, templates: templatesCount };
     } catch (err) {
       console.error('Migration failed:', err);

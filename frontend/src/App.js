@@ -664,7 +664,7 @@ function App() {
     try {
       // One-time migration from backend for existing users
       const migration = await StorageService.migrateFromBackend(BACKEND_URL);
-      if (migration.migrated) {
+      if (migration.migrated && migration.notes > 0) {
         toast.success(`Restored ${migration.notes} notes from server`, { duration: 5000 });
       }
 
@@ -733,11 +733,11 @@ function App() {
     try {
       toast.info("Checking server for your notes...");
       const result = await StorageService.migrateFromBackend(BACKEND_URL, true);
-      if (result.migrated) {
+      if (result.migrated && (result.notes > 0 || result.templates > 0)) {
         toast.success(`Restored ${result.notes} notes and ${result.templates} templates from server`, { duration: 5000 });
         fetchData();
       } else {
-        toast.info("No additional notes found on server");
+        toast.info("No additional notes to restore");
       }
     } catch (err) {
       console.error("Restore error:", err);
