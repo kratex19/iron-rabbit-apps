@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import "@/App.css";
-import axios from "axios";
 import { Toaster, toast } from "sonner";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import jsPDF from "jspdf";
+import { saveAs } from "file-saver";
+import { v4 as uuidv4 } from "uuid";
+import StorageService from "./storage/storageService";
+import notificationService from "./notifications/notificationService";
 import {
-  Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X, Upload, Image,
+  Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X, Upload, Image, HardDrive, Cloud, WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +24,22 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Check online status for future cloud sync features
+const useOnlineStatus = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  return isOnline;
+};
 
 const NOTE_COLORS = [
   { name: "purple", label: "Electric Purple", class: "note-purple", accent: "#a855f7" },
@@ -393,7 +412,7 @@ const ShareModal = ({ isOpen, onClose, note, isDark }) => {
 };
 
 // Settings Modal
-const SettingsModal = ({ isOpen, onClose, settings, onSave, isDark }) => {
+const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore, isDark }) => {
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -406,21 +425,19 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, isDark }) => {
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be under 2MB");
+      return;
+    }
     
     setUploadingLogo(true);
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-    
     try {
-      const res = await axios.post(`${API}/upload/logo`, formDataUpload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const fullUrl = `${BACKEND_URL}${res.data.url}`;
-      setFormData(prev => ({ ...prev, logo_url: fullUrl }));
-      toast.success("Logo uploaded!");
+      const dataUrl = await StorageService.uploadImage(file);
+      setFormData(prev => ({ ...prev, logo_url: dataUrl }));
+      toast.success("Logo loaded!");
     } catch (err) {
       console.error("Upload error:", err);
-      toast.error(err.response?.data?.detail || "Upload failed");
+      toast.error("Failed to load image");
     } finally {
       setUploadingLogo(false);
     }
@@ -429,21 +446,19 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, isDark }) => {
   const handleHeaderUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Header image must be under 5MB");
+      return;
+    }
     
     setUploadingHeader(true);
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-    
     try {
-      const res = await axios.post(`${API}/upload/header`, formDataUpload, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      const fullUrl = `${BACKEND_URL}${res.data.url}`;
-      setFormData(prev => ({ ...prev, header_bg: fullUrl }));
-      toast.success("Header image uploaded!");
+      const dataUrl = await StorageService.uploadImage(file);
+      setFormData(prev => ({ ...prev, header_bg: dataUrl }));
+      toast.success("Header image loaded!");
     } catch (err) {
       console.error("Upload error:", err);
-      toast.error(err.response?.data?.detail || "Upload failed");
+      toast.error("Failed to load image");
     } finally {
       setUploadingHeader(false);
     }
@@ -526,6 +541,31 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, isDark }) => {
             <Input value={formData.website_url} onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-website-url" />
           </div>
           
+          {/* Backup & Restore Section */}
+          <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+            <label className={`text-xs mb-2 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <HardDrive className="w-3.5 h-3.5" /> Backup & Restore
+            </label>
+            <div className="flex gap-2">
+              <Button 
+                onClick={onBackup} 
+                variant="outline" 
+                size="sm"
+                className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300 hover:bg-white/5' : ''}`}
+                data-testid="backup-btn"
+              >
+                <Download className="w-4 h-4 mr-1.5" /> Export Backup
+              </Button>
+              <label className={`flex-1 h-9 flex items-center justify-center gap-1.5 rounded-md cursor-pointer transition-colors text-sm border ${isDark ? 'bg-transparent hover:bg-white/5 border-white/10 text-slate-300' : 'bg-transparent hover:bg-gray-50 border-gray-200 text-gray-700'}`}>
+                <input type="file" accept=".json" onChange={onRestore} className="hidden" data-testid="restore-input" />
+                <Upload className="w-4 h-4" /> Restore
+              </label>
+            </div>
+            <p className={`text-xs mt-2 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+              All data stored locally on your device.
+            </p>
+          </div>
+          
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">{saving ? "..." : "Save"}</Button>
@@ -538,6 +578,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, isDark }) => {
 
 // Main App
 function App() {
+  const isOnline = useOnlineStatus();
   const [notes, setNotes] = useState([]);
   const [settings, setSettings] = useState(null);
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
@@ -559,34 +600,123 @@ function App() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [notesRes, settingsRes, catsRes, templatesRes] = await Promise.all([
-        axios.get(`${API}/notes`), axios.get(`${API}/settings`), axios.get(`${API}/categories`), axios.get(`${API}/templates`).catch(() => ({ data: [] })),
+      const [notesData, settingsData, catsData, templatesData] = await Promise.all([
+        StorageService.getAllNotes(),
+        StorageService.getSettings(),
+        StorageService.getCategories(),
+        StorageService.getTemplates(),
       ]);
-      setNotes(notesRes.data); setSettings(settingsRes.data); setCategories(catsRes.data);
-      if (templatesRes.data.length > 0) setTemplates(templatesRes.data);
-    } catch (err) { console.error("Error:", err); toast.error("Failed to load"); }
-    finally { setLoading(false); }
+      setNotes(notesData);
+      setSettings(settingsData);
+      setCategories(catsData);
+      if (templatesData.length > 0) setTemplates(templatesData);
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Failed to load");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Local notification checker using device's native notification system
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      notes.forEach((note) => {
-        if (note.alarm?.enabled && note.alarm?.datetime) {
-          const alarmTime = new Date(note.alarm.datetime);
-          if (alarmTime - now > 0 && alarmTime - now < 60000) {
-            if (Notification.permission === "granted") new Notification(`Reminder: ${note.title}`, { body: note.content?.substring(0, 100) || "Time!" });
-            toast.info(`Reminder: ${note.title}`, { duration: 10000 });
-          }
-        }
-      });
-    }, 30000);
-    return () => clearInterval(interval);
+    notificationService.startAlarmChecker(() => notes);
+    return () => notificationService.stopAlarmChecker();
   }, [notes]);
 
-  useEffect(() => { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }, []);
+  useEffect(() => { notificationService.requestPermission(); }, []);
+
+  const handleSaveNote = async (noteData, noteId) => {
+    try {
+      const now = new Date().toISOString();
+      if (noteId) {
+        const existing = await StorageService.getNote(noteId);
+        const updated = { ...existing, ...noteData, updated_at: now };
+        await StorageService.saveNote(updated);
+        toast.success("Updated!");
+      } else {
+        const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+        const newNote = {
+          id: uuidv4(),
+          ...noteData,
+          order: maxOrder + 1,
+          created_at: now,
+          updated_at: now,
+          last_viewed: now,
+        };
+        await StorageService.saveNote(newNote);
+        toast.success("Created!");
+      }
+      fetchData();
+    } catch (err) {
+      console.error("Error:", err);
+      toast.error("Failed to save");
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await StorageService.deleteNote(noteId);
+      toast.success("Deleted");
+      fetchData();
+    } catch (err) {
+      toast.error("Failed");
+    }
+  };
+
+  const handleSaveSettings = async (settingsData) => {
+    try {
+      const updated = await StorageService.saveSettings(settingsData);
+      setSettings(updated);
+    } catch (err) {
+      toast.error("Failed");
+    }
+  };
+
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return;
+    const items = Array.from(processedNotes);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    try {
+      await StorageService.reorderNotes(items.map(item => item.id));
+      fetchData();
+    } catch (err) {
+      console.error("Reorder error:", err);
+    }
+  };
+
+  // Backup & Restore functions
+  const handleBackup = async () => {
+    try {
+      const data = await StorageService.exportAllData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const filename = `iron-rabbit-backup-${format(new Date(), "yyyy-MM-dd-HHmm")}.json`;
+      saveAs(blob, filename);
+      toast.success("Backup exported!");
+    } catch (err) {
+      console.error("Backup error:", err);
+      toast.error("Backup failed");
+    }
+  };
+
+  const handleRestore = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const result = await StorageService.importAllData(data);
+      toast.success(`Restored ${result.notes} notes, ${result.templates} templates`);
+      fetchData();
+    } catch (err) {
+      console.error("Restore error:", err);
+      toast.error("Invalid backup file");
+    }
+    e.target.value = '';
+  };
 
   const processedNotes = useMemo(() => {
     let result = [...notes];
@@ -618,25 +748,6 @@ function App() {
     });
     return result;
   }, [notes, searchQuery, filterBy, sortBy]);
-
-  const handleSaveNote = async (noteData, noteId) => {
-    try {
-      if (noteId) { await axios.put(`${API}/notes/${noteId}`, noteData); toast.success("Updated!"); }
-      else { const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0); await axios.post(`${API}/notes`, { ...noteData, order: maxOrder + 1 }); toast.success("Created!"); }
-      fetchData();
-    } catch (err) { console.error("Error:", err); toast.error("Failed to save"); }
-  };
-
-  const handleDeleteNote = async (noteId) => { try { await axios.delete(`${API}/notes/${noteId}`); toast.success("Deleted"); fetchData(); } catch (err) { toast.error("Failed"); } };
-  const handleSaveSettings = async (settingsData) => { try { await axios.put(`${API}/settings`, settingsData); setSettings(settingsData); } catch (err) { toast.error("Failed"); } };
-
-  const handleDragEnd = async (result) => {
-    if (!result.destination) return;
-    const items = Array.from(processedNotes);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    try { await axios.post(`${API}/notes/reorder`, { note_ids: items.map(item => item.id) }); fetchData(); } catch (err) { console.error("Reorder error:", err); }
-  };
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -747,7 +858,7 @@ function App() {
       <NoteModal isOpen={noteModalOpen} onClose={() => { setNoteModalOpen(false); setEditingNote(null); }} note={editingNote} onSave={handleSaveNote} onOpenCalculator={openCalculatorWithCallback} isDark={isDark} categories={categories} templates={templates} />
       <CalculatorWidget isOpen={calculatorOpen} onClose={() => { setCalculatorOpen(false); setCalculatorCallback(null); }} onInsertResult={calculatorCallback} isDark={isDark} />
       <ShareModal isOpen={shareModalOpen} onClose={() => { setShareModalOpen(false); setSharingNote(null); }} note={sharingNote} isDark={isDark} />
-      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} isDark={isDark} />
+      <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} onBackup={handleBackup} onRestore={handleRestore} isDark={isDark} />
       <FullScreenNote note={fullScreenNote} isOpen={!!fullScreenNote} onClose={() => setFullScreenNote(null)} onEdit={openEditModal} onDelete={handleDeleteNote} onShare={openShareModal} isDark={isDark} />
     </div>
   );

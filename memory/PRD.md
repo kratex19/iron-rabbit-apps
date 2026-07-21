@@ -1,64 +1,67 @@
-# Iron Rabbit - PRD
+# Iron Rabbit - Offline-First Architecture
 
 ## Original Problem Statement
-Build a daily, weekly, monthly reminder list with all the bells and whistles.
-
-## Branding
-- **App Name**: Iron Rabbit
-- **Website**: https://otropis.com
+Refactor into an offline-first application with virtually no ongoing server costs.
 
 ## Architecture
-- **Frontend**: React + Tailwind CSS + Shadcn UI
-- **Backend**: FastAPI (Python)
-- **Database**: MongoDB
 
-## What's Been Implemented (March 2026)
+### Storage Layer (Modular - Cloud-Ready)
+- **StorageService** (`/app/frontend/src/storage/storageService.js`)
+  - Abstract interface for all data operations
+  - Currently backed by IndexedDB via localforage
+  - Future cloud sync can implement same interface without changing app code
 
-### Core Features
-- ✅ Note CRUD (create, edit, delete)
-- ✅ 5 glowing color options (purple, cyan, lime, pink, orange)
-- ✅ Timestamps on all notes
-- ✅ FAB button for quick note creation
+### Local Storage Stores
+- **notes** - All user notes stored in IndexedDB
+- **settings** - App preferences stored in IndexedDB
+- **templates** - Custom templates stored in IndexedDB
+- **metadata** - App metadata
 
-### Alarm System
-- ✅ Date/time picker for alarms
-- ✅ Sound options (bell, chime, signal)
-- ✅ Haptic feedback toggle
-- ✅ Browser notifications
+### Notification System
+- **notificationService** (`/app/frontend/src/notifications/notificationService.js`)
+  - Uses browser's native `Notification` API
+  - Web Audio API for sounds (no external files)
+  - `navigator.vibrate` for haptic feedback
+  - Interval-based alarm checking (30s polling)
 
-### Recurring Reminders
-- ✅ Daily/Weekly/Monthly frequency
-- ✅ Day selector for weekly recurrence (Mon-Sun)
+## Features (All Offline)
+- ✅ Notes CRUD - stored in IndexedDB
+- ✅ Categories & subcategories - derived from local notes
+- ✅ Templates - stored locally, 5 defaults built-in
+- ✅ Alarms & notifications - device-native
+- ✅ Recurring reminders - configured per note
+- ✅ Search/filter/sort - client-side only
+- ✅ Drag-and-drop reordering - local order field
+- ✅ Calculator widget
+- ✅ PDF export - client-side jsPDF
+- ✅ Logo/header uploads - base64 stored locally
+- ✅ Backup & Restore - JSON file export/import
+- ✅ Dark/Light theme
+- ✅ Accordion notes with full-screen view
 
-### Organization Features
-- ✅ Grid layout (1-5 columns on desktop)
-- ✅ Accordion/List view toggle
-- ✅ Search across title, content, categories
-- ✅ Filter: All Notes, Today, This Week, This Month
-- ✅ Sort: Custom Order, A-Z, Z-A, Newest, Oldest, Recently Viewed, Recently Edited, By Category
-- ✅ Note categories AND subcategories
-- ✅ **Drag-and-drop reordering** (when sorted by Custom Order)
-- ✅ **Note templates** (5 default templates: Work Meeting, Daily Standup, Shopping List, Health Appointment, Project Task)
-- ✅ **Export notes as PDF**
-- ✅ **Created time + Edited time** shown separately on each note
+## Backup & Restore
+- Export: All data → JSON file downloaded via file-saver
+- Import: JSON file → restores notes, templates, settings
+- Format: `{ version, app, exported_at, data: { notes, settings, templates } }`
 
-### Theme & Design
-- ✅ Dark/Light theme toggle
-- ✅ Auto theme based on ambient light sensor
-- ✅ Hover border highlight on notes
-- ✅ Mobile responsive (1 column on mobile)
+## Future Cloud Sync (Not Implemented)
+Isolated behind StorageService interface. Can be added later as premium feature:
+- User accounts
+- Cross-device sync
+- Shared notes
+- Collaboration
+- Cloud backup
+- Messaging
 
-### Sharing & Calculator
-- ✅ Share via copy, email, SMS
-- ✅ Built-in calculator with insert-to-note
-- ✅ Customizable header (logo, background, URL)
+## No Backend Required
+- Removed: All axios calls to `/api/*` endpoints
+- Retained: FastAPI backend exists but is NOT USED by the frontend
+- Free version runs entirely on user's device
+- Zero ongoing hosting costs per user
 
-## API Endpoints
-- `GET/POST /api/notes` - List/Create notes
-- `GET/PUT/DELETE /api/notes/{id}` - Read/Update/Delete note
-- `GET/PUT /api/settings` - App settings
-
-## Next Tasks
-- Export notes as PDF
-- Note templates
-- Drag-and-drop reordering
+## Dependencies
+- localforage - IndexedDB wrapper
+- file-saver - File download
+- uuid - Unique IDs (client-side)
+- jspdf - PDF export
+- @hello-pangea/dnd - Drag and drop
