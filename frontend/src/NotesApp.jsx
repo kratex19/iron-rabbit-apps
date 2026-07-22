@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -113,7 +113,7 @@ const CalculatorWidget = ({ isOpen, onClose, onInsertResult, isDark }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`max-w-xs ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
-        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><Calculator className="w-5 h-5 text-indigo-500" /> Calculator</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><Calculator className="w-5 h-5 text-indigo-500" /> Calculator</DialogTitle><DialogDescription className="sr-only">Perform quick calculations and optionally insert the result into your current note.</DialogDescription></DialogHeader>
         <div className="space-y-3">
           <div className={`rounded-xl p-3 text-right ${isDark ? 'bg-black/30' : 'bg-gray-100'}`}><div className={`font-mono text-2xl truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{display}</div></div>
           <div className="grid grid-cols-4 gap-1.5">
@@ -297,7 +297,7 @@ const TemplateModal = ({ isOpen, onClose, templates, onSelect, isDark }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`max-w-md ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
-        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><FileText className="w-5 h-5 text-indigo-500" /> Templates</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><FileText className="w-5 h-5 text-indigo-500" /> Templates</DialogTitle><DialogDescription className="sr-only">Choose a template to pre-fill your new note.</DialogDescription></DialogHeader>
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {templates.map((t, i) => (
             <button key={t.id || i} onClick={() => onSelect(t)} className={`w-full p-2.5 rounded-lg text-left transition-all ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'}`}>
@@ -369,6 +369,7 @@ const NoteModal = ({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, ca
               <span>{note ? "Edit Note" : "New Note"}</span>
               {!note && <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} className="text-indigo-500 h-7"><FileText className="w-4 h-4 mr-1" /> Templates</Button>}
             </DialogTitle>
+            <DialogDescription className="sr-only">{note ? "Edit this note's title, content, color, category, alarm, and recurring settings." : "Create a new note with title, content, color, category, alarm, and recurring settings."}</DialogDescription>
           </DialogHeader>
           
           <div className="space-y-3">
@@ -461,7 +462,7 @@ const ShareModal = ({ isOpen, onClose, note, isDark }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`max-w-xs ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
-        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}><Share2 className="w-4 h-4 text-indigo-500" /> Share</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}><Share2 className="w-4 h-4 text-indigo-500" /> Share</DialogTitle><DialogDescription className="sr-only">Share this note via copy, email, or SMS.</DialogDescription></DialogHeader>
         <div className="grid grid-cols-3 gap-2">
           <button onClick={copyToClipboard} className={`share-btn-sm ${isDark ? '' : 'light'}`}><Copy className="w-5 h-5" /><span className="text-xs">Copy</span></button>
           <button onClick={shareViaEmail} className={`share-btn-sm ${isDark ? '' : 'light'}`}><Mail className="w-5 h-5" /><span className="text-xs">Email</span></button>
@@ -530,7 +531,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackup, onRestore,
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`max-w-md ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`} data-testid="settings-modal">
-        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><Settings className="w-5 h-5 text-indigo-500" /> Settings</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}><Settings className="w-5 h-5 text-indigo-500" /> Settings</DialogTitle><DialogDescription className="sr-only">Configure app branding, backup and restore your data, install as PWA, or clear all data.</DialogDescription></DialogHeader>
         <div className="space-y-4">
           <div>
             <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Company Name</label>
