@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import "@/App.css";
 import { Toaster, toast } from "sonner";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
@@ -137,7 +137,40 @@ const CalculatorWidget = ({ isOpen, onClose, onInsertResult, isDark }) => {
 };
 
 // Full Screen Note View
-const FullScreenNote = ({ note, isOpen, onClose, onEdit, onDelete, onShare, isDark }) => {
+const FullScreenNote = ({ note, isOpen, onClose, onSaveInline, onDelete, onShare, isDark }) => {
+  const [title, setTitle] = useState(note?.title || "");
+  const [content, setContent] = useState(note?.content || "");
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState(null);
+  const noteIdRef = useRef(note?.id);
+
+  // When note changes (new note opened, or synced from parent after edit), reset local state
+  useEffect(() => {
+    if (!note) return;
+    if (note.id !== noteIdRef.current || !dirty) {
+      setTitle(note.title || "");
+      setContent(note.content || "");
+      setDirty(false);
+      noteIdRef.current = note.id;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id, note?.updated_at]);
+
+  // Auto-save when title/content change (debounced 700ms)
+  useEffect(() => {
+    if (!dirty || !note) return;
+    const t = setTimeout(async () => {
+      setSaving(true);
+      await onSaveInline(note.id, { title: title.trim() || "Untitled", content });
+      setSaving(false);
+      setSavedAt(Date.now());
+      setDirty(false);
+    }, 700);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, content, dirty]);
+
   if (!isOpen || !note) return null;
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
@@ -146,27 +179,55 @@ const FullScreenNote = ({ note, isOpen, onClose, onEdit, onDelete, onShare, isDa
   const updatedDate = new Date(note.updated_at);
   const wasEdited = updatedDate.getTime() - createdDate.getTime() > 1000;
 
+  const handleClose = async () => {
+    // Flush pending changes before closing
+    if (dirty) {
+      setSaving(true);
+      await onSaveInline(note.id, { title: title.trim() || "Untitled", content });
+      setSaving(false);
+    }
+    onClose();
+  };
+
+  const savedRecently = savedAt && (Date.now() - savedAt < 2500);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="fullscreen-note">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
       <div className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]' : 'bg-white'} border ${colorConfig.class}`} style={{ borderWidth: '2px' }}>
         {/* Header */}
-        <div className={`flex items-center justify-between p-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colorConfig.accent }} />
-            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.title || "Untitled"}</h2>
-            {note.category && <Badge variant="outline" className="text-xs">{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
+        <div className={`flex items-center justify-between gap-3 p-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
+            <input
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+              placeholder="Untitled"
+              className={`fs-title-input flex-1 min-w-0 bg-transparent border-0 outline-none text-xl font-bold ${isDark ? 'text-white placeholder:text-slate-600' : 'text-gray-900 placeholder:text-gray-400'}`}
+              data-testid="fullscreen-title-input"
+              aria-label="Note title"
+            />
+            {note.category && <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => onEdit(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-edit-btn"><Edit3 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-share-btn"><Share2 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn"><Trash2 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={onClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn"><X className="w-5 h-5" /></Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-slate-500' : 'text-gray-400'}`} data-testid="fullscreen-save-status" aria-live="polite">
+              {saving ? "Saving…" : dirty ? "Editing…" : savedRecently ? "Saved" : ""}
+            </span>
+            <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-share-btn" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
-        {/* Content */}
+        {/* Editable content */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className={`whitespace-pre-wrap text-base leading-relaxed ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>{note.content || "No content"}</div>
+          <textarea
+            value={content}
+            onChange={(e) => { setContent(e.target.value); setDirty(true); }}
+            placeholder="Start writing…"
+            className={`fs-content-input w-full min-h-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-200 placeholder:text-slate-600' : 'text-gray-700 placeholder:text-gray-400'}`}
+            data-testid="fullscreen-content-input"
+            aria-label="Note content"
+          />
         </div>
         {/* Footer */}
         <div className={`flex items-center justify-between p-4 border-t text-xs font-mono ${isDark ? 'border-white/10 text-slate-500' : 'border-gray-200 text-gray-400'}`}>
@@ -806,6 +867,26 @@ function NotesApp() {
     }
   };
 
+  // Inline save from the full-screen editor (no toast — silent auto-save)
+  const handleSaveInline = async (noteId, patch) => {
+    try {
+      const existing = await StorageService.getNote(noteId);
+      if (!existing) return;
+      const updated = { ...existing, ...patch, updated_at: new Date().toISOString() };
+      await StorageService.saveNote(updated);
+      // Refresh notes list so accordion + full-screen stay in sync
+      const [notesData, catsData] = await Promise.all([
+        StorageService.getAllNotes(),
+        StorageService.getCategories(),
+      ]);
+      setNotes(notesData);
+      setCategories(catsData);
+    } catch (err) {
+      console.error("Inline save error:", err);
+      toast.error("Failed to save");
+    }
+  };
+
   const handleSaveSettings = async (settingsData) => {
     try {
       const updated = await StorageService.saveSettings(settingsData);
@@ -999,7 +1080,7 @@ function NotesApp() {
       <CalculatorWidget isOpen={calculatorOpen} onClose={() => { setCalculatorOpen(false); setCalculatorCallback(null); }} onInsertResult={calculatorCallback} isDark={isDark} />
       <ShareModal isOpen={shareModalOpen} onClose={() => { setShareModalOpen(false); setSharingNote(null); }} note={sharingNote} isDark={isDark} />
       <SettingsModal isOpen={settingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={settings} onSave={handleSaveSettings} onBackup={handleBackup} onRestore={handleRestore} onClearData={handleClearAllData} onInstallPWA={handleInstallPWA} canInstallPWA={!!deferredPrompt} storageInfo={storageInfo} onRestoreFromServer={handleRestoreFromServer} isDark={isDark} />
-      <FullScreenNote note={fullScreenNote} isOpen={!!fullScreenNote} onClose={() => setFullScreenNote(null)} onEdit={openEditModal} onDelete={handleDeleteNote} onShare={openShareModal} isDark={isDark} />
+      <FullScreenNote note={fullScreenNote} isOpen={!!fullScreenNote} onClose={() => setFullScreenNote(null)} onSaveInline={handleSaveInline} onDelete={handleDeleteNote} onShare={openShareModal} isDark={isDark} />
     </div>
   );
 }
