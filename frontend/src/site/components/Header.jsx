@@ -5,9 +5,9 @@ import { Menu, X } from "lucide-react";
 const NAV_LINKS = [
   { to: "/", label: "Home" },
   { to: "/apps", label: "Apps" },
+  { to: "/blog", label: "Blog" },
   { to: "/about", label: "About" },
   { to: "/support", label: "Support" },
-  { to: "/contact", label: "Contact" },
 ];
 
 export default function Header() {

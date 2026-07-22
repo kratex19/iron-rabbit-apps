@@ -1,6 +1,12 @@
 // data/apps.js
 // Single source of truth for all Iron Rabbit apps.
 // Add a new app here and it automatically appears everywhere.
+//
+// TO PUBLISH AN APP TO A STORE:
+//   1. Set playStoreUrl to the Google Play listing URL when published (e.g. "https://play.google.com/store/apps/details?id=com.otropis.notes")
+//   2. Set appStoreUrl to the Apple App Store listing URL when published (e.g. "https://apps.apple.com/app/id0000000000")
+//   3. Keep webAppUrl for the web version
+//   Any URL set to null will render as "Coming soon" throughout the site.
 
 export const APPS = [
   {
@@ -16,6 +22,12 @@ Whether you're tracking work hours with the built-in calculator, setting daily r
     icon: null, // Will render initials
     color: "#B34A2C", // Burnt sienna
     accent: "#C97A56",
+    screenshots: [
+      { src: "/screenshots/notes-list.png", caption: "Accordion notes list — collapsed by default, tap to preview." },
+      { src: "/screenshots/notes-expanded.png", caption: "Tap to expand a note and see its preview, timestamps, and actions." },
+      { src: "/screenshots/notes-fullscreen.png", caption: "Full-screen 90% view for distraction-free reading and editing." },
+      { src: "/screenshots/notes-create.png", caption: "Create a note with categories, colors, alarms, and recurring reminders." },
+    ],
     features: [
       { title: "100% Offline", description: "Every note stored on your device. Works with no internet, ever." },
       { title: "Local Reminders", description: "Native device notifications with custom sounds and haptic feedback." },

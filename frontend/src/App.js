@@ -11,6 +11,8 @@ import SupportPage from "./site/pages/SupportPage";
 import PrivacyPage from "./site/pages/PrivacyPage";
 import TermsPage from "./site/pages/TermsPage";
 import ContactPage from "./site/pages/ContactPage";
+import BlogPage from "./site/pages/BlogPage";
+import BlogPostPage from "./site/pages/BlogPostPage";
 import NotesApp from "./NotesApp";
 
 function NotFound() {
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
 
         {/* Notes App (embedded) */}
         <Route path="/apps/iron-rabbit-notes/launch" element={<NotesApp />} />

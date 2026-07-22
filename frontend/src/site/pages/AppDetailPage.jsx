@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import Layout, { usePageMeta } from "../components/Layout";
+import ScreenshotGallery from "../components/ScreenshotGallery";
 import { getAppBySlug } from "../../data/apps";
 import { ArrowRight, Play, Apple, ExternalLink, ChevronDown } from "lucide-react";
 
@@ -54,8 +55,18 @@ export default function AppDetailPage() {
         </div>
       </section>
 
+      {/* Screenshots Gallery */}
+      {app.screenshots?.length > 0 && (
+        <section className="section">
+          <div className="site-container">
+            <h2 className="section-title">Screenshots</h2>
+            <ScreenshotGallery screenshots={app.screenshots} accent={app.color} />
+          </div>
+        </section>
+      )}
+
       {/* Description */}
-      <section className="section">
+      <section className="section-alt">
         <div className="site-container">
           <div className="prose-block">
             <h2>About this app</h2>
@@ -65,7 +76,7 @@ export default function AppDetailPage() {
       </section>
 
       {/* Features */}
-      <section className="section-alt">
+      <section className="section">
         <div className="site-container">
           <h2 className="section-title">Features</h2>
           <div className="features-grid" data-testid="app-features">
@@ -82,7 +93,7 @@ export default function AppDetailPage() {
 
       {/* FAQs */}
       {app.faqs?.length > 0 && (
-        <section className="section">
+        <section className="section-alt">
           <div className="site-container">
             <h2 className="section-title">Frequently asked</h2>
             <div className="faq-list" data-testid="app-faqs">
@@ -102,7 +113,7 @@ export default function AppDetailPage() {
 
       {/* Version History */}
       {app.versionHistory?.length > 0 && (
-        <section className="section-alt">
+        <section className="section">
           <div className="site-container">
             <h2 className="section-title">Version history</h2>
             <div className="version-list">
@@ -121,7 +132,7 @@ export default function AppDetailPage() {
       )}
 
       {/* Legal Links */}
-      <section className="section">
+      <section className="section-alt">
         <div className="site-container">
           <div className="legal-links">
             <Link to={app.supportUrl}>Support <ExternalLink className="w-3.5 h-3.5" /></Link>

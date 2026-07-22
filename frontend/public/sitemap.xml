@@ -31,6 +31,26 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://www.otropis.com/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.otropis.com/blog/hello-iron-rabbit</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.otropis.com/blog/why-offline-first</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.otropis.com/blog/notes-1-0-launch</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.otropis.com/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
