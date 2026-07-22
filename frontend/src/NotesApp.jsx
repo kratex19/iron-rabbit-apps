@@ -158,10 +158,10 @@ const FullScreenNote = ({ note, isOpen, onClose, onEdit, onDelete, onShare, isDa
             {note.category && <Badge variant="outline" className="text-xs">{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => { onClose(); onEdit(note); }} className={isDark ? 'text-white/70 hover:text-white' : ''}><Edit3 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-white/70 hover:text-white' : ''}><Share2 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'}><Trash2 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={onClose} className={isDark ? 'text-white/70 hover:text-white' : ''}><X className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => onEdit(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-edit-btn"><Edit3 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-share-btn"><Share2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn"><Trash2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={onClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn"><X className="w-5 h-5" /></Button>
           </div>
         </div>
         {/* Content */}
@@ -659,6 +659,19 @@ function NotesApp() {
   const [sharingNote, setSharingNote] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [fullScreenNote, setFullScreenNote] = useState(null);
+
+  // Keep the full-screen view in sync with the latest notes array
+  // (so edits made via the edit modal appear immediately in the open full-screen view)
+  useEffect(() => {
+    if (!fullScreenNote) return;
+    const fresh = notes.find(n => n.id === fullScreenNote.id);
+    if (!fresh) {
+      // Note was deleted while open — close the full-screen view
+      setFullScreenNote(null);
+    } else if (fresh.updated_at !== fullScreenNote.updated_at) {
+      setFullScreenNote(fresh);
+    }
+  }, [notes, fullScreenNote]);
 
   const fetchData = useCallback(async () => {
     try {
