@@ -6,9 +6,10 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import jsPDF from "jspdf";
 import { saveAs } from "file-saver";
 import { v4 as uuidv4 } from "uuid";
+import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StorageService from "./storage/storageService";
 import notificationService from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
+import IconPicker from "./components/IconPicker";
 import { haptic } from "./utils/haptic";
+import { presetForIcon } from "./data/quickAddTemplates";
+import TilePacksModal from "./notes/TilePacksModal";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
@@ -63,6 +67,8 @@ export default function NotesApp() {
   const [sharingNote, setSharingNote] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [fullScreenNote, setFullScreenNote] = useState(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [tilePacksOpen, setTilePacksOpen] = useState(false);
 
   // Keep full-screen editor in sync with the notes array
   useEffect(() => {
@@ -217,28 +223,105 @@ export default function NotesApp() {
   const handleSaveNote = async (noteData, noteId) => {
     try {
       const now = new Date().toISOString();
+
+      // ---- Natural-language reminder detection ----
+      // If the user didn't manually set an alarm, try to parse the title for
+      // a phrase like "tomorrow at 8am" and auto-populate one.
+      const enriched = { ...noteData };
+      const hasManualAlarm = noteData.alarm?.datetime;
+      if (!hasManualAlarm && noteData.title) {
+        const results = chrono.parse(noteData.title, new Date(), { forwardDate: true });
+        const first = results[0];
+        if (first?.start) {
+          const dt = first.start.date();
+          if (dt.getTime() > Date.now()) {
+            enriched.alarm = {
+              enabled: true,
+              datetime: dt.toISOString(),
+              sound: noteData.alarm?.sound || "bell",
+              haptic: noteData.alarm?.haptic || false,
+              auto_detected: true,
+            };
+          }
+        }
+      }
+
       if (noteId) {
         const existing = await StorageService.getNote(noteId);
-        const updated = { ...existing, ...noteData, updated_at: now };
+        const updated = { ...existing, ...enriched, updated_at: now };
         await StorageService.saveNote(updated);
         toast.success("Updated!");
       } else {
         const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
         const newNote = {
           id: uuidv4(),
-          ...noteData,
+          ...enriched,
           order: maxOrder + 1,
           created_at: now,
           updated_at: now,
           last_viewed: now,
         };
         await StorageService.saveNote(newNote);
-        toast.success("Created!");
+        if (enriched.alarm?.auto_detected) {
+          toast.success(`Created — reminder set for ${new Date(enriched.alarm.datetime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`, { duration: 5000 });
+        } else {
+          toast.success("Created!");
+        }
       }
       fetchData();
     } catch (err) {
       console.error("Error:", err);
       toast.error("Failed to save");
+    }
+  };
+
+  // Quick Add: user picked an icon in the library → create a preset note.
+  const handleQuickAdd = async (icon) => {
+    try {
+      const preset = presetForIcon(icon.name, icon.label);
+      const now = new Date().toISOString();
+      const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+      const newNote = {
+        id: uuidv4(),
+        ...preset,
+        order: maxOrder + 1,
+        created_at: now,
+        updated_at: now,
+        last_viewed: now,
+      };
+      await StorageService.saveNote(newNote);
+      haptic("success");
+      toast.success(`Added "${preset.title}"`);
+      fetchData();
+    } catch (err) {
+      console.error("Quick add error:", err);
+      toast.error("Could not create note");
+    }
+  };
+
+  // Tile Pack: bulk-create every note in the pack.
+  const handleApplyPack = async (pack) => {
+    try {
+      const now = new Date().toISOString();
+      let maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+      for (const n of pack.notes) {
+        maxOrder += 1;
+        await StorageService.saveNote({
+          id: uuidv4(),
+          ...n,
+          order: maxOrder,
+          created_at: now,
+          updated_at: now,
+          last_viewed: now,
+        });
+      }
+      haptic("success");
+      toast.success(`Applied "${pack.name}" — ${pack.notes.length} tiles added`, { duration: 5000 });
+      setTilePacksOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error("Apply pack error:", err);
+      toast.error("Could not apply pack");
     }
   };
 
@@ -683,6 +766,8 @@ export default function NotesApp() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => { setQuickAddOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Quick Add" data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setTilePacksOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Tile Packs" data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Download className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8">{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
             <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Calculator className="w-4 h-4" /></Button>
@@ -829,6 +914,20 @@ export default function NotesApp() {
         onSaveInline={handleSaveInline}
         onDelete={handleDeleteNote}
         onShare={openShareModal}
+        isDark={isDark}
+      />
+      <IconPicker
+        isOpen={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        mode="quick-add"
+        onQuickAdd={handleQuickAdd}
+        onSelect={() => {}}
+        isDark={isDark}
+      />
+      <TilePacksModal
+        isOpen={tilePacksOpen}
+        onClose={() => setTilePacksOpen(false)}
+        onApply={handleApplyPack}
         isDark={isDark}
       />
     </div>

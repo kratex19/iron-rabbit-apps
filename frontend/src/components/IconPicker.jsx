@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ICON_CATEGORIES } from "../data/noteIcons";
 import { Search, X } from "lucide-react";
 
-export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = true }) {
+export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = true, mode = "select", onQuickAdd }) {
   const [query, setQuery] = useState("");
 
   const filtered = ICON_CATEGORIES.map(cat => ({
@@ -18,8 +18,13 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
     ),
   })).filter(cat => cat.icons.length > 0);
 
-  const pick = (iconName) => {
-    onSelect(iconName);
+  const pick = (icon) => {
+    if (mode === "quick-add" && onQuickAdd) {
+      onQuickAdd(icon);
+      onClose();
+      return;
+    }
+    onSelect(icon.name);
     onClose();
   };
 
@@ -27,6 +32,8 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
     onSelect(null);
     onClose();
   };
+
+  const isQuick = mode === "quick-add";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -38,10 +45,12 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
       >
         <DialogHeader>
           <DialogTitle className={isDark ? "text-white" : "text-gray-900"}>
-            Choose an icon
+            {isQuick ? "Quick Add — pick an icon" : "Choose an icon"}
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
-            Pick an icon that represents this note — shown on tiles in Icon view.
+            {isQuick
+              ? "Tap any icon to instantly create a smart note (Shopping List, Workout Log, Meds, etc.)"
+              : "Pick an icon that represents this note — shown on tiles in Icon view."}
           </DialogDescription>
         </DialogHeader>
 
@@ -71,7 +80,7 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
                     <button
                       key={icon.name}
                       type="button"
-                      onClick={() => pick(icon.name)}
+                      onClick={() => pick(icon)}
                       className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-1 p-1.5 transition-all border ${
                         active
                           ? "border-indigo-500 bg-indigo-500/20"
@@ -100,20 +109,22 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={clearIcon}
-            className={`flex-1 h-9 ${isDark ? "border-white/10 text-slate-300" : ""}`}
-            data-testid="icon-picker-clear"
-          >
-            <X className="w-4 h-4 mr-1" /> No icon
-          </Button>
+          {!isQuick && (
+            <Button
+              variant="outline"
+              onClick={clearIcon}
+              className={`flex-1 h-9 ${isDark ? "border-white/10 text-slate-300" : ""}`}
+              data-testid="icon-picker-clear"
+            >
+              <X className="w-4 h-4 mr-1" /> No icon
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={onClose}
             className={`flex-1 h-9 ${isDark ? "border-white/10 text-slate-300" : ""}`}
           >
-            Cancel
+            {isQuick ? "Close" : "Cancel"}
           </Button>
         </div>
       </DialogContent>

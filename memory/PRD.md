@@ -91,3 +91,15 @@ Also polished:
 - Empty-state copy adapts to search / filter state and shows shortcut hints on desktop.
 - `NoteTile`, `AccordionNoteItem`, `CategoryGroup` all support `onTogglePin`.
 
+## Delight batch 2 (Feb 2026)
+Three high-impact features shipped in one pass:
+
+1. **Natural language reminders** — `chrono-node` (2.10.1) parses the note title on save. If a real-world date/time is detected AND the user hasn't manually set an alarm, one is auto-created. Toast confirms with the parsed datetime ("Created — reminder set for Jul 25, 2026, 9:00 AM"). Field `alarm.auto_detected` on the note distinguishes auto vs. manual.
+2. **Quick Add** — new `⚡` button in the header opens `IconPicker` in `mode="quick-add"`; tapping any of the 50+ icons instantly creates a preset note (icon → title/content/color/background via `data/quickAddTemplates.js`). Shopping Cart → "Shopping List", Dumbbell → "Workout Log", Pill → "Medication", etc.
+3. **Themed Tile Packs** — new `📦` button in the header opens `TilePacksModal.jsx` with 4 curated bundles (Fitness Journey, Meal Planner, Deep Work, Daily Life). Each pack shows an icon-strip preview + one-tap "Apply Pack" that bulk-creates 4-5 pre-configured notes, some pinned.
+
+New files: `data/quickAddTemplates.js` (50+ icon presets), `data/tilePacks.js` (4 packs), `notes/TilePacksModal.jsx`.
+Updated: `IconPicker.jsx` (mode="quick-add"), `NotesApp.jsx` (chrono in handleSaveNote, header buttons, handleQuickAdd, handleApplyPack).
+Verified: all three flows tested end-to-end; zero console errors.
+
+
