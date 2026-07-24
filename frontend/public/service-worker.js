@@ -1,15 +1,17 @@
-// Service Worker for Iron Rabbit - Offline-first PWA
-const CACHE_NAME = 'iron-rabbit-v1';
-const RUNTIME = 'iron-rabbit-runtime';
+// Service Worker for Iron Rabbit — Offline-first PWA
+// v2: network-first for HTML (so users always get the latest bundle),
+//     cache-first for hashed static assets.
+const CACHE_NAME = 'iron-rabbit-v2';
+const RUNTIME = 'iron-rabbit-runtime-v2';
 
-// App shell - cached on install
+// App shell — precached on install
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
 ];
 
-// Install event - precache app shell
+// Install: precache shell, activate immediately
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -18,45 +20,64 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate event - clean up old caches
+// Activate: delete all old caches, take control of open pages
 self.addEventListener('activate', event => {
   const currentCaches = [CACHE_NAME, RUNTIME];
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return cacheNames.filter(cacheName => !currentCaches.includes(cacheName));
-    }).then(cachesToDelete => {
-      return Promise.all(cachesToDelete.map(cacheToDelete => caches.delete(cacheToDelete)));
-    }).then(() => self.clients.claim())
+    caches.keys()
+      .then(names => Promise.all(
+        names.filter(n => !currentCaches.includes(n))
+             .map(n => caches.delete(n))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch event - cache-first strategy for offline support
+// Listen for a message from the page to skip waiting (used to trigger update)
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// Detect an HTML/navigation request
+function isHTMLRequest(request) {
+  return request.mode === 'navigate' ||
+         (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
+}
+
+// Fetch strategy
 self.addEventListener('fetch', event => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') return;
-  
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) return;
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  if (!request.url.startsWith(self.location.origin)) return;
 
-  event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      return caches.open(RUNTIME).then(cache => {
-        return fetch(event.request).then(response => {
-          // Cache successful responses
+  // ---- HTML / navigation: network-first, fallback to cache (offline) ----
+  if (isHTMLRequest(request)) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
           if (response.status === 200) {
-            cache.put(event.request, response.clone());
+            const clone = response.clone();
+            caches.open(RUNTIME).then(cache => cache.put(request, clone));
           }
           return response;
-        }).catch(() => {
-          // Offline fallback - return cached index.html for navigation requests
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
-        });
+        })
+        .catch(() =>
+          caches.match(request).then(cached => cached || caches.match('/index.html'))
+        )
+    );
+    return;
+  }
+
+  // ---- Static assets (hashed JS/CSS/images/fonts): cache-first ----
+  event.respondWith(
+    caches.match(request).then(cached => {
+      if (cached) return cached;
+      return fetch(request).then(response => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(RUNTIME).then(cache => cache.put(request, clone));
+        }
+        return response;
       });
     })
   );
