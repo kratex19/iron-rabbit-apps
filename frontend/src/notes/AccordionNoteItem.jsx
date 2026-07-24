@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import {
   Bell, Repeat, GripVertical, ChevronDown, Clock, Pencil,
-  Maximize2, Edit3, Share2, Trash2, Paperclip,
+  Maximize2, Edit3, Share2, Trash2, Paperclip, Pin, PinOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -13,7 +13,7 @@ import { NOTE_COLORS } from "./constants";
  * Shows title/badges collapsed; content + actions when expanded.
  */
 export default function AccordionNoteItem({
-  note, onEdit, onDelete, onShare, onFullScreen, isDark, dragHandleProps, isDragging,
+  note, onEdit, onDelete, onShare, onFullScreen, onTogglePin, isDark, dragHandleProps, isDragging,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
@@ -34,6 +34,7 @@ export default function AccordionNoteItem({
               </div>
             )}
             <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
+            {note.pinned && <Pin className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} title="Pinned" />}
             <span className={`font-medium truncate flex-1 text-left ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.title || "Untitled"}</span>
             {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}</Badge>}
             {hasAlarm && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
@@ -56,6 +57,11 @@ export default function AccordionNoteItem({
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => onFullScreen(note)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`} title="Full screen"><Maximize2 className="w-4 h-4" /></button>
+                {onTogglePin && (
+                  <button onClick={() => onTogglePin(note.id)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`} title={note.pinned ? "Unpin" : "Pin"} data-testid={`toggle-pin-${note.id}`}>
+                    {note.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                  </button>
+                )}
                 <button onClick={() => onEdit(note)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}><Edit3 className="w-4 h-4" /></button>
                 <button onClick={() => onShare(note)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}><Share2 className="w-4 h-4" /></button>
                 <button onClick={() => onDelete(note.id)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-red-500/30 text-slate-400 hover:text-red-400' : 'hover:bg-red-50 text-gray-500 hover:text-red-600'}`}><Trash2 className="w-4 h-4" /></button>

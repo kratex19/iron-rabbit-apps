@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import * as LucideIcons from "lucide-react";
 import {
-  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon,
+  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [color, setColor] = useState("purple");
   const [icon, setIcon] = useState(null);
   const [background, setBackground] = useState(null);
+  const [pinned, setPinned] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [category, setCategory] = useState("");
@@ -45,6 +46,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
     if (note) {
       setTitle(note.title || ""); setContent(note.content || ""); setColor(note.color || "purple");
       setIcon(note.icon || null); setBackground(note.background || null);
+      setPinned(!!note.pinned);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
       if (note.alarm) {
         setAlarm(note.alarm);
@@ -57,6 +59,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       if (note.recurring) setRecurring(note.recurring);
     } else {
       setTitle(""); setContent(""); setColor("purple"); setIcon(null); setBackground(null);
+      setPinned(false);
       setCategory(""); setSubcategory("");
       setAlarm({ enabled: false, datetime: null, sound: "bell", haptic: false });
       setAlarmDate(null); setAlarmTime("12:00");
@@ -86,7 +89,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       alarmDateTime = dt.toISOString();
     }
     const noteData = {
-      title: title.trim(), content, color, icon, background,
+      title: title.trim(), content, color, icon, background, pinned,
       category: category.trim(), subcategory: subcategory.trim(),
       alarm: { ...alarm, datetime: alarmDateTime }, recurring,
     };
@@ -202,6 +205,15 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                     {background?.type === "image" ? "Background: Image" : background?.value ? "Background: Custom" : "Choose background"}
                   </Button>
                 </div>
+              </div>
+            </div>
+
+            <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <label className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  <Pin className="w-3.5 h-3.5" /> Pin to top
+                </label>
+                <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />
               </div>
             </div>
 

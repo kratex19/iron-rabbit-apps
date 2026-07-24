@@ -1,7 +1,8 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, StickyNote } from "lucide-react";
+import { Bell, Repeat, StickyNote, Pin } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
+import { haptic } from "../utils/haptic";
 
 /**
  * Icon-view tile for a note.
@@ -19,7 +20,7 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
   return (
     <button
       type="button"
-      onClick={() => onOpen(note)}
+      onClick={() => { haptic("tap"); onOpen(note); }}
       className="note-tile group"
       style={bgStyle}
       data-testid={`note-tile-${note.id}`}
@@ -30,6 +31,7 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
 
       {/* Badges */}
       <span className="note-tile-badges" aria-hidden="true">
+        {note.pinned && <Pin className="w-3 h-3" />}
         {hasAlarm && <Bell className="w-3 h-3" />}
         {hasRecurring && <Repeat className="w-3 h-3" />}
       </span>

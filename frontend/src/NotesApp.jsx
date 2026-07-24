@@ -8,7 +8,7 @@ import { saveAs } from "file-saver";
 import { v4 as uuidv4 } from "uuid";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List,
+  FolderTree, Download, LayoutGrid, List, Pin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StorageService from "./storage/storageService";
 import notificationService from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
+import { haptic } from "./utils/haptic";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
@@ -78,6 +79,48 @@ export default function NotesApp() {
     document.body.classList.toggle('nx-light', !isDark);
     return () => document.body.classList.remove('nx-light');
   }, [isDark]);
+
+  // Follow OS `prefers-color-scheme` on first visit (only when the user has
+  // never set their own preference in this app).
+  useEffect(() => {
+    if (settings?.theme_preference) {
+      setIsDark(settings.theme_preference === 'dark');
+      return;
+    }
+    if (settings && !settings.theme_preference && window.matchMedia) {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDark(prefersDark);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.theme_preference]);
+
+  // Keyboard shortcuts (desktop-only feel): n = new note, / = focus search,
+  // g = toggle grid/list. Ignored when a form field is focused.
+  useEffect(() => {
+    const isFormEl = (el) => {
+      if (!el) return false;
+      const t = el.tagName;
+      return t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || el.isContentEditable;
+    };
+    const handler = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isFormEl(document.activeElement)) return;
+      if (e.key === "n") {
+        e.preventDefault();
+        setEditingNote(null); setNoteModalOpen(true); haptic("tap");
+      } else if (e.key === "/") {
+        e.preventDefault();
+        const input = document.querySelector('input[placeholder="Search..."]');
+        if (input) input.focus();
+      } else if (e.key === "g") {
+        e.preventDefault();
+        handleChangeViewMode(viewMode === "list" ? "icon" : "list"); haptic("tap");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -201,8 +244,37 @@ export default function NotesApp() {
 
   const handleDeleteNote = async (noteId) => {
     try {
+      const doomed = await StorageService.getNote(noteId);
       await StorageService.deleteNote(noteId);
-      toast.success("Deleted");
+      haptic("long");
+      fetchData();
+      // Undo grace period — sonner action lets the user restore
+      toast("Note deleted", {
+        duration: 5000,
+        action: doomed ? {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await StorageService.saveNote(doomed);
+              haptic("success");
+              toast.success("Restored");
+              fetchData();
+            } catch { toast.error("Could not undo"); }
+          },
+        } : undefined,
+      });
+    } catch (err) {
+      toast.error("Failed");
+    }
+  };
+
+  const handleTogglePin = async (noteId) => {
+    try {
+      const existing = await StorageService.getNote(noteId);
+      if (!existing) return;
+      const updated = { ...existing, pinned: !existing.pinned, updated_at: new Date().toISOString() };
+      await StorageService.saveNote(updated);
+      haptic("tap");
       fetchData();
     } catch (err) {
       toast.error("Failed");
@@ -245,6 +317,16 @@ export default function NotesApp() {
     } catch (err) {
       // non-fatal — just doesn't persist
     }
+  };
+
+  const handleToggleTheme = async () => {
+    const next = !isDark;
+    setIsDark(next);
+    haptic("tap");
+    try {
+      const updated = await StorageService.saveSettings({ theme_preference: next ? 'dark' : 'light' });
+      setSettings(updated);
+    } catch { /* non-fatal */ }
   };
 
   const handleDragEnd = async (result) => {
@@ -331,6 +413,7 @@ export default function NotesApp() {
     const map = new Map();
     const uncat = [];
     processedNotes.forEach(n => {
+      if (n.pinned) return; // shown in the dedicated pinned rail
       if (n.category?.trim()) {
         if (!map.has(n.category)) map.set(n.category, []);
         map.get(n.category).push(n);
@@ -340,6 +423,11 @@ export default function NotesApp() {
     });
     return { grouped: Array.from(map.entries()), uncategorized: uncat };
   }, [processedNotes]);
+
+  const pinnedNotes = useMemo(
+    () => processedNotes.filter(n => n.pinned),
+    [processedNotes]
+  );
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -381,19 +469,61 @@ export default function NotesApp() {
 
   // ---------- Render ----------
 
+  const renderPinnedRail = () => {
+    if (pinnedNotes.length === 0) return null;
+    return (
+      <div className="mb-4" data-testid="pinned-rail">
+        <div className={`text-xs font-semibold uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+          <Pin className="w-3 h-3" /> Pinned
+        </div>
+        {viewMode === "icon" ? (
+          <div className="notes-grid">
+            {pinnedNotes.map(note => (
+              <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+            ))}
+          </div>
+        ) : (
+          <div>
+            {pinnedNotes.map(note => (
+              <AccordionNoteItem
+                key={note.id}
+                note={note}
+                onEdit={openEditModal}
+                onDelete={handleDeleteNote}
+                onShare={openShareModal}
+                onFullScreen={setFullScreenNote}
+                onTogglePin={handleTogglePin}
+                isDark={isDark}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderNotes = () => {
     if (processedNotes.length === 0) {
+      const emptyCopy = searchQuery
+        ? `No matches for "${searchQuery}"`
+        : filterBy === "today" ? "Nothing scheduled today"
+        : filterBy === "week"  ? "Nothing this week"
+        : filterBy === "month" ? "Nothing this month"
+        : "Your notes will live here";
       return (
         <div className="text-center py-12">
-          <div className="text-4xl mb-3 opacity-20">📝</div>
-          <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-            {searchQuery || filterBy !== "all" ? "No notes found" : "No notes yet"}
-          </p>
+          <div className="text-5xl mb-3 opacity-25">📝</div>
+          <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{emptyCopy}</p>
           {!searchQuery && filterBy === "all" && (
-            <Button onClick={() => { setEditingNote(null); setNoteModalOpen(true); }} size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white">
-              <Plus className="w-4 h-4 mr-1" /> Create
+            <Button onClick={() => { setEditingNote(null); setNoteModalOpen(true); haptic("tap"); }} size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white">
+              <Plus className="w-4 h-4 mr-1" /> Create your first note
             </Button>
           )}
+          <p className={`text-xs mt-6 font-mono ${isDark ? 'text-slate-600' : 'text-gray-400'} hidden md:block`}>
+            Shortcuts: <kbd className="px-1 py-0.5 rounded bg-black/10">n</kbd> new
+            {" · "}<kbd className="px-1 py-0.5 rounded bg-black/10">/</kbd> search
+            {" · "}<kbd className="px-1 py-0.5 rounded bg-black/10">g</kbd> toggle view
+          </p>
         </div>
       );
     }
@@ -453,6 +583,7 @@ export default function NotesApp() {
                           onDelete={handleDeleteNote}
                           onShare={openShareModal}
                           onFullScreen={setFullScreenNote}
+                          onTogglePin={handleTogglePin}
                           isDark={isDark}
                           dragHandleProps={prov.dragHandleProps}
                           isDragging={snap.isDragging}
@@ -481,6 +612,7 @@ export default function NotesApp() {
               onDelete={handleDeleteNote}
               onShare={openShareModal}
               onFullScreen={setFullScreenNote}
+              onTogglePin={handleTogglePin}
               isDark={isDark}
             />
           ))}
@@ -494,6 +626,7 @@ export default function NotesApp() {
                   onDelete={handleDeleteNote}
                   onShare={openShareModal}
                   onFullScreen={setFullScreenNote}
+                  onTogglePin={handleTogglePin}
                   isDark={isDark}
                 />
               ))}
@@ -513,6 +646,7 @@ export default function NotesApp() {
             onDelete={handleDeleteNote}
             onShare={openShareModal}
             onFullScreen={setFullScreenNote}
+            onTogglePin={handleTogglePin}
             isDark={isDark}
           />
         ))}
@@ -550,7 +684,7 @@ export default function NotesApp() {
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Download className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setIsDark(!isDark)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8">{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
+            <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8">{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
             <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Calculator className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Settings className="w-4 h-4" /></Button>
           </div>
@@ -637,12 +771,13 @@ export default function NotesApp() {
           <div className="text-xs font-mono">{processedNotes.length} notes</div>
         </div>
 
+        {renderPinnedRail()}
         {renderNotes()}
       </main>
 
       {/* FAB */}
       <button
-        onClick={() => { setEditingNote(null); setNoteModalOpen(true); }}
+        onClick={() => { setEditingNote(null); setNoteModalOpen(true); haptic("tap"); }}
         className={`fab-button-sm ${isDark ? '' : 'light'}`}
         aria-label="Add note"
         data-testid="fab-add-note"

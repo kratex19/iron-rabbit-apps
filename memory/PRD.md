@@ -77,3 +77,17 @@ Nested under `/site` in the current preview (will be relocated to `ironrabbitapp
 
 ## Bug Fix (verified iteration_4.json)
 Auto-migration on first load pulls user's old notes from backend into local IndexedDB. Manual "Recover Old Notes from Server" button in Settings for retries. Toasts only show when work happened. StrictMode-safe.
+
+## Delight batch 1 (Feb 2026)
+Shipped 5 UX-quality features in one iteration:
+
+1. **Haptic feedback** (`/app/frontend/src/utils/haptic.js`) — Vibration API taps on tile-open, note-create, delete, theme toggle, view toggle.
+2. **OS theme detect** — first-visit theme follows `prefers-color-scheme`; user's toggle is persisted to IndexedDB (`settings.theme_preference`) and takes precedence on subsequent visits.
+3. **Undo delete** — sonner action button restores the deleted note within a 5-second grace period.
+4. **Keyboard shortcuts** — `n` new note, `/` focus search, `g` toggle list/icon view. Ignored while typing in inputs.
+5. **Pinned notes** — new `pinned` field on notes + pin toggle in `NoteModal` + pin icon inline in accordion + PINNED rail at the top of both list and icon views.
+
+Also polished:
+- Empty-state copy adapts to search / filter state and shows shortcut hints on desktop.
+- `NoteTile`, `AccordionNoteItem`, `CategoryGroup` all support `onTogglePin`.
+

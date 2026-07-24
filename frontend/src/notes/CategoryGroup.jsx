@@ -8,7 +8,7 @@ import AccordionNoteItem from "./AccordionNoteItem";
  * "Container note" that groups every note sharing the same category.
  * Visually matches AccordionNoteItem but marks its dot with an asterisk.
  */
-export default function CategoryGroup({ category, notes: children, onEdit, onDelete, onShare, onFullScreen, isDark }) {
+export default function CategoryGroup({ category, notes: children, onEdit, onDelete, onShare, onFullScreen, onTogglePin, isDark }) {
   const [isOpen, setIsOpen] = useState(false);
   // Pick color from most common child color (ties → first)
   const colorConfig = useMemo(() => {
@@ -47,6 +47,7 @@ export default function CategoryGroup({ category, notes: children, onEdit, onDel
               onDelete={onDelete}
               onShare={onShare}
               onFullScreen={onFullScreen}
+              onTogglePin={onTogglePin}
               isDark={isDark}
             />
           ))}
