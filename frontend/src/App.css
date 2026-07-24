@@ -21,6 +21,19 @@
     color: #111827 !important;
 }
 
+/* Header icon buttons — force dark color in light mode so they show up
+   against the white overlay. Overrides the inline `text-white/70`. */
+.header-compact.light button {
+    color: rgb(31, 41, 55) !important;
+}
+.header-compact.light button:hover {
+    color: rgb(17, 24, 39) !important;
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+.header-compact.light button svg {
+    color: inherit !important;
+}
+
 /* Accordion Note Item */
 .accordion-note {
     transition: all 0.2s ease;
