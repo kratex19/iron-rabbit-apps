@@ -71,6 +71,14 @@ export default function NotesApp() {
     else if (fresh.updated_at !== fullScreenNote.updated_at) setFullScreenNote(fresh);
   }, [notes, fullScreenNote]);
 
+  // Flip shadcn CSS vars for light mode so all Radix components (Badge, Button
+  // variant="outline", Popover, Dialog etc.) render with dark text on light
+  // surfaces even when they portal outside the app container.
+  useEffect(() => {
+    document.body.classList.toggle('nx-light', !isDark);
+    return () => document.body.classList.remove('nx-light');
+  }, [isDark]);
+
   const fetchData = useCallback(async () => {
     try {
       // One-time migration from backend for existing users
@@ -586,20 +594,20 @@ export default function NotesApp() {
               </button>
             </div>
             <Select value={filterBy} onValueChange={setFilterBy}>
-              <SelectTrigger className={`w-28 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200'}`}>
+              <SelectTrigger className={`w-28 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
                 <Filter className="w-3 h-3 mr-1" /><SelectValue />
               </SelectTrigger>
-              <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10' : ''}>
+              <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
                 {FILTER_OPTIONS.map(opt => (
                   <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className={`w-36 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200'}`}>
+              <SelectTrigger className={`w-36 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10' : ''}>
+              <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
                 {SORT_OPTIONS.map(opt => (
                   <SelectItem key={opt.value} value={opt.value} className="text-xs">
                     <span className="flex items-center gap-1.5"><opt.icon className="w-3 h-3" />{opt.label}</span>

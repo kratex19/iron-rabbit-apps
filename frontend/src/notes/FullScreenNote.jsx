@@ -79,7 +79,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               data-testid="fullscreen-title-input"
               aria-label="Note title"
             />
-            {note.category && <Badge variant="outline" className="text-xs hidden sm:inline-flex flex-shrink-0">{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
+            {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-slate-500' : 'text-gray-400'}`} data-testid="fullscreen-save-status" aria-live="polite">

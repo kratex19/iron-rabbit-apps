@@ -35,7 +35,7 @@ export default function AccordionNoteItem({
             )}
             <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
             <span className={`font-medium truncate flex-1 text-left ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.title || "Untitled"}</span>
-            {note.category && <Badge variant="outline" className="text-xs hidden sm:inline-flex">{note.category}</Badge>}
+            {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}</Badge>}
             {hasAlarm && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
             {hasRecurring && <Repeat className="w-4 h-4 text-green-500 flex-shrink-0" />}
             {note.attachments?.length > 0 && (

@@ -68,5 +68,12 @@ Nested under `/site` in the current preview (will be relocated to `ironrabbitapp
 - Regression-tested via testing agent (iteration_7.json): 100% pass on 14 scenarios, zero console/page errors.
 
 
+
+## Light-mode text visibility fix (Feb 2026)
+- Bug: In light mode, shadcn Radix components rendering inside Dialogs/Popovers (Button variant="outline", Badge variant="outline", Select trigger, etc.) had invisible white text on white surfaces.
+- Root cause: `:root` CSS variables (`--foreground`, `--input`, `--border`, etc.) in `index.css` were hardcoded for **dark mode only**, and a plain-CSS `body { color: #f8fafc; }` rule overrode Tailwind's `text-foreground`. Radix portals render as body children so they inherited near-white text.
+- Fix: Added a `body.nx-light` block in `index.css` that flips all shadcn CSS variables to standard light-theme values AND explicitly sets `color`/`background-color` on body to beat the plain-CSS rule. `NotesApp.jsx` toggles the class via `useEffect` on `isDark`. Works for all portaled components without touching each button.
+- Also added explicit `text-gray-800 border-gray-300` to Badges and `text-gray-900` to Filter/Sort Select triggers in light mode for robustness.
+
 ## Bug Fix (verified iteration_4.json)
 Auto-migration on first load pulls user's old notes from backend into local IndexedDB. Manual "Recover Old Notes from Server" button in Settings for retries. Toasts only show when work happened. StrictMode-safe.

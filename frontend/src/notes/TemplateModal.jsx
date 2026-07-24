@@ -28,7 +28,7 @@ export default function TemplateModal({ isOpen, onClose, templates, onSelect, is
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: NOTE_COLORS.find(c => c.name === t.color)?.accent || '#a855f7' }} />
                 <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.name}</span>
-                {t.category && <Badge variant="outline" className="text-xs">{t.category}</Badge>}
+                {t.category && <Badge variant="outline" className={`text-xs ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{t.category}</Badge>}
               </div>
             </button>
           ))}
