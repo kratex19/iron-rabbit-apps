@@ -99,7 +99,7 @@ class AppSettings(BaseModel):
     id: str = "app_settings"
     logo_url: str = ""
     header_bg: str = "https://images.unsplash.com/photo-1771814536315-ae11952227fc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHw0fHxkYXJrJTIwZnV0dXJpc3RpYyUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3NzMxNjM2OTR8MA&ixlib=rb-4.1.0&q=85"
-    website_url: str = "https://otropis.com"
+    website_url: str = "https://ironrabbitapps.com"
     company_name: str = "Iron Rabbit"
 
 class SettingsUpdate(BaseModel):

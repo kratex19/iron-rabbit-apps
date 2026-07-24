@@ -25,10 +25,10 @@ export default function SupportPage() {
       <section className="section">
         <div className="site-container">
           <div className="support-grid">
-            <a href="mailto:support@otropis.com" className="support-card" data-testid="support-email">
+            <a href="mailto:support@ironrabbitapps.com" className="support-card" data-testid="support-email">
               <Mail className="support-icon" />
               <h3>Email support</h3>
-              <p>support@otropis.com — we reply within 2 business days.</p>
+              <p>support@ironrabbitapps.com — we reply within 2 business days.</p>
             </a>
             <div className="support-card">
               <LifeBuoy className="support-icon" />
@@ -38,7 +38,7 @@ export default function SupportPage() {
             <div className="support-card">
               <Wrench className="support-icon" />
               <h3>Feature requests</h3>
-              <p>We read every message. Send ideas to support@otropis.com.</p>
+              <p>We read every message. Send ideas to support@ironrabbitapps.com.</p>
             </div>
             <div className="support-card">
               <MessageCircle className="support-icon" />

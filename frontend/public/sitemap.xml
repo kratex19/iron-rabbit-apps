@@ -1,62 +1,67 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.otropis.com/</loc>
+    <loc>https://www.ironrabbitapps.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/apps</loc>
+    <loc>https://www.ironrabbitapps.com/site</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/apps/iron-rabbit-notes</loc>
+    <loc>https://www.ironrabbitapps.com/site/apps</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/about</loc>
+    <loc>https://www.ironrabbitapps.com/site/apps/iron-rabbit-notes</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.ironrabbitapps.com/site/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/support</loc>
+    <loc>https://www.ironrabbitapps.com/site/support</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/contact</loc>
+    <loc>https://www.ironrabbitapps.com/site/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/blog</loc>
+    <loc>https://www.ironrabbitapps.com/site/blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/blog/hello-iron-rabbit</loc>
+    <loc>https://www.ironrabbitapps.com/site/blog/hello-iron-rabbit</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/blog/why-offline-first</loc>
+    <loc>https://www.ironrabbitapps.com/site/blog/why-offline-first</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/blog/notes-1-0-launch</loc>
+    <loc>https://www.ironrabbitapps.com/site/blog/notes-1-0-launch</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/privacy</loc>
+    <loc>https://www.ironrabbitapps.com/site/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://www.otropis.com/terms</loc>
+    <loc>https://www.ironrabbitapps.com/site/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

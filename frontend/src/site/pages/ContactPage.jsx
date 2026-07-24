@@ -12,7 +12,7 @@ export default function ContactPage() {
     e.preventDefault();
     // Open email client with pre-filled content (no backend needed)
     const body = `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`;
-    window.location.href = `mailto:support@otropis.com?subject=${encodeURIComponent(form.subject || 'Contact from otropis.com')}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:support@ironrabbitapps.com?subject=${encodeURIComponent(form.subject || 'Contact from ironrabbitapps.com')}&body=${encodeURIComponent(body)}`;
     setSent(true);
     toast.success("Opening your email client...");
   };
@@ -34,12 +34,12 @@ export default function ContactPage() {
               <p>
                 The fastest way to get help is by email. We reply within 2 business days.
               </p>
-              <a href="mailto:support@otropis.com" className="contact-email" data-testid="contact-email">
-                <Mail className="w-5 h-5" /> support@otropis.com
+              <a href="mailto:support@ironrabbitapps.com" className="contact-email" data-testid="contact-email">
+                <Mail className="w-5 h-5" /> support@ironrabbitapps.com
               </a>
               <div className="contact-address">
                 <div className="contact-label">Domain</div>
-                <div>www.otropis.com</div>
+                <div>www.ironrabbitapps.com</div>
               </div>
               <div className="contact-address">
                 <div className="contact-label">Brand</div>

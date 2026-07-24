@@ -43,7 +43,7 @@ export default function PrivacyPage() {
 
             <h2>Contact</h2>
             <p>
-              Questions about this policy? Email us at <a href="mailto:support@otropis.com">support@otropis.com</a>.
+              Questions about this policy? Email us at <a href="mailto:support@ironrabbitapps.com">support@ironrabbitapps.com</a>.
             </p>
 
             <h2>Changes</h2>

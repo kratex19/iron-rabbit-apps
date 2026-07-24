@@ -3,7 +3,7 @@
 // Add a new app here and it automatically appears everywhere.
 //
 // TO PUBLISH AN APP TO A STORE:
-//   1. Set playStoreUrl to the Google Play listing URL when published (e.g. "https://play.google.com/store/apps/details?id=com.otropis.notes")
+//   1. Set playStoreUrl to the Google Play listing URL when published (e.g. "https://play.google.com/store/apps/details?id=com.ironrabbitapps.notes")
 //   2. Set appStoreUrl to the Apple App Store listing URL when published (e.g. "https://apps.apple.com/app/id0000000000")
 //   3. Keep webAppUrl for the web version
 //   Any URL set to null will render as "Coming soon" throughout the site.

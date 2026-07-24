@@ -55,7 +55,7 @@ export default function TermsPage() {
             <p>These terms are governed by the laws of the jurisdiction in which Iron Rabbit Apps operates.</p>
 
             <h2>Contact</h2>
-            <p>Questions about these terms? Email <a href="mailto:support@otropis.com">support@otropis.com</a>.</p>
+            <p>Questions about these terms? Email <a href="mailto:support@ironrabbitapps.com">support@ironrabbitapps.com</a>.</p>
           </div>
         </div>
       </section>
