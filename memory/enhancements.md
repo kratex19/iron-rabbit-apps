@@ -28,8 +28,8 @@ A running list of enhancements to pick up later. Reminded by user on 2026-07-22.
 ## Nice-to-Haves (Not Blocking)
 
 ### From notes app itself
+- ~~Note attachments (images/files stored as base64 in IndexedDB)~~ ✅ Done 2026-07-24 — see `components/Attachments.jsx` + `storageService.saveAttachment`
 - Additional templates (more than the current 5 defaults)
-- Note attachments (images/files stored as base64 in IndexedDB)
 - Drag-and-drop between categories (currently only within the same list)
 - Import from other note apps (Google Keep, Apple Notes export formats)
 

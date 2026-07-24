@@ -23,6 +23,12 @@ const templatesStore = localforage.createInstance({
   description: 'Note templates storage'
 });
 
+const filesStore = localforage.createInstance({
+  name: 'IronRabbit',
+  storeName: 'files',
+  description: 'Note attachments (blobs)'
+});
+
 const metadataStore = localforage.createInstance({
   name: 'IronRabbit',
   storeName: 'metadata',
@@ -52,6 +58,13 @@ export const StorageService = {
   },
 
   async deleteNote(id) {
+    // Clean up any attached files so we don't orphan Blobs
+    const note = await notesStore.getItem(id);
+    if (note?.attachments?.length) {
+      for (const att of note.attachments) {
+        await filesStore.removeItem(att.id);
+      }
+    }
     await notesStore.removeItem(id);
     return true;
   },
@@ -139,6 +152,60 @@ export const StorageService = {
     });
   },
 
+  // ========== FILE ATTACHMENTS (Blob-based, for notes) ==========
+  // Files are stored as Blobs in a dedicated IndexedDB store.
+  // Notes reference them by id — see note.attachments = [{ id, name, type, size }]
+
+  ALLOWED_ATTACHMENT_TYPES: [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf'
+  ],
+  MAX_ATTACHMENT_BYTES: 10 * 1024 * 1024, // 10 MB
+
+  async saveAttachment(file) {
+    if (!this.ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
+      throw new Error(`Unsupported file type: ${file.type || 'unknown'}. Allowed: images (JPG, PNG, GIF, WebP) and PDF.`);
+    }
+    if (file.size > this.MAX_ATTACHMENT_BYTES) {
+      throw new Error(`File too large. Max 10 MB per attachment.`);
+    }
+    const id = 'att_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    // Store the Blob directly — localforage handles it natively
+    await filesStore.setItem(id, {
+      blob: file,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      created_at: new Date().toISOString(),
+    });
+    return { id, name: file.name, type: file.type, size: file.size };
+  },
+
+  async getAttachmentUrl(id) {
+    const entry = await filesStore.getItem(id);
+    if (!entry?.blob) return null;
+    return URL.createObjectURL(entry.blob);
+  },
+
+  async getAttachmentMeta(id) {
+    const entry = await filesStore.getItem(id);
+    if (!entry) return null;
+    return { id, name: entry.name, type: entry.type, size: entry.size, created_at: entry.created_at };
+  },
+
+  async deleteAttachment(id) {
+    await filesStore.removeItem(id);
+    return true;
+  },
+
+  // Called when a note is deleted so we don't orphan blobs
+  async deleteAttachmentsForNote(note) {
+    if (!note?.attachments?.length) return;
+    for (const att of note.attachments) {
+      await filesStore.removeItem(att.id);
+    }
+  },
+
   // ========== BACKUP & RESTORE ==========
   async exportAllData() {
     const notes = await this.getAllNotes();
@@ -146,14 +213,34 @@ export const StorageService = {
     const templates = await this.getTemplates();
     const exportedAt = new Date().toISOString();
 
+    // Export attachments as base64 so the backup is a single portable JSON
+    const files = {};
+    await filesStore.iterate((entry, key) => {
+      files[key] = entry; // preserve name/type/size/created_at
+    });
+    // Convert each blob to base64 (blobs don't survive JSON.stringify natively)
+    const fileEntries = await Promise.all(
+      Object.entries(files).map(async ([id, entry]) => {
+        const b64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(entry.blob);
+        });
+        return [id, { name: entry.name, type: entry.type, size: entry.size, created_at: entry.created_at, data: b64 }];
+      })
+    );
+    const filesSerialized = Object.fromEntries(fileEntries);
+
     return {
-      version: '1.0',
+      version: '1.1',
       app: 'Iron Rabbit',
       exported_at: exportedAt,
       data: {
         notes,
         settings,
         templates,
+        files: filesSerialized,
       }
     };
   },
@@ -163,11 +250,29 @@ export const StorageService = {
       throw new Error('Invalid backup file');
     }
 
-    const { notes = [], settings, templates = [] } = backupData.data;
+    const { notes = [], settings, templates = [], files = {} } = backupData.data;
 
     // Clear existing data
     await notesStore.clear();
     await templatesStore.clear();
+    await filesStore.clear();
+
+    // Restore attachments (base64 → Blob)
+    for (const [id, entry] of Object.entries(files)) {
+      try {
+        const res = await fetch(entry.data);
+        const blob = await res.blob();
+        await filesStore.setItem(id, {
+          blob,
+          name: entry.name,
+          type: entry.type,
+          size: entry.size,
+          created_at: entry.created_at,
+        });
+      } catch (err) {
+        console.error(`Failed to restore attachment ${id}:`, err);
+      }
+    }
 
     // Import notes
     for (const note of notes) {
@@ -184,13 +289,14 @@ export const StorageService = {
       await settingsStore.setItem('app_settings', settings);
     }
 
-    return { notes: notes.length, templates: templates.length };
+    return { notes: notes.length, templates: templates.length, files: Object.keys(files).length };
   },
 
   async clearAllData() {
     await notesStore.clear();
     await settingsStore.clear();
     await templatesStore.clear();
+    await filesStore.clear();
     await metadataStore.clear();
     return true;
   },

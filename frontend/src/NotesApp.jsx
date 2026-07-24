@@ -8,8 +8,9 @@ import { saveAs } from "file-saver";
 import { v4 as uuidv4 } from "uuid";
 import StorageService from "./storage/storageService";
 import notificationService from "./notifications/notificationService";
+import Attachments from "./components/Attachments";
 import {
-  Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X, Upload, Image, HardDrive, Cloud, WifiOff,
+  Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X, Upload, Image, HardDrive, Cloud, WifiOff, Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -219,14 +220,19 @@ const FullScreenNote = ({ note, isOpen, onClose, onSaveInline, onDelete, onShare
           </div>
         </div>
         {/* Editable content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
           <textarea
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
-            className={`fs-content-input w-full min-h-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-200 placeholder:text-slate-600' : 'text-gray-700 placeholder:text-gray-400'}`}
+            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-200 placeholder:text-slate-600' : 'text-gray-700 placeholder:text-gray-400'}`}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
+          />
+          <Attachments
+            attachments={note.attachments || []}
+            onChange={(newAttachments) => onSaveInline(note.id, { attachments: newAttachments })}
+            isDark={isDark}
           />
         </div>
         {/* Footer */}
@@ -266,6 +272,11 @@ const AccordionNoteItem = ({ note, onEdit, onDelete, onShare, onFullScreen, isDa
             {note.category && <Badge variant="outline" className="text-xs hidden sm:inline-flex">{note.category}</Badge>}
             {hasAlarm && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
             {hasRecurring && <Repeat className="w-4 h-4 text-green-500 flex-shrink-0" />}
+            {note.attachments?.length > 0 && (
+              <span className="flex items-center gap-0.5 text-xs font-mono text-slate-500 flex-shrink-0" title={`${note.attachments.length} attachment${note.attachments.length === 1 ? '' : 's'}`}>
+                <Paperclip className="w-3.5 h-3.5" />{note.attachments.length}
+              </span>
+            )}
             <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
           </div>
         </CollapsibleTrigger>
