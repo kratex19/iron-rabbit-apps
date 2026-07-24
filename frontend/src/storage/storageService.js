@@ -109,6 +109,7 @@ export const StorageService = {
         header_bg: 'https://images.unsplash.com/photo-1771814536315-ae11952227fc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHw0fHxkYXJrJTIwZnV0dXJpc3RpYyUyMGFic3RyYWN0JTIwdGV4dHVyZXxlbnwwfHx8fDE3NzMxNjM2OTR8MA&ixlib=rb-4.1.0&q=85',
         website_url: 'https://ironrabbitapps.com',
         company_name: 'Iron Rabbit',
+        view_mode: 'list',
       };
       await settingsStore.setItem('app_settings', defaults);
       return defaults;

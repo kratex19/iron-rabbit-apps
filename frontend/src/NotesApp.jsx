@@ -9,6 +9,12 @@ import { v4 as uuidv4 } from "uuid";
 import StorageService from "./storage/storageService";
 import notificationService from "./notifications/notificationService";
 import Attachments from "./components/Attachments";
+import IconPicker from "./components/IconPicker";
+import BackgroundPicker, { getBackgroundStyle } from "./components/BackgroundPicker";
+import NoteTile from "./components/NoteTile";
+import * as LucideIcons from "lucide-react";
+import { StickyNote as StickyNoteIcon } from "lucide-react";
+import { DEFAULT_BACKGROUND } from "./data/noteIcons";
 import {
   Plus, Settings, Calculator, Bell, Share2, Trash2, Edit3, Clock, Copy, Mail, MessageSquare, Grid3X3, Smartphone, ExternalLink, Sun, Moon, Search, ArrowUpAZ, ArrowDownAZ, CalendarDays, Tag, Repeat, Filter, List, LayoutGrid, FileText, Download, GripVertical, FolderTree, Pencil, ChevronDown, Maximize2, X, Upload, Image, HardDrive, Cloud, WifiOff, Paperclip,
 } from "lucide-react";
@@ -75,11 +81,11 @@ const FILTER_OPTIONS = [
 ];
 
 const DEFAULT_TEMPLATES = [
-  { name: "Work Meeting", title: "Meeting Notes", content: "Attendees:\n\nAgenda:\n\nAction Items:\n", color: "cyan", category: "Work" },
-  { name: "Daily Standup", title: "Daily Standup", content: "Yesterday:\n\nToday:\n\nBlockers:\n", color: "lime", category: "Work" },
-  { name: "Shopping List", title: "Shopping List", content: "- \n- \n- \n", color: "orange", category: "Personal" },
-  { name: "Health Appointment", title: "Doctor Visit", content: "Date:\nTime:\nDoctor:\nNotes:\n", color: "pink", category: "Health" },
-  { name: "Project Task", title: "Task", content: "Description:\n\nDeadline:\n\nSteps:\n1. \n2. \n3. \n", color: "purple", category: "Work" },
+  { name: "Work Meeting", title: "Meeting Notes", content: "Attendees:\n\nAgenda:\n\nAction Items:\n", color: "cyan", category: "Work", icon: "Presentation", background: { type: "gradient", value: "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)" } },
+  { name: "Daily Standup", title: "Daily Standup", content: "Yesterday:\n\nToday:\n\nBlockers:\n", color: "lime", category: "Work", icon: "Users", background: { type: "gradient", value: "linear-gradient(135deg, #86efac 0%, #059669 100%)" } },
+  { name: "Shopping List", title: "Shopping List", content: "- \n- \n- \n", color: "orange", category: "Personal", icon: "ShoppingCart", background: { type: "gradient", value: "linear-gradient(135deg, #f97316 0%, #db2777 100%)" } },
+  { name: "Health Appointment", title: "Doctor Visit", content: "Date:\nTime:\nDoctor:\nNotes:\n", color: "pink", category: "Health", icon: "Stethoscope", background: { type: "gradient", value: "linear-gradient(135deg, #fbcfe8 0%, #be123c 100%)" } },
+  { name: "Project Task", title: "Task", content: "Description:\n\nDeadline:\n\nSteps:\n1. \n2. \n3. \n", color: "purple", category: "Work", icon: "Target", background: { type: "gradient", value: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)" } },
 ];
 
 // Calculator Component
@@ -380,6 +386,10 @@ const NoteModal = ({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, ca
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState("purple");
+  const [icon, setIcon] = useState(null);
+  const [background, setBackground] = useState(null);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
   const [alarm, setAlarm] = useState({ enabled: false, datetime: null, sound: "bell", haptic: false });
@@ -392,24 +402,25 @@ const NoteModal = ({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, ca
   useEffect(() => {
     if (note) {
       setTitle(note.title || ""); setContent(note.content || ""); setColor(note.color || "purple");
+      setIcon(note.icon || null); setBackground(note.background || null);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
       if (note.alarm) { setAlarm(note.alarm); if (note.alarm.datetime) { const dt = new Date(note.alarm.datetime); setAlarmDate(dt); setAlarmTime(format(dt, "HH:mm")); } }
       if (note.recurring) { setRecurring(note.recurring); }
     } else {
-      setTitle(""); setContent(""); setColor("purple"); setCategory(""); setSubcategory("");
+      setTitle(""); setContent(""); setColor("purple"); setIcon(null); setBackground(null); setCategory(""); setSubcategory("");
       setAlarm({ enabled: false, datetime: null, sound: "bell", haptic: false }); setAlarmDate(null); setAlarmTime("12:00");
       setRecurring({ enabled: false, frequency: "weekly", days: [] });
     }
   }, [note, isOpen]);
 
-  const handleSelectTemplate = (template) => { setTitle(template.title || ""); setContent(template.content || ""); setColor(template.color || "purple"); setCategory(template.category || ""); setSubcategory(template.subcategory || ""); setShowTemplates(false); };
+  const handleSelectTemplate = (template) => { setTitle(template.title || ""); setContent(template.content || ""); setColor(template.color || "purple"); setIcon(template.icon || null); setBackground(template.background || null); setCategory(template.category || ""); setSubcategory(template.subcategory || ""); setShowTemplates(false); };
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error("Please enter a title"); return; }
     setSaving(true);
     let alarmDateTime = null;
     if (alarm.enabled && alarmDate) { const [hours, minutes] = alarmTime.split(":").map(Number); const dt = new Date(alarmDate); dt.setHours(hours, minutes, 0, 0); alarmDateTime = dt.toISOString(); }
-    const noteData = { title: title.trim(), content, color, category: category.trim(), subcategory: subcategory.trim(), alarm: { ...alarm, datetime: alarmDateTime }, recurring };
+    const noteData = { title: title.trim(), content, color, icon, background, category: category.trim(), subcategory: subcategory.trim(), alarm: { ...alarm, datetime: alarmDateTime }, recurring };
     await onSave(noteData, note?.id);
     setSaving(false); onClose();
   };
@@ -464,6 +475,51 @@ const NoteModal = ({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, ca
               <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Color</label>
               <div className="flex gap-2">{NOTE_COLORS.map((c) => (<button key={c.name} onClick={() => setColor(c.name)} className={`color-swatch-sm ${color === c.name ? "active" : ""}`} style={{ backgroundColor: c.accent }} />))}</div>
             </div>
+
+            {/* Icon-view tile: Icon + Background */}
+            <div>
+              <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Tile appearance (Icon view)</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="editor-tile-preview"
+                  style={getBackgroundStyle(background)}
+                  onClick={() => setBgPickerOpen(true)}
+                  data-testid="editor-open-bg-picker"
+                  title="Change background"
+                >
+                  <span className="preview-overlay" />
+                  {(() => {
+                    const Ico = icon && LucideIcons[icon] ? LucideIcons[icon] : StickyNoteIcon;
+                    return <Ico className="w-8 h-8 relative z-10" strokeWidth={1.6} />;
+                  })()}
+                </button>
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIconPickerOpen(true)}
+                    className={`justify-start h-8 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`}
+                    data-testid="editor-open-icon-picker"
+                  >
+                    <LucideIcons.Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                    {icon ? `Icon: ${icon}` : "Choose icon"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBgPickerOpen(true)}
+                    className={`justify-start h-8 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`}
+                    data-testid="editor-open-bg-picker-btn"
+                  >
+                    <LucideIcons.Palette className="w-3.5 h-3.5 mr-1.5" />
+                    {background?.type === "image" ? "Background: Image" : background?.value ? "Background: Custom" : "Choose background"}
+                  </Button>
+                </div>
+              </div>
+            </div>
             
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-2">
@@ -508,6 +564,20 @@ const NoteModal = ({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, ca
         </DialogContent>
       </Dialog>
       <TemplateModal isOpen={showTemplates} onClose={() => setShowTemplates(false)} templates={templates} onSelect={handleSelectTemplate} isDark={isDark} />
+      <IconPicker
+        isOpen={iconPickerOpen}
+        onClose={() => setIconPickerOpen(false)}
+        value={icon}
+        onSelect={setIcon}
+        isDark={isDark}
+      />
+      <BackgroundPicker
+        isOpen={bgPickerOpen}
+        onClose={() => setBgPickerOpen(false)}
+        value={background}
+        onSelect={setBackground}
+        isDark={isDark}
+      />
     </>
   );
 };
@@ -783,6 +853,7 @@ function NotesApp() {
   const [sharingNote, setSharingNote] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [fullScreenNote, setFullScreenNote] = useState(null);
+  const [viewMode, setViewMode] = useState("list"); // 'list' | 'icon'
 
   // Keep the full-screen view in sync with the latest notes array
   // (so edits made via the edit modal appear immediately in the open full-screen view)
@@ -814,6 +885,7 @@ function NotesApp() {
       ]);
       setNotes(notesData);
       setSettings(settingsData);
+      if (settingsData?.view_mode) setViewMode(settingsData.view_mode);
       setCategories(catsData);
       setStorageInfo(storageData);
       if (templatesData.length > 0) setTemplates(templatesData);
@@ -956,6 +1028,16 @@ function NotesApp() {
       setSettings(updated);
     } catch (err) {
       toast.error("Failed");
+    }
+  };
+
+  const handleChangeViewMode = async (mode) => {
+    setViewMode(mode);
+    try {
+      const updated = await StorageService.saveSettings({ view_mode: mode });
+      setSettings(updated);
+    } catch (err) {
+      // non-fatal — just doesn't persist
     }
   };
 
@@ -1105,6 +1187,28 @@ function NotesApp() {
             <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className={`pl-8 h-9 ${isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-gray-200'}`} />
           </div>
           <div className="flex gap-2">
+            <div className={`view-toggle ${isDark ? "" : "light"}`} data-testid="view-mode-toggle">
+              <button
+                type="button"
+                onClick={() => handleChangeViewMode("list")}
+                className={viewMode === "list" ? "active" : ""}
+                aria-label="List view"
+                data-testid="view-mode-list"
+                title="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleChangeViewMode("icon")}
+                className={viewMode === "icon" ? "active" : ""}
+                aria-label="Icon view"
+                data-testid="view-mode-icon"
+                title="Icon view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
             <Select value={filterBy} onValueChange={setFilterBy}>
               <SelectTrigger className={`w-28 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200'}`}><Filter className="w-3 h-3 mr-1" /><SelectValue /></SelectTrigger>
               <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10' : ''}>{FILTER_OPTIONS.map(opt => <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>)}</SelectContent>
@@ -1131,13 +1235,46 @@ function NotesApp() {
           <div className="text-xs font-mono">{processedNotes.length} notes</div>
         </div>
         
-        {/* Notes List - Accordion Style */}
+        {/* Notes List - Accordion Style, or Icon Grid */}
         {processedNotes.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-4xl mb-3 opacity-20">📝</div>
             <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{searchQuery || filterBy !== "all" ? "No notes found" : "No notes yet"}</p>
             {!searchQuery && filterBy === "all" && <Button onClick={() => { setEditingNote(null); setNoteModalOpen(true); }} size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white"><Plus className="w-4 h-4 mr-1" /> Create</Button>}
           </div>
+        ) : viewMode === "icon" ? (
+          groupByCategory ? (
+            <div data-testid="notes-icon-grouped">
+              {grouped.map(([cat, items]) => (
+                <div key={cat} className="mb-5">
+                  <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 px-1 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{cat}</h3>
+                  <div className="notes-grid">
+                    {items.map(note => (
+                      <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {uncategorized.length > 0 && (
+                <div>
+                  {grouped.length > 0 && (
+                    <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 px-1 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Uncategorized</h3>
+                  )}
+                  <div className="notes-grid" data-testid="notes-icon-uncategorized">
+                    {uncategorized.map(note => (
+                      <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="notes-grid" data-testid="notes-icon-flat">
+              {processedNotes.map(note => (
+                <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+              ))}
+            </div>
+          )
         ) : sortBy === "custom" && !groupByCategory ? (
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="notes">
