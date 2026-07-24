@@ -29,6 +29,7 @@ A running list of enhancements to pick up later. Reminded by user on 2026-07-22.
 
 ### From notes app itself
 - ~~Note attachments (images/files stored as base64 in IndexedDB)~~ ✅ Done 2026-07-24 — see `components/Attachments.jsx` + `storageService.saveAttachment`
+- ~~Category grouping with expandable containers (asterisk marker)~~ ✅ Done 2026-07-24 — see `CategoryGroup` in `NotesApp.jsx` + "Group by category" toggle
 - Additional templates (more than the current 5 defaults)
 - Drag-and-drop between categories (currently only within the same list)
 - Import from other note apps (Google Keep, Apple Notes export formats)

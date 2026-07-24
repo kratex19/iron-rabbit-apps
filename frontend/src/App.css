@@ -135,6 +135,36 @@
     @apply hover:bg-indigo-600;
 }
 
+/* ================== Category Groups ================== */
+.category-group {
+    transition: all 0.2s ease;
+}
+
+.category-group:hover {
+    border-width: 2px;
+}
+
+.category-group.note-purple, .category-group.note-cyan, .category-group.note-lime, 
+.category-group.note-pink, .category-group.note-orange {
+    /* Reuse existing note-color backgrounds */
+}
+
+.category-children {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.category-group.light .category-children {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.category-children .accordion-note {
+    margin-bottom: 0.375rem;
+}
+
+.category-children .accordion-note:last-child {
+    margin-bottom: 0;
+}
+
 /* Pulse animation for alarms */
 @keyframes pulse-glow {
     0%, 100% { opacity: 1; }

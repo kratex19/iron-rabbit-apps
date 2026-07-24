@@ -303,6 +303,56 @@ const AccordionNoteItem = ({ note, onEdit, onDelete, onShare, onFullScreen, isDa
 };
 
 // Template Selector Modal
+// Category group — a "container note" that expands to reveal notes sharing the same category.
+// Visually matches AccordionNoteItem but has an asterisk after the colored dot.
+const CategoryGroup = ({ category, notes: children, onEdit, onDelete, onShare, onFullScreen, isDark }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  // Pick color from most common child color (ties → first)
+  const colorConfig = useMemo(() => {
+    const counts = {};
+    children.forEach(n => { counts[n.color] = (counts[n.color] || 0) + 1; });
+    const winner = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "purple";
+    return NOTE_COLORS.find(c => c.name === winner) || NOTE_COLORS[0];
+  }, [children]);
+  const alarmCount = children.filter(n => n.alarm?.enabled).length;
+
+  return (
+    <div className={`category-group ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2`} data-testid={`category-group-${category}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(v => !v)}
+        aria-expanded={isOpen}
+        className={`w-full flex items-center gap-2 p-3 text-left cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}
+        data-testid={`category-toggle-${category}`}
+      >
+        <div className="relative flex items-center gap-0.5 flex-shrink-0" aria-hidden="true">
+          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colorConfig.accent }} />
+          <span className="font-bold text-lg leading-none" style={{ color: colorConfig.accent }}>*</span>
+        </div>
+        <span className={`font-semibold truncate flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="category-title">{category}</span>
+        <Badge variant="outline" className="text-xs flex-shrink-0" data-testid="category-count">{children.length}</Badge>
+        {alarmCount > 0 && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
+        <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
+      </button>
+      {isOpen && (
+        <div className={`category-children pl-4 pr-1 pb-1 pt-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} data-testid={`category-children-${category}`}>
+          {children.map(note => (
+            <AccordionNoteItem
+              key={note.id}
+              note={note}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onShare={onShare}
+              onFullScreen={onFullScreen}
+              isDark={isDark}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TemplateModal = ({ isOpen, onClose, templates, onSelect, isDark }) => {
   if (!isOpen) return null;
   return (
@@ -719,6 +769,7 @@ function NotesApp() {
   const [sortBy, setSortBy] = useState("newest");
   const [filterBy, setFilterBy] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupByCategory, setGroupByCategory] = useState(true);
   const [isDark, setIsDark] = useState(true);
   const [storageInfo, setStorageInfo] = useState(null);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -982,6 +1033,21 @@ function NotesApp() {
     return result;
   }, [notes, searchQuery, filterBy, sortBy]);
 
+  // Group notes by category for the grouped view
+  const { grouped, uncategorized } = useMemo(() => {
+    const map = new Map();
+    const uncat = [];
+    processedNotes.forEach(n => {
+      if (n.category?.trim()) {
+        if (!map.has(n.category)) map.set(n.category, []);
+        map.get(n.category).push(n);
+      } else {
+        uncat.push(n);
+      }
+    });
+    return { grouped: Array.from(map.entries()), uncategorized: uncat };
+  }, [processedNotes]);
+
   const exportToPDF = () => {
     const doc = new jsPDF();
     let y = 15;
@@ -1051,7 +1117,19 @@ function NotesApp() {
         </div>
         
         {/* Notes count */}
-        <div className={`text-xs font-mono mb-2 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>{processedNotes.length} notes</div>
+        <div className={`flex items-center justify-between mb-2 gap-3 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+          <button
+            type="button"
+            onClick={() => setGroupByCategory(v => !v)}
+            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md transition-colors ${groupByCategory ? (isDark ? 'bg-white/10 text-white' : 'bg-gray-200 text-gray-800') : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-gray-400 hover:text-gray-700')}`}
+            aria-pressed={groupByCategory}
+            data-testid="group-toggle"
+            title="Toggle category grouping"
+          >
+            <FolderTree className="w-3.5 h-3.5" /> Group by category
+          </button>
+          <div className="text-xs font-mono">{processedNotes.length} notes</div>
+        </div>
         
         {/* Notes List - Accordion Style */}
         {processedNotes.length === 0 ? (
@@ -1060,7 +1138,7 @@ function NotesApp() {
             <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{searchQuery || filterBy !== "all" ? "No notes found" : "No notes yet"}</p>
             {!searchQuery && filterBy === "all" && <Button onClick={() => { setEditingNote(null); setNoteModalOpen(true); }} size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white"><Plus className="w-4 h-4 mr-1" /> Create</Button>}
           </div>
-        ) : sortBy === "custom" ? (
+        ) : sortBy === "custom" && !groupByCategory ? (
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="notes">
               {(provided) => (
@@ -1079,6 +1157,28 @@ function NotesApp() {
               )}
             </Droppable>
           </DragDropContext>
+        ) : groupByCategory ? (
+          <div data-testid="notes-grouped">
+            {grouped.map(([cat, items]) => (
+              <CategoryGroup
+                key={cat}
+                category={cat}
+                notes={items}
+                onEdit={openEditModal}
+                onDelete={handleDeleteNote}
+                onShare={openShareModal}
+                onFullScreen={setFullScreenNote}
+                isDark={isDark}
+              />
+            ))}
+            {uncategorized.length > 0 && (
+              <div data-testid="notes-uncategorized">
+                {uncategorized.map(note => (
+                  <AccordionNoteItem key={note.id} note={note} onEdit={openEditModal} onDelete={handleDeleteNote} onShare={openShareModal} onFullScreen={setFullScreenNote} isDark={isDark} />
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <div>{processedNotes.map(note => <AccordionNoteItem key={note.id} note={note} onEdit={openEditModal} onDelete={handleDeleteNote} onShare={openShareModal} onFullScreen={setFullScreenNote} isDark={isDark} />)}</div>
         )}
