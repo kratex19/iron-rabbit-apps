@@ -3,11 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 const NAV_LINKS = [
-  { to: "/", label: "Home" },
-  { to: "/apps", label: "Apps" },
-  { to: "/blog", label: "Blog" },
-  { to: "/about", label: "About" },
-  { to: "/support", label: "Support" },
+  { to: "/site", label: "Home" },
+  { to: "/site/apps", label: "Apps" },
+  { to: "/site/blog", label: "Blog" },
+  { to: "/site/about", label: "About" },
+  { to: "/site/support", label: "Support" },
 ];
 
 export default function Header() {
@@ -17,11 +17,11 @@ export default function Header() {
   return (
     <header className="site-header" data-testid="site-header">
       <div className="site-container flex items-center justify-between h-16">
-        <Link to="/" className="brand" data-testid="brand-link" onClick={() => setOpen(false)}>
+        <Link to="/site" className="brand" data-testid="brand-link" onClick={() => setOpen(false)}>
           <span className="brand-mark">IR</span>
           <span className="brand-text">
             <span className="brand-name">Iron Rabbit Apps</span>
-            <span className="brand-tld">otropis.com</span>
+            <span className="brand-tld">ironrabbitapps.com</span>
           </span>
         </Link>
 

@@ -14,7 +14,7 @@ export default function AppDetailPage() {
     description: app?.shortDescription || "",
   });
 
-  if (!app) return <Navigate to="/apps" replace />;
+  if (!app) return <Navigate to="/site/apps" replace />;
 
   return (
     <Layout>

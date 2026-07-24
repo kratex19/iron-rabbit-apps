@@ -30,20 +30,22 @@ export default function App() {
     <BrowserRouter>
       <Toaster position="top-right" />
       <Routes>
-        {/* Company Website */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/apps" element={<AppsPage />} />
-        <Route path="/apps/:slug" element={<AppDetailPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/support" element={<SupportPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/blog" element={<BlogPage />} />
-        <Route path="/blog/:slug" element={<BlogPostPage />} />
-
-        {/* Notes App (embedded) */}
+        {/* Notes App — default landing */}
+        <Route path="/" element={<NotesApp />} />
+        {/* Legacy alias so existing links keep working */}
         <Route path="/apps/iron-rabbit-notes/launch" element={<NotesApp />} />
+
+        {/* Company Website — nested under /site (will move to ironrabbitapps.com) */}
+        <Route path="/site" element={<HomePage />} />
+        <Route path="/site/apps" element={<AppsPage />} />
+        <Route path="/site/apps/:slug" element={<AppDetailPage />} />
+        <Route path="/site/about" element={<AboutPage />} />
+        <Route path="/site/support" element={<SupportPage />} />
+        <Route path="/site/privacy" element={<PrivacyPage />} />
+        <Route path="/site/terms" element={<TermsPage />} />
+        <Route path="/site/contact" element={<ContactPage />} />
+        <Route path="/site/blog" element={<BlogPage />} />
+        <Route path="/site/blog/:slug" element={<BlogPostPage />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

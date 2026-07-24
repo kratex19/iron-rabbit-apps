@@ -46,7 +46,7 @@ export default function BlogPostPage() {
   const post = getPostBySlug(slug);
   usePageMeta({ title: post?.title || "Post", description: post?.excerpt || "" });
 
-  if (!post) return <Navigate to="/blog" replace />;
+  if (!post) return <Navigate to="/site/blog" replace />;
 
   const sorted = [...POSTS].sort((a, b) => new Date(b.date) - new Date(a.date));
   const idx = sorted.findIndex(p => p.slug === post.slug);
@@ -57,7 +57,7 @@ export default function BlogPostPage() {
     <Layout>
       <section className="post-hero" style={{ background: `linear-gradient(135deg, ${post.coverColor}, ${post.coverColor}DD)` }}>
         <div className="site-container">
-          <Link to="/blog" className="post-back" data-testid="back-to-blog">
+          <Link to="/site/blog" className="post-back" data-testid="back-to-blog">
             <ArrowLeft className="w-4 h-4" /> Back to blog
           </Link>
           <div className="post-tags">

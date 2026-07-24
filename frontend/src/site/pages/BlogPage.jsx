@@ -21,7 +21,7 @@ export default function BlogPage() {
         <div className="site-container">
           <div className="blog-grid" data-testid="blog-grid">
             {sorted.map(post => (
-              <Link key={post.slug} to={`/blog/${post.slug}`} className="blog-card" data-testid={`blog-card-${post.slug}`}>
+              <Link key={post.slug} to={`/site/blog/${post.slug}`} className="blog-card" data-testid={`blog-card-${post.slug}`}>
                 <div className="blog-card-cover" style={{ background: `linear-gradient(135deg, ${post.coverColor}, ${post.coverColor}CC)` }}>
                   <div className="blog-card-cover-title">{post.title}</div>
                 </div>

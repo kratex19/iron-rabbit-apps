@@ -42,7 +42,7 @@ Whether you're tracking work hours with the built-in calculator, setting daily r
     releaseDate: "2026-03-01",
     playStoreUrl: null, // Coming soon
     appStoreUrl: null, // Coming soon
-    webAppUrl: "/apps/iron-rabbit-notes/launch",
+    webAppUrl: "/",
     supportUrl: "/support",
     privacyUrl: "/privacy",
     termsUrl: "/terms",

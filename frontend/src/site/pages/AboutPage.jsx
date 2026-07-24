@@ -36,7 +36,7 @@ export default function AboutPage() {
 
             <h2>Coming soon</h2>
             <p>
-              More apps are on the way. Follow along at <a href="/apps">our apps page</a> to see
+              More apps are on the way. Follow along at <a href="/site/apps">our apps page</a> to see
               what we're releasing next.
             </p>
           </div>

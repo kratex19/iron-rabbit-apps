@@ -2,19 +2,22 @@
 
 ## What's Live
 
-### Public Website (otropis.com)
-- **Home** (`/`) — Hero, value props, featured app, why-us, CTA band
-- **Apps** (`/apps`) — Auto-generated list from `data/apps.js`
-- **App Detail** (`/apps/:slug`) — Screenshots-ready page with features, FAQs, version history
-- **About** (`/about`) — Mission
-- **Support** (`/support`) — Contact card + FAQ
-- **Privacy** (`/privacy`) — Full policy
-- **Terms** (`/terms`) — Full terms
-- **Contact** (`/contact`) — Form opens user's email client (no server)
+### Public Website (moving to ironrabbitapps.com)
+Nested under `/site` in the current preview (will be relocated to `ironrabbitapps.com` when the domain is live).
+- **Home** (`/site`) — Hero, value props, featured app, why-us, CTA band
+- **Apps** (`/site/apps`) — Auto-generated list from `data/apps.js`
+- **App Detail** (`/site/apps/:slug`) — Screenshots-ready page with features, FAQs, version history
+- **About** (`/site/about`) — Mission
+- **Support** (`/site/support`) — Contact card + FAQ
+- **Privacy** (`/site/privacy`) — Full policy
+- **Terms** (`/site/terms`) — Full terms
+- **Contact** (`/site/contact`) — Form opens user's email client (no server)
+- **Blog** (`/site/blog`, `/site/blog/:slug`)
 - **404** — Not found page
 
-### Notes App (embedded)
-- **`/apps/iron-rabbit-notes/launch`** — Full offline notes app
+### Notes App (default landing)
+- **`/`** — Full offline notes app (default route)
+- **`/apps/iron-rabbit-notes/launch`** — Legacy alias, still works
 
 ## Architecture
 - **Single source of truth** for apps: `/app/frontend/src/data/apps.js`
@@ -35,6 +38,15 @@
 - **Palette**: Cream (#FAF7F2) + Charcoal (#1C1917) + Burnt Sienna (#B34A2C)
 - **Font**: Manrope + JetBrains Mono (for tech accents)
 - **Style**: Editorial, warm, professional — not the generic tech blue/purple
+
+
+## Routing Pivot (Feb 2026)
+- Notes App is now the default landing at `/` (previously company website).
+- Company website moved under `/site/*` — will migrate to `www.ironrabbitapps.com` (newly purchased) once DNS is set up.
+- All internal Links, `<Navigate>` redirects, and Header/Footer nav updated to `/site/*`.
+- `data/apps.js` `webAppUrl` → `/` (Launch button opens Notes at root).
+- Brand tld updated to `ironrabbitapps.com` in Header, Footer, and default IndexedDB settings (existing users keep their stored value).
+- Legacy `/apps/iron-rabbit-notes/launch` kept as alias for backward compatibility.
 
 ## Bug Fix (verified iteration_4.json)
 Auto-migration on first load pulls user's old notes from backend into local IndexedDB. Manual "Recover Old Notes from Server" button in Settings for retries. Toasts only show when work happened. StrictMode-safe.

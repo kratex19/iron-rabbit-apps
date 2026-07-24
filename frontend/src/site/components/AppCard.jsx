@@ -32,7 +32,7 @@ export default function AppCard({ app, featured = false }) {
             <span className="store-btn store-btn-soon"><Apple className="w-4 h-4" /> App Store · Soon</span>
           )}
         </div>
-        <Link to={`/apps/${app.slug}`} className="app-card-cta" data-testid={`app-details-${app.slug}`}>
+        <Link to={`/site/apps/${app.slug}`} className="app-card-cta" data-testid={`app-details-${app.slug}`}>
           Learn more <ChevronRight className="w-4 h-4" />
         </Link>
       </div>

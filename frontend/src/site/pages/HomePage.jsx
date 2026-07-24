@@ -29,10 +29,10 @@ export default function HomePage() {
               No accounts, no ads, no data collection. Just software that works.
             </p>
             <div className="hero-actions">
-              <Link to="/apps" className="btn btn-primary" data-testid="hero-cta-apps">
+              <Link to="/site/apps" className="btn btn-primary" data-testid="hero-cta-apps">
                 Browse apps <ArrowRight className="w-4 h-4" />
               </Link>
-              <Link to="/about" className="btn btn-ghost" data-testid="hero-cta-about">
+              <Link to="/site/about" className="btn btn-ghost" data-testid="hero-cta-about">
                 Our story
               </Link>
             </div>
@@ -73,7 +73,7 @@ export default function HomePage() {
         <div className="site-container">
           <div className="section-head">
             <h2>Featured app</h2>
-            <Link to="/apps" className="section-link">See all apps <ArrowRight className="w-4 h-4" /></Link>
+            <Link to="/site/apps" className="section-link">See all apps <ArrowRight className="w-4 h-4" /></Link>
           </div>
           <div className="featured-app-wrap">
             <AppCard app={featuredApp} featured />
@@ -117,7 +117,7 @@ export default function HomePage() {
             <h2>Try our first release</h2>
             <p>Iron Rabbit Notes is ready to use in your browser right now — no install required.</p>
           </div>
-          <Link to={`/apps/${featuredApp.slug}`} className="btn btn-primary" data-testid="cta-notes">
+          <Link to={`/site/apps/${featuredApp.slug}`} className="btn btn-primary" data-testid="cta-notes">
             Open Iron Rabbit Notes <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
