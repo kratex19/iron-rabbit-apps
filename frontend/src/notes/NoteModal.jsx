@@ -3,8 +3,9 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import * as LucideIcons from "lucide-react";
 import {
-  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin,
+  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff,
 } from "lucide-react";
+import useVoiceInput from "../utils/useVoiceInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +42,16 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [recurring, setRecurring] = useState({ enabled: false, frequency: "weekly", days: [] });
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const voice = useVoiceInput();
+
+  // Append voice transcript into the note content as speech is recognised.
+  useEffect(() => {
+    if (voice.transcript) {
+      setContent(prev => (prev ? prev + " " : "") + voice.transcript);
+      voice.reset();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.transcript]);
 
   useEffect(() => {
     if (note) {
@@ -138,9 +149,23 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Content</label>
-                <Button variant="ghost" size="sm" onClick={() => onOpenCalculator(insertCalculatorResult)} className={`h-6 text-xs ${isDark ? 'text-slate-400' : ''}`}>
-                  <Calculator className="w-3 h-3 mr-1" /> Calc
-                </Button>
+                <div className="flex items-center gap-1">
+                  {voice.supported && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => voice.listening ? voice.stop() : voice.start()}
+                      className={`h-6 text-xs ${voice.listening ? "text-red-500 animate-pulse" : (isDark ? "text-slate-400" : "")}`}
+                      data-testid="voice-input-btn"
+                    >
+                      {voice.listening ? <MicOff className="w-3 h-3 mr-1" /> : <Mic className="w-3 h-3 mr-1" />}
+                      {voice.listening ? "Listening…" : "Voice"}
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => onOpenCalculator(insertCalculatorResult)} className={`h-6 text-xs ${isDark ? 'text-slate-400' : ''}`}>
+                    <Calculator className="w-3 h-3 mr-1" /> Calc
+                  </Button>
+                </div>
               </div>
               <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write..." rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
             </div>

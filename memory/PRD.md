@@ -103,3 +103,17 @@ Updated: `IconPicker.jsx` (mode="quick-add"), `NotesApp.jsx` (chrono in handleSa
 Verified: all three flows tested end-to-end; zero console errors.
 
 
+
+
+## Delight batch 3 (Feb 2026)
+Final batch of user-facing polish before deploy:
+
+1. **Voice-to-note** — `utils/useVoiceInput.js` wraps browser `SpeechRecognition` (no external service, no cost). New "Voice" button in `NoteModal` next to "Calc"; toggle to dictate directly into a note.
+2. **Share tile as image** — `utils/shareTile.js` + `html-to-image@1.11.13` renders any note tile off-screen to PNG. `ShareModal` gains a 4th button (Copy / Email / SMS / Image).
+3. **Weekly recap** — `utils/weeklyRecap.js` fires a local browser Notification on Sundays summarising the week. Deduped via `settings.last_recap`.
+4. **First-run tour** — `notes/FirstRunTour.jsx` — 3-step tooltip overlay for new users. Persisted via `settings.tour_completed`.
+
+New files: `utils/useVoiceInput.js`, `utils/shareTile.js`, `utils/weeklyRecap.js`, `notes/FirstRunTour.jsx`.
+Deps added: `html-to-image@1.11.13`.
+
+**Deployment**: dispatched to deployer agent with target custom domain `www.ironrabbitapps.com` (DNS via Entri after first deploy).

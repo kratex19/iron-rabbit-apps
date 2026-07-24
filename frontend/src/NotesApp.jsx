@@ -22,6 +22,8 @@ import IconPicker from "./components/IconPicker";
 import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
 import TilePacksModal from "./notes/TilePacksModal";
+import FirstRunTour from "./notes/FirstRunTour";
+import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
@@ -69,6 +71,7 @@ export default function NotesApp() {
   const [fullScreenNote, setFullScreenNote] = useState(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   // Keep full-screen editor in sync with the notes array
   useEffect(() => {
@@ -149,6 +152,16 @@ export default function NotesApp() {
       setCategories(catsData);
       setStorageInfo(storageData);
       if (templatesData.length > 0) setTemplates(templatesData);
+
+      // First-run tour: show once, when there are no notes AND user has never
+      // completed/dismissed the tour.
+      if (settingsData && !settingsData.tour_completed && notesData.length === 0) {
+        setTimeout(() => setTourOpen(true), 800);
+      }
+
+      // Weekly recap: fires a local notification if it's Sunday & not already
+      // sent this week. Silently no-ops otherwise.
+      maybeShowWeeklyRecap(notesData);
     } catch (err) {
       console.error("Error:", err);
       toast.error("Failed to load");
@@ -323,6 +336,14 @@ export default function NotesApp() {
       console.error("Apply pack error:", err);
       toast.error("Could not apply pack");
     }
+  };
+
+  const handleTourDismiss = async () => {
+    setTourOpen(false);
+    try {
+      const updated = await StorageService.saveSettings({ tour_completed: true });
+      setSettings(updated);
+    } catch { /* non-fatal */ }
   };
 
   const handleDeleteNote = async (noteId) => {
@@ -930,6 +951,7 @@ export default function NotesApp() {
         onApply={handleApplyPack}
         isDark={isDark}
       />
+      <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
     </div>
   );
 }
