@@ -160,5 +160,6 @@ Files added: `notes/EventsSection.jsx`. Updated: `notes/NoteModal.jsx`, `notes/A
 - Header top row is now `flex-wrap` — icons drop to a second row when they overflow (fixes logo/title squish on narrow screens; works as more icons get added).
 - New icon in header between Calculator and Settings: **Calendar** (`data-testid="header-calendar"`).
 - New `notes/FloatingCalendarModal.jsx`: aggregates every event across all notes, mini shadcn calendar with dots on days with events, per-day agenda list, "next up" fallback (5 upcoming), clicking an event opens the source note in full-screen.
+- **Create event directly from selected day**: `+ Add` button on the day agenda opens an inline form (title + time + alarm toggle). Submit creates a new note (category="Calendar") with the event pre-dated for that day. Toast confirms with formatted datetime.
 
-Files added: `notes/FloatingCalendarModal.jsx`. Files updated: `NotesApp.jsx` (header markup, new icon + state + modal mount).
+Files added: `notes/FloatingCalendarModal.jsx`. Files updated: `NotesApp.jsx` (header markup, new icon + state + modal mount + `onCreateEvent` handler).

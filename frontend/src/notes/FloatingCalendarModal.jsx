@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { format, isSameDay, startOfDay } from "date-fns";
-import { CalendarDays, Bell, X, ArrowRight } from "lucide-react";
+import { CalendarDays, Bell, ArrowRight, Plus, X, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,21 +10,28 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 /**
  * Floating calendar overview. Aggregates every event across all notes,
  * marks days that have any event on the mini calendar, and lists the
  * scheduled items for the selected day. Clicking an event jumps to the
- * source note (via `onOpenNote`).
+ * source note (via `onOpenNote`). Users can also add a new event
+ * directly from the selected day via `onCreateEvent`.
  */
 export default function FloatingCalendarModal({
   isOpen,
   onClose,
   notes = [],
   onOpenNote,
+  onCreateEvent,
   isDark,
 }) {
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
+  const [addingEvent, setAddingEvent] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newTime, setNewTime] = useState("09:00");
+  const [alarmOn, setAlarmOn] = useState(true);
 
   // Flatten every note's events into a single sortable list
   const allEvents = useMemo(() => {
@@ -69,6 +76,28 @@ export default function FloatingCalendarModal({
   const handleOpenNote = (noteId) => {
     if (onOpenNote) onOpenNote(noteId);
     onClose();
+  };
+
+  const resetAddForm = () => {
+    setAddingEvent(false);
+    setNewTitle("");
+    setNewTime("09:00");
+    setAlarmOn(true);
+  };
+
+  const submitEvent = () => {
+    if (!newTitle.trim() || !selectedDay) return;
+    const [h, m] = newTime.split(":").map(Number);
+    const dt = new Date(selectedDay);
+    dt.setHours(Number.isFinite(h) ? h : 9, Number.isFinite(m) ? m : 0, 0, 0);
+    if (onCreateEvent) {
+      onCreateEvent({
+        title: newTitle.trim(),
+        datetime: dt.toISOString(),
+        alarm_enabled: alarmOn,
+      });
+    }
+    resetAddForm();
   };
 
   return (
@@ -127,15 +156,109 @@ export default function FloatingCalendarModal({
               <span>
                 {selectedDay ? format(selectedDay, "EEEE, MMM d") : "Agenda"}
               </span>
-              <span
-                className={`text-[10px] font-normal ${
-                  isDark ? "text-slate-500" : "text-gray-400"
-                }`}
-              >
-                {eventsForDay.length} event
-                {eventsForDay.length === 1 ? "" : "s"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-normal ${
+                    isDark ? "text-slate-500" : "text-gray-400"
+                  }`}
+                >
+                  {eventsForDay.length} event
+                  {eventsForDay.length === 1 ? "" : "s"}
+                </span>
+                {!addingEvent && onCreateEvent && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingEvent(true)}
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors ${
+                      isDark
+                        ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30"
+                        : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                    }`}
+                    data-testid="calendar-add-event-btn"
+                  >
+                    <Plus className="w-3 h-3" /> Add
+                  </button>
+                )}
+              </div>
             </div>
+
+            {addingEvent && (
+              <div
+                className={`rounded-md p-2 mb-2 space-y-2 border ${
+                  isDark
+                    ? "bg-white/5 border-indigo-500/40"
+                    : "bg-indigo-50 border-indigo-200"
+                }`}
+                data-testid="calendar-add-event-form"
+              >
+                <Input
+                  autoFocus
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitEvent();
+                    if (e.key === "Escape") resetAddForm();
+                  }}
+                  placeholder="Event title (e.g., Dentist appointment)"
+                  className={`h-8 text-xs ${
+                    isDark
+                      ? "bg-black/20 border-white/10 text-white placeholder:text-slate-500"
+                      : ""
+                  }`}
+                  data-testid="calendar-add-title-input"
+                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="time"
+                    value={newTime}
+                    onChange={(e) => setNewTime(e.target.value)}
+                    className={`h-8 text-xs w-28 ${
+                      isDark
+                        ? "bg-black/20 border-white/10 text-white"
+                        : ""
+                    }`}
+                    data-testid="calendar-add-time-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAlarmOn((v) => !v)}
+                    title={alarmOn ? "Alarm on" : "Alarm off"}
+                    className={`h-8 w-8 rounded-md flex items-center justify-center transition-colors ${
+                      alarmOn
+                        ? "bg-amber-400/20 text-amber-400"
+                        : isDark
+                        ? "bg-white/5 text-slate-500"
+                        : "bg-gray-100 text-gray-400"
+                    }`}
+                    data-testid="calendar-add-alarm-toggle"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="ml-auto flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={resetAddForm}
+                      className={`h-8 px-2 ${
+                        isDark ? "text-slate-400 hover:text-white" : ""
+                      }`}
+                      data-testid="calendar-add-cancel"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={submitEvent}
+                      disabled={!newTitle.trim()}
+                      className="h-8 px-3 bg-indigo-500 hover:bg-indigo-600 text-white text-xs"
+                      data-testid="calendar-add-save"
+                    >
+                      <Check className="w-3.5 h-3.5 mr-1" /> Save
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {eventsForDay.length === 0 ? (
               <div

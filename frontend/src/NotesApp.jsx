@@ -966,6 +966,35 @@ export default function NotesApp() {
           const n = notes.find((x) => x.id === noteId);
           if (n) setFullScreenNote(n);
         }}
+        onCreateEvent={async ({ title, datetime, alarm_enabled }) => {
+          try {
+            const now = new Date().toISOString();
+            const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+            const newNote = {
+              id: uuidv4(),
+              title,
+              content: "",
+              color: "purple",
+              category: "Calendar",
+              order: maxOrder + 1,
+              events: [{
+                id: uuidv4(),
+                title,
+                datetime,
+                alarm_enabled: !!alarm_enabled,
+                notes: "",
+              }],
+              created_at: now,
+              updated_at: now,
+              last_viewed: now,
+            };
+            await StorageService.saveNote(newNote);
+            toast.success(`Event added for ${new Date(datetime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`);
+            fetchData();
+          } catch (e) {
+            toast.error("Could not create event");
+          }
+        }}
         isDark={isDark}
       />
       <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
