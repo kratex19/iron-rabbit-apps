@@ -14,16 +14,16 @@ import hi from "./locales/hi.json";
 import ar from "./locales/ar.json";
 
 export const SUPPORTED_LANGUAGES = [
-  { code: "en", label: "English", flag: "🇺🇸" },
-  { code: "es", label: "Español", flag: "🇪🇸" },
-  { code: "fr", label: "Français", flag: "🇫🇷" },
-  { code: "de", label: "Deutsch", flag: "🇩🇪" },
-  { code: "pt", label: "Português", flag: "🇧🇷" },
-  { code: "it", label: "Italiano", flag: "🇮🇹" },
-  { code: "zh", label: "中文", flag: "🇨🇳" },
-  { code: "ja", label: "日本語", flag: "🇯🇵" },
-  { code: "hi", label: "हिन्दी", flag: "🇮🇳" },
-  { code: "ar", label: "العربية", flag: "🇸🇦" },
+  { code: "en", label: "English",    flag: "🇺🇸", en: "english" },
+  { code: "es", label: "Español",    flag: "🇪🇸", en: "spanish" },
+  { code: "fr", label: "Français",   flag: "🇫🇷", en: "french" },
+  { code: "de", label: "Deutsch",    flag: "🇩🇪", en: "german" },
+  { code: "pt", label: "Português",  flag: "🇧🇷", en: "portuguese" },
+  { code: "it", label: "Italiano",   flag: "🇮🇹", en: "italian" },
+  { code: "zh", label: "中文",        flag: "🇨🇳", en: "chinese mandarin" },
+  { code: "ja", label: "日本語",       flag: "🇯🇵", en: "japanese" },
+  { code: "hi", label: "हिन्दी",       flag: "🇮🇳", en: "hindi" },
+  { code: "ar", label: "العربية",     flag: "🇸🇦", en: "arabic" },
 ];
 
 i18n

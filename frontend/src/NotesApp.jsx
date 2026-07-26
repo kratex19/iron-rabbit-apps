@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,8 @@ import { presetForIcon } from "./data/quickAddTemplates";
 import TilePacksModal from "./notes/TilePacksModal";
 import FirstRunTour from "./notes/FirstRunTour";
 import FloatingCalendarModal from "./notes/FloatingCalendarModal";
+import LanguagePicker from "./notes/LanguagePicker";
+import { SUPPORTED_LANGUAGES } from "./i18n";
 import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
@@ -45,7 +47,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
  * living in ./notes/*.
  */
 export default function NotesApp() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Data
   const [notes, setNotes] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -76,6 +78,7 @@ export default function NotesApp() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
+  const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
@@ -818,6 +821,18 @@ export default function NotesApp() {
             <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.toggle_theme")}>{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
             <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.calculator")}><Calculator className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => { setFloatingCalendarOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.calendar")} data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
+            <button
+              type="button"
+              onClick={() => { setLanguagePickerOpen(true); haptic("tap"); }}
+              className="h-8 min-w-8 px-1.5 rounded-md inline-flex items-center gap-1 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title={`${t("settings.language")} — ${SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.label || "English"}`}
+              data-testid="header-language"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="text-base leading-none" aria-hidden="true">
+                {SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.flag || "🌐"}
+              </span>
+            </button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")}><Settings className="w-4 h-4" /></Button>
           </div>
         </div>
@@ -1024,6 +1039,12 @@ export default function NotesApp() {
         isDark={isDark}
       />
       <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
+
+      <LanguagePicker
+        isOpen={languagePickerOpen}
+        onClose={() => setLanguagePickerOpen(false)}
+        isDark={isDark}
+      />
 
       {/* Two-step "Clear All Data" confirmation */}
       <Dialog open={clearStep === 1} onOpenChange={(o) => !o && setClearStep(0)}>

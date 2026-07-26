@@ -192,3 +192,12 @@ Installed `i18next`, `react-i18next`, `i18next-browser-languagedetector`. New fo
 
 Files added: `notes/ChecklistSection.jsx`, `i18n/index.js`, `i18n/locales/{en,es,fr,de,pt,it,zh,ja,hi,ar}.json`.
 Files updated: `components/NoteTile.jsx` (checklist badge + CalendarDays fix), `notes/NoteModal.jsx` (checklist state + i18n), `notes/FullScreenNote.jsx` (checklist render), `notifications/notificationService.js` (snooze), `notes/SettingsModal.jsx` (language picker), `NotesApp.jsx` (i18n hooks + URL action handler), `public/manifest.json` (shortcuts), `index.js` (i18n import).
+
+## Language Picker polish (Feb 2026)
+- Added header globe button (`data-testid="header-language"`) that shows the current-language flag next to a globe icon; one tap opens the picker.
+- New `notes/LanguagePicker.jsx` — searchable 2-column flag grid with native label + ISO code + active indicator (checkmark).
+- Search matches native name, ISO code, AND English name (added `en` alias field to `SUPPORTED_LANGUAGES` so "jap" finds 日本語, "chinese" finds 中文, etc.).
+- SettingsModal: replaced plain Select with a rich language row (big flag + label + code + "N available") that opens the same picker.
+- On select: sets `document.documentElement.dir="rtl"` for Arabic, persists to localStorage, toast confirmation with flag.
+
+Files added: `notes/LanguagePicker.jsx`. Files updated: `i18n/index.js` (added English aliases), `NotesApp.jsx` (header globe button + modal mount), `notes/SettingsModal.jsx` (row-style trigger + delegates to same picker).

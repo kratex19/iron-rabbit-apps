@@ -3,14 +3,14 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
-  Smartphone, Trash2, Globe,
+  Smartphone, Trash2, Globe, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StorageService from "../storage/storageService";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import LanguagePicker from "./LanguagePicker";
 
 /**
  * App-level settings — brand (name/logo/header), backup/restore,
@@ -25,6 +25,10 @@ export default function SettingsModal({
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
+  const [langPickerOpen, setLangPickerOpen] = useState(false);
+  const currentLng = SUPPORTED_LANGUAGES.find(
+    (l) => l.code === (i18n.language || "en").split("-")[0]
+  );
 
   useEffect(() => { if (settings) setFormData(settings); }, [settings]);
 
@@ -85,30 +89,28 @@ export default function SettingsModal({
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className={`text-xs mb-1 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+            <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
               <Globe className="w-3.5 h-3.5" /> {t("settings.language")}
             </label>
-            <Select
-              value={i18n.language?.split("-")[0] || "en"}
-              onValueChange={(lng) => {
-                i18n.changeLanguage(lng);
-                try { localStorage.setItem("ir_lang", lng); } catch (_e) { /* noop */ }
-                document.documentElement.lang = lng;
-                document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
-                toast.success("✓ " + SUPPORTED_LANGUAGES.find(l => l.code === lng)?.label);
-              }}
+            <button
+              type="button"
+              onClick={() => setLangPickerOpen(true)}
+              className={`w-full flex items-center gap-3 rounded-md h-11 px-3 transition-colors ${
+                isDark
+                  ? "bg-black/20 border border-white/10 hover:bg-white/5 text-white"
+                  : "bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800"
+              }`}
+              data-testid="settings-language-btn"
             >
-              <SelectTrigger className={`h-9 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-language-picker">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className={`max-h-64 ${isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white'}`}>
-                {SUPPORTED_LANGUAGES.map((lng) => (
-                  <SelectItem key={lng.code} value={lng.code} className="text-xs">
-                    <span className="mr-1.5">{lng.flag}</span> {lng.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <span className="text-xl leading-none">{currentLng?.flag || "🌐"}</span>
+              <div className="flex-1 text-left">
+                <div className="text-sm font-medium">{currentLng?.label || "English"}</div>
+                <div className={`text-[10px] uppercase font-mono ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  {currentLng?.code || "en"} · {SUPPORTED_LANGUAGES.length} available
+                </div>
+              </div>
+              <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+            </button>
           </div>
 
           <div>
@@ -266,13 +268,19 @@ export default function SettingsModal({
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>Cancel</Button>
+            <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
             <Button onClick={handleSave} disabled={saving} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
-              {saving ? "..." : "Save"}
+              {saving ? "..." : t("action.save")}
             </Button>
           </div>
         </div>
       </DialogContent>
+
+      <LanguagePicker
+        isOpen={langPickerOpen}
+        onClose={() => setLangPickerOpen(false)}
+        isDark={isDark}
+      />
     </Dialog>
   );
 }
