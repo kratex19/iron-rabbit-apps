@@ -27,6 +27,7 @@ import TilePacksModal from "./notes/TilePacksModal";
 import FirstRunTour from "./notes/FirstRunTour";
 import FloatingCalendarModal from "./notes/FloatingCalendarModal";
 import LanguagePicker from "./notes/LanguagePicker";
+import useLanguageSuggest from "./i18n/useLanguageSuggest";
 import SecurityModal from "./notes/SecurityModal";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
@@ -52,6 +53,8 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
  */
 export default function NotesApp() {
   const { t, i18n } = useTranslation();
+  // Suggest device language on first launch (once per device)
+  useLanguageSuggest();
   // Data
   const [notes, setNotes] = useState([]);
   const [settings, setSettings] = useState(null);

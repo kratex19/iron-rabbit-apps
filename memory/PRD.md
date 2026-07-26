@@ -285,3 +285,21 @@ Reaches ~4B+ native speakers now (up from ~2B). Covers all UN official languages
 
 ### Verified in preview
 Screenshot confirms 25 language buttons in the picker; Hebrew selection sets `document.dir="rtl"` and the entire UI mirrors (search input on right, group-by button + note counts on left).
+
+## Suggest my language (Feb 2026)
+One-time first-run detection based on device locale.
+
+- New hook `i18n/useLanguageSuggest.js` — runs on NotesApp mount. Reads `navigator.language`, normalizes to 2-letter code, checks if it's in `SUPPORTED_LANGUAGES` and differs from the active language.
+- If a real mismatch exists, shows a Sonner toast: `[flag] We noticed you speak [Language] — Switch Iron Rabbit's language?` with a **Switch** action + **No thanks** cancel.
+- On accept: switches i18n, persists to localStorage, sets `document.dir` via `RTL_LANGS`, shows confirmation toast.
+- On dismiss / auto-close / accept: sets `localStorage.ir_lang_suggested = "1"` so we never nag again.
+- If active language already matches (i18next-browser-languagedetector already auto-picked it), silently sets the flag and never toasts.
+
+### Files added
+- `i18n/useLanguageSuggest.js`
+
+### Files updated
+- `NotesApp.jsx` — imports + calls `useLanguageSuggest()` at the top of the component.
+
+### Verified in preview
+Spoofed `navigator.language = "es-ES"`, set `ir_lang = "en"` (manual English override) → reload triggers Spanish suggestion toast. Click "Switch" → UI instantly Spanish (Buscar, Todas las notas, Tus notas vivirán aquí, Crea tu primera nota). Reload → no re-nag.
