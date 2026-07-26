@@ -11,7 +11,7 @@ import { haptic } from "../utils/haptic";
  * - Small alarm/recurring indicators
  * - Click: open full-screen editor; edit btn on hover
  */
-export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
+export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMode = false, selected = false, onToggleSelect }) {
   const IconComp = note.icon && LucideIcons[note.icon] ? LucideIcons[note.icon] : StickyNote;
   const bgStyle = getBackgroundStyle(note.background);
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
@@ -20,17 +20,40 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
   const checklistDone = checklist.filter((c) => c.done).length;
   const checklistTotal = checklist.length;
 
+  const handleClick = (e) => {
+    if (selectMode) { e.stopPropagation(); onToggleSelect?.(note.id); return; }
+    onOpen(note);
+    haptic("tap");
+  };
+
   return (
     <button
       type="button"
-      onClick={() => { haptic("tap"); onOpen(note); }}
-      className="note-tile group"
+      onClick={handleClick}
+      className={`note-tile group ${selected ? "ring-4 ring-indigo-400" : ""}`}
       style={bgStyle}
       data-testid={`note-tile-${note.id}`}
       aria-label={`Open ${note.title || "Untitled"}`}
     >
       {/* Dark overlay for readability over images/light colors */}
       <span className="note-tile-overlay" aria-hidden="true" />
+
+      {/* Selection checkmark overlay (only in select mode) */}
+      {selectMode && (
+        <span
+          className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center border-2 z-10 ${
+            selected ? "bg-indigo-500 border-indigo-500 text-white" : "bg-black/40 border-white/70"
+          }`}
+          data-testid={`note-select-${note.id}`}
+          aria-hidden="true"
+        >
+          {selected && (
+            <svg viewBox="0 0 12 12" className="w-3 h-3">
+              <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
+      )}
 
       {/* Badges */}
       <span className="note-tile-badges" aria-hidden="true">

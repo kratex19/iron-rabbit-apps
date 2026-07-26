@@ -29,6 +29,9 @@ import FloatingCalendarModal from "./notes/FloatingCalendarModal";
 import LanguagePicker from "./notes/LanguagePicker";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
 import SecurityModal from "./notes/SecurityModal";
+import OrganizationModal from "./notes/OrganizationModal";
+import MultiSelectBar from "./notes/MultiSelectBar";
+import MoveToCategoryModal from "./notes/MoveToCategoryModal";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
 import SecurityService from "./security/SecurityService";
@@ -87,6 +90,10 @@ export default function NotesApp() {
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [organizationOpen, setOrganizationOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [moveToOpen, setMoveToOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
@@ -484,6 +491,55 @@ export default function NotesApp() {
 
   const handleDragStart = () => { haptic("tap"); };
 
+  // Multi-select helpers
+  const inSelectMode = selectMode;
+  const isSelected = (id) => selectedIds.has(id);
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    haptic("tap");
+  };
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
+  const enterSelectMode = () => { setSelectMode(true); haptic("tap"); };
+
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`Delete ${selectedIds.size} note${selectedIds.size === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      try { await StorageService.deleteNote(id); } catch (_e) { /* continue */ }
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Deleted ${ids.length} note${ids.length === 1 ? "" : "s"}`);
+  };
+
+  const bulkMoveTo = async (targetCategory) => {
+    const ids = Array.from(selectedIds);
+    const prevMap = new Map();
+    for (const id of ids) {
+      const prev = await StorageService.moveNoteToCategory(id, targetCategory, "");
+      if (prev) prevMap.set(id, prev);
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Moved ${ids.length} note${ids.length === 1 ? "" : "s"} to "${targetCategory || "Uncategorized"}"`, {
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          for (const [id, prev] of prevMap.entries()) {
+            await StorageService.moveNoteToCategory(id, prev.category, prev.subcategory);
+          }
+          fetchData();
+        },
+      },
+    });
+  };
+
   const handleDragEnd = async (result) => {
     if (!result.destination) return;
     const { source, destination, draggableId, type } = result;
@@ -697,7 +753,7 @@ export default function NotesApp() {
         {viewMode === "icon" ? (
           <div className="notes-grid">
             {pinnedNotes.map(note => (
-              <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+              <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
         ) : (
@@ -768,7 +824,7 @@ export default function NotesApp() {
                                 {...dp.dragHandleProps}
                                 className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                               >
-                                <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+                                <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
                               </div>
                             )}
                           </Draggable>
@@ -801,7 +857,7 @@ export default function NotesApp() {
                                 {...dp.dragHandleProps}
                                 className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                               >
-                                <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+                                <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
                               </div>
                             )}
                           </Draggable>
@@ -830,7 +886,7 @@ export default function NotesApp() {
                         {...dp.dragHandleProps}
                         className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                       >
-                        <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} />
+                        <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
                       </div>
                     )}
                   </Draggable>
@@ -1103,6 +1159,18 @@ export default function NotesApp() {
           >
             <FolderTree className="w-3.5 h-3.5" /> {t("app.groupBy")}
           </button>
+          <button
+            onClick={() => selectMode ? clearSelection() : enterSelectMode()}
+            className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
+              selectMode
+                ? "bg-indigo-500 border-indigo-500 text-white"
+                : isDark ? "border-white/10 text-slate-300 hover:bg-white/5" : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+            data-testid="select-mode-toggle"
+            title={selectMode ? "Cancel selection" : "Select multiple notes"}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" /> {selectMode ? `Selected ${selectedIds.size}` : "Select"}
+          </button>
           <div className="text-xs font-mono">{t("app.notes_count", { count: processedNotes.length })}</div>
         </div>
 
@@ -1156,6 +1224,7 @@ export default function NotesApp() {
         storageInfo={storageInfo}
         onRestoreFromServer={handleRestoreFromServer}
         onOpenSecurity={() => setSecurityOpen(true)}
+        onOpenOrganization={() => setOrganizationOpen(true)}
         isDark={isDark}
       />
       <FullScreenNote
@@ -1239,6 +1308,29 @@ export default function NotesApp() {
       <LockScreen
         isOpen={autoLock.locked}
         onUnlock={autoLock.unlock}
+        isDark={isDark}
+      />
+
+      <OrganizationModal
+        isOpen={organizationOpen}
+        onClose={() => setOrganizationOpen(false)}
+        isDark={isDark}
+      />
+
+      <MoveToCategoryModal
+        isOpen={moveToOpen}
+        onClose={() => setMoveToOpen(false)}
+        categories={grouped.map(([n]) => n)}
+        count={selectedIds.size}
+        onMove={bulkMoveTo}
+        isDark={isDark}
+      />
+
+      <MultiSelectBar
+        count={selectedIds.size}
+        onClear={clearSelection}
+        onDelete={bulkDelete}
+        onMoveTo={() => setMoveToOpen(true)}
         isDark={isDark}
       />
 

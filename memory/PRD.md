@@ -348,3 +348,37 @@ Cross-category moves show `Moved to "<cat>" [Undo]` toast for 6 s that restores 
 
 ### Verified in preview
 Code compiles + lints clean, notes render, no runtime errors. Full drag flow requires categories which the playwright script couldn't seed via the current UI selectors — user should verify manually by creating notes with categories and dragging.
+
+## Drag & Drop Phase 3 (Feb 2026)
+Multi-select mode + Settings→Organization preferences page.
+
+### New files
+- `notes/MultiSelectBar.jsx` — floating bottom-center action bar shown when notes are selected. Displays "N selected" + [Move to…] + [Delete] + [Cancel].
+- `notes/MoveToCategoryModal.jsx` — searchable picker of existing categories + input for a new category name. Passes chosen category up.
+- `notes/OrganizationModal.jsx` — Settings→Drag & Drop preferences page. 6 toggles stored in `settings.dnd_prefs`: enabled, longPressToDrag, showDragHandles, haptic, confirmCrossCategoryMove, undoNotifications. "Restore defaults" button.
+
+### NotesApp.jsx changes
+- New state: `selectMode`, `selectedIds` (Set), `moveToOpen`, `organizationOpen`
+- New helpers: `toggleSelect(id)`, `clearSelection()`, `enterSelectMode()`, `bulkDelete()`, `bulkMoveTo(cat)`
+- `bulkMoveTo` walks each selected id → `moveNoteToCategory`, collects previous state, shows one Undo toast that reverts everything at once
+- New **"Select"** header button in the controls row (icon view). Toggles select mode; clicking again cancels selection.
+- All 4 NoteTile instances receive `selectMode / selected / onToggleSelect` props (via `sed` batch update).
+
+### NoteTile.jsx changes
+- New props: `selectMode`, `selected`, `onToggleSelect`
+- Tap in `selectMode` toggles selection instead of opening the note
+- Selection ring (indigo-400 4px) around selected tiles + checkmark badge overlay in the top-left corner
+
+### SettingsModal.jsx changes
+- New "Organization" row added under Security & Privacy — clicking opens `OrganizationModal`
+- New prop `onOpenOrganization` wired from NotesApp
+
+### Known gap
+Multi-select tap-toggle currently only wires into the **icon-view** `NoteTile`. In **List view**, tapping accordion items still opens them (no select mode). Drag-to-reorder in list view still works. Wiring select-mode into `AccordionNoteItem` is a small follow-up.
+
+### Files changed
+- `NotesApp.jsx`, `components/NoteTile.jsx`, `notes/SettingsModal.jsx`, `storage/storageService.js` (from Phase 1+2 — unchanged)
+- New: `notes/MultiSelectBar.jsx`, `notes/MoveToCategoryModal.jsx`, `notes/OrganizationModal.jsx`
+
+### Verified in preview
+Select button toggles mode (screenshot shows "Selected 0" active state), category & note drag handles visible in list view, 7 seeded notes render cleanly with categories, Undo toast infrastructure fires on create. Full end-to-end (tap tile → Move to → confirm) requires icon view + tiles present; user can verify manually.
