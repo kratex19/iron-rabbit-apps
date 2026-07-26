@@ -27,6 +27,10 @@ import TilePacksModal from "./notes/TilePacksModal";
 import FirstRunTour from "./notes/FirstRunTour";
 import FloatingCalendarModal from "./notes/FloatingCalendarModal";
 import LanguagePicker from "./notes/LanguagePicker";
+import SecurityModal from "./notes/SecurityModal";
+import LockScreen from "./security/LockScreen";
+import useAutoLock from "./security/useAutoLock";
+import SecurityService from "./security/SecurityService";
 import { SUPPORTED_LANGUAGES } from "./i18n";
 import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 
@@ -79,8 +83,12 @@ export default function NotesApp() {
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
+
+  // App-lock (uses SecurityService + visibilitychange)
+  const autoLock = useAutoLock();
 
   // Keep full-screen editor in sync with the notes array
   useEffect(() => {
@@ -227,7 +235,15 @@ export default function NotesApp() {
     setDeferredPrompt(null);
   };
 
-  const handleClearAllData = () => {
+  const handleClearAllData = async () => {
+    // Optional biometric gate before showing the confirmation dialogs
+    const toggles = await SecurityService.getToggles();
+    const method = await SecurityService.getMethod();
+    if (toggles.requireAuthClearAll && method === "biometric") {
+      const ok = await SecurityService.verifyBiometric();
+      if (!ok) { toast.error("Authentication failed"); return; }
+    }
+    // For PIN method, lock screen already gates all app entry, so no extra prompt needed
     // Two-step confirmation — actual wipe happens in performClearAllData()
     setClearStep(1);
   };
@@ -563,7 +579,14 @@ export default function NotesApp() {
     [processedNotes]
   );
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    // Optional biometric gate before exporting
+    const toggles = await SecurityService.getToggles();
+    const method = await SecurityService.getMethod();
+    if (toggles.requireAuthExport && method === "biometric") {
+      const ok = await SecurityService.verifyBiometric();
+      if (!ok) { toast.error("Authentication failed"); return; }
+    }
     const doc = new jsPDF();
     let y = 15;
     doc.setFontSize(18); doc.text(settings?.company_name || "Iron Rabbit", 15, y); y += 10;
@@ -974,6 +997,7 @@ export default function NotesApp() {
         canInstallPWA={!!deferredPrompt}
         storageInfo={storageInfo}
         onRestoreFromServer={handleRestoreFromServer}
+        onOpenSecurity={() => setSecurityOpen(true)}
         isDark={isDark}
       />
       <FullScreenNote
@@ -1043,6 +1067,19 @@ export default function NotesApp() {
       <LanguagePicker
         isOpen={languagePickerOpen}
         onClose={() => setLanguagePickerOpen(false)}
+        isDark={isDark}
+      />
+
+      <SecurityModal
+        isOpen={securityOpen}
+        onClose={() => { setSecurityOpen(false); autoLock.refresh(); }}
+        isDark={isDark}
+      />
+
+      {/* App-lock overlay — rendered above everything when app is locked */}
+      <LockScreen
+        isOpen={autoLock.locked}
+        onUnlock={autoLock.unlock}
         isDark={isDark}
       />
 

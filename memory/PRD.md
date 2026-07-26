@@ -201,3 +201,31 @@ Files updated: `components/NoteTile.jsx` (checklist badge + CalendarDays fix), `
 - On select: sets `document.documentElement.dir="rtl"` for Arabic, persists to localStorage, toast confirmation with flag.
 
 Files added: `notes/LanguagePicker.jsx`. Files updated: `i18n/index.js` (added English aliases), `NotesApp.jsx` (header globe button + modal mount), `notes/SettingsModal.jsx` (row-style trigger + delegates to same picker).
+
+## Security & Privacy + Capacitor scaffolding (Feb 2026)
+Full security architecture — works today as a PWA, ready to swap to native APIs when wrapped with Capacitor.
+
+### New files
+- `security/SecurityService.js` — modular auth backend. Auto-detects Capacitor at runtime. Uses `NativeBiometric` + Capacitor `Preferences` (Keychain / Keystore) on native; falls back to WebAuthn + hashed PIN in IndexedDB on web.
+- `security/LockScreen.jsx` — full-screen lock overlay with numeric keypad, biometric prompt trigger, "Use PIN instead" fallback, wrong-PIN shake haptic.
+- `security/useAutoLock.js` — hook that owns the locked state; listens to `visibilitychange`, applies auto-lock timer, blurs body when hidden (best-effort Recent-Apps hiding for web).
+- `notes/SecurityModal.jsx` — Security & Privacy settings page. Includes the full "Welcome to Iron Rabbit Apps" statement card ("Your Notes. Your Privacy. Your Choice."), 3 auth methods (No lock / Biometrics / Local PIN 4–8), auto-lock select (Immediately / 30s / 1m / 5m / 15m / Never), 6 toggles (lock on launch, lock on background, hide in recents, require auth before export/clear/restore), Privacy checklist, "Cloud features (future)" note.
+- `capacitor.config.ts` — `appId: com.ironrabbitapps.notes`, appName, webDir, PrivacyScreen plugin config.
+- `/app/CAPACITOR_SETUP.md` — full build guide for Android/iOS.
+
+### Files updated
+- `NotesApp.jsx` — mounts LockScreen (renders when `autoLock.locked`), mounts SecurityModal, wires Settings row to open it. `handleClearAllData` and `exportToPDF` now check `requireAuthClearAll` / `requireAuthExport` toggles and prompt biometrics if method === "biometric".
+- `notes/SettingsModal.jsx` — new "Security & Privacy" row directly under Language; opens SecurityModal via `onOpenSecurity` prop.
+
+### Dependencies added
+`@capacitor/core@^7`, `@capacitor/cli@^7`, `@capacitor/android@^7`, `@capacitor/ios@^7`, `@capacitor/app@^7`, `@capacitor/preferences@^7`, `capacitor-native-biometric`, `@capacitor-community/privacy-screen`.
+
+### Environment reality
+- **Web (today)**: Local PIN + WebAuthn biometrics + auto-lock all live in preview/production. Verified end-to-end: set PIN via UI → refresh page → lock screen appears → correct PIN unlocks, wrong PIN shows error.
+- **Native**: Requires user to run `npx cap add android && npx cap add ios && npx cap sync` locally with Android Studio + Xcode installed. See `CAPACITOR_SETUP.md`.
+
+### Security guarantees
+- PINs hashed with per-app random salt via SHA-256; plain text never persisted.
+- Biometric templates never touched by Iron Rabbit — always delegated to OS.
+- Native builds route storage through Keystore / Keychain via Capacitor Preferences.
+- Cloud sign-in remains optional; free version stays fully offline.
