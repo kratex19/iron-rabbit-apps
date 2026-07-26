@@ -117,3 +117,22 @@ New files: `utils/useVoiceInput.js`, `utils/shareTile.js`, `utils/weeklyRecap.js
 Deps added: `html-to-image@1.11.13`.
 
 **Deployment**: dispatched to deployer agent with target custom domain `www.ironrabbitapps.com` (DNS via Entri after first deploy).
+
+
+## Tile Pack expansion (Feb 2026)
+Grew the tile-pack library from **4 → 33 curated bundles** across 8 life categories:
+
+- **Personal Productivity** — Fitness Journey · Meal Planner · Deep Work · Daily Life
+- **Travel & Adventure** — The Great Outdoors · Road Trip · Hunting & Fishing · Sightseeing · Bed & Breakfast · Airbnb Stay · Passport & Travel Docs
+- **Health & Wellness** — Health & Wellness (Sleep/Rest/Diet/Vitamins/Doctors) · Mental Health · Skincare Routine
+- **Home & Family** — New Home · Baby Milestones · Pet Care · Garden Journal
+- **Events & Occasions** — Wedding Planning · Birthday Party · Holiday Planning
+- **Money & Career** — Job Search · Side Hustle · Investment Portfolio
+- **Learning** — Reading List · Language Learning · Course & Study
+- **Creative & Hobbies** — Photography · Music Practice · DIY Projects · Book Club
+- **Recovery & Growth** — Habit Tracker · Sobriety Journey
+
+Also upgraded `TilePacksModal`: live search across pack name / tagline / individual tile titles, "33 bundles" counter, wider layout (max-w-3xl), sticky search over scrollable grid, empty state.
+
+Files updated: `data/tilePacks.js` (rewritten with helpers G/grad/solid for compactness), `notes/TilePacksModal.jsx` (search + polish).
+Verified: all 33 packs render, search filters correctly ("road" → 1 result), Apply Pack still bulk-creates notes with auto-pin. Zero console errors.
