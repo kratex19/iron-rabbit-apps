@@ -303,3 +303,48 @@ One-time first-run detection based on device locale.
 
 ### Verified in preview
 Spoofed `navigator.language = "es-ES"`, set `ir_lang = "en"` (manual English override) → reload triggers Spanish suggestion toast. Click "Switch" → UI instantly Spanish (Buscar, Todas las notas, Tus notas vivirán aquí, Crea tu primera nota). Reload → no re-nag.
+
+## Universal Drag & Drop — Phase 1 + 2 (Feb 2026)
+User requested iPhone-style long-press drag (no visible handles beyond a subtle GripVertical on categories) across list + grid + cross-category moves. Multi-select drag (Phase 3) deferred.
+
+### Storage additions (`storage/storageService.js`)
+- `saveCategoryOrder(orderedNames)` — persists user-defined category order into `settings.category_order`
+- `getCategoryOrder()` — returns the stored ordering
+- `moveNoteToCategory(noteId, newCategory, newSubcategory)` — updates note's category/subcategory fields; returns the previous values so Undo can restore
+
+### Unified drag dispatcher (`NotesApp.jsx`)
+- `handleDragStart` fires `haptic("tap")` on every drag start
+- `handleDragEnd` inspects droppable IDs to dispatch:
+  - `type === "category"` → category reorder → `saveCategoryOrder`
+  - Droppable IDs prefixed `notes-in-<cat>` with different src/dst → cross-category move → `moveNoteToCategory` + Sonner toast with **Undo** action (6-second window)
+  - Same-list reorder (grid or within a category) → `reorderNotes`
+
+### List view — grouped
+Rewrote `CategoryGroup.jsx`:
+- Category container is a Draggable (only when consumer passes `dragHandleProps`)
+- Small GripVertical handle to the left of the toggle button initiates category reorder
+- Inner `Droppable(id=notes-in-<cat>, type=note)` accepts notes dropped into the category (highlights indigo when hovered)
+- Empty categories show "Drop note here" hint when a drag hovers over them
+
+`NotesApp.jsx` groupByCategory list view now wraps everything in `DragDropContext` + top-level `Droppable(id=category-list, type=category)`. Uncategorized bucket is its own drop-zone (id `notes-in-`).
+
+### Icon-grid view
+Wrapped in `DragDropContext`; each category/uncategorized bucket is a horizontal-direction Droppable with cascading Draggable tiles. Tiles get scale-105 + shadow-2xl + slight rotation while dragging (iPhone-jiggle-lite).
+
+### Undo behaviour
+Cross-category moves show `Moved to "<cat>" [Undo]` toast for 6 s that restores the previous category+subcategory.
+
+### Files changed
+- `storage/storageService.js` (+3 methods)
+- `NotesApp.jsx` (`handleDragStart`, unified `handleDragEnd`, `grouped` respects saved order, list + icon views wrapped)
+- `notes/CategoryGroup.jsx` (rewritten with Draggable+Droppable)
+
+### Not yet done
+- Subcategory reorder (rarely used; deferred)
+- "Confirm move" dialog toggle
+- Multi-select drag stack (Phase 3)
+- Settings → Organization preferences page
+- Real-device iPhone/Android verification
+
+### Verified in preview
+Code compiles + lints clean, notes render, no runtime errors. Full drag flow requires categories which the playwright script couldn't seed via the current UI selectors — user should verify manually by creating notes with categories and dragging.

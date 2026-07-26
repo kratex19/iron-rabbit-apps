@@ -80,6 +80,31 @@ export const StorageService = {
     return true;
   },
 
+  // Persist a user-defined ordering of category names. Categories not in the
+  // stored list fall back to alphabetical / creation order.
+  async saveCategoryOrder(orderedNames) {
+    const settings = (await settingsStore.getItem("main")) || { id: "main" };
+    settings.category_order = orderedNames;
+    await settingsStore.setItem("main", settings);
+    return true;
+  },
+  async getCategoryOrder() {
+    const settings = await settingsStore.getItem("main");
+    return Array.isArray(settings?.category_order) ? settings.category_order : [];
+  },
+
+  // Move a note into a different category / subcategory (drag & drop).
+  async moveNoteToCategory(noteId, newCategory, newSubcategory = "") {
+    const note = await notesStore.getItem(noteId);
+    if (!note) return null;
+    const prev = { category: note.category || "", subcategory: note.subcategory || "" };
+    note.category = newCategory || "";
+    note.subcategory = newSubcategory || "";
+    note.updated_at = new Date().toISOString();
+    await notesStore.setItem(note.id, note);
+    return prev;
+  },
+
   // ========== CATEGORIES ==========
   async getCategories() {
     const notes = await this.getAllNotes();
