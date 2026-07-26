@@ -1118,7 +1118,7 @@ export default function NotesApp() {
                 {SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.flag || "🌐"}
               </span>
             </button>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")}><Settings className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
           </div>
         </div>
       </header>
