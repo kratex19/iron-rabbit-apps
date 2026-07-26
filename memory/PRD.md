@@ -254,3 +254,15 @@ Optional secondary PIN that unlocks Iron Rabbit into a **safe view** — indisti
 - Panic PIN 7777 set → "Panic PIN is active" indicator
 - Reload → lock screen → enter 7777 → app opens showing 0 notes / empty view (even though 4 real notes exist in IDB)
 - No visible marker of panic mode
+
+## Dark Mode text visibility fix (Feb 2026)
+**Bug report:** In Dark Mode, opening a Category / Subcategory / Note showed dark text on a dark background, making content unreadable.
+
+**Root cause:** iOS Safari and some Android WebViews force their own text color on native form controls (`<input>`, `<textarea>`, `[contenteditable]`) when the page doesn't declare `color-scheme`. This overrode our Tailwind `text-white` classes with the OS's default dark input color.
+
+**Fix:**
+- `public/index.html` — added `<meta name="color-scheme" content="dark light">`.
+- `src/index.css` — added `:root { color-scheme: dark; }` and `body.nx-light { color-scheme: light; }`.
+- `src/index.css` — added defensive rules using `-webkit-text-fill-color: hsl(var(--foreground))` on `input`, `textarea`, `select`, `[contenteditable="true"]`, plus theme-aware `caret-color`, `::placeholder`, `::selection`, and `:-webkit-autofill` overrides.
+
+**Verified by testing_agent (iteration_8.json):** 15/15 scenarios pass. Dark mode text resolves to `rgb(248, 250, 252)` (light), light mode to `rgb(15, 23, 41)` (dark), across NoteModal, FullScreenNote, AccordionNoteItem, Settings, Language picker, and all form inputs. Theme toggle updates every screen immediately. Zero console errors.
