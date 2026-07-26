@@ -100,7 +100,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       alarmDateTime = dt.toISOString();
     }
     const noteData = {
-      title: title.trim(), content, color, icon, background, pinned,
+      title: title.trim(), content, color, icon, background,
+      // Pin only allowed on main-category (or uncategorized) notes.
+      // If a subcategory is set, force pinned=false so old state is cleaned up.
+      pinned: subcategory.trim() ? false : pinned,
       category: category.trim(), subcategory: subcategory.trim(),
       alarm: { ...alarm, datetime: alarmDateTime }, recurring,
     };
@@ -233,14 +236,16 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
               </div>
             </div>
 
-            <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <label className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-                  <Pin className="w-3.5 h-3.5" /> Pin to top
-                </label>
-                <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />
+            {!subcategory.trim() && (
+              <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <label className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                    <Pin className="w-3.5 h-3.5" /> Pin to top
+                  </label>
+                  <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-2">
