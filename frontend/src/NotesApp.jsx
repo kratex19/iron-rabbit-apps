@@ -588,6 +588,42 @@ export default function NotesApp() {
     });
   };
 
+  const bulkDuplicateInPlace = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const newIds = [];
+    for (const id of ids) {
+      const src = await StorageService.getNote(id);
+      if (!src) continue;
+      const now = new Date().toISOString();
+      const copy = {
+        ...src,
+        id: uuidv4(),
+        title: `${src.title || "Untitled"} (copy)`,
+        created_at: now,
+        updated_at: now,
+        order: Date.now(),
+      };
+      delete copy.pinned_at;
+      await StorageService.saveNote(copy);
+      newIds.push(copy.id);
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Duplicated ${newIds.length} note${newIds.length === 1 ? "" : "s"} in place`, {
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          for (const nid of newIds) {
+            try { await StorageService.deleteNote(nid); } catch (_e) { /* continue */ }
+          }
+          fetchData();
+        },
+      },
+    });
+  };
+
   const handleDragEnd = async (result) => {
     if (!result.destination) return;
     const { source, destination, draggableId, type } = result;
@@ -1393,6 +1429,7 @@ export default function NotesApp() {
         onClear={clearSelection}
         onDelete={bulkDelete}
         onMoveTo={() => setMoveToOpen(true)}
+        onDuplicate={bulkDuplicateInPlace}
         mode={settings?.dnd_prefs?.smartBatchMode || "move"}
         isDark={isDark}
       />

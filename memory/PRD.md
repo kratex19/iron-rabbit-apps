@@ -410,3 +410,14 @@ Settings → Organization now has a top-of-modal **Smart Batch Mode** segmented 
 
 ### Verified in preview
 Screenshots confirm Settings modal scrolls to reveal Clear All Data / Save; Organization modal shows Move/Copy toggle with correct active-state highlighting on switch.
+
+## [2026-02-27] Duplicate in place — bulk action
+
+Added a third bulk action on `MultiSelectBar`: **Duplicate** (green pill, `CopyPlus` icon, `data-testid="multiselect-duplicate-btn"`). One tap creates a duplicate of every selected note in the **same** category with " (copy)" appended to the title. No destination prompt (since target = source), no suffix prompt (auto-adds " (copy)" so duplicates are always distinguishable). Full Undo toast (6s) deletes the newly created copies.
+
+- New handler: `bulkDuplicateInPlace()` in `NotesApp.jsx` (uses `uuidv4()`, fresh timestamps, `order=Date.now()`, strips `pinned_at`).
+- `MultiSelectBar` accepts new `onDuplicate` prop; button only renders when the prop is provided.
+
+### Verified
+Screenshot confirms the green Duplicate button renders alongside Move to… and Delete in Select mode. Independent of Smart Batch Mode (works in both Move and Copy configurations).
+

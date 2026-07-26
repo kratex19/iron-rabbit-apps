@@ -1,23 +1,26 @@
 import React from "react";
-import { X, Trash2, FolderInput, Copy, Check } from "lucide-react";
+import { X, Trash2, FolderInput, Copy, CopyPlus, Check } from "lucide-react";
 
 /**
  * Floating action bar that appears at the bottom when the user is in
- * multi-select mode. Shows selection count and bulk actions. The
- * "Move to…" button toggles to "Copy to…" when Smart Batch Mode = copy.
+ * multi-select mode. Shows selection count and bulk actions:
+ *  - Move/Copy to another category (label swaps based on Smart Batch mode)
+ *  - Duplicate in place (always adds " (copy)" suffix)
+ *  - Delete
  */
 export default function MultiSelectBar({
   count,
   onClear,
   onDelete,
   onMoveTo,
+  onDuplicate,
   mode = "move",
   isDark,
 }) {
   if (count === 0) return null;
   const isCopy = mode === "copy";
-  const Icon = isCopy ? Copy : FolderInput;
-  const label = isCopy ? "Copy to…" : "Move to…";
+  const MoveIcon = isCopy ? Copy : FolderInput;
+  const moveLabel = isCopy ? "Copy to…" : "Move to…";
   return (
     <div
       className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border ${
@@ -39,8 +42,21 @@ export default function MultiSelectBar({
         }`}
         data-testid="multiselect-move-btn"
       >
-        <Icon className="w-3.5 h-3.5" /> {label}
+        <MoveIcon className="w-3.5 h-3.5" /> {moveLabel}
       </button>
+      {onDuplicate && (
+        <button
+          type="button"
+          onClick={onDuplicate}
+          className={`h-8 px-3 rounded-full text-xs flex items-center gap-1.5 transition-colors ${
+            isDark ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+          }`}
+          data-testid="multiselect-duplicate-btn"
+          title="Duplicate in place (adds ' (copy)' to titles, stays in same category)"
+        >
+          <CopyPlus className="w-3.5 h-3.5" /> Duplicate
+        </button>
+      )}
       <button
         type="button"
         onClick={onDelete}
