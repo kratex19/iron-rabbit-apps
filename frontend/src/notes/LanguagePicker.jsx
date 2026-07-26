@@ -10,7 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { SUPPORTED_LANGUAGES } from "../i18n";
+import { SUPPORTED_LANGUAGES, RTL_LANGS } from "../i18n";
 
 /**
  * Rich language picker dialog — searchable flag grid.
@@ -41,7 +41,7 @@ export default function LanguagePicker({ isOpen, onClose, isDark }) {
       /* noop */
     }
     document.documentElement.lang = code;
-    document.documentElement.dir = code === "ar" ? "rtl" : "ltr";
+    document.documentElement.dir = RTL_LANGS.includes(code) ? "rtl" : "ltr";
     const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
     toast.success(`${lang?.flag || "🌐"} ${lang?.label}`);
     onClose();

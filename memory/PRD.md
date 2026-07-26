@@ -266,3 +266,22 @@ Optional secondary PIN that unlocks Iron Rabbit into a **safe view** — indisti
 - `src/index.css` — added defensive rules using `-webkit-text-fill-color: hsl(var(--foreground))` on `input`, `textarea`, `select`, `[contenteditable="true"]`, plus theme-aware `caret-color`, `::placeholder`, `::selection`, and `:-webkit-autofill` overrides.
 
 **Verified by testing_agent (iteration_8.json):** 15/15 scenarios pass. Dark mode text resolves to `rgb(248, 250, 252)` (light), light mode to `rgb(15, 23, 41)` (dark), across NoteModal, FullScreenNote, AccordionNoteItem, Settings, Language picker, and all form inputs. Theme toggle updates every screen immediately. Zero console errors.
+
+## Language expansion 10 → 25 offline languages (Feb 2026)
+User requested Google Translate reach (~50 langs) but stipulated the FREE app must stay offline. Path chosen: keep 10 existing + add 15 more high-coverage offline locales. Google Translate deferred (not desired for the offline-first free version).
+
+### New locales added
+`ru` Russian · `ko` Korean · `tr` Turkish · `vi` Vietnamese · `id` Indonesian · `th` Thai · `pl` Polish · `nl` Dutch · `sv` Swedish · `uk` Ukrainian · `he` Hebrew (RTL) · `fa` Persian/Farsi (RTL) · `ur` Urdu (RTL) · `bn` Bengali · `ms` Malay.
+
+### Files added
+`i18n/locales/{ru,ko,tr,vi,id,th,pl,nl,sv,uk,he,fa,ur,bn,ms}.json` — each with the same 55 UI strings as the existing 10 locales.
+
+### Files updated
+- `i18n/index.js` — new `RTL_LANGS = ["ar","he","fa","ur"]` export, imports for all 15 new locales, `SUPPORTED_LANGUAGES` array grown to 25 entries with flag + English alias for search.
+- `notes/LanguagePicker.jsx` — RTL detection now uses shared `RTL_LANGS` instead of hard-coded `"ar"` check (so Hebrew/Farsi/Urdu also flip `document.dir` correctly).
+
+### Coverage
+Reaches ~4B+ native speakers now (up from ~2B). Covers all UN official languages plus major SE Asian markets. All translations bundled at build time — zero network calls, works fully offline.
+
+### Verified in preview
+Screenshot confirms 25 language buttons in the picker; Hebrew selection sets `document.dir="rtl"` and the entire UI mirrors (search input on right, group-by button + note counts on left).
