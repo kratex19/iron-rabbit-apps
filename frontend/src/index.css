@@ -171,9 +171,61 @@ body.nx-light {
     * {
         @apply border-border;
     }
+    /* Tell the OS which color scheme we're rendering so native controls
+       (inputs, scrollbars, autofill, etc.) inherit correct defaults —
+       critical on iOS Safari where native inputs otherwise force dark text. */
+    :root { color-scheme: dark; }
+    body.nx-light { color-scheme: light; }
+
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* ============================================================
+   Theme-safety net for form fields.
+   Some devices/browsers (esp. iOS Safari + Android WebView) force
+   their own text color on native <input>, <textarea>, <select>,
+   overriding CSS. -webkit-text-fill-color wins that battle. We
+   also force caret + selection + placeholder to follow the theme.
+   ============================================================ */
+input, textarea, select, [contenteditable="true"] {
+    color: hsl(var(--foreground));
+    -webkit-text-fill-color: hsl(var(--foreground));
+    caret-color: hsl(var(--foreground));
+    background-color: transparent;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+    -webkit-text-fill-color: hsl(var(--muted-foreground));
+    opacity: 1;
+}
+
+/* WebKit autofill overrides — Chrome/Safari otherwise paint autofilled
+   values with their own dark background + text. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+    -webkit-text-fill-color: hsl(var(--foreground));
+    -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+    caret-color: hsl(var(--foreground));
+}
+
+::selection {
+    background: hsl(var(--primary) / 0.45);
+    color: hsl(var(--foreground));
+    -webkit-text-fill-color: hsl(var(--foreground));
+}
+
+/* Any element that inherits `color: initial` (e.g., legacy tables,
+   raw text nodes) still falls back to a theme-correct color. */
+body:not(.nx-light) [style*="color: rgb(0"],
+body:not(.nx-light) [style*="color:#000"],
+body:not(.nx-light) [style*="color: #000"] {
+    color: hsl(var(--foreground)) !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
 }
 
 /* Utility classes for grid control */
