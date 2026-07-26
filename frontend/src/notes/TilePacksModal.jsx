@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import * as LucideIcons from "lucide-react";
-import { Package, Sparkles, Pin, Search } from "lucide-react";
+import { Package, Sparkles, Pin, Search, Plus, Pencil } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TILE_PACKS } from "../data/tilePacks";
 import { getBackgroundStyle } from "../components/BackgroundPicker";
+import PackBuilderModal from "./PackBuilderModal";
+import StorageService from "../storage/storageService";
 
 /**
  * Curated tile-pack picker. Selecting a pack calls onApply with the pack's
@@ -14,8 +16,33 @@ import { getBackgroundStyle } from "../components/BackgroundPicker";
  */
 export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
   const [query, setQuery] = useState("");
+  const [customPacks, setCustomPacks] = useState([]);
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [editingPack, setEditingPack] = useState(null);
 
-  const filtered = TILE_PACKS.filter(pack => {
+  const loadCustom = useCallback(async () => {
+    try {
+      const s = await StorageService.getSettings();
+      setCustomPacks(Array.isArray(s?.custom_packs) ? s.custom_packs : []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { if (isOpen) loadCustom(); }, [isOpen, loadCustom]);
+
+  const handleSavePack = async (pack) => {
+    const others = customPacks.filter(p => p.id !== pack.id);
+    const next = [...others, pack];
+    setCustomPacks(next);
+    await StorageService.saveSettings({ custom_packs: next });
+  };
+  const handleDeletePack = async (id) => {
+    const next = customPacks.filter(p => p.id !== id);
+    setCustomPacks(next);
+    await StorageService.saveSettings({ custom_packs: next });
+  };
+
+  const allPacks = [...TILE_PACKS, ...customPacks];
+  const filtered = allPacks.filter(pack => {
     if (!query) return true;
     const q = query.toLowerCase();
     return (
@@ -34,7 +61,7 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
         <DialogHeader>
           <DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <Package className="w-5 h-5 text-indigo-500" /> Tile Packs
-            <span className={`text-xs font-normal ml-1 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{TILE_PACKS.length} bundles</span>
+            <span className={`text-xs font-normal ml-1 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{allPacks.length} bundles</span>
           </DialogTitle>
           <DialogDescription className={isDark ? 'text-slate-400' : 'text-gray-500'}>
             Apply a curated bundle to drop 4–5 ready-to-use notes into your library.
@@ -64,8 +91,13 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: pack.accent }}>
                     <Sparkles className="w-4 h-4 text-white" />
                   </div>
-                  <div className="min-w-0">
-                    <div className={`font-semibold text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.name}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`font-semibold text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.name}</div>
+                      {pack.custom && (
+                        <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>Custom</span>
+                      )}
+                    </div>
                     <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{pack.notes.length} tiles</div>
                   </div>
                 </div>
@@ -93,8 +125,33 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                 >
                   Apply Pack
                 </Button>
+                {pack.custom && (
+                  <Button
+                    variant="outline"
+                    onClick={() => { setEditingPack(pack); setBuilderOpen(true); }}
+                    size="sm"
+                    className={`w-full h-7 text-xs mt-1 ${isDark ? 'border-white/10 text-slate-300' : ''}`}
+                    data-testid={`edit-pack-${pack.id}`}
+                  >
+                    <Pencil className="w-3 h-3 mr-1" /> Edit
+                  </Button>
+                )}
               </div>
             ))}
+
+            {/* "+ Build your own" card */}
+            <button
+              type="button"
+              onClick={() => { setEditingPack(null); setBuilderOpen(true); }}
+              className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 p-4 min-h-[180px] transition-all ${isDark ? 'border-white/20 hover:border-indigo-400 hover:bg-indigo-500/5 text-slate-400 hover:text-indigo-300' : 'border-gray-300 hover:border-indigo-500 hover:bg-indigo-50 text-gray-500 hover:text-indigo-600'}`}
+              data-testid="build-your-own-pack"
+            >
+              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)" }}>
+                <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+              </div>
+              <div className="text-sm font-semibold">Build Your Own Pack</div>
+              <div className="text-[11px] text-center leading-tight px-2">Create a reusable bundle of tiles</div>
+            </button>
           </div>
           {filtered.length === 0 && (
             <div className={`text-center py-10 text-sm ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
@@ -103,6 +160,15 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
           )}
         </div>
       </DialogContent>
+
+      <PackBuilderModal
+        isOpen={builderOpen}
+        onClose={() => { setBuilderOpen(false); setEditingPack(null); }}
+        onSave={handleSavePack}
+        onDelete={handleDeletePack}
+        existingPack={editingPack}
+        isDark={isDark}
+      />
     </Dialog>
   );
 }
