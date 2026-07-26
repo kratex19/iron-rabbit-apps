@@ -32,6 +32,7 @@ import SecurityModal from "./notes/SecurityModal";
 import OrganizationModal from "./notes/OrganizationModal";
 import MultiSelectBar from "./notes/MultiSelectBar";
 import MoveToCategoryModal from "./notes/MoveToCategoryModal";
+import CopySuffixDialog from "./notes/CopySuffixDialog";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
 import SecurityService from "./security/SecurityService";
@@ -94,6 +95,7 @@ export default function NotesApp() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [moveToOpen, setMoveToOpen] = useState(false);
+  const [pendingCopyTarget, setPendingCopyTarget] = useState(null); // string | null
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
@@ -518,6 +520,13 @@ export default function NotesApp() {
   };
 
   const bulkMoveTo = async (targetCategory) => {
+    // Respect Smart Batch Mode: "move" (default) or "copy"
+    const mode = settings?.dnd_prefs?.smartBatchMode || "move";
+    if (mode === "copy") {
+      // Defer to a small suffix prompt; snapshot ids because clearSelection may run later.
+      setPendingCopyTarget(targetCategory ?? "");
+      return;
+    }
     const ids = Array.from(selectedIds);
     const prevMap = new Map();
     for (const id of ids) {
@@ -533,6 +542,45 @@ export default function NotesApp() {
         onClick: async () => {
           for (const [id, prev] of prevMap.entries()) {
             await StorageService.moveNoteToCategory(id, prev.category, prev.subcategory);
+          }
+          fetchData();
+        },
+      },
+    });
+  };
+
+  const bulkCopyTo = async (targetCategory, addSuffix) => {
+    const ids = Array.from(selectedIds);
+    const newIds = [];
+    for (const id of ids) {
+      const src = await StorageService.getNote(id);
+      if (!src) continue;
+      const now = new Date().toISOString();
+      const copy = {
+        ...src,
+        id: uuidv4(),
+        title: addSuffix ? `${src.title || "Untitled"} (copy)` : src.title,
+        category: targetCategory || "",
+        subcategory: "",
+        created_at: now,
+        updated_at: now,
+        // Fresh order so it lands at the end of the target category
+        order: Date.now(),
+      };
+      // Strip any per-instance state that shouldn't clone
+      delete copy.pinned_at;
+      await StorageService.saveNote(copy);
+      newIds.push(copy.id);
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Copied ${newIds.length} note${newIds.length === 1 ? "" : "s"} to "${targetCategory || "Uncategorized"}"`, {
+      duration: 6000,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          for (const nid of newIds) {
+            try { await StorageService.deleteNote(nid); } catch (_e) { /* continue */ }
           }
           fetchData();
         },
@@ -1323,6 +1371,20 @@ export default function NotesApp() {
         categories={grouped.map(([n]) => n)}
         count={selectedIds.size}
         onMove={bulkMoveTo}
+        mode={settings?.dnd_prefs?.smartBatchMode || "move"}
+        isDark={isDark}
+      />
+
+      <CopySuffixDialog
+        isOpen={pendingCopyTarget !== null}
+        onClose={() => setPendingCopyTarget(null)}
+        count={selectedIds.size}
+        targetCategory={pendingCopyTarget || ""}
+        onConfirm={async (addSuffix) => {
+          const target = pendingCopyTarget;
+          setPendingCopyTarget(null);
+          await bulkCopyTo(target, addSuffix);
+        }}
         isDark={isDark}
       />
 
@@ -1331,6 +1393,7 @@ export default function NotesApp() {
         onClear={clearSelection}
         onDelete={bulkDelete}
         onMoveTo={() => setMoveToOpen(true)}
+        mode={settings?.dnd_prefs?.smartBatchMode || "move"}
         isDark={isDark}
       />
 

@@ -382,3 +382,31 @@ Multi-select tap-toggle currently only wires into the **icon-view** `NoteTile`. 
 
 ### Verified in preview
 Select button toggles mode (screenshot shows "Selected 0" active state), category & note drag handles visible in list view, 7 seeded notes render cleanly with categories, Undo toast infrastructure fires on create. Full end-to-end (tap tile → Move to → confirm) requires icon view + tiles present; user can verify manually.
+
+
+## [2026-02-27] Settings scroll fix + Smart Batch Mode (Move / Copy)
+
+### Bug fix — Settings modal wouldn't scroll
+`SettingsModal.jsx` DialogContent lacked a max-height + overflow, so on shorter viewports the bottom actions (Clear All Data, Cancel/Save) were unreachable.
+- Fix: added `max-h-[90vh] overflow-y-auto` to both `SettingsModal` and `OrganizationModal` DialogContent classes.
+
+### Feature — Smart Batch Mode (Move vs Copy)
+Settings → Organization now has a top-of-modal **Smart Batch Mode** segmented control with two options: **Move** (default, existing behavior) or **Copy** (duplicates selected notes into the target category while leaving originals in place).
+- New pref: `settings.dnd_prefs.smartBatchMode` = `"move" | "copy"` (default `"move"`).
+- Applies to **all bulk actions** driven by the multi-select bar. Currently that's Bulk Move → Copy; Delete is untouched. Future bulk ops should also read this flag.
+- Multi-select bar auto-relabels: "Move to…" ↔ "Copy to…"; icon toggles between FolderInput and Copy.
+- `MoveToCategoryModal` retitle: "Move N notes to…" ↔ "Copy N notes to…", with an inline Smart Batch: Copy hint.
+- When user picks a target category in Copy mode, a small `CopySuffixDialog` prompts: **Yes** ("(copy)" suffix on titles) or **No** (keep exact same title). Also has Cancel. This satisfies "ask each time via a small prompt".
+- Copies get: fresh `uuidv4()` id, new `created_at`/`updated_at`, `order=Date.now()` (lands at end of target), stripped `pinned_at`. Attachments are shallow-copied (reference the same file records).
+- Undo toast on Copy: deletes the newly created copies (originals untouched).
+
+### Files changed / added
+- `notes/OrganizationModal.jsx` — Added Move/Copy segmented control + scroll fix; `DEFAULT_DND_PREFS.smartBatchMode = "move"`.
+- `notes/MoveToCategoryModal.jsx` — Accepts `mode` prop; retitles + icon swap.
+- `notes/MultiSelectBar.jsx` — Accepts `mode` prop; label/icon swap.
+- `notes/SettingsModal.jsx` — Scroll fix only.
+- `NotesApp.jsx` — `bulkMoveTo` now branches on mode; added `bulkCopyTo`; added `pendingCopyTarget` state + `<CopySuffixDialog>` render.
+- **New**: `notes/CopySuffixDialog.jsx`.
+
+### Verified in preview
+Screenshots confirm Settings modal scrolls to reveal Clear All Data / Save; Organization modal shows Move/Copy toggle with correct active-state highlighting on switch.

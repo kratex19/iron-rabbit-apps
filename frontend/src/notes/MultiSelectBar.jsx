@@ -1,18 +1,23 @@
 import React from "react";
-import { X, Trash2, FolderInput, Check } from "lucide-react";
+import { X, Trash2, FolderInput, Copy, Check } from "lucide-react";
 
 /**
  * Floating action bar that appears at the bottom when the user is in
- * multi-select mode. Shows selection count and bulk actions.
+ * multi-select mode. Shows selection count and bulk actions. The
+ * "Move to…" button toggles to "Copy to…" when Smart Batch Mode = copy.
  */
 export default function MultiSelectBar({
   count,
   onClear,
   onDelete,
   onMoveTo,
+  mode = "move",
   isDark,
 }) {
   if (count === 0) return null;
+  const isCopy = mode === "copy";
+  const Icon = isCopy ? Copy : FolderInput;
+  const label = isCopy ? "Copy to…" : "Move to…";
   return (
     <div
       className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border ${
@@ -34,7 +39,7 @@ export default function MultiSelectBar({
         }`}
         data-testid="multiselect-move-btn"
       >
-        <FolderInput className="w-3.5 h-3.5" /> Move to…
+        <Icon className="w-3.5 h-3.5" /> {label}
       </button>
       <button
         type="button"

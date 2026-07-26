@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FolderInput } from "lucide-react";
+import { FolderInput, Copy } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -7,13 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 /**
- * Modal that asks the user which category to move the selected notes into.
- * Shows a searchable list of existing categories plus an input for a new one.
+ * Modal that asks the user which category to move (or copy) the
+ * selected notes into. Reads Smart Batch Mode via `mode` prop
+ * ("move" | "copy") to update its labels accordingly.
  */
 export default function MoveToCategoryModal({
-  isOpen, onClose, categories = [], count = 0, onMove, isDark,
+  isOpen, onClose, categories = [], count = 0, onMove, isDark, mode = "move",
 }) {
   const [customCat, setCustomCat] = useState("");
+  const isCopy = mode === "copy";
+  const verb = isCopy ? "Copy" : "Move";
+  const Icon = isCopy ? Copy : FolderInput;
 
   const pick = (cat) => {
     onMove(cat);
@@ -25,10 +29,15 @@ export default function MoveToCategoryModal({
       <DialogContent className={`max-w-sm ${isDark ? "bg-[#0B1221] border-white/10" : "bg-white"}`} data-testid="moveto-modal">
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
-            <FolderInput className="w-5 h-5 text-indigo-500" /> Move {count} note{count === 1 ? "" : "s"} to…
+            <Icon className="w-5 h-5 text-indigo-500" /> {verb} {count} note{count === 1 ? "" : "s"} to…
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
             Pick an existing category or type a new one.
+            {isCopy && (
+              <span className="block mt-1 text-[11px] text-indigo-400">
+                Smart Batch: <strong>Copy</strong> mode — originals stay in place.
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -77,7 +86,7 @@ export default function MoveToCategoryModal({
             className="h-9 px-3 bg-indigo-500 hover:bg-indigo-600 text-white text-xs"
             data-testid="moveto-create"
           >
-            Move
+            {verb}
           </Button>
         </div>
       </DialogContent>

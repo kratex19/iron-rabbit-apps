@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { LayoutGrid, Move } from "lucide-react";
+import { LayoutGrid, Move, FolderInput, Copy } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -14,6 +14,8 @@ export const DEFAULT_DND_PREFS = {
   haptic: true,
   confirmCrossCategoryMove: false,
   undoNotifications: true,
+  // Smart Batch (bulk-action) mode: "move" (default) or "copy".
+  smartBatchMode: "move",
 };
 
 const ROWS = [
@@ -26,8 +28,8 @@ const ROWS = [
 ];
 
 /**
- * Settings → Organization: preferences for drag & drop behaviour.
- * Toggles live in settings.dnd_prefs and are read by NotesApp's drag handlers.
+ * Settings → Organization: preferences for drag & drop behaviour
+ * and the "Smart Batch" mode used by multi-select bulk actions.
  */
 export default function OrganizationModal({ isOpen, onClose, isDark }) {
   const [prefs, setPrefs] = useState(DEFAULT_DND_PREFS);
@@ -56,15 +58,55 @@ export default function OrganizationModal({ isOpen, onClose, isDark }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`max-w-md ${isDark ? "bg-[#0B1221] border-white/10" : "bg-white border-gray-200"}`} data-testid="organization-modal">
+      <DialogContent className={`max-w-md max-h-[90vh] overflow-y-auto ${isDark ? "bg-[#0B1221] border-white/10" : "bg-white border-gray-200"}`} data-testid="organization-modal">
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <LayoutGrid className="w-5 h-5 text-indigo-500" /> Organization
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
-            Control how drag &amp; drop works throughout the app.
+            Control how drag &amp; drop and bulk actions work throughout the app.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Smart Batch Mode — Move vs Copy */}
+        <div className={`rounded-md px-3 py-3 mb-1 ${isDark ? "bg-white/5" : "bg-gray-50"}`}>
+          <div className={`text-sm mb-0.5 ${isDark ? "text-slate-200" : "text-gray-800"}`}>
+            Smart Batch Mode
+          </div>
+          <div className={`text-[11px] mb-2.5 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+            When you bulk-move selected notes, should they be moved or copied to the target category?
+          </div>
+          <div className={`grid grid-cols-2 gap-2`}>
+            <button
+              type="button"
+              onClick={() => update("smartBatchMode", "move")}
+              className={`flex flex-col items-center gap-1 py-2.5 rounded-md border transition-colors ${
+                prefs.smartBatchMode === "move"
+                  ? (isDark ? "bg-indigo-500/20 border-indigo-400 text-indigo-200" : "bg-indigo-100 border-indigo-400 text-indigo-800")
+                  : (isDark ? "bg-transparent border-white/10 text-slate-400 hover:bg-white/5" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100")
+              }`}
+              data-testid="org-smart-batch-move"
+            >
+              <FolderInput className="w-4 h-4" />
+              <span className="text-xs font-medium">Move</span>
+              <span className="text-[10px] opacity-70">Relocates note</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => update("smartBatchMode", "copy")}
+              className={`flex flex-col items-center gap-1 py-2.5 rounded-md border transition-colors ${
+                prefs.smartBatchMode === "copy"
+                  ? (isDark ? "bg-indigo-500/20 border-indigo-400 text-indigo-200" : "bg-indigo-100 border-indigo-400 text-indigo-800")
+                  : (isDark ? "bg-transparent border-white/10 text-slate-400 hover:bg-white/5" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100")
+              }`}
+              data-testid="org-smart-batch-copy"
+            >
+              <Copy className="w-4 h-4" />
+              <span className="text-xs font-medium">Copy</span>
+              <span className="text-[10px] opacity-70">Duplicates note</span>
+            </button>
+          </div>
+        </div>
 
         <div className="space-y-2">
           {ROWS.map((r) => (
