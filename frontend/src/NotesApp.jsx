@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import StorageService from "./storage/storageService";
@@ -58,7 +59,7 @@ export default function NotesApp() {
   const [isDark, setIsDark] = useState(true);
   const [viewMode, setViewMode] = useState("list");        // 'list' | 'icon'
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false); // legacy flag, no longer used
 
   // Modals
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -72,6 +73,7 @@ export default function NotesApp() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
   // Keep full-screen editor in sync with the notes array
   useEffect(() => {
@@ -199,21 +201,23 @@ export default function NotesApp() {
     setDeferredPrompt(null);
   };
 
-  const handleClearAllData = async () => {
-    if (!confirmClear) {
-      setConfirmClear(true);
-      toast.warning("Click again within 5 seconds to confirm", { duration: 5000 });
-      setTimeout(() => setConfirmClear(false), 5000);
-      return;
-    }
+  const handleClearAllData = () => {
+    // Two-step confirmation — actual wipe happens in performClearAllData()
+    setClearStep(1);
+  };
+
+  const performClearAllData = async () => {
     try {
       await StorageService.clearAllData();
       toast.success("All data cleared");
-      setConfirmClear(false);
+      setClearStep(0);
+      setSettingsModalOpen(false);
+      haptic("error");
       fetchData();
     } catch (err) {
       console.error("Clear error:", err);
       toast.error("Failed to clear data");
+      setClearStep(0);
     }
   };
 
@@ -952,6 +956,76 @@ export default function NotesApp() {
         isDark={isDark}
       />
       <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
+
+      {/* Two-step "Clear All Data" confirmation */}
+      <Dialog open={clearStep === 1} onOpenChange={(o) => !o && setClearStep(0)}>
+        <DialogContent
+          className={`max-w-sm ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
+          data-testid="clear-confirm-step-1"
+        >
+          <DialogHeader>
+            <DialogTitle className={isDark ? 'text-white' : 'text-gray-900'}>
+              Are you sure you want to delete all data?
+            </DialogTitle>
+            <DialogDescription className={isDark ? 'text-slate-400' : 'text-gray-500'}>
+              This will clear every note, template, category and setting stored on this device.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setClearStep(0)}
+              className={`flex-1 sm:flex-none ${isDark ? 'border-white/10 text-slate-300' : ''}`}
+              data-testid="clear-step-1-no"
+            >
+              No
+            </Button>
+            <Button
+              onClick={() => setClearStep(2)}
+              className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white"
+              data-testid="clear-step-1-yes"
+            >
+              Yes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={clearStep === 2} onOpenChange={(o) => !o && setClearStep(0)}>
+        <DialogContent
+          className={`max-w-sm ${isDark ? 'bg-[#0B1221] border-red-500/40' : 'bg-white border-red-300'}`}
+          data-testid="clear-confirm-step-2"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-red-500 flex items-center gap-2">
+              Are you absolutely positive?
+            </DialogTitle>
+            <DialogDescription className={isDark ? 'text-slate-300' : 'text-gray-600'}>
+              In doing so you will lose <strong>any and all</strong> data — notes, files, images and videos.
+              This cannot be undone.
+              <br /><br />
+              Do you wish to proceed with data wipe?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setClearStep(0)}
+              className={`flex-1 sm:flex-none ${isDark ? 'border-white/10 text-slate-300' : ''}`}
+              data-testid="clear-step-2-no"
+            >
+              No, take me back
+            </Button>
+            <Button
+              onClick={performClearAllData}
+              className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white"
+              data-testid="clear-step-2-yes"
+            >
+              Yes, wipe everything
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
