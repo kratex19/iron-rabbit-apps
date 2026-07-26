@@ -163,3 +163,32 @@ Files added: `notes/EventsSection.jsx`. Updated: `notes/NoteModal.jsx`, `notes/A
 - **Create event directly from selected day**: `+ Add` button on the day agenda opens an inline form (title + time + alarm toggle). Submit creates a new note (category="Calendar") with the event pre-dated for that day. Toast confirms with formatted datetime.
 
 Files added: `notes/FloatingCalendarModal.jsx`. Files updated: `NotesApp.jsx` (header markup, new icon + state + modal mount + `onCreateEvent` handler).
+
+## Phase 1 enhancements + i18n (Feb 2026)
+Round 1 of the 15-enhancement roadmap.
+
+### Checklists inside notes
+- New note field: `checklist: Array<{ id, text, done }>`
+- `notes/ChecklistSection.jsx` — inline editor (add/remove/toggle/edit) inside NoteModal, below Events.
+- FullScreenNote renders a tap-to-toggle checklist card (persists via `onSaveInline`).
+- NoteTile shows a progress badge `☑ done/total` alongside pin/alarm/recurring badges. Also fixed a latent bug where `CalendarDays` was used but never imported.
+
+### Home-screen shortcuts (PWA)
+Added `shortcuts` array to `manifest.json`:
+- `New Note` → `/?action=new-note`
+- `Voice Note` → `/?action=voice-note`
+- `Open Calendar` → `/?action=calendar`
+- `Calculator` → `/?action=calculator`
+
+`NotesApp.jsx` reads `?action=` on mount, opens the correct modal, then strips the query param so refresh doesn't re-fire. Long-press the installed PWA icon on Android/iOS to see them.
+
+### Snooze reminders
+`notificationService.triggerAlarm` now also shows a Sonner toast (20 s) with a `Snooze 5m` action and a `1h` cancel-button. New method `snoozeAlarm(noteId, minutes)` reads the note from IndexedDB, bumps `alarm.datetime` to `now + N`, clears the last-notified marker so the fresh time fires cleanly.
+
+### UI translation (10 languages)
+Installed `i18next`, `react-i18next`, `i18next-browser-languagedetector`. New folder `src/i18n/` with `index.js` (init + `SUPPORTED_LANGUAGES` export) and 10 locale JSONs: **en, es, fr, de, pt, it, zh, ja, hi, ar**. Language is persisted in `localStorage` (`ir_lang`) and detected from `navigator` on first launch. RTL direction set automatically for Arabic. Language picker lives in Settings modal with flags + native labels. All primary user-visible strings wired: header tooltips, search placeholder, empty state, group-by button, note counter, filter/sort dropdowns, NoteModal title/labels/placeholders/buttons, Settings title.
+
+**Note-content translation** via Emergent LLM is deferred to Round 2 (needs the integration playbook call).
+
+Files added: `notes/ChecklistSection.jsx`, `i18n/index.js`, `i18n/locales/{en,es,fr,de,pt,it,zh,ja,hi,ar}.json`.
+Files updated: `components/NoteTile.jsx` (checklist badge + CalendarDays fix), `notes/NoteModal.jsx` (checklist state + i18n), `notes/FullScreenNote.jsx` (checklist render), `notifications/notificationService.js` (snooze), `notes/SettingsModal.jsx` (language picker), `NotesApp.jsx` (i18n hooks + URL action handler), `public/manifest.json` (shortcuts), `index.js` (i18n import).

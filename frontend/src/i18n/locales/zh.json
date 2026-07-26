@@ -1,0 +1,91 @@
+{
+  "app": {
+    "name": "Iron Rabbit",
+    "empty_title": "你的笔记将出现在这里",
+    "create_first": "创建你的第一条笔记",
+    "shortcuts_hint": "快捷键：n 新建 · / 搜索 · g 切换视图",
+    "notes_count": "{{count}} 条笔记",
+    "groupBy": "按分类分组"
+  },
+  "search": { "placeholder": "搜索..." },
+  "header": {
+    "quick_add": "快速添加",
+    "tile_packs": "磁贴包",
+    "export_pdf": "导出 PDF",
+    "toggle_theme": "切换主题",
+    "calculator": "计算器",
+    "calendar": "日历",
+    "settings": "设置"
+  },
+  "filter": {
+    "all": "全部笔记",
+    "today": "今天",
+    "week": "本周",
+    "month": "本月",
+    "with_alarms": "有提醒",
+    "recurring": "循环",
+    "pinned": "已置顶"
+  },
+  "sort": {
+    "newest": "最新优先",
+    "oldest": "最旧优先",
+    "az": "A → Z",
+    "za": "Z → A"
+  },
+  "note": {
+    "new": "新笔记",
+    "edit": "编辑笔记",
+    "title": "标题",
+    "title_placeholder": "输入标题...",
+    "content": "内容",
+    "content_placeholder": "写点什么...",
+    "category": "分类",
+    "subcategory": "子分类",
+    "color": "颜色",
+    "tile_appearance": "磁贴样式",
+    "choose_icon": "选择图标",
+    "choose_background": "选择背景",
+    "pin_to_top": "置顶",
+    "alarm": "闹钟",
+    "recurring": "循环",
+    "daily": "每日",
+    "weekly": "每周",
+    "monthly": "每月",
+    "checklist": "清单",
+    "checklist_placeholder": "添加项目… （按回车添加）",
+    "checklist_done": "已完成 {{done}}/{{total}}",
+    "events": "事件",
+    "untitled": "无标题",
+    "start_writing": "开始写作…"
+  },
+  "action": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "share": "分享",
+    "update": "更新",
+    "create": "创建",
+    "add": "添加",
+    "close": "关闭",
+    "yes": "是",
+    "no": "否",
+    "edit": "编辑",
+    "snooze": "稍后提醒"
+  },
+  "settings": {
+    "title": "设置",
+    "language": "语言",
+    "company_name": "公司名称",
+    "website_url": "网站 URL",
+    "logo_url": "Logo URL",
+    "clear_all_data": "清除所有数据",
+    "install_pwa": "安装应用"
+  },
+  "toast": {
+    "created": "已创建！",
+    "updated": "已更新！",
+    "deleted": "已删除",
+    "saved": "已保存",
+    "error_generic": "出错了"
+  }
+}

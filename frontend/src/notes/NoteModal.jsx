@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import * as LucideIcons from "lucide-react";
 import {
   Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff,
@@ -19,6 +20,7 @@ import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPi
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
 import TemplateModal from "./TemplateModal";
 import EventsSection from "./EventsSection";
+import ChecklistSection from "./ChecklistSection";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -27,6 +29,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * for the Icon-view tile.
  */
 export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, categories, templates }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [color, setColor] = useState("purple");
@@ -34,6 +37,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [background, setBackground] = useState(null);
   const [pinned, setPinned] = useState(false);
   const [events, setEvents] = useState([]);
+  const [checklist, setChecklist] = useState([]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [category, setCategory] = useState("");
@@ -61,6 +65,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       setIcon(note.icon || null); setBackground(note.background || null);
       setPinned(!!note.pinned);
       setEvents(Array.isArray(note.events) ? note.events : []);
+      setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
       if (note.alarm) {
         setAlarm(note.alarm);
@@ -75,6 +80,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       setTitle(""); setContent(""); setColor("purple"); setIcon(null); setBackground(null);
       setPinned(false);
       setEvents([]);
+      setChecklist([]);
       setCategory(""); setSubcategory("");
       setAlarm({ enabled: false, datetime: null, sound: "bell", haptic: false });
       setAlarmDate(null); setAlarmTime("12:00");
@@ -109,6 +115,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       // If a subcategory is set, force pinned=false so old state is cleaned up.
       pinned: subcategory.trim() ? false : pinned,
       events,
+      checklist,
       category: category.trim(), subcategory: subcategory.trim(),
       alarm: { ...alarm, datetime: alarmDateTime }, recurring,
     };
@@ -136,7 +143,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
         <DialogContent className={`max-w-lg max-h-[85vh] overflow-y-auto ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
           <DialogHeader>
             <DialogTitle className={`font-semibold flex items-center justify-between ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              <span>{note ? "Edit Note" : "New Note"}</span>
+              <span>{note ? t("note.edit") : t("note.new")}</span>
               {!note && (
                 <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} className="text-indigo-500 h-7">
                   <FileText className="w-4 h-4 mr-1" /> Templates
@@ -150,13 +157,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
 
           <div className="space-y-3">
             <div>
-              <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Title</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter title..." className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+              <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.title")}</label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("note.title_placeholder")} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Content</label>
+                <label className={`text-xs ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.content")}</label>
                 <div className="flex items-center gap-1">
                   {voice.supported && (
                     <Button
@@ -175,24 +182,24 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 </div>
               </div>
-              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write..." rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Category</label>
+                <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.category")}</label>
                 <Input value={category} onChange={(e) => { setCategory(e.target.value); setSubcategory(""); }} placeholder="e.g., Work" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} list="categories" />
                 <datalist id="categories">{Object.keys(categories).map(cat => <option key={cat} value={cat} />)}</datalist>
               </div>
               <div>
-                <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Subcategory</label>
+                <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.subcategory")}</label>
                 <Input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} placeholder="e.g., Meetings" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} list="subcategories" />
                 <datalist id="subcategories">{subcategories.map(sub => <option key={sub} value={sub} />)}</datalist>
               </div>
             </div>
 
             <div>
-              <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Color</label>
+              <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.color")}</label>
               <div className="flex gap-2">
                 {NOTE_COLORS.map((c) => (
                   <button key={c.name} onClick={() => setColor(c.name)} className={`color-swatch-sm ${color === c.name ? "active" : ""}`} style={{ backgroundColor: c.accent }} />
@@ -287,6 +294,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
 
             <EventsSection value={events} onChange={setEvents} isDark={isDark} />
 
+            <ChecklistSection value={checklist} onChange={setChecklist} isDark={isDark} />
+
 
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-2">
@@ -319,9 +328,9 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
               <Button onClick={handleSave} disabled={saving} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
-                {saving ? "..." : (note ? "Update" : "Create")}
+                {saving ? "..." : (note ? t("action.update") : t("action.create"))}
               </Button>
             </div>
           </div>

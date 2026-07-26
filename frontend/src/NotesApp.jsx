@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import "@/App.css";
 import { Toaster, toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import jsPDF from "jspdf";
@@ -44,6 +45,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
  * living in ./notes/*.
  */
 export default function NotesApp() {
+  const { t } = useTranslation();
   // Data
   const [notes, setNotes] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -175,6 +177,25 @@ export default function NotesApp() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Handle ?action= URL params from PWA home-screen shortcuts
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get("action");
+    if (!action) return;
+    // Delay slightly so state is ready
+    const t = setTimeout(() => {
+      if (action === "new-note") { setEditingNote(null); setNoteModalOpen(true); }
+      else if (action === "voice-note") { setEditingNote(null); setNoteModalOpen(true); }
+      else if (action === "calendar") { setFloatingCalendarOpen(true); }
+      else if (action === "calculator") { setCalculatorOpen(true); }
+      // Clean up URL so the action doesn't re-fire on refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete("action");
+      window.history.replaceState({}, "", url.toString());
+    }, 200);
+    return () => clearTimeout(t);
+  }, []);
 
   // PWA install prompt
   useEffect(() => {
@@ -619,20 +640,18 @@ export default function NotesApp() {
         : filterBy === "today" ? "Nothing scheduled today"
         : filterBy === "week"  ? "Nothing this week"
         : filterBy === "month" ? "Nothing this month"
-        : "Your notes will live here";
+        : t("app.empty_title");
       return (
         <div className="text-center py-12">
           <div className="text-5xl mb-3 opacity-25">📝</div>
           <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{emptyCopy}</p>
           {!searchQuery && filterBy === "all" && (
             <Button onClick={() => { setEditingNote(null); setNoteModalOpen(true); haptic("tap"); }} size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white">
-              <Plus className="w-4 h-4 mr-1" /> Create your first note
+              <Plus className="w-4 h-4 mr-1" /> {t("app.create_first")}
             </Button>
           )}
           <p className={`text-xs mt-6 font-mono ${isDark ? 'text-slate-600' : 'text-gray-400'} hidden md:block`}>
-            Shortcuts: <kbd className="px-1 py-0.5 rounded bg-black/10">n</kbd> new
-            {" · "}<kbd className="px-1 py-0.5 rounded bg-black/10">/</kbd> search
-            {" · "}<kbd className="px-1 py-0.5 rounded bg-black/10">g</kbd> toggle view
+            {t("app.shortcuts_hint")}
           </p>
         </div>
       );
@@ -793,13 +812,13 @@ export default function NotesApp() {
             </div>
           </div>
           <div className="flex items-center gap-1 flex-wrap justify-end ml-auto" data-testid="header-icon-row">
-            <Button variant="ghost" size="icon" onClick={() => { setQuickAddOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Quick Add" data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setTilePacksOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Tile Packs" data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Export PDF"><Download className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Toggle theme">{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
-            <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Calculator"><Calculator className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setFloatingCalendarOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Calendar" data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Settings"><Settings className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setQuickAddOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.quick_add")} data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setTilePacksOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.tile_packs")} data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.export_pdf")}><Download className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.toggle_theme")}>{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
+            <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.calculator")}><Calculator className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setFloatingCalendarOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.calendar")} data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")}><Settings className="w-4 h-4" /></Button>
           </div>
         </div>
       </header>
@@ -813,7 +832,7 @@ export default function NotesApp() {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
+              placeholder={t("search.placeholder")}
               className={`pl-8 h-9 ${isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-gray-200'}`}
             />
           </div>
@@ -841,25 +860,32 @@ export default function NotesApp() {
               </button>
             </div>
             <Select value={filterBy} onValueChange={setFilterBy}>
-              <SelectTrigger className={`w-28 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+              <SelectTrigger className={`w-32 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
                 <Filter className="w-3 h-3 mr-1" /><SelectValue />
               </SelectTrigger>
               <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
                 {FILTER_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{t(`filter.${opt.value === "week" ? "week" : opt.value === "month" ? "month" : opt.value === "today" ? "today" : "all"}`, opt.label)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className={`w-36 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+              <SelectTrigger className={`w-40 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
-                {SORT_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                    <span className="flex items-center gap-1.5"><opt.icon className="w-3 h-3" />{opt.label}</span>
-                  </SelectItem>
-                ))}
+                {SORT_OPTIONS.map(opt => {
+                  const label = opt.value === "newest" ? t("sort.newest", opt.label)
+                    : opt.value === "oldest" ? t("sort.oldest", opt.label)
+                    : opt.value === "a-z" ? t("sort.az", opt.label)
+                    : opt.value === "z-a" ? t("sort.za", opt.label)
+                    : opt.label;
+                  return (
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                      <span className="flex items-center gap-1.5"><opt.icon className="w-3 h-3" />{label}</span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -879,9 +905,9 @@ export default function NotesApp() {
             data-testid="group-toggle"
             title="Toggle category grouping"
           >
-            <FolderTree className="w-3.5 h-3.5" /> Group by category
+            <FolderTree className="w-3.5 h-3.5" /> {t("app.groupBy")}
           </button>
-          <div className="text-xs font-mono">{processedNotes.length} notes</div>
+          <div className="text-xs font-mono">{t("app.notes_count", { count: processedNotes.length })}</div>
         </div>
 
         {renderPinnedRail()}

@@ -22,5 +22,35 @@
   "theme_color": "#6366F1",
   "background_color": "#020617",
   "categories": ["productivity", "utilities"],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "New Note",
+      "short_name": "New",
+      "description": "Quickly create a new note",
+      "url": "/?action=new-note",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Voice Note",
+      "short_name": "Voice",
+      "description": "Dictate a new note",
+      "url": "/?action=voice-note",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Open Calendar",
+      "short_name": "Calendar",
+      "description": "See all upcoming events",
+      "url": "/?action=calendar",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calculator",
+      "short_name": "Calc",
+      "description": "Open the calculator",
+      "url": "/?action=calculator",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

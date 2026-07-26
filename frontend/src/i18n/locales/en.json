@@ -1,0 +1,93 @@
+{
+  "app": {
+    "name": "Iron Rabbit",
+    "empty_title": "Your notes will live here",
+    "create_first": "Create your first note",
+    "shortcuts_hint": "Shortcuts: n new · / search · g toggle view",
+    "notes_count": "{{count}} notes",
+    "groupBy": "Group by category"
+  },
+  "search": {
+    "placeholder": "Search..."
+  },
+  "header": {
+    "quick_add": "Quick Add",
+    "tile_packs": "Tile Packs",
+    "export_pdf": "Export PDF",
+    "toggle_theme": "Toggle theme",
+    "calculator": "Calculator",
+    "calendar": "Calendar",
+    "settings": "Settings"
+  },
+  "filter": {
+    "all": "All Notes",
+    "today": "Today",
+    "week": "This Week",
+    "month": "This Month",
+    "with_alarms": "With Alarms",
+    "recurring": "Recurring",
+    "pinned": "Pinned"
+  },
+  "sort": {
+    "newest": "Newest First",
+    "oldest": "Oldest First",
+    "az": "A → Z",
+    "za": "Z → A"
+  },
+  "note": {
+    "new": "New Note",
+    "edit": "Edit Note",
+    "title": "Title",
+    "title_placeholder": "Enter title...",
+    "content": "Content",
+    "content_placeholder": "Write...",
+    "category": "Category",
+    "subcategory": "Subcategory",
+    "color": "Color",
+    "tile_appearance": "Tile appearance (Icon view)",
+    "choose_icon": "Choose icon",
+    "choose_background": "Choose background",
+    "pin_to_top": "Pin to top",
+    "alarm": "Alarm",
+    "recurring": "Recurring",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "checklist": "Checklist",
+    "checklist_placeholder": "Add an item… (Enter to add)",
+    "checklist_done": "{{done}}/{{total}} done",
+    "events": "Events",
+    "untitled": "Untitled",
+    "start_writing": "Start writing…"
+  },
+  "action": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "share": "Share",
+    "update": "Update",
+    "create": "Create",
+    "add": "Add",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "edit": "Edit",
+    "snooze": "Snooze"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "company_name": "Company Name",
+    "website_url": "Website URL",
+    "logo_url": "Logo URL",
+    "clear_all_data": "Clear All Data",
+    "install_pwa": "Install App"
+  },
+  "toast": {
+    "created": "Created!",
+    "updated": "Updated!",
+    "deleted": "Deleted",
+    "saved": "Saved",
+    "error_generic": "Something went wrong"
+  }
+}

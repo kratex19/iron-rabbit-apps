@@ -1,0 +1,91 @@
+{
+  "app": {
+    "name": "Iron Rabbit",
+    "empty_title": "Tus notas vivirán aquí",
+    "create_first": "Crea tu primera nota",
+    "shortcuts_hint": "Atajos: n nueva · / buscar · g cambiar vista",
+    "notes_count": "{{count}} notas",
+    "groupBy": "Agrupar por categoría"
+  },
+  "search": { "placeholder": "Buscar..." },
+  "header": {
+    "quick_add": "Añadir rápido",
+    "tile_packs": "Paquetes",
+    "export_pdf": "Exportar PDF",
+    "toggle_theme": "Cambiar tema",
+    "calculator": "Calculadora",
+    "calendar": "Calendario",
+    "settings": "Ajustes"
+  },
+  "filter": {
+    "all": "Todas las notas",
+    "today": "Hoy",
+    "week": "Esta semana",
+    "month": "Este mes",
+    "with_alarms": "Con alarmas",
+    "recurring": "Recurrentes",
+    "pinned": "Fijadas"
+  },
+  "sort": {
+    "newest": "Más recientes",
+    "oldest": "Más antiguas",
+    "az": "A → Z",
+    "za": "Z → A"
+  },
+  "note": {
+    "new": "Nueva nota",
+    "edit": "Editar nota",
+    "title": "Título",
+    "title_placeholder": "Introduce un título...",
+    "content": "Contenido",
+    "content_placeholder": "Escribe...",
+    "category": "Categoría",
+    "subcategory": "Subcategoría",
+    "color": "Color",
+    "tile_appearance": "Aspecto del icono",
+    "choose_icon": "Elegir icono",
+    "choose_background": "Elegir fondo",
+    "pin_to_top": "Fijar arriba",
+    "alarm": "Alarma",
+    "recurring": "Recurrente",
+    "daily": "Diario",
+    "weekly": "Semanal",
+    "monthly": "Mensual",
+    "checklist": "Lista de tareas",
+    "checklist_placeholder": "Añadir un elemento… (Enter para añadir)",
+    "checklist_done": "{{done}}/{{total}} hechas",
+    "events": "Eventos",
+    "untitled": "Sin título",
+    "start_writing": "Empieza a escribir…"
+  },
+  "action": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "share": "Compartir",
+    "update": "Actualizar",
+    "create": "Crear",
+    "add": "Añadir",
+    "close": "Cerrar",
+    "yes": "Sí",
+    "no": "No",
+    "edit": "Editar",
+    "snooze": "Posponer"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "company_name": "Nombre de la empresa",
+    "website_url": "URL del sitio web",
+    "logo_url": "URL del logo",
+    "clear_all_data": "Borrar todos los datos",
+    "install_pwa": "Instalar app"
+  },
+  "toast": {
+    "created": "¡Creada!",
+    "updated": "¡Actualizada!",
+    "deleted": "Eliminada",
+    "saved": "Guardada",
+    "error_generic": "Algo salió mal"
+  }
+}

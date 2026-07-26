@@ -2,6 +2,9 @@
 // Local notification service using device's native notification API
 // No server required - all scheduling happens on-device
 
+import { toast } from "sonner";
+import StorageService from "../storage/storageService";
+
 const SCHEDULED_ALARMS_KEY = 'scheduled_alarms';
 
 class NotificationService {
@@ -96,6 +99,45 @@ class NotificationService {
     // Vibrate if haptic enabled
     if (note.alarm?.haptic) {
       this.triggerHaptic();
+    }
+
+    // In-app snooze toast (only shows when app is focused). Skip for
+    // synthetic per-event alarms (id contains "-") since they aren't
+    // stored as top-level notes.
+    const isEventAlarm = typeof note.id === "string" && note.id.includes("-") && note.id.split("-").length > 5;
+    if (!isEventAlarm) {
+      toast(`⏰ ${note.title}`, {
+        description: note.content?.substring(0, 80) || "Time for your task!",
+        duration: 20000,
+        action: {
+          label: "Snooze 5m",
+          onClick: () => this.snoozeAlarm(note.id, 5),
+        },
+        cancel: {
+          label: "1h",
+          onClick: () => this.snoozeAlarm(note.id, 60),
+        },
+      });
+    }
+  }
+
+  async snoozeAlarm(noteId, minutes) {
+    try {
+      const existing = await StorageService.getNote(noteId);
+      if (!existing || !existing.alarm) return;
+      const newTime = new Date(Date.now() + minutes * 60 * 1000);
+      const updated = {
+        ...existing,
+        alarm: { ...existing.alarm, datetime: newTime.toISOString(), enabled: true },
+        updated_at: new Date().toISOString(),
+      };
+      await StorageService.saveNote(updated);
+      // Clear the last-notified marker so a fresh alarm can fire at the new time
+      this.alarmChecks.delete(`main-${noteId}`);
+      toast.success(`Snoozed ${minutes < 60 ? minutes + " min" : (minutes / 60) + " hr"} — ${newTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+    } catch (err) {
+      console.error("Snooze error:", err);
+      toast.error("Could not snooze");
     }
   }
 

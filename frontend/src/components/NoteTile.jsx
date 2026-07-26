@@ -1,6 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, StickyNote, Pin } from "lucide-react";
+import { Bell, Repeat, StickyNote, Pin, CalendarDays, CheckSquare } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
 import { haptic } from "../utils/haptic";
 
@@ -16,6 +16,9 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
   const bgStyle = getBackgroundStyle(note.background);
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
   const hasRecurring = note.recurring?.enabled;
+  const checklist = Array.isArray(note.checklist) ? note.checklist : [];
+  const checklistDone = checklist.filter((c) => c.done).length;
+  const checklistTotal = checklist.length;
 
   return (
     <button
@@ -37,6 +40,11 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
         {note.events?.length > 0 && (
           <span className="flex items-center gap-0.5 text-[10px] font-mono">
             <CalendarDays className="w-3 h-3" />{note.events.length}
+          </span>
+        )}
+        {checklistTotal > 0 && (
+          <span className="flex items-center gap-0.5 text-[10px] font-mono">
+            <CheckSquare className="w-3 h-3" />{checklistDone}/{checklistTotal}
           </span>
         )}
       </span>

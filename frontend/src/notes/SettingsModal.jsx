@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
-  Smartphone, Trash2,
+  Smartphone, Trash2, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StorageService from "../storage/storageService";
+import { SUPPORTED_LANGUAGES } from "../i18n";
 
 /**
  * App-level settings — brand (name/logo/header), backup/restore,
@@ -17,6 +20,7 @@ export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
   onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, isDark,
 }) {
+  const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -73,7 +77,7 @@ export default function SettingsModal({
       <DialogContent className={`max-w-md ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`} data-testid="settings-modal">
         <DialogHeader>
           <DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            <Settings className="w-5 h-5 text-indigo-500" /> Settings
+            <Settings className="w-5 h-5 text-indigo-500" /> {t("settings.title")}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Configure app branding, backup and restore your data, install as PWA, or clear all data.
@@ -81,7 +85,34 @@ export default function SettingsModal({
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Company Name</label>
+            <label className={`text-xs mb-1 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <Globe className="w-3.5 h-3.5" /> {t("settings.language")}
+            </label>
+            <Select
+              value={i18n.language?.split("-")[0] || "en"}
+              onValueChange={(lng) => {
+                i18n.changeLanguage(lng);
+                try { localStorage.setItem("ir_lang", lng); } catch (_e) { /* noop */ }
+                document.documentElement.lang = lng;
+                document.documentElement.dir = lng === "ar" ? "rtl" : "ltr";
+                toast.success("✓ " + SUPPORTED_LANGUAGES.find(l => l.code === lng)?.label);
+              }}
+            >
+              <SelectTrigger className={`h-9 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-language-picker">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={`max-h-64 ${isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white'}`}>
+                {SUPPORTED_LANGUAGES.map((lng) => (
+                  <SelectItem key={lng.code} value={lng.code} className="text-xs">
+                    <span className="mr-1.5">{lng.flag}</span> {lng.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("settings.company_name")}</label>
             <Input value={formData.company_name} onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-company-name" />
           </div>
 

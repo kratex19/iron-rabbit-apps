@@ -1,0 +1,91 @@
+{
+  "app": {
+    "name": "Iron Rabbit",
+    "empty_title": "ここにメモが表示されます",
+    "create_first": "最初のメモを作成",
+    "shortcuts_hint": "ショートカット: n 新規 · / 検索 · g 表示切替",
+    "notes_count": "{{count}} 件のメモ",
+    "groupBy": "カテゴリ別にグループ化"
+  },
+  "search": { "placeholder": "検索..." },
+  "header": {
+    "quick_add": "クイック追加",
+    "tile_packs": "タイルパック",
+    "export_pdf": "PDF書き出し",
+    "toggle_theme": "テーマ切替",
+    "calculator": "電卓",
+    "calendar": "カレンダー",
+    "settings": "設定"
+  },
+  "filter": {
+    "all": "すべてのメモ",
+    "today": "今日",
+    "week": "今週",
+    "month": "今月",
+    "with_alarms": "アラーム付き",
+    "recurring": "繰り返し",
+    "pinned": "ピン留め"
+  },
+  "sort": {
+    "newest": "新しい順",
+    "oldest": "古い順",
+    "az": "A → Z",
+    "za": "Z → A"
+  },
+  "note": {
+    "new": "新規メモ",
+    "edit": "メモを編集",
+    "title": "タイトル",
+    "title_placeholder": "タイトルを入力...",
+    "content": "内容",
+    "content_placeholder": "書く...",
+    "category": "カテゴリ",
+    "subcategory": "サブカテゴリ",
+    "color": "色",
+    "tile_appearance": "タイルの外観",
+    "choose_icon": "アイコンを選択",
+    "choose_background": "背景を選択",
+    "pin_to_top": "上部にピン留め",
+    "alarm": "アラーム",
+    "recurring": "繰り返し",
+    "daily": "毎日",
+    "weekly": "毎週",
+    "monthly": "毎月",
+    "checklist": "チェックリスト",
+    "checklist_placeholder": "項目を追加… (Enter で追加)",
+    "checklist_done": "{{done}}/{{total}} 完了",
+    "events": "イベント",
+    "untitled": "無題",
+    "start_writing": "書き始める…"
+  },
+  "action": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "share": "共有",
+    "update": "更新",
+    "create": "作成",
+    "add": "追加",
+    "close": "閉じる",
+    "yes": "はい",
+    "no": "いいえ",
+    "edit": "編集",
+    "snooze": "スヌーズ"
+  },
+  "settings": {
+    "title": "設定",
+    "language": "言語",
+    "company_name": "会社名",
+    "website_url": "ウェブサイトURL",
+    "logo_url": "ロゴURL",
+    "clear_all_data": "すべてのデータを消去",
+    "install_pwa": "アプリをインストール"
+  },
+  "toast": {
+    "created": "作成しました！",
+    "updated": "更新しました！",
+    "deleted": "削除しました",
+    "saved": "保存しました",
+    "error_generic": "エラーが発生しました"
+  }
+}
