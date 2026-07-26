@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   ShieldCheck, Fingerprint, KeyRound, Lock, EyeOff, HardDrive,
-  Timer, Cloud, ChevronRight, X, Check, Info,
+  Timer, Cloud, ChevronRight, X, Check, Info, ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,16 +21,18 @@ const METHODS = [
   { value: "pin",        label: "Iron Rabbit Local PIN (4–8 digits)", icon: KeyRound },
 ];
 
-export default function SecurityModal({ isOpen, onClose, isDark }) {
+export default function SecurityModal({ isOpen, onClose, isDark, categories = {} }) {
   const [method, setMethod] = useState("none");
   const [autoLockMs, setAutoLockMs] = useState(60_000);
   const [toggles, setToggles] = useState(DEFAULT_TOGGLES);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [hasPIN, setHasPIN] = useState(false);
+  const [hasPanicPIN, setHasPanicPIN] = useState(false);
+  const [safeCategory, setSafeCategory] = useState("");
   const [isNative, setIsNative] = useState(false);
 
   // PIN dialog state
-  const [pinDialog, setPinDialog] = useState(null); // null | "set" | "change" | "remove"
+  const [pinDialog, setPinDialog] = useState(null); // null | "set" | "change" | "remove" | "panic-set" | "panic-remove"
   const [newPIN, setNewPIN] = useState("");
   const [confirmPIN, setConfirmPIN] = useState("");
   const [currentPIN, setCurrentPIN] = useState("");
@@ -44,6 +46,8 @@ export default function SecurityModal({ isOpen, onClose, isDark }) {
       setToggles(await SecurityService.getToggles());
       setBioAvailable(await SecurityService.biometricAvailable());
       setHasPIN(await SecurityService.hasPIN());
+      setHasPanicPIN(await SecurityService.hasPanicPIN());
+      setSafeCategory(await SecurityService.getSafeCategory());
       setIsNative(await SecurityService.isNative());
     })();
   }, [isOpen]);
@@ -87,9 +91,12 @@ export default function SecurityModal({ isOpen, onClose, isDark }) {
 
   const savePIN = async () => {
     setPinError("");
-    if (pinDialog === "change" && !(await SecurityService.verifyPIN(currentPIN))) {
-      setPinError("Current PIN is incorrect");
-      return;
+    if (pinDialog === "change") {
+      const cur = await SecurityService.verifyPIN(currentPIN);
+      if (!cur.ok || cur.panic) {
+        setPinError("Current PIN is incorrect");
+        return;
+      }
     }
     if (!/^\d{4,8}$/.test(newPIN)) {
       setPinError("PIN must be 4–8 digits");
@@ -112,16 +119,45 @@ export default function SecurityModal({ isOpen, onClose, isDark }) {
   };
 
   const removePINFlow = async () => {
-    if (!(await SecurityService.verifyPIN(currentPIN))) {
+    const cur = await SecurityService.verifyPIN(currentPIN);
+    if (!cur.ok || cur.panic) {
       setPinError("PIN is incorrect");
       return;
     }
     await SecurityService.removePIN();
     setHasPIN(false);
+    setHasPanicPIN(false);
     setMethod("none");
     setPinDialog(null);
     setCurrentPIN("");
     toast.success("PIN removed");
+  };
+
+  const savePanicPIN = async () => {
+    setPinError("");
+    if (!/^\d{4,8}$/.test(newPIN)) { setPinError("PIN must be 4–8 digits"); return; }
+    if (newPIN !== confirmPIN)     { setPinError("PINs do not match"); return; }
+    try {
+      await SecurityService.setPanicPIN(newPIN);
+      setHasPanicPIN(true);
+      setPinDialog(null);
+      setNewPIN(""); setConfirmPIN("");
+      toast.success("Panic PIN set");
+    } catch (e) {
+      setPinError(e?.message || "Could not set Panic PIN");
+    }
+  };
+
+  const removePanicPINFlow = async () => {
+    await SecurityService.removePanicPIN();
+    setHasPanicPIN(false);
+    setPinDialog(null);
+    toast.success("Panic PIN removed");
+  };
+
+  const updateSafeCategory = async (cat) => {
+    setSafeCategory(cat);
+    await SecurityService.setSafeCategory(cat);
   };
 
   return (
@@ -244,6 +280,73 @@ export default function SecurityModal({ isOpen, onClose, isDark }) {
             )}
           </Section>
 
+          {/* Panic PIN — only when main PIN is set */}
+          {hasPIN && (
+            <Section title="Panic PIN (optional)" isDark={isDark} icon={ShieldAlert}>
+              <p className={`text-[11px] mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                A second PIN that opens Iron Rabbit into a <strong>safe view</strong> — only notes from
+                your chosen category appear. Everything else stays hidden. Useful if someone forces you
+                to unlock the app.
+              </p>
+              {!hasPanicPIN ? (
+                <Button
+                  size="sm"
+                  onClick={() => { setNewPIN(""); setConfirmPIN(""); setPinError(""); setPinDialog("panic-set"); }}
+                  className="w-full h-8 text-xs bg-amber-500 hover:bg-amber-600 text-white"
+                  data-testid="security-set-panic-pin"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 mr-1" /> Set Panic PIN
+                </Button>
+              ) : (
+                <>
+                  <div className={`text-[11px] mb-2 flex items-center gap-1.5 ${isDark ? "text-emerald-400" : "text-emerald-600"}`}>
+                    <Check className="w-3 h-3" /> Panic PIN is active
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline" size="sm"
+                      onClick={() => { setNewPIN(""); setConfirmPIN(""); setPinError(""); setPinDialog("panic-set"); }}
+                      className={`flex-1 h-8 text-xs ${isDark ? "border-white/10 text-slate-300" : ""}`}
+                      data-testid="security-change-panic-pin"
+                    >
+                      Change
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      onClick={removePanicPINFlow}
+                      className="flex-1 h-8 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10"
+                      data-testid="security-remove-panic-pin"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-3">
+                <label className={`text-[11px] mb-1 block ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                  Safe view: show only notes from category
+                </label>
+                <Select value={safeCategory || "__none"} onValueChange={(v) => updateSafeCategory(v === "__none" ? "" : v)}>
+                  <SelectTrigger className={`h-9 text-xs ${isDark ? "bg-black/20 border-white/10 text-white" : ""}`}
+                    data-testid="security-safe-category">
+                    <SelectValue placeholder="No category (empty view)" />
+                  </SelectTrigger>
+                  <SelectContent className={isDark ? "bg-[#0B1221] border-white/10 text-white" : ""}>
+                    <SelectItem value="__none" className="text-xs">— Empty view —</SelectItem>
+                    {Object.keys(categories).map((cat) => (
+                      <SelectItem key={cat} value={cat} className="text-xs">{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className={`text-[10px] mt-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                  Pick a category with innocuous notes (e.g., Shopping, Recipes). Leave as &quot;Empty view&quot;
+                  to show nothing.
+                </p>
+              </div>
+            </Section>
+          )}
+
           {/* Auto-lock */}
           <Section title="Auto-lock" isDark={isDark} icon={Timer}>
             <Select value={String(autoLockMs)} onValueChange={(v) => persistAutoLock(Number(v))}>
@@ -303,15 +406,19 @@ export default function SecurityModal({ isOpen, onClose, isDark }) {
         </DialogContent>
       </Dialog>
 
-      {/* PIN set/change dialog */}
-      <Dialog open={pinDialog === "set" || pinDialog === "change"} onOpenChange={() => setPinDialog(null)}>
+      {/* PIN set/change dialog (main OR panic) */}
+      <Dialog open={pinDialog === "set" || pinDialog === "change" || pinDialog === "panic-set"} onOpenChange={() => setPinDialog(null)}>
         <DialogContent className={`max-w-sm ${isDark ? "bg-[#0B1221] border-white/10" : "bg-white"}`} data-testid="pin-dialog">
           <DialogHeader>
             <DialogTitle className={isDark ? "text-white" : ""}>
-              {pinDialog === "change" ? "Change PIN" : "Set PIN"}
+              {pinDialog === "panic-set"
+                ? (hasPanicPIN ? "Change Panic PIN" : "Set Panic PIN")
+                : (pinDialog === "change" ? "Change PIN" : "Set PIN")}
             </DialogTitle>
             <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
-              4–8 digits. You&apos;ll be asked to enter this when the app unlocks.
+              {pinDialog === "panic-set"
+                ? "4–8 digits. This PIN opens Iron Rabbit into the safe view. It must differ from your main PIN."
+                : "4–8 digits. You'll be asked to enter this when the app unlocks."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -327,27 +434,33 @@ export default function SecurityModal({ isOpen, onClose, isDark }) {
             <Input
               type="password" inputMode="numeric" maxLength={8}
               value={newPIN} onChange={(e) => setNewPIN(e.target.value.replace(/\D/g, ""))}
-              placeholder="New PIN"
+              placeholder={pinDialog === "panic-set" ? "New Panic PIN" : "New PIN"}
               className={`h-9 ${isDark ? "bg-black/20 border-white/10 text-white" : ""}`}
               data-testid="pin-new"
             />
             <Input
               type="password" inputMode="numeric" maxLength={8}
               value={confirmPIN} onChange={(e) => setConfirmPIN(e.target.value.replace(/\D/g, ""))}
-              placeholder="Confirm PIN"
+              placeholder="Confirm"
               className={`h-9 ${isDark ? "bg-black/20 border-white/10 text-white" : ""}`}
               data-testid="pin-confirm"
             />
             {pinError && <p className="text-xs text-red-400">{pinError}</p>}
             <p className={`text-[11px] flex items-start gap-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
               <Info className="w-3 h-3 mt-0.5 shrink-0" />
-              Forgot your PIN? Clear all data from Settings — this erases everything on the device.
+              {pinDialog === "panic-set"
+                ? "The Panic PIN looks identical to a normal unlock — no visible indicator to observers."
+                : "Forgot your PIN? Clear all data from Settings — this erases everything on the device."}
             </p>
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={() => { setPinDialog(null); setNewPIN(""); setConfirmPIN(""); setCurrentPIN(""); setPinError(""); }}
                 className={`flex-1 h-9 ${isDark ? "border-white/10 text-slate-300" : ""}`}>Cancel</Button>
-              <Button onClick={savePIN} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white" data-testid="pin-save">
-                Save PIN
+              <Button
+                onClick={pinDialog === "panic-set" ? savePanicPIN : savePIN}
+                className={`flex-1 h-9 text-white ${pinDialog === "panic-set" ? "bg-amber-500 hover:bg-amber-600" : "bg-indigo-500 hover:bg-indigo-600"}`}
+                data-testid="pin-save"
+              >
+                Save
               </Button>
             </div>
           </div>

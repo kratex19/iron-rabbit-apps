@@ -525,6 +525,11 @@ export default function NotesApp() {
 
   const processedNotes = useMemo(() => {
     let result = [...notes];
+    // Panic mode: filter to only the "safe" category (or empty view if none set)
+    if (autoLock.panic) {
+      const safeCat = autoLock.safeCategory || "";
+      result = safeCat ? result.filter(n => (n.category || "") === safeCat) : [];
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(n =>
@@ -557,7 +562,7 @@ export default function NotesApp() {
       }
     });
     return result;
-  }, [notes, searchQuery, filterBy, sortBy]);
+  }, [notes, searchQuery, filterBy, sortBy, autoLock.panic, autoLock.safeCategory]);
 
   const { grouped, uncategorized } = useMemo(() => {
     const map = new Map();
@@ -1073,6 +1078,7 @@ export default function NotesApp() {
       <SecurityModal
         isOpen={securityOpen}
         onClose={() => { setSecurityOpen(false); autoLock.refresh(); }}
+        categories={categories}
         isDark={isDark}
       />
 

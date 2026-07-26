@@ -11,18 +11,22 @@ import SecurityService from "./SecurityService";
  */
 export default function useAutoLock() {
   const [locked, setLocked] = useState(false);
+  const [panic, setPanic] = useState(false);
+  const [safeCategoryState, setSafeCategoryState] = useState("");
   const [ready, setReady] = useState(false);
   const timerRef = useRef(null);
   const hiddenAtRef = useRef(null);
-  const configRef = useRef({ autoLockMs: 60_000, toggles: null, method: "none" });
+  const configRef = useRef({ autoLockMs: 60_000, toggles: null, method: "none", safeCategory: "" });
 
   const refreshConfig = useCallback(async () => {
-    const [method, autoLockMs, toggles] = await Promise.all([
+    const [method, autoLockMs, toggles, safeCategory] = await Promise.all([
       SecurityService.getMethod(),
       SecurityService.getAutoLockMs(),
       SecurityService.getToggles(),
+      SecurityService.getSafeCategory(),
     ]);
-    configRef.current = { method, autoLockMs, toggles };
+    configRef.current = { method, autoLockMs, toggles, safeCategory };
+    setSafeCategoryState(safeCategory);
   }, []);
 
   // Initial boot — decide whether to start locked
@@ -46,20 +50,21 @@ export default function useAutoLock() {
         hiddenAtRef.current = Date.now();
         // If autoLockMs === 0, lock immediately
         if (autoLockMs === 0) {
+          setPanic(false);
           setLocked(true);
           return;
         }
         // If autoLockMs === -1 ("Never"), don't auto-lock
         if (autoLockMs < 0) return;
         clearTimeout(timerRef.current);
-        timerRef.current = setTimeout(() => setLocked(true), autoLockMs);
+        timerRef.current = setTimeout(() => { setPanic(false); setLocked(true); }, autoLockMs);
       } else {
         // Returned to foreground — if we already scheduled but not yet fired,
         // check if we've been away longer than the threshold
         clearTimeout(timerRef.current);
         const away = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : 0;
         hiddenAtRef.current = null;
-        if (autoLockMs >= 0 && away >= autoLockMs) setLocked(true);
+        if (autoLockMs >= 0 && away >= autoLockMs) { setPanic(false); setLocked(true); }
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -83,9 +88,12 @@ export default function useAutoLock() {
     return () => document.removeEventListener("visibilitychange", applyBlur);
   }, []);
 
-  const unlock = useCallback(() => setLocked(false), []);
-  const lockNow = useCallback(() => setLocked(true), []);
+  const unlock = useCallback((opts = {}) => {
+    setPanic(!!opts.panic);
+    setLocked(false);
+  }, []);
+  const lockNow = useCallback(() => { setPanic(false); setLocked(true); }, []);
   const rescheduleAfterSettingsChange = useCallback(() => refreshConfig(), [refreshConfig]);
 
-  return { locked, ready, unlock, lockNow, refresh: rescheduleAfterSettingsChange };
+  return { locked, panic, ready, unlock, lockNow, refresh: rescheduleAfterSettingsChange, safeCategory: safeCategoryState };
 }

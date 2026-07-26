@@ -39,6 +39,9 @@ loadNativeModules();
 
 const KEY_PIN_HASH = "sec_pin_hash";
 const KEY_PIN_SALT = "sec_pin_salt";
+const KEY_PANIC_HASH = "sec_panic_hash";
+const KEY_PANIC_SALT = "sec_panic_salt";
+const KEY_SAFE_CATEGORY = "sec_safe_category";
 const KEY_METHOD = "sec_method";           // "none" | "biometric" | "pin" | "password"
 const KEY_AUTO_LOCK = "sec_autolock_ms";
 const KEY_TOGGLES = "sec_toggles";         // JSON of security-toggle flags
@@ -122,6 +125,8 @@ const SecurityService = {
     await secSet(KEY_METHOD, "none");
     await secSet(KEY_PIN_HASH, null);
     await secSet(KEY_PIN_SALT, null);
+    await secSet(KEY_PANIC_HASH, null);
+    await secSet(KEY_PANIC_SALT, null);
     await secSet(KEY_WEBAUTHN_CRED, null);
   },
 
@@ -153,18 +158,38 @@ const SecurityService = {
   // ---------- Local PIN ----------
   async setPIN(pin) {
     if (!/^\d{4,8}$/.test(pin)) throw new Error("PIN must be 4-8 digits");
+    // Prevent making main PIN identical to panic PIN
+    if (await this.hasPanicPIN()) {
+      const panicSalt = await secGet(KEY_PANIC_SALT);
+      const panicHash = await secGet(KEY_PANIC_HASH);
+      if (panicSalt && panicHash && (await sha256(panicSalt + pin)) === panicHash) {
+        throw new Error("Main PIN must differ from Panic PIN");
+      }
+    }
     const salt = randSalt();
     const hash = await sha256(salt + pin);
     await secSet(KEY_PIN_SALT, salt);
     await secSet(KEY_PIN_HASH, hash);
     await secSet(KEY_METHOD, "pin");
   },
+  // Returns { ok: bool, panic: bool }.
+  //   ok=true, panic=false → real PIN matched
+  //   ok=true, panic=true  → panic PIN matched (caller should enter safe mode)
+  //   ok=false             → neither matched
   async verifyPIN(pin) {
     const salt = await secGet(KEY_PIN_SALT);
     const hash = await secGet(KEY_PIN_HASH);
-    if (!salt || !hash) return false;
-    const check = await sha256(salt + pin);
-    return check === hash;
+    if (salt && hash) {
+      const check = await sha256(salt + pin);
+      if (check === hash) return { ok: true, panic: false };
+    }
+    const panicSalt = await secGet(KEY_PANIC_SALT);
+    const panicHash = await secGet(KEY_PANIC_HASH);
+    if (panicSalt && panicHash) {
+      const check = await sha256(panicSalt + pin);
+      if (check === panicHash) return { ok: true, panic: true };
+    }
+    return { ok: false, panic: false };
   },
   async hasPIN() {
     return !!(await secGet(KEY_PIN_HASH));
@@ -172,7 +197,38 @@ const SecurityService = {
   async removePIN() {
     await secSet(KEY_PIN_HASH, null);
     await secSet(KEY_PIN_SALT, null);
+    // Also clear panic PIN — no reason to keep it if main is gone
+    await secSet(KEY_PANIC_HASH, null);
+    await secSet(KEY_PANIC_SALT, null);
     if ((await this.getMethod()) === "pin") await this.setMethod("none");
+  },
+
+  // ---------- Panic PIN (optional secondary) ----------
+  async setPanicPIN(pin) {
+    if (!/^\d{4,8}$/.test(pin)) throw new Error("Panic PIN must be 4-8 digits");
+    // Must differ from real PIN
+    const mainSalt = await secGet(KEY_PIN_SALT);
+    const mainHash = await secGet(KEY_PIN_HASH);
+    if (mainSalt && mainHash && (await sha256(mainSalt + pin)) === mainHash) {
+      throw new Error("Panic PIN must differ from main PIN");
+    }
+    const salt = randSalt();
+    const hash = await sha256(salt + pin);
+    await secSet(KEY_PANIC_SALT, salt);
+    await secSet(KEY_PANIC_HASH, hash);
+  },
+  async hasPanicPIN() {
+    return !!(await secGet(KEY_PANIC_HASH));
+  },
+  async removePanicPIN() {
+    await secSet(KEY_PANIC_HASH, null);
+    await secSet(KEY_PANIC_SALT, null);
+  },
+  async getSafeCategory() {
+    return (await secGet(KEY_SAFE_CATEGORY)) || "";
+  },
+  async setSafeCategory(cat) {
+    await secSet(KEY_SAFE_CATEGORY, cat || "");
   },
 
   // ---------- Biometrics ----------

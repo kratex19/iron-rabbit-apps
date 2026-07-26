@@ -39,7 +39,7 @@ export default function LockScreen({ isOpen, onUnlock, isDark = true }) {
     setBusy(true);
     try {
       const ok = await SecurityService.verifyBiometric();
-      if (ok) { setBusy(false); onUnlock(); return; }
+      if (ok) { setBusy(false); onUnlock({ panic: false }); return; }
       setError("Authentication failed");
     } catch (e) {
       setError(e?.message || "Authentication failed");
@@ -51,9 +51,9 @@ export default function LockScreen({ isOpen, onUnlock, isDark = true }) {
   const submitPIN = async (val) => {
     if (val.length < 4) return;
     setBusy(true);
-    const ok = await SecurityService.verifyPIN(val);
+    const result = await SecurityService.verifyPIN(val);
     setBusy(false);
-    if (ok) { onUnlock(); return; }
+    if (result.ok) { onUnlock({ panic: !!result.panic }); return; }
     setError("Wrong PIN");
     setPIN("");
     if (navigator.vibrate) navigator.vibrate(150);

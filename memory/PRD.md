@@ -229,3 +229,28 @@ Full security architecture — works today as a PWA, ready to swap to native API
 - Biometric templates never touched by Iron Rabbit — always delegated to OS.
 - Native builds route storage through Keystore / Keychain via Capacitor Preferences.
 - Cloud sign-in remains optional; free version stays fully offline.
+
+## Panic PIN (Feb 2026)
+Optional secondary PIN that unlocks Iron Rabbit into a **safe view** — indistinguishable from a normal unlock to anyone watching.
+
+### Behaviour
+- Available only when a main PIN is set (surfaced in a new "Panic PIN (optional)" section of `SecurityModal`).
+- Distinct from the main PIN (`SecurityService.setPanicPIN` rejects duplicates in both directions).
+- Stored as `SHA-256(random-salt + PIN)` — no plaintext.
+- On lock-screen entry: `SecurityService.verifyPIN()` now returns `{ ok, panic }`. LockScreen forwards the flag through `onUnlock({ panic })` → `useAutoLock` sets state → `NotesApp.processedNotes` filters accordingly.
+- Safe-view filter: user picks a category from Security & Privacy. When panic PIN is entered, `processedNotes` shows only notes in that category (or nothing if "Empty view" is selected).
+- Zero visual indicator during panic mode — no banner, no color change, no timestamp difference.
+- Locking again (auto-lock / manual) always resets `panic=false`; entering the real PIN afterwards restores full view.
+
+### Files updated
+- `security/SecurityService.js` — added `setPanicPIN`, `hasPanicPIN`, `removePanicPIN`, `getSafeCategory`, `setSafeCategory`. `verifyPIN` return shape changed to `{ ok, panic }`.
+- `security/LockScreen.jsx` — passes `{ panic }` to `onUnlock`.
+- `security/useAutoLock.js` — tracks `panic` + `safeCategory` state, exposes both.
+- `notes/SecurityModal.jsx` — Panic PIN section (only when main PIN exists), amber-styled set/change/remove flow, Safe view category `<Select>`.
+- `NotesApp.jsx` — `processedNotes` filters to `safeCategory` when `autoLock.panic === true`; passes `categories` to `SecurityModal`.
+
+### Verified in preview
+- Main PIN 1234 set → panic section appears
+- Panic PIN 7777 set → "Panic PIN is active" indicator
+- Reload → lock screen → enter 7777 → app opens showing 0 notes / empty view (even though 4 real notes exist in IDB)
+- No visible marker of panic mode
