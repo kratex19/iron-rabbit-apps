@@ -155,3 +155,10 @@ Files added: `notes/EventsSection.jsx`. Updated: `notes/NoteModal.jsx`, `notes/A
 ## Deployed (Feb 2026)
 - Live URL: **https://color-task-timer.emergent.host**
 - User owns `www.ironrabbitapps.com` — link via Entri from the deployment page.
+
+## Header wrap + Floating Calendar (Feb 2026)
+- Header top row is now `flex-wrap` — icons drop to a second row when they overflow (fixes logo/title squish on narrow screens; works as more icons get added).
+- New icon in header between Calculator and Settings: **Calendar** (`data-testid="header-calendar"`).
+- New `notes/FloatingCalendarModal.jsx`: aggregates every event across all notes, mini shadcn calendar with dots on days with events, per-day agenda list, "next up" fallback (5 upcoming), clicking an event opens the source note in full-screen.
+
+Files added: `notes/FloatingCalendarModal.jsx`. Files updated: `NotesApp.jsx` (header markup, new icon + state + modal mount).

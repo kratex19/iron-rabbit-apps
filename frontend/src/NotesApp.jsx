@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
 import TilePacksModal from "./notes/TilePacksModal";
 import FirstRunTour from "./notes/FirstRunTour";
+import FloatingCalendarModal from "./notes/FloatingCalendarModal";
 import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
@@ -72,6 +73,7 @@ export default function NotesApp() {
   const [fullScreenNote, setFullScreenNote] = useState(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
+  const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
@@ -771,32 +773,33 @@ export default function NotesApp() {
         className={`header-compact ${isDark ? '' : 'light'}`}
         style={{ backgroundImage: settings?.header_bg ? `url(${settings.header_bg})` : undefined }}
       >
-        <div className="relative z-10 w-full px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="relative z-10 w-full px-4 py-3 flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
+          <div className="flex items-center gap-3 min-w-0">
             {settings?.logo_url && (
-              <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer">
+              <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer" className="shrink-0">
                 <img src={settings.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/20" />
               </a>
             )}
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight truncate">
                 {settings?.company_name || "Iron Rabbit"}
               </h1>
               {settings?.website_url && (
-                <a href={settings.website_url} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-300 hover:text-white flex items-center gap-1">
-                  <ExternalLink className="w-3 h-3" />
-                  {settings.website_url.replace(/^https?:\/\//, "")}
+                <a href={settings.website_url} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-300 hover:text-white flex items-center gap-1 truncate">
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
                 </a>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap justify-end ml-auto" data-testid="header-icon-row">
             <Button variant="ghost" size="icon" onClick={() => { setQuickAddOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Quick Add" data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => { setTilePacksOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Tile Packs" data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Download className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8">{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
-            <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Calculator className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8"><Settings className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Export PDF"><Download className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Toggle theme">{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
+            <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Calculator"><Calculator className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setFloatingCalendarOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Calendar" data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Settings"><Settings className="w-4 h-4" /></Button>
           </div>
         </div>
       </header>
@@ -953,6 +956,16 @@ export default function NotesApp() {
         isOpen={tilePacksOpen}
         onClose={() => setTilePacksOpen(false)}
         onApply={handleApplyPack}
+        isDark={isDark}
+      />
+      <FloatingCalendarModal
+        isOpen={floatingCalendarOpen}
+        onClose={() => setFloatingCalendarOpen(false)}
+        notes={notes}
+        onOpenNote={(noteId) => {
+          const n = notes.find((x) => x.id === noteId);
+          if (n) setFullScreenNote(n);
+        }}
         isDark={isDark}
       />
       <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
