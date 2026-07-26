@@ -136,3 +136,22 @@ Also upgraded `TilePacksModal`: live search across pack name / tagline / individ
 
 Files updated: `data/tilePacks.js` (rewritten with helpers G/grad/solid for compactness), `notes/TilePacksModal.jsx` (search + polish).
 Verified: all 33 packs render, search filters correctly ("road" → 1 result), Apply Pack still bulk-creates notes with auto-pin. Zero console errors.
+
+
+## Events per note + inline calendar (Feb 2026)
+Multiple date-bound events per note with a mini calendar visualisation.
+
+- New note field: `events: Array<{ id, title, datetime, alarm_enabled, notes }>`
+- New component `notes/EventsSection.jsx` between Alarm and Recurring in the editor:
+  - "+ Add event" → inline form (title + shadcn Calendar date picker + time)
+  - Mini shadcn Calendar with `hasEvent` modifier → indigo dot on days with ≥1 event (CSS `.rdp-day.has-event::after`)
+  - Tap a day to filter events list; otherwise all events sorted chronologically
+  - Each event row: title + date + time + per-event alarm toggle + delete
+- `notificationService.startAlarmChecker` extended to iterate `note.events` and fire per-event alarms ("NoteTitle — EventTitle")
+- Tile badges: `NoteTile` + `AccordionNoteItem` show `📅 N` count alongside pin/alarm/recurring badges
+
+Files added: `notes/EventsSection.jsx`. Updated: `notes/NoteModal.jsx`, `notes/AccordionNoteItem.jsx`, `components/NoteTile.jsx`, `notifications/notificationService.js`, `App.css`.
+
+## Deployed (Feb 2026)
+- Live URL: **https://color-task-timer.emergent.host**
+- User owns `www.ironrabbitapps.com` — link via Entri from the deployment page.

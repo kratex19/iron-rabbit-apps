@@ -34,6 +34,11 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true }) {
         {note.pinned && <Pin className="w-3 h-3" />}
         {hasAlarm && <Bell className="w-3 h-3" />}
         {hasRecurring && <Repeat className="w-3 h-3" />}
+        {note.events?.length > 0 && (
+          <span className="flex items-center gap-0.5 text-[10px] font-mono">
+            <CalendarDays className="w-3 h-3" />{note.events.length}
+          </span>
+        )}
       </span>
 
       {/* Icon + title (front + center) */}

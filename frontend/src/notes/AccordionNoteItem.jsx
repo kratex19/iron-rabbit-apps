@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import {
   Bell, Repeat, GripVertical, ChevronDown, Clock, Pencil,
-  Maximize2, Edit3, Share2, Trash2, Paperclip, Pin, PinOff,
+  Maximize2, Edit3, Share2, Trash2, Paperclip, Pin, PinOff, CalendarDays,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -39,6 +39,11 @@ export default function AccordionNoteItem({
             {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}</Badge>}
             {hasAlarm && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
             {hasRecurring && <Repeat className="w-4 h-4 text-green-500 flex-shrink-0" />}
+            {note.events?.length > 0 && (
+              <span className="flex items-center gap-0.5 text-xs font-mono text-indigo-400 flex-shrink-0" title={`${note.events.length} event${note.events.length === 1 ? '' : 's'}`}>
+                <CalendarDays className="w-3.5 h-3.5" />{note.events.length}
+              </span>
+            )}
             {note.attachments?.length > 0 && (
               <span className="flex items-center gap-0.5 text-xs font-mono text-slate-500 flex-shrink-0" title={`${note.attachments.length} attachment${note.attachments.length === 1 ? '' : 's'}`}>
                 <Paperclip className="w-3.5 h-3.5" />{note.attachments.length}

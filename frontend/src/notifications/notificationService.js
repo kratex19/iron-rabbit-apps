@@ -108,19 +108,38 @@ class NotificationService {
       const notes = getNotes();
       
       notes.forEach((note) => {
-        if (!note.alarm?.enabled || !note.alarm?.datetime) return;
-        
-        const alarmTime = new Date(note.alarm.datetime);
-        const diff = alarmTime - now;
-        
-        // Trigger if alarm time is within next 30 seconds and hasn't been triggered
-        if (diff > 0 && diff < 30000) {
-          const lastNotified = this.alarmChecks.get(note.id);
-          if (!lastNotified || (now - lastNotified) > 60000) {
-            this.triggerAlarm(note);
-            this.alarmChecks.set(note.id, now);
+        // Main alarm
+        if (note.alarm?.enabled && note.alarm?.datetime) {
+          const alarmTime = new Date(note.alarm.datetime);
+          const diff = alarmTime - now;
+          if (diff > 0 && diff < 30000) {
+            const key = `main-${note.id}`;
+            const lastNotified = this.alarmChecks.get(key);
+            if (!lastNotified || (now - lastNotified) > 60000) {
+              this.triggerAlarm(note);
+              this.alarmChecks.set(key, now);
+            }
           }
         }
+        // Per-event alarms
+        (note.events || []).forEach(evt => {
+          if (!evt.alarm_enabled || !evt.datetime) return;
+          const t = new Date(evt.datetime);
+          const diff = t - now;
+          if (diff > 0 && diff < 30000) {
+            const key = `evt-${evt.id}`;
+            const lastNotified = this.alarmChecks.get(key);
+            if (!lastNotified || (now - lastNotified) > 60000) {
+              this.triggerAlarm({
+                id: `${note.id}-${evt.id}`,
+                title: `${note.title} — ${evt.title}`,
+                content: evt.notes || note.title,
+                alarm: { sound: note.alarm?.sound || "bell", haptic: note.alarm?.haptic },
+              });
+              this.alarmChecks.set(key, now);
+            }
+          }
+        });
       });
     };
 

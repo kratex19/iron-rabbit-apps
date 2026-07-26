@@ -18,6 +18,7 @@ import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
 import TemplateModal from "./TemplateModal";
+import EventsSection from "./EventsSection";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -32,6 +33,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [icon, setIcon] = useState(null);
   const [background, setBackground] = useState(null);
   const [pinned, setPinned] = useState(false);
+  const [events, setEvents] = useState([]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [category, setCategory] = useState("");
@@ -58,6 +60,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       setTitle(note.title || ""); setContent(note.content || ""); setColor(note.color || "purple");
       setIcon(note.icon || null); setBackground(note.background || null);
       setPinned(!!note.pinned);
+      setEvents(Array.isArray(note.events) ? note.events : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
       if (note.alarm) {
         setAlarm(note.alarm);
@@ -71,6 +74,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
     } else {
       setTitle(""); setContent(""); setColor("purple"); setIcon(null); setBackground(null);
       setPinned(false);
+      setEvents([]);
       setCategory(""); setSubcategory("");
       setAlarm({ enabled: false, datetime: null, sound: "bell", haptic: false });
       setAlarmDate(null); setAlarmTime("12:00");
@@ -104,6 +108,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       // Pin only allowed on main-category (or uncategorized) notes.
       // If a subcategory is set, force pinned=false so old state is cleaned up.
       pinned: subcategory.trim() ? false : pinned,
+      events,
       category: category.trim(), subcategory: subcategory.trim(),
       alarm: { ...alarm, datetime: alarmDateTime }, recurring,
     };
@@ -279,6 +284,9 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 </div>
               )}
             </div>
+
+            <EventsSection value={events} onChange={setEvents} isDark={isDark} />
+
 
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-2">
