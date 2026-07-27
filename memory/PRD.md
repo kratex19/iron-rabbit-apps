@@ -801,3 +801,52 @@ a full stats dashboard:
 Insights modal opens with all KPIs; tags create/filter/#search flow works;
 top-tags card updates dynamically; no regressions to core create/edit/pin
 /archive/backup flows.
+
+## Photos + LLM Translation (Feb 2026)
+
+### Photos / attachments in NoteModal
+- Attachments component (already used in FullScreenNote) is now also mounted
+  in `NoteModal`, exposing photos to the primary create/edit flow.
+- Enforced cap: `MAX_ATTACHMENTS_PER_NOTE = 10` in `storageService.js`.
+  `Attachments.jsx` reflects this on the Add button
+  (`Attach photos · N/10` / `Max 10 reached`) and rejects uploads past the cap.
+- Types: JPG/PNG/GIF/WebP/PDF. 10 MB per file. Stored as Blobs in IndexedDB.
+- JSON backup already serialises `filesStore` as base64 → photos travel with
+  the backup file per user preference.
+- New testid: `attachment-add-btn`.
+
+### LLM Translation
+Backend:
+- `POST /api/translate` — new endpoint in `server.py`.
+- Uses `emergentintegrations.llm.chat.LlmChat` with model
+  `anthropic/claude-sonnet-4-6`, `EMERGENT_LLM_KEY` from `backend/.env`.
+- Payload: `{text, target_lang, source_lang?}`. Returns `{translated, source_lang, target_lang}`.
+- System prompt forbids explanations, transliterations, or wrappers — returns
+  ONLY the translated text with preserved line breaks / markdown / emoji.
+- Guards: empty text → 400; missing target → 400; text > 12,000 chars → 413.
+
+Frontend:
+- New `TranslateModal.jsx` — language picker over the existing
+  25 SUPPORTED_LANGUAGES, Translate/Copy/Append actions.
+- Wired into `NoteModal` (Translate button next to Voice/Calc,
+  `data-testid="note-translate-btn"`, disabled when content empty).
+- Wired into `FullScreenNote` (header icon `fullscreen-translate-btn`);
+  Append fires immediate `onSaveInline` so the translated block persists
+  even if the user closes fast.
+- Append format: `\n\n— Language (flag) —\n<translated>` so the user's
+  canonical text is never overwritten.
+
+### Extra hygiene testids added
+`note-title-input`, `note-content-input`, `note-save-btn`,
+`fullscreen-translate-btn`, `note-translate-btn`, `translate-modal`,
+`translate-target-select`, `translate-original`, `translate-run-btn`,
+`translate-result`, `translate-copy-btn`, `translate-append-btn`,
+`attachment-add-btn`.
+
+### Verified in preview (testing_agent iteration_17, 100% backend + 100% frontend)
+- 5/5 pytest cases pass on `/api/translate` (Spanish, Japanese-multiline,
+  empty text 400, empty target 400, >12k 413).
+- E2E Playwright green on both NoteModal and FullScreenNote translation
+  flows, including persistence after close+reopen.
+- No regressions in Tags/Insights (iteration_16 features).
+

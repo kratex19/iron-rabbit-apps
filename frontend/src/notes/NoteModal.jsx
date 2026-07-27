@@ -178,7 +178,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
           <div className="space-y-3">
             <div>
               <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.title")}</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("note.title_placeholder")} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("note.title_placeholder")} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} data-testid="note-title-input" />
             </div>
 
             <div>
@@ -213,7 +213,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 </div>
               </div>
-              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} />
+              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} data-testid="note-content-input" />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
