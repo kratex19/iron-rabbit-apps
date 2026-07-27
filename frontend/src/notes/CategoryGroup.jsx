@@ -14,6 +14,7 @@ import AccordionNoteItem from "./AccordionNoteItem";
 export default function CategoryGroup({
   category, notes: children, onEdit, onDelete, onShare, onFullScreen, onTogglePin,
   isDark, dragHandleProps, isDragging,
+  selectMode = false, isSelected, onToggleSelect,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const colorConfig = useMemo(() => {
@@ -84,6 +85,9 @@ export default function CategoryGroup({
                       isDark={isDark}
                       dragHandleProps={prov.dragHandleProps}
                       isDragging={snap.isDragging}
+                      selectMode={selectMode}
+                      selected={isSelected ? isSelected(note.id) : false}
+                      onToggleSelect={onToggleSelect}
                     />
                   </div>
                 )}

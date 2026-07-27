@@ -916,6 +916,9 @@ export default function NotesApp() {
                           isDark={isDark}
                           dragHandleProps={prov.dragHandleProps}
                           isDragging={snap.isDragging}
+                          selectMode={inSelectMode}
+                          selected={isSelected(note.id)}
+                          onToggleSelect={toggleSelect}
                         />
                       </div>
                     )}
@@ -950,6 +953,9 @@ export default function NotesApp() {
                           isDark={isDark}
                           dragHandleProps={prov.dragHandleProps}
                           isDragging={snap.isDragging}
+                          selectMode={inSelectMode}
+                          isSelected={isSelected}
+                          onToggleSelect={toggleSelect}
                         />
                       </div>
                     )}
@@ -984,6 +990,9 @@ export default function NotesApp() {
                                   isDark={isDark}
                                   dragHandleProps={prov2.dragHandleProps}
                                   isDragging={snap2.isDragging}
+                                  selectMode={inSelectMode}
+                                  selected={isSelected(note.id)}
+                                  onToggleSelect={toggleSelect}
                                 />
                               </div>
                             )}
@@ -1013,6 +1022,9 @@ export default function NotesApp() {
             onFullScreen={setFullScreenNote}
             onTogglePin={handleTogglePin}
             isDark={isDark}
+            selectMode={inSelectMode}
+            selected={isSelected(note.id)}
+            onToggleSelect={toggleSelect}
           />
         ))}
       </div>
