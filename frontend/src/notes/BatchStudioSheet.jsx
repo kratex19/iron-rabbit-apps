@@ -48,6 +48,16 @@ export default function BatchStudioSheet({
   const [showColors, setShowColors] = useState(false);
   const [showAlarm, setShowAlarm] = useState(false);
 
+  // Compute the picked datetime + validity (must be strictly in the future).
+  const pickedDateTime = React.useMemo(() => {
+    if (!alarmDate) return null;
+    const [h, m] = alarmTime.split(":").map(Number);
+    const dt = new Date(alarmDate);
+    dt.setHours(h || 0, m || 0, 0, 0);
+    return dt;
+  }, [alarmDate, alarmTime]);
+  const isPastAlarm = pickedDateTime !== null && pickedDateTime.getTime() <= Date.now();
+
   const handleClose = () => {
     setShowColors(false);
     setShowAlarm(false);
@@ -57,11 +67,8 @@ export default function BatchStudioSheet({
   };
 
   const applyAlarm = () => {
-    if (!alarmDate) return;
-    const [h, m] = alarmTime.split(":").map(Number);
-    const dt = new Date(alarmDate);
-    dt.setHours(h || 0, m || 0, 0, 0);
-    onSetAlarm && onSetAlarm(dt.toISOString(), "bell");
+    if (!pickedDateTime || isPastAlarm) return;
+    onSetAlarm && onSetAlarm(pickedDateTime.toISOString(), "bell");
     handleClose();
   };
 
@@ -189,8 +196,8 @@ export default function BatchStudioSheet({
             <div className="flex gap-2">
               <Button
                 onClick={applyAlarm}
-                disabled={!alarmDate}
-                className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white text-xs"
+                disabled={!alarmDate || isPastAlarm}
+                className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-xs"
                 data-testid="bs-alarm-apply"
               >
                 <BellRing className="w-3.5 h-3.5 mr-1.5" /> Apply Alarm
@@ -204,6 +211,11 @@ export default function BatchStudioSheet({
                 <BellOff className="w-3.5 h-3.5 mr-1.5" /> Clear All
               </Button>
             </div>
+            {isPastAlarm && (
+              <div className="text-[11px] text-red-400 pt-0.5" data-testid="bs-alarm-past-hint">
+                Choose a time in the future.
+              </div>
+            )}
           </div>
         )}
 

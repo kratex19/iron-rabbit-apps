@@ -15,6 +15,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import StorageService from "./storage/storageService";
@@ -34,6 +38,7 @@ import MultiSelectBar from "./notes/MultiSelectBar";
 import MoveToCategoryModal from "./notes/MoveToCategoryModal";
 import CopySuffixDialog from "./notes/CopySuffixDialog";
 import BatchStudioSheet from "./notes/BatchStudioSheet";
+import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
 import SecurityService from "./security/SecurityService";
@@ -93,11 +98,6 @@ export default function NotesApp() {
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [organizationOpen, setOrganizationOpen] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [moveToOpen, setMoveToOpen] = useState(false);
-  const [batchStudioOpen, setBatchStudioOpen] = useState(false);
-  const [pendingCopyTarget, setPendingCopyTarget] = useState(null); // string | null
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
@@ -495,264 +495,23 @@ export default function NotesApp() {
 
   const handleDragStart = () => { haptic("tap"); };
 
-  // Multi-select helpers
+  // Multi-select + bulk actions — every selection helper, modal flag,
+  // and bulk handler is owned by the hook.
+  const bulk = useBulkActions({ settings, fetchData });
+  const {
+    selectMode, selectedIds,
+    isSelected, toggleSelect, clearSelection, enterSelectMode,
+    moveToOpen, setMoveToOpen,
+    batchStudioOpen, setBatchStudioOpen,
+    pendingCopyTarget, setPendingCopyTarget,
+    confirmDeleteOpen, setConfirmDeleteOpen,
+    openDeleteConfirm, confirmBulkDelete,
+    bulkMoveTo, bulkCopyTo,
+    bulkDuplicateInPlace,
+    bulkTogglePin, bulkSetColor, bulkSetAlarm, bulkClearAlarm,
+    bulkExportPDF,
+  } = bulk;
   const inSelectMode = selectMode;
-  const isSelected = (id) => selectedIds.has(id);
-  const toggleSelect = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-    haptic("tap");
-  };
-  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false); };
-  const enterSelectMode = () => { setSelectMode(true); haptic("tap"); };
-
-  const bulkDelete = async () => {
-    if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} note${selectedIds.size === 1 ? "" : "s"}? This cannot be undone.`)) return;
-    const ids = Array.from(selectedIds);
-    for (const id of ids) {
-      try { await StorageService.deleteNote(id); } catch (_e) { /* continue */ }
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Deleted ${ids.length} note${ids.length === 1 ? "" : "s"}`);
-  };
-
-  const bulkMoveTo = async (targetCategory) => {
-    // Respect Smart Batch Mode: "move" (default) or "copy"
-    const mode = settings?.dnd_prefs?.smartBatchMode || "move";
-    if (mode === "copy") {
-      // Defer to a small suffix prompt; snapshot ids because clearSelection may run later.
-      setPendingCopyTarget(targetCategory ?? "");
-      return;
-    }
-    const ids = Array.from(selectedIds);
-    const prevMap = new Map();
-    for (const id of ids) {
-      const prev = await StorageService.moveNoteToCategory(id, targetCategory, "");
-      if (prev) prevMap.set(id, prev);
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Moved ${ids.length} note${ids.length === 1 ? "" : "s"} to "${targetCategory || "Uncategorized"}"`, {
-      duration: 6000,
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          for (const [id, prev] of prevMap.entries()) {
-            await StorageService.moveNoteToCategory(id, prev.category, prev.subcategory);
-          }
-          fetchData();
-        },
-      },
-    });
-  };
-
-  const bulkCopyTo = async (targetCategory, addSuffix) => {
-    const ids = Array.from(selectedIds);
-    const newIds = [];
-    for (const id of ids) {
-      const src = await StorageService.getNote(id);
-      if (!src) continue;
-      const now = new Date().toISOString();
-      const copy = {
-        ...src,
-        id: uuidv4(),
-        title: addSuffix ? `${src.title || "Untitled"} (copy)` : src.title,
-        category: targetCategory || "",
-        subcategory: "",
-        created_at: now,
-        updated_at: now,
-        // Fresh order so it lands at the end of the target category
-        order: Date.now(),
-      };
-      // Strip any per-instance state that shouldn't clone
-      delete copy.pinned_at;
-      await StorageService.saveNote(copy);
-      newIds.push(copy.id);
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Copied ${newIds.length} note${newIds.length === 1 ? "" : "s"} to "${targetCategory || "Uncategorized"}"`, {
-      duration: 6000,
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          for (const nid of newIds) {
-            try { await StorageService.deleteNote(nid); } catch (_e) { /* continue */ }
-          }
-          fetchData();
-        },
-      },
-    });
-  };
-
-  const bulkDuplicateInPlace = async () => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
-    const newIds = [];
-    for (const id of ids) {
-      const src = await StorageService.getNote(id);
-      if (!src) continue;
-      const now = new Date().toISOString();
-      const copy = {
-        ...src,
-        id: uuidv4(),
-        title: `${src.title || "Untitled"} (copy)`,
-        created_at: now,
-        updated_at: now,
-        order: Date.now(),
-      };
-      delete copy.pinned_at;
-      await StorageService.saveNote(copy);
-      newIds.push(copy.id);
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Duplicated ${newIds.length} note${newIds.length === 1 ? "" : "s"} in place`, {
-      duration: 6000,
-      action: {
-        label: "Undo",
-        onClick: async () => {
-          for (const nid of newIds) {
-            try { await StorageService.deleteNote(nid); } catch (_e) { /* continue */ }
-          }
-          fetchData();
-        },
-      },
-    });
-  };
-
-  // ---- Batch Studio helpers (Pin, Color, Alarm, PDF) ----
-  const _snapshotSelected = async () => {
-    const ids = Array.from(selectedIds);
-    const snap = new Map();
-    for (const id of ids) {
-      const n = await StorageService.getNote(id);
-      if (n) snap.set(id, n);
-    }
-    return { ids, snap };
-  };
-  const _restore = async (snap) => {
-    for (const [id, n] of snap.entries()) {
-      try { await StorageService.saveNote({ ...n, id }); } catch (_e) { /* continue */ }
-    }
-    fetchData();
-  };
-
-  // Pin/unpin toggle — if any selected is unpinned, pin all; otherwise unpin all.
-  const bulkTogglePin = async () => {
-    const { ids, snap } = await _snapshotSelected();
-    if (ids.length === 0) return;
-    const anyUnpinned = Array.from(snap.values()).some((n) => !n.pinned);
-    const target = anyUnpinned; // true => pin all, false => unpin all
-    const now = new Date().toISOString();
-    for (const id of ids) {
-      const n = snap.get(id);
-      if (!n) continue;
-      await StorageService.saveNote({ ...n, pinned: target, updated_at: now });
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`${target ? "Pinned" : "Unpinned"} ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
-      duration: 6000,
-      action: { label: "Undo", onClick: () => _restore(snap) },
-    });
-  };
-
-  const bulkSetColor = async (colorName) => {
-    const { ids, snap } = await _snapshotSelected();
-    if (ids.length === 0) return;
-    const now = new Date().toISOString();
-    for (const id of ids) {
-      const n = snap.get(id);
-      if (!n) continue;
-      await StorageService.saveNote({ ...n, color: colorName, updated_at: now });
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Recolored ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
-      duration: 6000,
-      action: { label: "Undo", onClick: () => _restore(snap) },
-    });
-  };
-
-  const bulkSetAlarm = async (isoDateTime, sound = "bell") => {
-    const { ids, snap } = await _snapshotSelected();
-    if (ids.length === 0) return;
-    const now = new Date().toISOString();
-    for (const id of ids) {
-      const n = snap.get(id);
-      if (!n) continue;
-      await StorageService.saveNote({
-        ...n,
-        alarm: { enabled: true, datetime: isoDateTime, sound, haptic: false },
-        updated_at: now,
-      });
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Alarm set on ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
-      duration: 6000,
-      action: { label: "Undo", onClick: () => _restore(snap) },
-    });
-  };
-
-  const bulkClearAlarm = async () => {
-    const { ids, snap } = await _snapshotSelected();
-    if (ids.length === 0) return;
-    const now = new Date().toISOString();
-    for (const id of ids) {
-      const n = snap.get(id);
-      if (!n) continue;
-      await StorageService.saveNote({
-        ...n,
-        alarm: { enabled: false, datetime: null, sound: n.alarm?.sound || "bell", haptic: false },
-        updated_at: now,
-      });
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Cleared alarms on ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
-      duration: 6000,
-      action: { label: "Undo", onClick: () => _restore(snap) },
-    });
-  };
-
-  const bulkExportPDF = async () => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
-    const notesToExport = [];
-    for (const id of ids) {
-      const n = await StorageService.getNote(id);
-      if (n) notesToExport.push(n);
-    }
-    if (notesToExport.length === 0) { toast.error("Nothing to export"); return; }
-    const doc = new jsPDF();
-    let y = 15;
-    doc.setFontSize(18); doc.text(settings?.company_name || "Iron Rabbit", 15, y); y += 10;
-    doc.setFontSize(9); doc.text(`Exported: ${format(new Date(), "MMM d, yyyy HH:mm")} · ${notesToExport.length} notes`, 15, y); y += 10;
-    notesToExport.forEach((note) => {
-      if (y > 270) { doc.addPage(); y = 15; }
-      doc.setFontSize(12);
-      doc.setTextColor(NOTE_COLORS.find(c => c.name === note.color)?.accent || "#000");
-      doc.text(note.title || "Untitled", 15, y); y += 6;
-      doc.setFontSize(8); doc.setTextColor(100);
-      doc.text(`${format(new Date(note.created_at), "MMM d, yyyy HH:mm")}${note.category ? ` | ${note.category}` : ''}`, 15, y); y += 5;
-      doc.setFontSize(10); doc.setTextColor(0);
-      doc.splitTextToSize(note.content || "", 180).forEach(line => {
-        if (y > 280) { doc.addPage(); y = 15; }
-        doc.text(line, 15, y); y += 5;
-      });
-      y += 8;
-    });
-    doc.save(`${settings?.company_name || "notes"}-selected-${format(new Date(), "yyyy-MM-dd")}.pdf`);
-    clearSelection();
-    toast.success(`Exported ${notesToExport.length} note${notesToExport.length === 1 ? "" : "s"} to PDF`);
-  };
 
   const handleDragEnd = async (result) => {
     if (!result.destination) return;
@@ -1573,9 +1332,41 @@ export default function NotesApp() {
         onSetAlarm={bulkSetAlarm}
         onClearAlarm={bulkClearAlarm}
         onExportPDF={bulkExportPDF}
-        onDelete={bulkDelete}
+        onDelete={openDeleteConfirm}
         isDark={isDark}
       />
+
+      {/* Bulk delete confirmation — shadcn AlertDialog (replaces window.confirm) */}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent
+          className={`${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
+          data-testid="confirm-bulk-delete"
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle className={isDark ? 'text-white' : 'text-gray-900'}>
+              Delete {selectedIds.size} note{selectedIds.size === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className={isDark ? 'text-slate-400' : 'text-gray-500'}>
+              This cannot be undone. All selected notes and their attachments will be permanently removed from this device.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className={isDark ? 'border-white/10 text-slate-300 hover:bg-white/5' : ''}
+              data-testid="confirm-bulk-delete-cancel"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              className="bg-red-500 hover:bg-red-600 text-white"
+              data-testid="confirm-bulk-delete-confirm"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Two-step "Clear All Data" confirmation */}
       <Dialog open={clearStep === 1} onOpenChange={(o) => !o && setClearStep(0)}>
