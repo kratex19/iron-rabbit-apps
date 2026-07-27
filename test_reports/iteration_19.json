@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 19 — OCR backend + Kid Dashboard frontend. Backend: 6/6 pytest passes on /api/ocr (happy path 'Buy Milk'+'Buy Eggs' PNG returns both lines, empty base64→400 with correct detail, unsupported mime image/svg+xml→400, oversized payload>5MB→413, data-URI prefix stripped correctly, blank white PNG returns extracted_text='' via NO_TEXT_FOUND normalisation). Frontend Kid Dashboard: empty state shows kid-empty in kid-dashboard-modal when no chores notes exist. After seeding via Tile Packs → apply-pack-chores-list, kid-picker shows 12 kid-card-<noteId> cards (Bailey, Carter, Hazel, Mason, Lawson, Evy, Josh, Matt, Child 9..12). Selecting a card opens KidBoard with kid-stat-streak, kid-stat-done, kid-stat-week and kid-chore-list all visible + 12 kid-chore-toggle-<choreId> buttons. Tapping toggle flips todo→done: line-through class applied on title, 'Waiting for grown-up ✓' amber badge appears. Second tap reverts to todo (badge disappears). kid-back-btn returns to picker; kid-exit-btn closes modal. Regression: header-insights, header-tile-packs, header-kid-mode all present. Header buttons partly hidden behind quick-access wizard overlay on first load — required JS click bypass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Kid Mode → Parent approval reflection",
+        "issue": "Could not verify UI round-trip via Playwright because chore-parent-approve buttons are rendered inside FullScreenNote/ChoresPanel that must be opened from list view via the AccordionNoteItem's 'Full screen' Maximize2 button — that button lacks a data-testid (still pending from iteration_18 review). Combined with data-note-id NOT being present on the row wrapper, we cannot programmatically open FullScreen for a specific note. NOT a functional bug — same logic verified in iteration_18 for streak+ledger, and KidBoard reads the same parent_approved flag via computeChoreStreak/computeNoteStreak/buildLedger.",
+        "affected_selectors": ["button[title=\"Full screen\"]", "[data-note-id]"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Kid Dashboard modal",
+        "issues": ["Radix DialogContent missing DialogTitle causes console warnings on every open (a11y): 'DialogContent requires a DialogTitle for the component to be accessible for screen reader users.' Wrap the internal H2 in VisuallyHidden or use DialogTitle."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ocr.py",
+    "/app/test_reports/pytest/ocr_results.xml"
+  ],
+  "action_items": [
+    "Make chore-parent-approve testid unique per chore: change ChoresPanel.jsx line ~54 from data-testid=\"chore-parent-approve\" to data-testid={`chore-parent-approve-${chore.id}`}. Current bare testid means multiple identical selectors when a note has >1 chore — automation must fall back to positional match.",
+    "Add data-testid='accordion-fullscreen-<noteId>' to the Maximize2 button in AccordionNoteItem.jsx (carried over from iteration_18) — still blocks list-view fullscreen automation.",
+    "Add data-note-id attribute to the AccordionNoteItem wrapper li/div so tests can locate a specific note's row deterministically.",
+    "Wrap the KidDashboardModal H2 in DialogTitle (or VisuallyHidden) to silence Radix a11y warning."
+  ],
+  "critical_code_review_comments": [
+    "ChoresPanel.jsx: `data-testid=\"chore-parent-approve\"` is duplicated across every chore row in the same note. Not unique — makes E2E automation and screen-reader labels ambiguous. Fix per-chore.",
+    "KidDashboardModal.jsx line 191–193: `thisWeek` uses `ledger.weekly[ledger.weekly.length-1]` under the assumption buildLedger always emits the *current* week last. buildLedger in iteration_18 emits 8 buckets ending at current week — OK, but brittle if the util changes. Safer: filter by ISO-week of today.",
+    "KidDashboardModal.jsx line 158: `done` counts chores where status==='done' && parent_approved. Card label says 'Done today' but the count is not date-scoped — it's cumulative for the note's current chore states. Should ideally filter c.history entries for today rather than reading the boolean, or label the KPI 'Approved' instead of 'Done today'.",
+    "KidDashboardModal.jsx line 21 destructures `isDark` but the modal never falls back to a system-theme detector; if a caller forgets to pass isDark, both branches render (undefined truthy=false) — parents currently always pass it, so low priority."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ocr.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 OCR tests pass)",
+    "frontend": "95% (all Kid Dashboard flows verified; parent-approval round-trip could not be automated due to selector limitations noted above — Kid Mode side of the round-trip verified: streak KPI reads 0 while chore is only 'Waiting', which is correct)"
+  },
+  "test_credentials": "N/A — offline-first app, no auth",
+  "seed_data_creation": "Tile Packs → apply-pack-chores-list creates 12 chores notes under PARENT category (Bailey, Carter, Hazel, Mason, Lawson, Evy, Josh, Matt, Child 9..12). Each has 12 chores incl. 'Mow the lawn' first.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "OCR endpoint fully covered by /app/backend/tests/test_ocr.py (uses Pillow to generate test PNGs). Run with `pytest /app/backend/tests/test_ocr.py -v`. Kid Dashboard tests must bypass quick-access wizard overlay via JS click (page.evaluate('el.click()')) because the intro tour overlays header buttons. To seed chores notes for Kid Mode tests: [data-testid=header-tile-packs] → [data-testid=apply-pack-chores-list] then Escape. Kid Mode selectors: header-kid-mode, kid-dashboard-modal, kid-empty, kid-picker, kid-card-<noteId>, kid-back-btn, kid-exit-btn, kid-stat-streak/done/week, kid-chore-list, kid-chore-<choreId>, kid-chore-toggle-<choreId>. For parent-approve round-trip, need main agent to (a) add unique testid to chore-parent-approve-<choreId> and (b) add accordion-fullscreen-<noteId> to AccordionNoteItem Maximize2 button.",
+  "rca of the issue": "Non-unique chore-parent-approve testid + missing accordion-fullscreen testid are the sole blockers preventing full automation of the kid↔parent approval round-trip. Both are one-line fixes and were flagged in iteration_18 code review — still not applied."
+}

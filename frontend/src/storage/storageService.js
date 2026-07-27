@@ -345,6 +345,11 @@ export const StorageService = {
     return URL.createObjectURL(entry.blob);
   },
 
+  async getAttachmentBlob(id) {
+    const entry = await filesStore.getItem(id);
+    return entry?.blob || null;
+  },
+
   async getAttachmentMeta(id) {
     const entry = await filesStore.getItem(id);
     if (!entry) return null;

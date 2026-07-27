@@ -320,6 +320,41 @@
     background: #DC2626;
 }
 
+.attachment-ocr {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.9);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, transform 0.15s;
+    z-index: 1;
+}
+
+.attachment-item:hover .attachment-ocr,
+.attachment-ocr:focus-visible {
+    opacity: 1;
+}
+
+.attachment-ocr:hover:not(:disabled) {
+    background: #4f46e5;
+    transform: scale(1.08);
+}
+
+.attachment-ocr:disabled {
+    opacity: 1;
+    cursor: wait;
+    background: rgba(99, 102, 241, 0.6);
+}
+
 .attachment-add {
     display: inline-flex;
     align-items: center;

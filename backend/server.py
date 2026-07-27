@@ -286,7 +286,6 @@ async def get_uploaded_file(filename: str):
     return FileResponse(filepath)
 
 # ================== TRANSLATION ENDPOINT ==================
-
 class TranslateRequest(BaseModel):
     text: str
     target_lang: str  # human-readable language name, e.g. "Spanish", "Japanese"
@@ -346,6 +345,78 @@ async def translate_text(payload: TranslateRequest):
         source_lang=payload.source_lang or "auto",
         target_lang=target,
     )
+
+
+# ================== OCR ENDPOINT ==================
+
+class OCRRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/png"
+
+
+class OCRResponse(BaseModel):
+    extracted_text: str
+
+
+_OCR_ALLOWED_MIME = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
+
+
+@api_router.post("/ocr", response_model=OCRResponse)
+async def ocr_image(payload: OCRRequest):
+    """Extract every piece of visible text from an image using Claude
+    Sonnet 4.6 vision. Returns the extracted text only — no descriptions,
+    no analysis."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="LLM key not configured on server")
+
+    b64 = (payload.image_base64 or "").strip()
+    if b64.startswith("data:"):
+        # Tolerate data URIs; strip the header.
+        try:
+            b64 = b64.split(",", 1)[1]
+        except IndexError:
+            raise HTTPException(status_code=400, detail="Malformed data URI")
+    if not b64:
+        raise HTTPException(status_code=400, detail="image_base64 is required")
+
+    mime = (payload.mime_type or "").lower().strip()
+    if mime not in _OCR_ALLOWED_MIME:
+        raise HTTPException(status_code=400, detail=f"Unsupported mime type: {mime}. Use PNG/JPEG/WEBP.")
+
+    # Approximate base64 size (bytes): len * 3/4
+    approx_bytes = int(len(b64) * 3 / 4)
+    if approx_bytes > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image too large (>5 MB decoded)")
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+
+    system_msg = (
+        "You are an OCR engine. Extract EVERY piece of visible text from the "
+        "user's image in reading order (top-to-bottom, left-to-right). "
+        "Preserve line breaks between distinct visual lines. Preserve bullet "
+        "markers, numbers, and checkbox states. Do NOT describe the image, "
+        "do NOT add commentary, do NOT translate — return ONLY the text as it "
+        "appears. If no text is visible, return the single word: NO_TEXT_FOUND."
+    )
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"ocr-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    try:
+        result = await chat.send_message(UserMessage(
+            text="Extract all visible text from this image.",
+            file_contents=[ImageContent(image_base64=b64)],
+        ))
+    except Exception as e:
+        logger.exception("OCR call failed")
+        raise HTTPException(status_code=502, detail=f"OCR failed: {str(e)[:200]}")
+
+    text = str(result or "").strip()
+    if text == "NO_TEXT_FOUND":
+        text = ""
+    return OCRResponse(extracted_text=text)
 
 
 # Include the router in the main app

@@ -440,7 +440,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
               <label className={`text-xs mb-2 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
                 <LucideIcons.Image className="w-3.5 h-3.5" /> Photos & files
                 <span className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-gray-400'}`}>
-                  · up to {StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10} per note · 10 MB each · JPG/PNG/GIF/WebP/PDF
+                  · up to {StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10} per note · 10 MB each · JPG/PNG/GIF/WebP/PDF · hover image → 🔍 to OCR
                 </span>
               </label>
               <Attachments
@@ -448,6 +448,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 onChange={setAttachments}
                 isDark={isDark}
                 compact
+                onExtractText={(text) => setContent(prev => (prev || "") + `\n\n${text}`)}
               />
             </div>
 

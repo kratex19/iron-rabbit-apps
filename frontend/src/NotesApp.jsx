@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3, Baby,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ import BackupRestoreModal from "./notes/BackupRestoreModal";
 import ArchiveTrashModal from "./notes/ArchiveTrashModal";
 import TagFilterStrip from "./notes/TagFilterStrip";
 import InsightsModal from "./notes/InsightsModal";
+import KidDashboardModal from "./notes/KidDashboardModal";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
@@ -103,6 +104,7 @@ export default function NotesApp() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
+  const [kidModeOpen, setKidModeOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -1176,6 +1178,7 @@ export default function NotesApp() {
               </span>
             </button>
             <Button variant="ghost" size="icon" onClick={() => { setInsightsOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Insights" data-testid="header-insights"><BarChart3 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setKidModeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Kid Mode" data-testid="header-kid-mode"><Baby className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setArchiveTrashOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
           </div>
@@ -1414,6 +1417,14 @@ export default function NotesApp() {
         isOpen={insightsOpen}
         onClose={() => setInsightsOpen(false)}
         notes={notes}
+        isDark={isDark}
+      />
+
+      <KidDashboardModal
+        isOpen={kidModeOpen}
+        onClose={() => setKidModeOpen(false)}
+        notes={notes}
+        onSaveNote={handleSaveInline}
         isDark={isDark}
       />
 

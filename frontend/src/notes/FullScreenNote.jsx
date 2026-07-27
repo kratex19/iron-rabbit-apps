@@ -111,6 +111,12 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             attachments={note.attachments || []}
             onChange={(newAttachments) => onSaveInline(note.id, { attachments: newAttachments })}
             isDark={isDark}
+            onExtractText={(text) => {
+              const next = (content || "") + `\n\n${text}`;
+              setContent(next);
+              setDirty(true);
+              onSaveInline(note.id, { content: next });
+            }}
           />
           {Array.isArray(note.chores) && (
             <ChoresPanel

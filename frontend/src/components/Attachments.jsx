@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Paperclip, X, Image as ImageIcon, FileText, Download } from "lucide-react";
+import { Paperclip, X, Image as ImageIcon, FileText, Download, ScanText, Loader2 } from "lucide-react";
 import StorageService from "../storage/storageService";
 import { toast } from "sonner";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Convert a Blob to pure-base64 (no data: prefix)
+async function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(fr.error);
+    fr.onload = () => {
+      const s = String(fr.result || "");
+      const comma = s.indexOf(",");
+      resolve(comma >= 0 ? s.slice(comma + 1) : s);
+    };
+    fr.readAsDataURL(blob);
+  });
+}
 
 // Formats bytes as human-readable string
 const fmtSize = (bytes) => {
@@ -12,9 +28,10 @@ const fmtSize = (bytes) => {
 
 // Renders and manages attachments for a single note.
 // Fully offline — blobs are stored via StorageService (IndexedDB).
-export default function Attachments({ attachments = [], onChange, isDark, compact = false }) {
+export default function Attachments({ attachments = [], onChange, isDark, compact = false, onExtractText = null }) {
   const [urls, setUrls] = useState({}); // id → object URL
   const [uploading, setUploading] = useState(false);
+  const [ocrBusyId, setOcrBusyId] = useState(null);
   const fileInputRef = useRef(null);
 
   // Resolve object URLs for each attachment
@@ -38,8 +55,38 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
     };
   }, [attachments]);
 
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleExtractText = async (att) => {
+    if (!onExtractText) return;
+    setOcrBusyId(att.id);
+    try {
+      const blob = await StorageService.getAttachmentBlob(att.id);
+      if (!blob) throw new Error("Attachment missing");
+      const b64 = await blobToBase64(blob);
+      const res = await fetch(`${BACKEND_URL}/api/ocr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_base64: b64, mime_type: att.type }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      const text = (data.extracted_text || "").trim();
+      if (!text) {
+        toast.info("No text found in this image.");
+        return;
+      }
+      onExtractText(text, att);
+      toast.success(`Extracted ${text.length.toLocaleString()} chars`);
+    } catch (err) {
+      toast.error(`OCR failed: ${err.message}`);
+    } finally {
+      setOcrBusyId(null);
+    }
+  };
+
+  const handleUpload = async (e) => {    const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     const cap = StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10;
     const remaining = Math.max(0, cap - (attachments?.length || 0));
@@ -118,6 +165,21 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
                 <span className="attachment-name" title={att.name}>{att.name}</span>
                 <span className="attachment-size">{fmtSize(att.size)}</span>
               </div>
+              {onExtractText && isImage(att.type) && (
+                <button
+                  type="button"
+                  onClick={() => handleExtractText(att)}
+                  disabled={ocrBusyId === att.id}
+                  className="attachment-ocr"
+                  aria-label={`Extract text from ${att.name}`}
+                  title="Extract text from this image"
+                  data-testid={`attachment-ocr-${att.id}`}
+                >
+                  {ocrBusyId === att.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <ScanText className="w-3.5 h-3.5" />}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => handleRemove(att)}
