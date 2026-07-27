@@ -168,6 +168,21 @@ export default function QuickAccessModal({
           )}
         </div>
 
+        {/* Skip and never remind — closing the modal via any path already
+            flags settings.quick_access_wizard_seen = true, so a single
+            explicit link makes the "don't show me this again" affordance
+            obvious for users who don't want to walk the steps. */}
+        <div className="mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`text-xs underline ${isDark ? "text-slate-500 hover:text-slate-300" : "text-gray-500 hover:text-gray-700"}`}
+            data-testid="qa-skip-forever"
+          >
+            Skip and never remind
+          </button>
+        </div>
+
         {/* Coming-in-native footer */}
         <div className={`mt-4 pt-3 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
           <div className={`flex items-start gap-2 text-[11px] ${isDark ? "text-slate-400" : "text-gray-500"}`}>
