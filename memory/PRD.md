@@ -549,3 +549,35 @@ Testing agent iteration_13.json — verdict **both bugs FIXED** via:
 ### Known follow-up (from test agent)
 `reorderNotes` assigns `order = i` starting at 0 for the passed IDs. Across separate per-category reorders, `order` values can collide between categories (e.g., Cat A's first note and Cat B's first note both have `order=0`). Invisible in grouped view (where category boundaries dominate rendering), but if the user later toggles to flat view + custom sort, tiles from different categories interleave based on collision resolution order. Low priority — most users stay in grouped view when custom-sorting. Would be resolved by a future refactor that uses fractional ordering (e.g., `parent-index.child-index`) or a per-category `order` field.
 
+
+## [2026-02-27] Bug fix — Dark mode text visibility (FullScreenNote + List view)
+
+**User report** (production): "1) When opening a note via the pack icon in dark mode, the text inside the note is too dark to read. 2) In the list view in dark mode, the note text is too dark. All text categories affected (title, body, category, checklist, metadata)."
+
+### Root cause
+Two things stacked to hurt contrast:
+1. **Semi-transparent color tints** — solid `.note-purple` (10% alpha) and the 20 new gradient tints (14–18% alpha inline) sit on top of the container. For the darker gradient palettes (graphite, slate, plum) the tint pushes the effective background into a mid-slate zone. Combined with body text set to `text-slate-200` / `text-slate-300` / `text-slate-500`, contrast landed in the 3-4:1 range — WCAG failure for body text.
+2. **Gradient tiles had no solid dark base** — `getNoteColorStyle` returned only the semi-transparent gradient as `background`, which *replaced* the underlying `bg-[#0B1221]`. Whatever was behind the card (backdrop / page) bled through and further reduced contrast.
+
+### Fix (`/app/frontend/src/notes/constants.js`, `FullScreenNote.jsx`, `AccordionNoteItem.jsx`, `CategoryGroup.jsx`)
+1. **Layered gradient over solid dark base**: `getNoteColorStyle(colorConfig, isDark)` now returns `background: \`${tint}, #0B1221\`` when `isDark=true`. The tint sits on a guaranteed dark backing — text contrast is now identical across all 25 palettes.
+2. **Bumped every dark-mode text class one shade brighter**:
+   - Body content: `text-slate-200/300` → **`text-slate-100`**
+   - Metadata / footer / dates: `text-slate-500` → **`text-slate-300`**
+   - Checklist labels: `text-slate-200` → **`text-slate-100`**
+   - Checkbox borders: `border-slate-500` → **`border-slate-400`**
+   - Placeholder text: `placeholder:text-slate-600` → **`placeholder:text-slate-500`**
+   - Checklist done items: `line-through text-slate-500` → **`text-slate-400`**
+   - Titles remain `text-white` (were already correct)
+
+### Verified in preview
+- Full-Screen title computed color: `rgb(255, 255, 255)` (white)
+- Full-Screen content computed color: `rgb(241, 245, 249)` (slate-100)
+- Both readable on all 25 palettes including graphite (previously worst-case).
+
+### Files changed
+- `notes/constants.js` — `getNoteColorStyle` now accepts `isDark`
+- `notes/FullScreenNote.jsx` — content/checklist/footer contrast bumped, passes `isDark`
+- `notes/AccordionNoteItem.jsx` — body/meta contrast bumped, passes `isDark`
+- `notes/CategoryGroup.jsx` — passes `isDark` to `getNoteColorStyle`
+

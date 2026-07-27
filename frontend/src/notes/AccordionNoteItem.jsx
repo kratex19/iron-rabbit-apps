@@ -26,7 +26,7 @@ export default function AccordionNoteItem({
   return (
     <div
       className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 ${isDragging ? 'opacity-50' : ''}`}
-      style={getNoteColorStyle(colorConfig) || undefined}
+      style={getNoteColorStyle(colorConfig, isDark) || undefined}
       data-testid={`accordion-note-${note.id}`}
     >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -58,8 +58,8 @@ export default function AccordionNoteItem({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className={`px-3 pb-3 pt-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-            <p className={`text-sm whitespace-pre-wrap line-clamp-4 mb-3 ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{note.content || "No content"}</p>
-            <div className={`flex items-center justify-between text-xs font-mono ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
+            <p className={`text-sm whitespace-pre-wrap line-clamp-4 mb-3 ${isDark ? 'text-slate-100' : 'text-gray-600'}`}>{note.content || "No content"}</p>
+            <div className={`flex items-center justify-between text-xs font-mono ${isDark ? 'text-slate-300' : 'text-gray-400'}`}>
               <div className="flex flex-col gap-0.5">
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {format(createdDate, "MMM d, yyyy HH:mm")}</span>
                 {wasEdited && <span className="flex items-center gap-1 text-indigo-400"><Pencil className="w-3 h-3" /> {format(updatedDate, "MMM d, yyyy HH:mm")}</span>}

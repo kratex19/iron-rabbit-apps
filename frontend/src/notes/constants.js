@@ -106,11 +106,18 @@ export const NOTE_COLORS = [
  * return null (their CSS class already covers them). Gradient entries
  * return `{ background, borderColor }` so components can spread this
  * directly onto the container that already has `note-gradient` as a class.
+ *
+ * In dark mode the tint gradient is layered over a solid `#0B1221` base
+ * so text (text-slate-100/white) always has a reliably dark backing
+ * regardless of which gradient palette was picked — otherwise the
+ * semi-transparent tint would blend with whatever's behind the card
+ * and dim into low-contrast slush on some palettes (graphite, slate).
  */
-export function getNoteColorStyle(colorConfig) {
+export function getNoteColorStyle(colorConfig, isDark = true) {
   if (!colorConfig || !colorConfig.gradient) return null;
+  const tint = colorConfig.bg || colorConfig.gradient;
   return {
-    background: colorConfig.bg || colorConfig.gradient,
+    background: isDark ? `${tint}, #0B1221` : tint,
     borderColor: colorConfig.border || colorConfig.accent,
   };
 }

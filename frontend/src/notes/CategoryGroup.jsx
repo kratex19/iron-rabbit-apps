@@ -27,7 +27,7 @@ export default function CategoryGroup({
   return (
     <div
       className={`category-group ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 transition-shadow ${isDragging ? "shadow-2xl ring-2 ring-indigo-400/50 scale-[1.02]" : ""}`}
-      style={getNoteColorStyle(colorConfig) || undefined}
+      style={getNoteColorStyle(colorConfig, isDark) || undefined}
       data-testid={`category-group-${category}`}
     >
       <div className="w-full flex items-center gap-2 p-3 text-left">

@@ -68,7 +68,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
       <div
         className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]' : 'bg-white'} border ${colorConfig.class}`}
-        style={{ borderWidth: '2px', ...(getNoteColorStyle(colorConfig) || {}) }}
+        style={{ borderWidth: '2px', ...(getNoteColorStyle(colorConfig, isDark) || {}) }}
       >
         {/* Header */}
         <div className={`flex items-center justify-between gap-3 p-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
@@ -78,7 +78,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               value={title}
               onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
               placeholder="Untitled"
-              className={`fs-title-input flex-1 min-w-0 bg-transparent border-0 outline-none text-xl font-bold ${isDark ? 'text-white placeholder:text-slate-600' : 'text-gray-900 placeholder:text-gray-400'}`}
+              className={`fs-title-input flex-1 min-w-0 bg-transparent border-0 outline-none text-xl font-bold ${isDark ? 'text-white placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400'}`}
               data-testid="fullscreen-title-input"
               aria-label="Note title"
             />
@@ -99,7 +99,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
-            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-200 placeholder:text-slate-600' : 'text-gray-700 placeholder:text-gray-400'}`}
+            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-700 placeholder:text-gray-400'}`}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
@@ -110,9 +110,9 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           />
           {Array.isArray(note.checklist) && note.checklist.length > 0 && (
             <div className={`rounded-lg p-3 space-y-1 border ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="fullscreen-checklist">
-              <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-slate-300" : "text-gray-700"}`}>
+              <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-700"}`}>
                 <CheckSquare className="w-3.5 h-3.5" /> Checklist
-                <span className={`ml-auto font-mono font-normal ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                <span className={`ml-auto font-mono font-normal ${isDark ? "text-slate-400" : "text-gray-400"}`}>
                   {note.checklist.filter((c) => c.done).length}/{note.checklist.length}
                 </span>
               </div>
@@ -127,14 +127,14 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                   className={`w-full flex items-center gap-2 rounded px-1 py-1 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-white"}`}
                   data-testid={`fs-checklist-toggle-${item.id}`}
                 >
-                  <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-500" : "border-gray-300"}`}>
+                  <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-400" : "border-gray-300"}`}>
                     {item.done && (
                       <svg viewBox="0 0 12 12" className="w-3 h-3 text-white">
                         <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </span>
-                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-500" : "line-through text-gray-400") : (isDark ? "text-slate-200" : "text-gray-700")}`}>
+                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-700")}`}>
                     {item.text}
                   </span>
                 </button>
@@ -143,7 +143,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           )}
         </div>
         {/* Footer */}
-        <div className={`flex items-center justify-between p-4 border-t text-xs font-mono ${isDark ? 'border-white/10 text-slate-500' : 'border-gray-200 text-gray-400'}`}>
+        <div className={`flex items-center justify-between p-4 border-t text-xs font-mono ${isDark ? 'border-white/10 text-slate-300' : 'border-gray-200 text-gray-400'}`}>
           <div className="flex flex-col gap-1">
             <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Created: {format(createdDate, "MMM d, yyyy HH:mm")}</span>
             {wasEdited && <span className="flex items-center gap-1 text-indigo-400"><Pencil className="w-3 h-3" /> Edited: {format(updatedDate, "MMM d, yyyy HH:mm")}</span>}
