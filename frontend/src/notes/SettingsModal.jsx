@@ -18,7 +18,7 @@ import LanguagePicker from "./LanguagePicker";
  */
 export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
-  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, isDark,
+  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, isDark,
 }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
@@ -185,6 +185,32 @@ export default function SettingsModal({
                 <div className="text-sm font-medium">Pin to Home Screen</div>
                 <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
                   Step-by-step guide for Android &amp; iPhone
+                </div>
+              </div>
+              <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+            </button>
+          </div>
+
+          {/* Backup & Restore row */}
+          <div>
+            <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <Download className="w-3.5 h-3.5" /> Backup &amp; Restore
+            </label>
+            <button
+              type="button"
+              onClick={() => { onClose(); setTimeout(() => onOpenBackup && onOpenBackup(), 200); }}
+              className={`w-full flex items-center gap-3 rounded-md h-11 px-3 transition-colors ${
+                isDark
+                  ? "bg-black/20 border border-white/10 hover:bg-white/5 text-white"
+                  : "bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800"
+              }`}
+              data-testid="settings-backup-btn"
+            >
+              <Download className="w-4 h-4 text-indigo-400" />
+              <div className="flex-1 text-left">
+                <div className="text-sm font-medium">Export / Import JSON</div>
+                <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  Save every note + attachment to a single offline file
                 </div>
               </div>
               <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />

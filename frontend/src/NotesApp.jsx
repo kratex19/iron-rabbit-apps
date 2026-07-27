@@ -41,6 +41,7 @@ import BatchStudioSheet from "./notes/BatchStudioSheet";
 import DeleteChoiceDialog from "./notes/DeleteChoiceDialog";
 import RecentActionPill from "./notes/RecentActionPill";
 import QuickAccessModal from "./notes/QuickAccessModal";
+import BackupRestoreModal from "./notes/BackupRestoreModal";
 import ArchiveTrashModal from "./notes/ArchiveTrashModal";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
@@ -437,6 +438,7 @@ export default function NotesApp() {
   const [recentAction, setRecentAction] = useState(null); // { type, count, undoSnap } | null
   const [archiveTrashOpen, setArchiveTrashOpen] = useState(false);
   const [quickAccessOpen, setQuickAccessOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
 
   const handleDeleteNote = (noteId) => {
     setDeleteChoice({ ids: [noteId] });
@@ -1295,6 +1297,7 @@ export default function NotesApp() {
         onOpenSecurity={() => setSecurityOpen(true)}
         onOpenOrganization={() => setOrganizationOpen(true)}
         onOpenQuickAccess={() => { setSettingsModalOpen(false); setQuickAccessOpen(true); }}
+        onOpenBackup={() => { setSettingsModalOpen(false); setBackupOpen(true); }}
         isDark={isDark}
       />
       <FullScreenNote
@@ -1484,6 +1487,14 @@ export default function NotesApp() {
         onClose={handleCloseQuickAccess}
         canInstallPWA={!!deferredPrompt}
         onInstallPWA={handleInstallPWA}
+        isDark={isDark}
+      />
+
+      {/* Offline JSON Backup & Restore */}
+      <BackupRestoreModal
+        isOpen={backupOpen}
+        onClose={() => setBackupOpen(false)}
+        onDataChanged={fetchData}
         isDark={isDark}
       />
 

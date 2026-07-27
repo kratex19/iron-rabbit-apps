@@ -688,3 +688,35 @@ Each with brief implementation notes so a native dev can pick it up. All remain 
 - Done closes and persists `quick_access_wizard_seen` ✅
 - Reopens from Settings row ✅ (code path — Playwright test blocked by first-launch tour overlay, code lint-clean)
 
+
+## [2026-02-27] Feature — Offline JSON Backup & Restore
+
+Full-fidelity backup that stays 100% on-device.
+
+### New: `notes/BackupRestoreModal.jsx`
+Modal with two primary actions:
+- **Export Backup** — downloads `iron-rabbit-backup-YYYY-MM-DD-HHmm.json` containing all notes, templates, settings, and attachments (Blobs → base64 dataURLs). Nothing leaves the device.
+- **Import Backup** — picks a `.json` file, validates its `app === "IronRabbit"` header, then offers two restore modes via a confirmation panel:
+  - **Merge** (default) — upsert by ID; existing notes with matching IDs are overwritten, others stay.
+  - **Replace** — wipe notes/templates/files stores first, then hydrate from the backup. Explicitly labeled destructive.
+
+### StorageService additions (`storage/storageService.js`)
+- `exportAllData()` → returns `{ app, version, exported_at, counts, notes[], templates[], settings, files{} }`. Files store Blobs so we `FileReader.readAsDataURL()` each one during export.
+- `importAllData(payload, mode)` → validates the header, optionally wipes stores when `mode === "replace"`, upserts every item, converts base64 dataURLs back to Blobs via `fetch(dataUrl).blob()`. Returns `{ notesRestored, templatesRestored, filesRestored }`.
+
+### Settings integration
+- New Settings row `settings-backup-btn` labeled "Export / Import JSON" (Download icon, indigo accent) sits under Quick Access.
+- Wired via `onOpenBackup` prop through SettingsModal.
+
+### New testids
+`settings-backup-btn`, `backup-restore-modal`, `backup-export-btn`, `backup-import-btn`, `backup-file-input`, `backup-mode-merge`, `backup-mode-replace`, `backup-cancel`.
+
+### Verified in preview
+- Modal opens from Settings → Backup ✅
+- Export triggers browser download with expected filename pattern `iron-rabbit-backup-<date>-<time>.json` ✅
+- Toast fires with counts on success ✅
+- Import file-picker + Merge/Replace confirmation panel + Cancel path all clean ✅
+
+### Constraint honored
+Feature works **entirely offline**. No network calls, no cloud dependency. Users can transfer to a new device by copying the JSON file via any means (AirDrop, USB, email attachment, etc.).
+
