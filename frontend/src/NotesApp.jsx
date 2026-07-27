@@ -40,6 +40,7 @@ import CopySuffixDialog from "./notes/CopySuffixDialog";
 import BatchStudioSheet from "./notes/BatchStudioSheet";
 import DeleteChoiceDialog from "./notes/DeleteChoiceDialog";
 import RecentActionPill from "./notes/RecentActionPill";
+import QuickAccessModal from "./notes/QuickAccessModal";
 import ArchiveTrashModal from "./notes/ArchiveTrashModal";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
@@ -164,6 +165,27 @@ export default function NotesApp() {
     return () => window.removeEventListener("keydown", handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
+
+  // First-launch Quick Access wizard — opens once when settings load and
+  // `quick_access_wizard_seen` is not yet set. Persists the seen flag so
+  // subsequent launches skip the prompt. Users can re-open from Settings.
+  useEffect(() => {
+    if (!settings) return;
+    if (settings.quick_access_wizard_seen) return;
+    // Small delay so first-launch tour has priority over the wizard.
+    const t = setTimeout(() => setQuickAccessOpen(true), 1200);
+    return () => clearTimeout(t);
+  }, [settings]);
+
+  // Persist the wizard-seen flag every time the wizard closes.
+  const handleCloseQuickAccess = async () => {
+    setQuickAccessOpen(false);
+    if (settings && !settings.quick_access_wizard_seen) {
+      const next = { ...settings, quick_access_wizard_seen: true };
+      await StorageService.saveSettings(next);
+      setSettings(next);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -414,6 +436,7 @@ export default function NotesApp() {
   const [deleteChoice, setDeleteChoice] = useState(null); // { ids: string[] } | null
   const [recentAction, setRecentAction] = useState(null); // { type, count, undoSnap } | null
   const [archiveTrashOpen, setArchiveTrashOpen] = useState(false);
+  const [quickAccessOpen, setQuickAccessOpen] = useState(false);
 
   const handleDeleteNote = (noteId) => {
     setDeleteChoice({ ids: [noteId] });
@@ -1271,6 +1294,7 @@ export default function NotesApp() {
         onRestoreFromServer={handleRestoreFromServer}
         onOpenSecurity={() => setSecurityOpen(true)}
         onOpenOrganization={() => setOrganizationOpen(true)}
+        onOpenQuickAccess={() => { setSettingsModalOpen(false); setQuickAccessOpen(true); }}
         isDark={isDark}
       />
       <FullScreenNote
@@ -1451,6 +1475,15 @@ export default function NotesApp() {
         onClose={() => setArchiveTrashOpen(false)}
         onDataChanged={fetchData}
         settings={settings}
+        isDark={isDark}
+      />
+
+      {/* Quick Access — First-launch wizard + reopenable from Settings */}
+      <QuickAccessModal
+        isOpen={quickAccessOpen}
+        onClose={handleCloseQuickAccess}
+        canInstallPWA={!!deferredPrompt}
+        onInstallPWA={handleInstallPWA}
         isDark={isDark}
       />
 

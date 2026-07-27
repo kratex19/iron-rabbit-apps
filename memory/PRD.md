@@ -653,3 +653,38 @@ Testing agent iteration_15.json — **27/29 (~93%) PASS**. All lifecycle asserti
 ### New testids
 `delete-choice-dialog`, `delete-choice-cancel`, `delete-choice-archive`, `delete-choice-trash`, `recent-action-pill`, `recent-action-undo`, `recent-action-dismiss`, `archive-trash-btn`, `archive-trash-modal`, `archive-trash-tab-archive`, `archive-trash-tab-trash`, `archive-trash-item-<id>`, `archive-trash-restore-<id>`, `archive-trash-purge-<id>`, `archive-trash-empty-btn`, `archive-trash-empty-confirm`, `archive-trash-empty-cancel`, `settings-retention-select`, `filter-option-<value>`.
 
+
+## [2026-02-27] Feature — Quick Access (Pin to Home Screen)
+
+### Guiding principle
+Per the user: **Iron Rabbit stays free, offline, phone-downloadable. No feature requires the network to work.** All native-only Quick Access items (widget, quick-settings tile, persistent notification, lock screen) archived into `/app/ROADMAP.md` — they remain OFFLINE-CAPABLE but require compiling via Capacitor (docs in `/app/CAPACITOR_SETUP.md`). No feature was moved to a hypothetical online tier.
+
+### Shipped in the PWA
+- **`notes/QuickAccessModal.jsx`** — multi-step wizard with:
+  - Platform picker (Android · iPhone) via `navigator.userAgent` detection
+  - "Install Iron Rabbit" prompt button (uses existing `beforeinstallprompt` on Android Chrome)
+  - Per-platform illustrated steps (icon + text) for adding to Home Screen and dragging into the dock
+  - Progress dots + Back / Next / Done navigation
+  - Footer explaining what's coming in the native Capacitor build
+- **First-launch wizard** — `NotesApp.jsx` opens the modal automatically 1.2s after initial settings load if `settings.quick_access_wizard_seen` is falsy. Sets the flag on close so it doesn't reopen.
+- **Settings toggle** — new `settings-quick-access-btn` row in Settings modal ("Pin to Home Screen · Step-by-step guide for Android & iPhone") reopens the wizard anytime.
+
+### Archived to ROADMAP (requires native Capacitor build)
+`/app/ROADMAP.md` was created and documents:
+- Home Screen Widget (Favorites / Recent / Emergency notes, Timers, Checklist)
+- Android Quick Settings Tile (`TileService`)
+- Persistent Timer Notification (`ForegroundService` + `NotificationCompat`)
+- Lock Screen Live Activities (iOS 16+) / notification visibility (Android)
+
+Each with brief implementation notes so a native dev can pick it up. All remain offline-only.
+
+### New testids
+`quick-access-modal`, `qa-platform-android`, `qa-platform-ios`, `qa-install-pwa`, `qa-step-<n>`, `qa-prev`, `qa-next`, `qa-done`, `settings-quick-access-btn`.
+
+### Verified in preview
+- Auto-opens on first launch ✅
+- Platform tabs toggle correctly ✅
+- Step navigation (Back/Next/Done) works ✅
+- Done closes and persists `quick_access_wizard_seen` ✅
+- Reopens from Settings row ✅ (code path — Playwright test blocked by first-launch tour overlay, code lint-clean)
+
