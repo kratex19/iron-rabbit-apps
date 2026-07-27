@@ -455,3 +455,39 @@ Testing agent iteration_10.json: **12/12 scenarios passed (100%)**. Every mutati
 - Alarm picker doesn't block times in the past — could disable Apply when datetime ≤ now.
 - `NotesApp.jsx` now ~1652 lines — refactor into `useBulkActions.js` custom hook is overdue.
 
+
+## [2026-02-27] Polish pass — hook refactor + AlertDialog + past-alarm disable
+
+### 1. `useBulkActions` hook (refactor)
+Extracted every multi-select bulk handler + selection state + modal-visibility flags out of `NotesApp.jsx` and into **`/app/frontend/src/hooks/useBulkActions.js`** (~330 lines).
+
+The hook owns:
+- Selection state: `selectMode`, `selectedIds`, plus `isSelected` / `toggleSelect` / `clearSelection` / `enterSelectMode`.
+- Modal flags: `moveToOpen`, `batchStudioOpen`, `pendingCopyTarget`, `confirmDeleteOpen`.
+- Handlers: `openDeleteConfirm`, `confirmBulkDelete`, `bulkMoveTo`, `bulkCopyTo`, `bulkDuplicateInPlace`, `bulkTogglePin`, `bulkSetColor`, `bulkSetAlarm`, `bulkClearAlarm`, `bulkExportPDF`.
+- Internal `_snapshotSelected` / `_restore` for Undo across mutating actions.
+
+`NotesApp.jsx` shrunk from **1652 → 1442 lines**. It now calls `useBulkActions({ settings, fetchData })` and destructures. No behavior change.
+
+### 2. Past-datetime disables Apply Alarm (`BatchStudioSheet.jsx`)
+- Added `useMemo`-derived `pickedDateTime` + `isPastAlarm` guard.
+- `bs-alarm-apply` button is disabled when the picked datetime ≤ now.
+- Red hint under the picker with `data-testid="bs-alarm-past-hint"` reads "Choose a time in the future."
+- Toggles reactively as the user changes date/time.
+
+### 3. `window.confirm` → shadcn AlertDialog (bulk delete)
+Bulk delete no longer uses the native browser confirm dialog. Instead, `bs-delete` opens a shadcn `AlertDialog` (`data-testid="confirm-bulk-delete"`) with:
+- Title: `Delete N notes?`
+- Description: "This cannot be undone. All selected notes and their attachments will be permanently removed from this device."
+- Buttons: `Cancel` (outline, `confirm-bulk-delete-cancel`) and red `Delete` (`confirm-bulk-delete-confirm`).
+
+Uses the two-step pattern already established for "Clear All Data" — Batch Studio sheet closes first, AlertDialog opens, user confirms, deletion runs.
+
+### Verified
+Testing agent iteration_11.json — **9/9 scenarios PASS (100%)**. Regression suite (5 tests) confirms Batch Studio behavior is unchanged after the refactor. New tests (4 tests) confirm AlertDialog Cancel/Confirm paths and all four past-alarm edge cases (yesterday / tomorrow / today+past / today+future).
+
+### Known follow-ups (from review)
+- `isPastAlarm` is only reactive to input changes, not the wall clock — if the picker sits open past the picked minute, the disabled state won't re-evaluate. Minor edge case.
+- AlertDialog description mentions "attachments will be permanently removed" — `StorageService.deleteNote` handles the note row; attachment cleanup in the separate `files` store should be verified in a future pass.
+- List/accordion view multi-select parity gap still open (unrelated).
+

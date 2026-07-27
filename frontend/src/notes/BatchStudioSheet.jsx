@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -49,7 +49,7 @@ export default function BatchStudioSheet({
   const [showAlarm, setShowAlarm] = useState(false);
 
   // Compute the picked datetime + validity (must be strictly in the future).
-  const pickedDateTime = React.useMemo(() => {
+  const pickedDateTime = useMemo(() => {
     if (!alarmDate) return null;
     const [h, m] = alarmTime.split(":").map(Number);
     const dt = new Date(alarmDate);
