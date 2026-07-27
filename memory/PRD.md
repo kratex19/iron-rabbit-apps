@@ -850,3 +850,59 @@ Frontend:
   flows, including persistence after close+reopen.
 - No regressions in Tags/Insights (iteration_16 features).
 
+
+## Streaks + Allowance Ledger + Capacitor Quickstart (Feb 2026)
+
+### Chore history & streaks
+- Chore model now optionally carries `history: [{date, paid, status}]`.
+- `ChoresPanel.update()` appends a history entry every time a chore transitions
+  to `status==='done' && parent_approved===true`, capturing the `paid` value
+  at the moment of approval. A 60-second same-chore dedupe guard prevents
+  double-tap double-counting.
+- New shared module `notes/streakUtils.js`:
+  - `computeChoreStreak(chore)` — consecutive frequency-periods
+    (daily/weekly/bimonthly/monthly), with a 1-period grace at the head.
+  - `computeNoteStreak(note)` — max across all chores on the note.
+  - `computeNoteEarnings(note)`, `buildLedger(chores)`, `agoLabel(date)`.
+- 🔥 Flame badge with numeric streak now renders in three places:
+  - Per-chore inside ChoresPanel (`chore-streak-<choreId>`)
+  - On the collapsed row in list view (`row-streak-<noteId>`)
+  - On the tile in icon/grid view (`note-streak-<noteId>`)
+
+### Allowance Ledger modal (`AllowanceLedgerModal.jsx`)
+- Opens from a green "Ledger" pill in ChoresPanel header
+  (`data-testid="chores-ledger-btn"`).
+- 4 KPI cards: Lifetime paid, Completions, This week, This month.
+- Tabbed bar chart — Weekly (last 8 weeks) / Monthly (last 6 months).
+  Current bucket highlighted.
+- Per-chore rollup sorted by total paid, with completion count and
+  "last N days ago" label.
+- CSV export (`ledger-export-csv`) via Blob+download attr —
+  filename `allowance-ledger-YYYY-MM-DD.csv`.
+
+### Capacitor doc (`CAPACITOR_SETUP.md`)
+- Added a beginner-friendly Quickstart TL;DR section at the top with the
+  exact `yarn build && npx cap add android && npx cap sync && npx cap open android` sequence.
+- Emphasises this must be done on the user's own machine — Emergent
+  preview/prod containers can't compile native code.
+
+### New testids
+`chores-ledger-btn`, `allowance-ledger-modal`, `ledger-kpi-total`,
+`ledger-kpi-entries`, `ledger-kpi-week`, `ledger-kpi-month`,
+`ledger-tab-weekly`, `ledger-tab-monthly`, `ledger-chart`,
+`ledger-per-chore`, `ledger-export-csv`, `chore-streak-<id>`,
+`chore-toggle-<id>`, `note-streak-<id>`, `row-streak-<id>`.
+
+### Verified in preview (testing_agent iteration_18, 100% frontend)
+Tile-pack seed → status→done→parent-approved → streak badges appear in all
+3 places → ledger opens with correct KPIs, weekly + monthly bars, per-chore
+rollup, CSV export downloads with correct filename. Dedupe guard verified
+(60s window keeps streak at 1). Persistence verified via full reload.
+No regressions to Tags / Insights / Translate.
+
+### Known follow-ups (not blocking)
+- List-view fullscreen button still lacks a testid — cosmetic only.
+- Timezone edge case: buckets use local time — DST week transitions could
+  put an entry in an adjacent bucket by 1h. Acceptable for a personal
+  allowance ledger.
+

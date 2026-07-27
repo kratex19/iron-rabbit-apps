@@ -29,7 +29,7 @@ export default function AllowanceLedgerModal({ isOpen, onClose, chores, isDark, 
       return;
     }
     const rows = [["Date", "Chore", "Paid", "Status"]];
-    for (const h of data.flat.sort((a, b) => a.date - b.date)) {
+    for (const h of [...data.flat].sort((a, b) => a.date - b.date)) {
       rows.push([
         format(h.date, "yyyy-MM-dd HH:mm"),
         (h.choreTitle || "").replace(/"/g, '""'),

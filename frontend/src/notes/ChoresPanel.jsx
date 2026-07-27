@@ -167,6 +167,7 @@ export default function ChoresPanel({ chores = [], onChange, isDark }) {
                   onClick={() => toggle(c.id)}
                   className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 ${isDark ? "hover:bg-white/10" : "hover:bg-gray-100"}`}
                   aria-label="Toggle chore details"
+                  data-testid={`chore-toggle-${c.id}`}
                 >
                   <ChevronRight className={`w-4 h-4 transition-transform ${isOpen ? "rotate-90" : ""} ${isDark ? "text-slate-400" : "text-gray-500"}`} />
                 </button>
