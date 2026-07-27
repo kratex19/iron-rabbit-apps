@@ -24,6 +24,9 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# Emergent LLM (universal) key — used only for the /api/translate endpoint.
+EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+
 # Create the main app
 app = FastAPI()
 
@@ -281,6 +284,69 @@ async def get_uploaded_file(filename: str):
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(filepath)
+
+# ================== TRANSLATION ENDPOINT ==================
+
+class TranslateRequest(BaseModel):
+    text: str
+    target_lang: str  # human-readable language name, e.g. "Spanish", "Japanese"
+    source_lang: Optional[str] = None  # optional; "auto" if omitted
+
+
+class TranslateResponse(BaseModel):
+    translated: str
+    source_lang: Optional[str] = None
+    target_lang: str
+
+
+@api_router.post("/translate", response_model=TranslateResponse)
+async def translate_text(payload: TranslateRequest):
+    """Translate a note's text to a target language using the Emergent
+    universal LLM key. Preserves line breaks. Returns only the translated
+    text (no explanation, no extra prose)."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="LLM key not configured on server")
+    text = (payload.text or "").strip()
+    target = (payload.target_lang or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    if not target:
+        raise HTTPException(status_code=400, detail="Target language is required")
+    if len(text) > 12000:
+        raise HTTPException(status_code=413, detail="Text too long (max 12,000 chars per request)")
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+
+    src_hint = f"from {payload.source_lang} " if payload.source_lang and payload.source_lang != "auto" else ""
+    system_msg = (
+        "You are a professional literary translator. Translate the user's text "
+        f"{src_hint}into {target}. "
+        "Rules: (1) preserve line breaks, bullet marks, numbered lists, checklist markers, "
+        "and any inline markdown or emoji; (2) do NOT add explanations, notes, transliterations, "
+        "romanisation, or wrappers; (3) return ONLY the translated text and nothing else; "
+        "(4) if the input is already in the target language, return it unchanged."
+    )
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"translate-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    try:
+        result = await chat.send_message(UserMessage(text=text))
+    except Exception as e:
+        logger.exception("Translation call failed")
+        raise HTTPException(status_code=502, detail=f"Translation failed: {str(e)[:200]}")
+
+    translated = str(result or "").strip()
+    if not translated:
+        raise HTTPException(status_code=502, detail="Empty translation from model")
+    return TranslateResponse(
+        translated=translated,
+        source_lang=payload.source_lang or "auto",
+        target_lang=target,
+    )
+
 
 # Include the router in the main app
 app.include_router(api_router)

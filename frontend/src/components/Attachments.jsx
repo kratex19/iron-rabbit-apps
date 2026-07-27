@@ -41,10 +41,21 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    const cap = StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10;
+    const remaining = Math.max(0, cap - (attachments?.length || 0));
+    if (remaining === 0) {
+      toast.error(`Max ${cap} files per note. Remove one to add another.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    const toUpload = files.slice(0, remaining);
+    if (files.length > remaining) {
+      toast.warning(`Only ${remaining} of ${files.length} added — ${cap}-file cap reached.`);
+    }
     setUploading(true);
     try {
       const newRefs = [];
-      for (const file of files) {
+      for (const file of toUpload) {
         try {
           const ref = await StorageService.saveAttachment(file);
           newRefs.push(ref);
@@ -124,12 +135,16 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        disabled={uploading}
+        disabled={uploading || (attachments?.length || 0) >= (StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10)}
         className="attachment-add"
         data-testid="attachment-add-btn"
       >
         <Paperclip className="w-4 h-4" />
-        {uploading ? 'Uploading…' : (attachments.length > 0 ? 'Add more' : 'Attach files')}
+        {uploading
+          ? 'Uploading…'
+          : (attachments?.length || 0) >= (StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10)
+            ? `Max ${StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10} reached`
+            : `${attachments.length > 0 ? 'Add more' : 'Attach photos'} · ${attachments?.length || 0}/${StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10}`}
       </button>
     </div>
   );

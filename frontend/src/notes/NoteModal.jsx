@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import * as LucideIcons from "lucide-react";
 import {
-  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X,
+  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X, Languages,
 } from "lucide-react";
 import useVoiceInput from "../utils/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
+import Attachments from "../components/Attachments";
+import StorageService from "../storage/storageService";
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
 import TemplateModal from "./TemplateModal";
+import TranslateModal from "./TranslateModal";
 import EventsSection from "./EventsSection";
 import ChecklistSection from "./ChecklistSection";
 
@@ -38,6 +41,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [pinned, setPinned] = useState(false);
   const [tags, setTags] = useState([]);
   const [tagDraft, setTagDraft] = useState("");
+  const [attachments, setAttachments] = useState([]);
   const [events, setEvents] = useState([]);
   const [checklist, setChecklist] = useState([]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -50,6 +54,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [recurring, setRecurring] = useState({ enabled: false, frequency: "weekly", days: [] });
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [translateOpen, setTranslateOpen] = useState(false);
   const voice = useVoiceInput();
 
   // Append voice transcript into the note content as speech is recognised.
@@ -68,6 +73,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       setPinned(!!note.pinned);
       setTags(Array.isArray(note.tags) ? note.tags.map(t => String(t).toLowerCase()) : []);
       setTagDraft("");
+      setAttachments(Array.isArray(note.attachments) ? note.attachments : []);
       setEvents(Array.isArray(note.events) ? note.events : []);
       setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
@@ -127,6 +133,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       // If a subcategory is set, force pinned=false so old state is cleaned up.
       pinned: subcategory.trim() ? false : pinned,
       tags: finalTags,
+      attachments,
       events,
       checklist,
       category: category.trim(), subcategory: subcategory.trim(),
@@ -192,6 +199,17 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   )}
                   <Button variant="ghost" size="sm" onClick={() => onOpenCalculator(insertCalculatorResult)} className={`h-6 text-xs ${isDark ? 'text-slate-400' : ''}`}>
                     <Calculator className="w-3 h-3 mr-1" /> Calc
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTranslateOpen(true)}
+                    disabled={!content?.trim()}
+                    className={`h-6 text-xs ${isDark ? 'text-slate-400' : ''}`}
+                    data-testid="note-translate-btn"
+                    title="Translate note content"
+                  >
+                    <Languages className="w-3 h-3 mr-1" /> Translate
                   </Button>
                 </div>
               </div>
@@ -417,6 +435,22 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
 
             <ChecklistSection value={checklist} onChange={setChecklist} isDark={isDark} />
 
+            {/* Photos & attachments */}
+            <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              <label className={`text-xs mb-2 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                <LucideIcons.Image className="w-3.5 h-3.5" /> Photos & files
+                <span className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-gray-400'}`}>
+                  · up to {StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10} per note · 10 MB each · JPG/PNG/GIF/WebP/PDF
+                </span>
+              </label>
+              <Attachments
+                attachments={attachments}
+                onChange={setAttachments}
+                isDark={isDark}
+                compact
+              />
+            </div>
+
 
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-2">
@@ -459,6 +493,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       </Dialog>
 
       <TemplateModal isOpen={showTemplates} onClose={() => setShowTemplates(false)} templates={templates} onSelect={handleSelectTemplate} isDark={isDark} />
+      <TranslateModal
+        isOpen={translateOpen}
+        onClose={() => setTranslateOpen(false)}
+        text={content}
+        onAppend={(block) => setContent(prev => (prev || "") + block)}
+        isDark={isDark}
+      />
       <IconPicker
         isOpen={iconPickerOpen}
         onClose={() => setIconPickerOpen(false)}

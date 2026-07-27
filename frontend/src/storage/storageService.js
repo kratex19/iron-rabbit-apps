@@ -318,6 +318,7 @@ export const StorageService = {
     'application/pdf'
   ],
   MAX_ATTACHMENT_BYTES: 10 * 1024 * 1024, // 10 MB
+  MAX_ATTACHMENTS_PER_NOTE: 10,
 
   async saveAttachment(file) {
     if (!this.ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {

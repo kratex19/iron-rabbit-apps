@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
-import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare } from "lucide-react";
+import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages } from "lucide-react";
 import ChoresPanel from "./ChoresPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Attachments from "../components/Attachments";
+import TranslateModal from "./TranslateModal";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 
 /**
@@ -17,6 +18,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [translateOpen, setTranslateOpen] = useState(false);
   const noteIdRef = useRef(note?.id);
 
   // When note changes (new note opened, or synced from parent after edit), reset local state
@@ -89,6 +91,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-slate-500' : 'text-gray-400'}`} data-testid="fullscreen-save-status" aria-live="polite">
               {saving ? "Saving…" : dirty ? "Editing…" : savedRecently ? "Saved" : ""}
             </span>
+            <Button variant="ghost" size="icon" onClick={() => setTranslateOpen(true)} disabled={!content?.trim()} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-translate-btn" aria-label="Translate" title="Translate note"><Languages className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-share-btn" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
@@ -162,6 +165,20 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           </div>
         </div>
       </div>
+      <TranslateModal
+        isOpen={translateOpen}
+        onClose={() => setTranslateOpen(false)}
+        text={content}
+        onAppend={(block) => {
+          const next = (content || "") + block;
+          setContent(next);
+          setDirty(true);
+          // Fire an immediate save so the appended block persists even if the
+          // user closes fast.
+          onSaveInline(note.id, { content: next });
+        }}
+        isDark={isDark}
+      />
     </div>
   );
 }
