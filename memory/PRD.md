@@ -581,3 +581,31 @@ Two things stacked to hurt contrast:
 - `notes/AccordionNoteItem.jsx` — body/meta contrast bumped, passes `isDark`
 - `notes/CategoryGroup.jsx` — passes `isDark` to `getNoteColorStyle`
 
+
+## [2026-02-27] Feature — List-view multi-select parity (P2 gap closed)
+
+**User report** (production): "For the Select option for Batch studio — works great for icon/grid but doesn't work for list notes. The Select button shows above list notes but tapping a row does nothing (just opens/closes the accordion)."
+
+**Root cause**: `AccordionNoteItem` was rendered without `selectMode` props from any of the 4 list-view render paths, so it always ran the accordion path. Tapping a row toggled the Collapsible instead of selection.
+
+**Fix (UX choice C: whole-row toggles selection, accordion disabled in select mode)**
+- `notes/AccordionNoteItem.jsx` now branches on `selectMode`:
+  - `selectMode=true` → renders a plain `<button data-testid="accordion-select-<id>">` with a circle-checkmark indicator on the left, indigo ring when selected, no chevron, no Collapsible.
+  - `selectMode=false` → renders the original Collapsible with chevron + expand-on-tap.
+- `notes/CategoryGroup.jsx` forwards `selectMode` / `isSelected` / `onToggleSelect` to its child `AccordionNoteItem`.
+- `NotesApp.jsx` — all 4 list-view render sites now wire the select props: (1) custom-sort flat list ~L909, (2) grouped view via CategoryGroup ~L942, (3) uncategorized group ~L980, (4) fallback default list ~L1013.
+- Bonus: While in select mode, all note-level `<Draggable>` wrappers get `isDragDisabled={inSelectMode}` (and `isDragDisabled={selectMode}` in CategoryGroup). Silences the dev-only "@hello-pangea/dnd Unable to find drag handle" warning that fires when select mode replaces the trigger DOM.
+
+### Verified
+Testing agent iteration_14.json — **7/7 scenarios PASS (100%)**:
+- Grouped list-view selection (2 rows) ✅
+- Flat list-view selection with group-off (4 accordion-select buttons) ✅
+- Batch Studio Duplicate from list → 4 → 6 notes with " (copy)" suffix ✅
+- Batch Studio Delete from list → AlertDialog → 2 notes removed ✅
+- Icon view regression ✅
+- Accordion expands normally when NOT in select mode (Full screen / Edit / Share / Delete actions visible) ✅
+- multiselect-cancel exits select mode cleanly ✅
+
+### New testids
+`accordion-select-<id>` (button, only in select mode), `accordion-select-indicator-<id>` (circle indicator, only in select mode).
+

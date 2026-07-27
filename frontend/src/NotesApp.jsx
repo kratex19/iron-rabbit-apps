@@ -903,7 +903,7 @@ export default function NotesApp() {
             {(provided) => (
               <div {...provided.droppableProps} ref={provided.innerRef}>
                 {processedNotes.map((note, index) => (
-                  <Draggable key={note.id} draggableId={note.id} index={index}>
+                  <Draggable key={note.id} draggableId={note.id} index={index} isDragDisabled={inSelectMode}>
                     {(prov, snap) => (
                       <div ref={prov.innerRef} {...prov.draggableProps}>
                         <AccordionNoteItem
@@ -977,7 +977,7 @@ export default function NotesApp() {
                           Uncategorized
                         </div>
                         {uncategorized.map((note, idx) => (
-                          <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
+                          <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx} isDragDisabled={inSelectMode}>
                             {(prov2, snap2) => (
                               <div ref={prov2.innerRef} {...prov2.draggableProps}>
                                 <AccordionNoteItem

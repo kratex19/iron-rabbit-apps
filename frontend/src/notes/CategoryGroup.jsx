@@ -72,7 +72,7 @@ export default function CategoryGroup({
             data-testid={`category-children-${category}`}
           >
             {children.map((note, index) => (
-              <Draggable key={note.id} draggableId={`note-${note.id}`} index={index}>
+              <Draggable key={note.id} draggableId={`note-${note.id}`} index={index} isDragDisabled={selectMode}>
                 {(prov, snap) => (
                   <div ref={prov.innerRef} {...prov.draggableProps}>
                     <AccordionNoteItem
