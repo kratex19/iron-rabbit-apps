@@ -1,7 +1,8 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, StickyNote, Pin, CalendarDays, CheckSquare, Trophy } from "lucide-react";
+import { Bell, Repeat, StickyNote, Pin, CalendarDays, CheckSquare, Trophy, Flame } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
+import { computeNoteStreak } from "../notes/streakUtils";
 import { haptic } from "../utils/haptic";
 
 /**
@@ -22,6 +23,7 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
   const chores = Array.isArray(note.chores) ? note.chores : [];
   const choresDone = chores.filter((c) => c.status === "done" && c.parent_approved).length;
   const choresTotal = chores.length;
+  const streak = computeNoteStreak(note);
 
   const handleClick = (e) => {
     if (selectMode) { e.stopPropagation(); onToggleSelect?.(note.id); return; }
@@ -76,6 +78,15 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
         {choresTotal > 0 && (
           <span className="flex items-center gap-0.5 text-[10px] font-mono" title={`${choresDone} of ${choresTotal} chores approved`}>
             <Trophy className="w-3 h-3" />{choresDone}/{choresTotal}
+          </span>
+        )}
+        {streak > 0 && (
+          <span
+            className="flex items-center gap-0.5 text-[10px] font-mono text-orange-300"
+            title={`${streak}-period streak`}
+            data-testid={`note-streak-${note.id}`}
+          >
+            <Flame className="w-3 h-3" />{streak}
           </span>
         )}
       </span>

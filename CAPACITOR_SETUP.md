@@ -4,6 +4,39 @@ Iron Rabbit is a **Progressive Web App** that is also wrapped with **Capacitor**
 
 ---
 
+## ⚡ Quickstart (TL;DR)
+
+You need to do this **on your own computer** — the Emergent preview/prod environments can't compile native code.
+
+**Android APK, easiest path** (15–20 min after installs):
+
+```bash
+# One-time
+git clone <your repo url>          # or "Save to GitHub" from Emergent, then clone
+cd iron-rabbit/frontend
+yarn install
+yarn build                         # produces /frontend/build
+npx cap add android                # first time only
+npx cap sync
+
+# Then open in Android Studio
+npx cap open android
+# → In Android Studio: Build → Build Bundle(s) / APK → Build APK(s)
+# → Grab the .apk from android/app/build/outputs/apk/debug/
+```
+
+Sideload the `.apk` to your phone and you're running the native app. No Play Store needed.
+
+**iOS TestFlight** (same idea, macOS-only, ~30 min):
+
+```bash
+yarn build && npx cap sync
+npx cap open ios
+# → In Xcode: pick your team, Product → Archive → Distribute → TestFlight
+```
+
+---
+
 ## What lives where
 
 | Layer | Where | Purpose |

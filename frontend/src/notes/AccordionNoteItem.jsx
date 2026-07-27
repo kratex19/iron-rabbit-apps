@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import {
   Bell, Repeat, GripVertical, ChevronDown, Clock, Pencil,
-  Maximize2, Edit3, Share2, Trash2, Paperclip, Pin, PinOff, CalendarDays,
+  Maximize2, Edit3, Share2, Trash2, Paperclip, Pin, PinOff, CalendarDays, Flame,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
+import { computeNoteStreak } from "./streakUtils";
 
 /**
  * A single collapsible note row for List view.
@@ -28,6 +29,7 @@ export default function AccordionNoteItem({
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
   const hasRecurring = note.recurring?.enabled;
+  const streak = computeNoteStreak(note);
   const createdDate = new Date(note.created_at);
   const updatedDate = new Date(note.updated_at);
   const wasEdited = updatedDate.getTime() - createdDate.getTime() > 1000;
@@ -152,6 +154,15 @@ export default function AccordionNoteItem({
               {note.attachments?.length > 0 && (
                 <span className="flex items-center gap-0.5 text-xs font-mono text-slate-500 flex-shrink-0" title={`${note.attachments.length} attachment${note.attachments.length === 1 ? '' : 's'}`}>
                   <Paperclip className="w-3.5 h-3.5" />{note.attachments.length}
+                </span>
+              )}
+              {streak > 0 && (
+                <span
+                  className={`flex items-center gap-0.5 text-xs font-bold flex-shrink-0 ${isDark ? "text-orange-300" : "text-orange-600"}`}
+                  title={`${streak}-period completion streak`}
+                  data-testid={`row-streak-${note.id}`}
+                >
+                  <Flame className="w-3.5 h-3.5" />{streak}
                 </span>
               )}
               <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />

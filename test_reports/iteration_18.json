@@ -1,0 +1,22 @@
+{
+  "summary": "Frontend E2E verified new Chore Streaks + Allowance Ledger (iteration 18). Seed via Tile Packs 'Daily Chores' (data-testid apply-pack-chores-list) added 12 chores-notes under PARENT. Opened 'Chores list for Bailey' (icon-view tile) → chores-panel rendered. Set first chore paid=$5, clicked chore-status-done, then chore-parent-approve → chore-streak-<id> badge appeared reading '1'. Ledger modal opened via chores-ledger-btn: all 4 KPI cards correct (Lifetime $5.00, Completions 1, This week $5.00, This month $5.00). Weekly chart rendered 8 bars, current week non-zero. Monthly tab rendered 6 bars. Per-chore rollup shows 'Mow the lawn 1 completions $5.00' and remaining 11 chores at '0 completions $0.00'. CSV export triggered download 'allowance-ledger-2026-07-27.csv' matching required filename pattern. De-dupe verified: toggled parent-approve off/on rapidly within 60s → streak stayed at 1 and ledger entries stayed at 1 (dedupe guard working). List view showed row-streak-<noteId>=1; icon view showed note-streak-<noteId>=1. Persistence verified via full page reload — streak badge still =1 (IndexedDB round-trip OK). Regression spot check: header-insights opens insights-modal; fullscreen-translate-btn present on note.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ChoresPanel.jsx dedupe guard (line ~90) only compares against the LAST history entry: `const last = hist[hist.length - 1]`. If completions on OTHER chores get intermixed in the same note history, this would still work per-chore because history[] lives on each chore object — so this is safe. Keep in mind if history is ever consolidated at note-level.",
+    "AllowanceLedgerModal.jsx handleExportCSV mutates `data.flat` via .sort() in place (line ~32). Since useMemo returns a memoised object, subsequent renders in the same tab would see a sorted-flat. Minor; recommend `[...data.flat].sort(...)`.",
+    "AccordionNoteItem.jsx fullscreen button (Maximize2) lacks data-testid — tests must fall back to title='Full screen'. Add data-testid='accordion-fullscreen-<id>' for stability.",
+    "ChoresPanel chore-item toggle chevron button uses aria-label but no data-testid. Add data-testid=`chore-toggle-<id>` for stable selection.",
+    "streakUtils.buildLedger: monthly/weekly buckets use `h.date >= startISO && h.date < end` but `flat` array constructs `date: new Date(h.date)` — fine, but consider timezone edge cases when history spans DST week boundaries."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only run)", "frontend": "100%"},
+  "test_credentials": "N/A — offline-first app, no auth",
+  "seed_data_creation": "Applied Tile Pack 'Daily Chores' → 12 chores notes under PARENT category. First chore of 'Chores list for Bailey' set to done+approved with paid=$5.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All streak+ledger flows pass end-to-end. To seed programmatically without UI, click [data-testid=header-tile-packs] then [data-testid=apply-pack-chores-list]. Note tiles include 'Bailey', 'Carter', 'Hazel', 'Mason', 'Lawson', 'Evy', 'Josh', 'Matt', 'Child 9..12'. In list view PARENT category is collapsed by default — click 'PARENT' text to expand before selecting a chores note. To open fullscreen from a tile use [data-testid=note-tile-<id>]; from list view use the Maximize2 button (title='Full screen', no testid yet). Initial chore paid value is 0 — must be set before approving if you want non-zero ledger bars. Dedupe window is 60 seconds; wait >60s to test streak increment.",
+  "rca of the issue": "N/A — no bugs found. All requested acceptance criteria pass."
+}

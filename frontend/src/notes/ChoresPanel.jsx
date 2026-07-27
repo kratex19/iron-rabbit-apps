@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import {
   Plus, Trash2, ClipboardList, DollarSign, Check, Circle, ChevronRight,
-  RotateCcw, Trophy, Calendar, Repeat,
+  RotateCcw, Trophy, Calendar, Repeat, Wallet, Flame,
 } from "lucide-react";
+import AllowanceLedgerModal from "./AllowanceLedgerModal";
+import { computeChoreStreak } from "./streakUtils";
 
 const FREQUENCIES = [
   { key: "daily",     label: "Daily" },
@@ -67,9 +69,32 @@ function StatusPill({ status, parentApproved, onChange, onApprove, isDark }) {
  */
 export default function ChoresPanel({ chores = [], onChange, isDark }) {
   const [expanded, setExpanded] = useState(new Set());
+  const [ledgerOpen, setLedgerOpen] = useState(false);
 
   const update = (id, patch) => {
-    const next = chores.map((c) => c.id === id ? { ...c, ...patch, updated_at: new Date().toISOString() } : c);
+    const next = chores.map((c) => {
+      if (c.id !== id) return c;
+      const merged = { ...c, ...patch, updated_at: new Date().toISOString() };
+
+      // When a chore transitions to `status: done && parent_approved: true`,
+      // append a completion entry to its history so the streak + ledger stay
+      // in sync. We use a de-dupe guard so double-tapping "Approve" doesn't
+      // record twice within the same minute.
+      const wasComplete = c.status === "done" && c.parent_approved === true;
+      const isComplete  = merged.status === "done" && merged.parent_approved === true;
+      if (!wasComplete && isComplete) {
+        const hist = Array.isArray(merged.history) ? [...merged.history] : [];
+        const last = hist[hist.length - 1];
+        const nowIso = new Date().toISOString();
+        const nowMs  = Date.now();
+        const dedupe = last && (nowMs - new Date(last.date).getTime()) < 60_000;
+        if (!dedupe) {
+          hist.push({ date: nowIso, paid: Number(merged.paid) || 0, status: "done" });
+        }
+        merged.history = hist;
+      }
+      return merged;
+    });
     onChange(next);
   };
   const remove = (id) => onChange(chores.filter((c) => c.id !== id));
@@ -84,6 +109,7 @@ export default function ChoresPanel({ chores = [], onChange, isDark }) {
         parent_approved: false,
         offered: 0, paid: 0,
         notes: "",
+        history: [],
         updated_at: new Date().toISOString(),
       },
     ]);
@@ -110,11 +136,25 @@ export default function ChoresPanel({ chores = [], onChange, isDark }) {
         <span className={`ml-auto font-mono font-normal ${isDark ? "text-slate-400" : "text-gray-500"}`}>
           {totals.completed}/{chores.length} · ${totals.paid}/${totals.offered}
         </span>
+        <button
+          type="button"
+          onClick={() => setLedgerOpen(true)}
+          className={`ml-1 h-6 px-2 rounded-md text-[10px] font-semibold flex items-center gap-1 border ${
+            isDark
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+          }`}
+          data-testid="chores-ledger-btn"
+          title="Open weekly/monthly allowance ledger"
+        >
+          <Wallet className="w-3 h-3" /> Ledger
+        </button>
       </div>
 
       <div className="space-y-1.5">
         {chores.map((c) => {
           const isOpen = expanded.has(c.id);
+          const streak = computeChoreStreak(c);
           return (
             <div
               key={c.id}
@@ -137,6 +177,17 @@ export default function ChoresPanel({ chores = [], onChange, isDark }) {
                   aria-label="Chore title"
                   data-testid={`chore-title-${c.id}`}
                 />
+                {streak > 0 && (
+                  <span
+                    className={`flex items-center gap-0.5 h-5 px-1.5 rounded-full text-[10px] font-bold ${
+                      isDark ? "bg-orange-500/20 text-orange-300 border border-orange-400/30" : "bg-orange-50 text-orange-700 border border-orange-200"
+                    }`}
+                    title={`${streak} ${c.frequency || "day"} streak`}
+                    data-testid={`chore-streak-${c.id}`}
+                  >
+                    <Flame className="w-3 h-3" /> {streak}
+                  </span>
+                )}
                 <StatusPill
                   status={c.status}
                   parentApproved={!!c.parent_approved}
@@ -228,6 +279,13 @@ export default function ChoresPanel({ chores = [], onChange, isDark }) {
       >
         <Plus className="w-3.5 h-3.5" /> Add chore
       </button>
+
+      <AllowanceLedgerModal
+        isOpen={ledgerOpen}
+        onClose={() => setLedgerOpen(false)}
+        chores={chores}
+        isDark={isDark}
+      />
     </div>
   );
 }
