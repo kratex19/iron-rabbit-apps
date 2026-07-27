@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import * as LucideIcons from "lucide-react";
 import {
-  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff,
+  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X,
 } from "lucide-react";
 import useVoiceInput from "../utils/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
-export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, categories, templates }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, categories, templates, allTags = [] }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -36,6 +36,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [icon, setIcon] = useState(null);
   const [background, setBackground] = useState(null);
   const [pinned, setPinned] = useState(false);
+  const [tags, setTags] = useState([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [events, setEvents] = useState([]);
   const [checklist, setChecklist] = useState([]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -64,6 +66,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       setTitle(note.title || ""); setContent(note.content || ""); setColor(note.color || "purple");
       setIcon(note.icon || null); setBackground(note.background || null);
       setPinned(!!note.pinned);
+      setTags(Array.isArray(note.tags) ? note.tags.map(t => String(t).toLowerCase()) : []);
+      setTagDraft("");
       setEvents(Array.isArray(note.events) ? note.events : []);
       setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
@@ -79,6 +83,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
     } else {
       setTitle(""); setContent(""); setColor("purple"); setIcon(null); setBackground(null);
       setPinned(false);
+      setTags([]);
+      setTagDraft("");
       setEvents([]);
       setChecklist([]);
       setCategory(""); setSubcategory("");
@@ -109,11 +115,18 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       dt.setHours(hours, minutes, 0, 0);
       alarmDateTime = dt.toISOString();
     }
+    // Fold any un-committed tag draft into tags before saving
+    const draftTags = tagDraft
+      .split(",")
+      .map(t => t.trim().toLowerCase().replace(/^#/, ""))
+      .filter(Boolean);
+    const finalTags = Array.from(new Set([...tags, ...draftTags]));
     const noteData = {
       title: title.trim(), content, color, icon, background,
       // Pin only allowed on main-category (or uncategorized) notes.
       // If a subcategory is set, force pinned=false so old state is cleaned up.
       pinned: subcategory.trim() ? false : pinned,
+      tags: finalTags,
       events,
       checklist,
       category: category.trim(), subcategory: subcategory.trim(),
@@ -266,6 +279,100 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 </div>
               </div>
             )}
+
+            {/* Tags */}
+            <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              <label className={`text-xs mb-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                <Hash className="w-3.5 h-3.5" /> Tags
+                <span className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-gray-400'}`}>· press Enter or comma to add</span>
+              </label>
+              <div
+                className={`min-h-9 rounded-md border flex flex-wrap gap-1.5 items-center px-2 py-1.5 ${
+                  isDark ? 'bg-black/20 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}
+                data-testid="tags-editor"
+              >
+                {tags.map(t => (
+                  <span
+                    key={t}
+                    className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${
+                      isDark ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/30' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                    }`}
+                    data-testid={`tag-chip-${t}`}
+                  >
+                    #{t}
+                    <button
+                      type="button"
+                      onClick={() => setTags(prev => prev.filter(x => x !== t))}
+                      className={`hover:opacity-70 ${isDark ? 'text-indigo-100' : 'text-indigo-700'}`}
+                      title={`Remove ${t}`}
+                      aria-label={`Remove tag ${t}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={tagDraft}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v.endsWith(",")) {
+                      const t = v.slice(0, -1).trim().toLowerCase().replace(/^#/, "");
+                      if (t && !tags.includes(t)) setTags(prev => [...prev, t]);
+                      setTagDraft("");
+                    } else {
+                      setTagDraft(v);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const t = tagDraft.trim().toLowerCase().replace(/^#/, "");
+                      if (t && !tags.includes(t)) setTags(prev => [...prev, t]);
+                      setTagDraft("");
+                    } else if (e.key === "Backspace" && !tagDraft && tags.length > 0) {
+                      setTags(prev => prev.slice(0, -1));
+                    }
+                  }}
+                  onBlur={() => {
+                    const t = tagDraft.trim().toLowerCase().replace(/^#/, "");
+                    if (t && !tags.includes(t)) setTags(prev => [...prev, t]);
+                    setTagDraft("");
+                  }}
+                  placeholder={tags.length === 0 ? "e.g., work, urgent, ideas" : "Add tag…"}
+                  className={`flex-1 min-w-[6rem] bg-transparent text-xs outline-none ${
+                    isDark ? 'text-white placeholder:text-slate-600' : 'text-gray-900 placeholder:text-gray-400'
+                  }`}
+                  list="all-note-tags"
+                  data-testid="tag-input"
+                />
+                <datalist id="all-note-tags">
+                  {allTags.map(t => <option key={t} value={t} />)}
+                </datalist>
+              </div>
+              {allTags.length > 0 && tags.length < 3 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {allTags
+                    .filter(t => !tags.includes(t))
+                    .slice(0, 6)
+                    .map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTags(prev => [...prev, t])}
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          isDark ? 'bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-slate-200' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                        }`}
+                        title={`Add tag #${t}`}
+                        data-testid={`tag-suggestion-${t}`}
+                      >
+                        + #{t}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
 
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between mb-2">

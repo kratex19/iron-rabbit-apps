@@ -160,6 +160,20 @@ export default function AccordionNoteItem({
           <CollapsibleContent>
             <div className={`px-3 pb-3 pt-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <p className={`text-sm whitespace-pre-wrap line-clamp-4 mb-3 ${isDark ? 'text-slate-100' : 'text-gray-600'}`}>{note.content || "No content"}</p>
+              {Array.isArray(note.tags) && note.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-3" data-testid={`note-tags-${note.id}`}>
+                  {note.tags.map(t => (
+                    <span
+                      key={t}
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        isDark ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-400/20' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      }`}
+                    >
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className={`flex items-center justify-between text-xs font-mono ${isDark ? 'text-slate-300' : 'text-gray-400'}`}>
                 <div className="flex flex-col gap-0.5">
                   <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {format(createdDate, "MMM d, yyyy HH:mm")}</span>

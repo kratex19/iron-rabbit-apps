@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +43,8 @@ import RecentActionPill from "./notes/RecentActionPill";
 import QuickAccessModal from "./notes/QuickAccessModal";
 import BackupRestoreModal from "./notes/BackupRestoreModal";
 import ArchiveTrashModal from "./notes/ArchiveTrashModal";
+import TagFilterStrip from "./notes/TagFilterStrip";
+import InsightsModal from "./notes/InsightsModal";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
@@ -82,6 +84,7 @@ export default function NotesApp() {
   const [sortBy, setSortBy] = useState("newest");
   const [filterBy, setFilterBy] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTag, setActiveTag] = useState(null);
   const [groupByCategory, setGroupByCategory] = useState(true);
   const [isDark, setIsDark] = useState(true);
   const [viewMode, setViewMode] = useState("list");        // 'list' | 'icon'
@@ -99,6 +102,7 @@ export default function NotesApp() {
   const [fullScreenNote, setFullScreenNote] = useState(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -687,12 +691,28 @@ export default function NotesApp() {
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(n =>
-        n.title?.toLowerCase().includes(q) ||
-        n.content?.toLowerCase().includes(q) ||
-        n.category?.toLowerCase().includes(q) ||
-        n.subcategory?.toLowerCase().includes(q)
-      );
+      // Support "#tag" tokens as a direct tag filter alongside free-text search
+      const tagTokens = (q.match(/#[a-z0-9_-]+/g) || []).map(t => t.slice(1));
+      const rest = q.replace(/#[a-z0-9_-]+/g, "").trim();
+      result = result.filter(n => {
+        const tags = Array.isArray(n.tags) ? n.tags.map(x => String(x).toLowerCase()) : [];
+        if (tagTokens.length && !tagTokens.every(tk => tags.includes(tk))) return false;
+        if (!rest) return true;
+        return (
+          n.title?.toLowerCase().includes(rest) ||
+          n.content?.toLowerCase().includes(rest) ||
+          n.category?.toLowerCase().includes(rest) ||
+          n.subcategory?.toLowerCase().includes(rest) ||
+          tags.some(t => t.includes(rest))
+        );
+      });
+    }
+    if (activeTag) {
+      const at = String(activeTag).toLowerCase();
+      result = result.filter(n => {
+        const tags = Array.isArray(n.tags) ? n.tags.map(x => String(x).toLowerCase()) : [];
+        return tags.includes(at);
+      });
     }
     if (filterBy !== "all" && filterBy !== "archived" && filterBy !== "trash") {
       result = result.filter(n => {
@@ -717,7 +737,7 @@ export default function NotesApp() {
       }
     });
     return result;
-  }, [notes, searchQuery, filterBy, sortBy, autoLock.panic, autoLock.safeCategory]);
+  }, [notes, searchQuery, filterBy, sortBy, activeTag, autoLock.panic, autoLock.safeCategory]);
 
   const { grouped, uncategorized } = useMemo(() => {
     const map = new Map();
@@ -749,6 +769,21 @@ export default function NotesApp() {
     () => processedNotes.filter(n => n.pinned),
     [processedNotes]
   );
+
+  // Every unique tag across active notes — used for autocomplete in NoteModal
+  // and for the InsightsModal top-tag cloud.
+  const allTags = useMemo(() => {
+    const set = new Set();
+    for (const n of notes) {
+      if (n.archived_at || n.deleted_at) continue;
+      const tags = Array.isArray(n.tags) ? n.tags : [];
+      for (const raw of tags) {
+        const t = String(raw || "").trim().toLowerCase();
+        if (t) set.add(t);
+      }
+    }
+    return Array.from(set).sort();
+  }, [notes]);
 
   const exportToPDF = async () => {
     // Optional biometric gate before exporting
@@ -1140,6 +1175,7 @@ export default function NotesApp() {
                 {SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.flag || "🌐"}
               </span>
             </button>
+            <Button variant="ghost" size="icon" onClick={() => { setInsightsOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Insights" data-testid="header-insights"><BarChart3 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setArchiveTrashOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
           </div>
@@ -1214,6 +1250,14 @@ export default function NotesApp() {
           </div>
         </div>
 
+        {/* Tag filter strip (only shown when there are tags) */}
+        <TagFilterStrip
+          notes={notes}
+          activeTag={activeTag}
+          onSelectTag={(t) => { setActiveTag(t); haptic("tap"); }}
+          isDark={isDark}
+        />
+
         {/* Group toggle + count */}
         <div className={`flex items-center justify-between mb-2 gap-3 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
           <button
@@ -1269,6 +1313,7 @@ export default function NotesApp() {
         isDark={isDark}
         categories={categories}
         templates={templates}
+        allTags={allTags}
       />
       <CalculatorWidget
         isOpen={calculatorOpen}
@@ -1363,6 +1408,13 @@ export default function NotesApp() {
         isDark={isDark}
       />
       <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
+
+      <InsightsModal
+        isOpen={insightsOpen}
+        onClose={() => setInsightsOpen(false)}
+        notes={notes}
+        isDark={isDark}
+      />
 
       <LanguagePicker
         isOpen={languagePickerOpen}
