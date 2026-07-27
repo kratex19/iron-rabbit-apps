@@ -19,9 +19,12 @@ import { NOTE_COLORS, getNoteColorStyle } from "./constants";
  */
 export default function AccordionNoteItem({
   note, onEdit, onDelete, onShare, onFullScreen, onTogglePin, isDark, dragHandleProps, isDragging,
-  selectMode = false, selected = false, onToggleSelect,
+  selectMode = false, selected = false, onToggleSelect, onSwipeSelect,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [swipeDx, setSwipeDx] = useState(0); // live pixel offset during a swipe
+  const touchRef = React.useRef(null);       // { startX, startY, startT }
+
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
   const hasRecurring = note.recurring?.enabled;
@@ -37,12 +40,65 @@ export default function AccordionNoteItem({
     onToggleSelect?.(note.id);
   };
 
+  // -------- iOS-Notes-style swipe-right to select ---------
+  const SWIPE_ACTIVATE_PX = 70;
+  const handleTouchStart = (e) => {
+    if (selectMode || !onSwipeSelect) return;
+    const t = e.touches[0];
+    touchRef.current = { startX: t.clientX, startY: t.clientY, startT: Date.now() };
+  };
+  const handleTouchMove = (e) => {
+    if (!touchRef.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchRef.current.startX;
+    const dy = Math.abs(t.clientY - touchRef.current.startY);
+    // Only follow horizontal-dominant swipes; ignore vertical scrolls.
+    if (dx > 0 && dy < 30) setSwipeDx(Math.min(dx, 120));
+    else setSwipeDx(0);
+  };
+  const handleTouchEnd = () => {
+    if (!touchRef.current) return;
+    const activated = swipeDx >= SWIPE_ACTIVATE_PX;
+    setSwipeDx(0);
+    touchRef.current = null;
+    if (activated) onSwipeSelect?.(note.id);
+  };
+  const handleTouchCancel = () => {
+    touchRef.current = null;
+    setSwipeDx(0);
+  };
+  const swipeActive = swipeDx > 0 && !selectMode;
+  const activated = swipeDx >= SWIPE_ACTIVATE_PX;
+
   return (
     <div
-      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 ${isDragging ? 'opacity-50' : ''} ${selected ? 'ring-2 ring-indigo-400' : ''}`}
+      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 relative ${isDragging ? 'opacity-50' : ''} ${selected ? 'ring-2 ring-indigo-400' : ''}`}
       style={getNoteColorStyle(colorConfig, isDark) || undefined}
       data-testid={`accordion-note-${note.id}`}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
+      {/* Left-rail hint that appears while the user is swiping right */}
+      {swipeActive && (
+        <div
+          className={`absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none transition-colors ${
+            activated ? "text-indigo-300" : isDark ? "text-slate-500" : "text-gray-400"
+          }`}
+          data-testid={`swipe-rail-${note.id}`}
+        >
+          <span className={`w-6 h-6 rounded-full flex items-center justify-center ${activated ? "bg-indigo-500 text-white" : isDark ? "bg-white/10" : "bg-gray-200"}`}>
+            <svg viewBox="0 0 12 12" className="w-3.5 h-3.5">
+              <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className="ml-2 text-xs font-medium">{activated ? "Release to select" : "Swipe to select"}</span>
+        </div>
+      )}
+      <div
+        style={swipeActive ? { transform: `translateX(${swipeDx}px)`, transition: "none" } : { transform: "translateX(0)", transition: "transform 180ms ease" }}
+      >
       {selectMode ? (
         /* Select mode — whole row is a checkbox; no accordion */
         <button
@@ -125,6 +181,7 @@ export default function AccordionNoteItem({
           </CollapsibleContent>
         </Collapsible>
       )}
+      </div>
     </div>
   );
 }

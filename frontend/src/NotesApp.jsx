@@ -499,7 +499,7 @@ export default function NotesApp() {
   // and bulk handler is owned by the hook.
   const bulk = useBulkActions({ settings, fetchData });
   const {
-    selectMode, selectedIds,
+    selectMode, selectedIds, setSelectMode,
     isSelected, toggleSelect, clearSelection, enterSelectMode,
     moveToOpen, setMoveToOpen,
     batchStudioOpen, setBatchStudioOpen,
@@ -512,6 +512,11 @@ export default function NotesApp() {
     bulkExportPDF,
   } = bulk;
   const inSelectMode = selectMode;
+  // Swipe-to-select handler shared by every list-view row.
+  const handleSwipeSelect = (noteId) => {
+    if (!inSelectMode) enterSelectMode();
+    toggleSelect(noteId);
+  };
 
   const handleDragEnd = async (result) => {
     if (!result.destination) return;
@@ -919,6 +924,7 @@ export default function NotesApp() {
                           selectMode={inSelectMode}
                           selected={isSelected(note.id)}
                           onToggleSelect={toggleSelect}
+                          onSwipeSelect={handleSwipeSelect}
                         />
                       </div>
                     )}
@@ -956,6 +962,7 @@ export default function NotesApp() {
                           selectMode={inSelectMode}
                           isSelected={isSelected}
                           onToggleSelect={toggleSelect}
+                          onSwipeSelect={handleSwipeSelect}
                         />
                       </div>
                     )}
@@ -993,6 +1000,7 @@ export default function NotesApp() {
                                   selectMode={inSelectMode}
                                   selected={isSelected(note.id)}
                                   onToggleSelect={toggleSelect}
+                                  onSwipeSelect={handleSwipeSelect}
                                 />
                               </div>
                             )}
@@ -1025,6 +1033,7 @@ export default function NotesApp() {
             selectMode={inSelectMode}
             selected={isSelected(note.id)}
             onToggleSelect={toggleSelect}
+            onSwipeSelect={handleSwipeSelect}
           />
         ))}
       </div>
