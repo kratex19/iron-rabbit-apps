@@ -720,3 +720,44 @@ Modal with two primary actions:
 ### Constraint honored
 Feature works **entirely offline**. No network calls, no cloud dependency. Users can transfer to a new device by copying the JSON file via any means (AirDrop, USB, email attachment, etc.).
 
+
+## [2026-02-27] Feature — Daily Chores Pack
+
+Twelve named chore-list tiles, one per family member, with per-chore frequency, tri-state status, dollar tracking, and parent approval — all offline.
+
+### Ships with 12 tiles under a new `PARENT` category
+Real names first (Bailey, Carter, Hazel, Mason, Lawson, Evy, Josh, Matt) + 4 placeholders (Child 9–12). User can rename any of them. Each tile carries a fresh copy of the 12-chore template so families can customize per person.
+
+### Chore item schema (`note.chores[]`)
+```js
+{
+  id, title,
+  frequency: "daily" | "weekly" | "bimonthly" | "monthly",
+  status:    "todo"  | "progress" | "done",
+  parent_approved: boolean,     // parent-only final tick after "done"
+  offered: number,              // dollars promised
+  paid:    number,              // dollars actually paid
+  notes:   string,              // freeform: bonuses/penalties/holiday/vacation
+  updated_at: string,
+}
+```
+
+### `notes/ChoresPanel.jsx` — inline panel inside FullScreenNote
+- Rendered whenever `note.chores` is a non-empty array (no impact on non-chore notes).
+- Each chore shows: chevron expand · editable title · **3-stop status pill** (🔴 Todo → 🟠 In Progress → 🟢 Done) · **Parent ✓ approval chip** (appears when status is done; toggles to Trophy 🏆 Approved).
+- Expanded view: Frequency dropdown · Offered $ · Paid $ · Notes textarea · Reset · Remove.
+- Summary bar at top: `done/total · $paid/$offered`.
+- **Add chore** button seeds a new blank row.
+
+### NoteTile badge
+Icon-view tiles now show a small 🏆 `done/total` badge for chore-notes so parents see progress at a glance without opening.
+
+### Tile pack integration
+No changes to the `applyPack` flow needed — the existing spreader carries `chores` through to IndexedDB.
+
+### New testids
+`chores-panel`, `chores-add-btn`, `chore-item-<id>`, `chore-title-<id>`, `chore-status-pill`, `chore-status-todo|progress|done`, `chore-parent-approve`, `chore-freq-<id>`, `chore-offered-<id>`, `chore-paid-<id>`, `chore-notes-<id>`, `chore-reset-<id>`, `chore-remove-<id>`.
+
+### Verified in preview
+Tile Packs modal → **Daily Chores** card shows 5 preview tiles → Apply → 12 tiles seeded under PARENT with color rotation → opening any tile shows all 12 chores with red 🔴 default status and expected `0/12 · $0/$93` summary → totals visible on tile grid.
+

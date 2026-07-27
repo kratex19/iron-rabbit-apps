@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare } from "lucide-react";
+import ChoresPanel from "./ChoresPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Attachments from "../components/Attachments";
@@ -108,6 +109,13 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             onChange={(newAttachments) => onSaveInline(note.id, { attachments: newAttachments })}
             isDark={isDark}
           />
+          {Array.isArray(note.chores) && (
+            <ChoresPanel
+              chores={note.chores}
+              onChange={(updated) => onSaveInline(note.id, { chores: updated })}
+              isDark={isDark}
+            />
+          )}
           {Array.isArray(note.checklist) && note.checklist.length > 0 && (
             <div className={`rounded-lg p-3 space-y-1 border ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="fullscreen-checklist">
               <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-700"}`}>

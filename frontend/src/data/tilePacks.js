@@ -402,4 +402,51 @@ export const TILE_PACKS = [
       { title: "Gratitude",       content: "Today I'm grateful for:\n1. \n2. \n3. ",color: "purple", icon: "Heart",      background: grad(G.aurora),   category: "Recovery" },
     ],
   },
+  // ---- Family / Household Chores ----
+  (() => {
+    const CHORE_TEMPLATE = [
+      { title: "Mow the lawn",         frequency: "weekly",   offered: 10 },
+      { title: "Clean your room",      frequency: "weekly",   offered: 5 },
+      { title: "Take out kitchen garbage", frequency: "daily", offered: 1 },
+      { title: "Clean the bathroom",   frequency: "weekly",   offered: 8 },
+      { title: "Clean garage",         frequency: "monthly",  offered: 15 },
+      { title: "Wash your clothes",    frequency: "weekly",   offered: 5 },
+      { title: "Wash your bedding",    frequency: "bimonthly",offered: 4 },
+      { title: "Wash the car",         frequency: "monthly",  offered: 12 },
+      { title: "Rake the leaves",      frequency: "weekly",   offered: 8 },
+      { title: "Clean the gutters",    frequency: "monthly",  offered: 20 },
+      { title: "Do the dishes",        frequency: "daily",    offered: 2 },
+      { title: "Sweep the porch",      frequency: "weekly",   offered: 3 },
+    ];
+    const seedChores = () => CHORE_TEMPLATE.map((c, i) => ({
+      id: `chore-${i + 1}-${Math.random().toString(36).slice(2, 8)}`,
+      title: c.title,
+      frequency: c.frequency,   // daily | weekly | bimonthly | monthly
+      status: "todo",           // todo | progress | done
+      parent_approved: false,
+      offered: c.offered,       // dollars promised
+      paid: 0,                  // dollars actually paid
+      notes: "",                // freeform: bonuses / penalties / vacation / holiday
+      updated_at: null,
+    }));
+    const NAMES = [
+      "Bailey", "Carter", "Hazel", "Mason",
+      "Lawson", "Evy", "Josh", "Matt",
+      "Child 9", "Child 10", "Child 11", "Child 12",
+    ];
+    return {
+      id: "chores-list", name: "Daily Chores", accent: "#0ea5e9",
+      tagline: "12 named chore lists — one per family member. Frequency, status, allowance & parent approval built in.",
+      notes: NAMES.map((name, i) => ({
+        title: `Chores list for ${name}`,
+        content: `Assigned to ${name}. Tap any chore to update status, mark as paid, or add notes.`,
+        color: (i % 6 === 0) ? "ocean" : (i % 6 === 1) ? "mint" : (i % 6 === 2) ? "peach" : (i % 6 === 3) ? "lavender" : (i % 6 === 4) ? "gold" : "sky",
+        icon: "ClipboardList",
+        background: grad(i % 2 === 0 ? G.ocean : G.spring),
+        category: "PARENT",
+        pinned: false,
+        chores: seedChores(),
+      })),
+    };
+  })(),
 ];
