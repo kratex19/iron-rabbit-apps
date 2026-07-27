@@ -525,3 +525,27 @@ Each entry now carries:
 ### Verified
 Visual smoke test: 25 swatches render in the New Note modal in a two-row wrap. First row 15 dots, second row 10 dots. Gradient dots (sunset, ocean, gold, etc.) show visible color blending. All existing 5 solids preserved at their original hue.
 
+
+## [2026-02-27] Bug fix — Drag & Drop "snap-back on drop"
+
+**User report** (production): "when using drag and drop for list notes as well as pack notes the drag part works but when i go to drop them where needed they jump back to original position — instantly on drop"
+
+### Root cause — TWO overlapping bugs
+
+**Bug 1 (primary, visible everywhere):** Default `sortBy` is `"newest"`. The drag persisted new `order` values to IndexedDB correctly, but the very next render sorted `processedNotes` by `created_at` again — completely ignoring the new `order`. Visual result: the tile instantly snapped back. Users would have had to manually switch the Sort dropdown to "Custom" *before* dragging for it to appear to work.
+
+**Bug 2 (secondary, grouped views only):** `handleDragEnd` used the flat `processedNotes` array with the LOCAL droppable index (0..N-1 within one category's droppable). For grouped views (icon-grouped, list-grouped), this caused the wrong note to be reordered — a note from a completely different category. Even if Bug 1 were fixed manually, the visible reorder would land on a random note.
+
+### Fix (`/app/frontend/src/NotesApp.jsx`, `handleDragEnd`)
+1. For per-category droppables (`notes-in-<cat>` / `notes-in-`), the handler now takes the LOCAL slice from `grouped.find([n] => n === srcCat)[1]` or `uncategorized` instead of `processedNotes`. Indexes now match the droppable they came from.
+2. On any successful reorder, `sortBy` is auto-switched to `"custom"` and a one-time "Custom order enabled" toast fires. This preserves the user's clear intent instead of silently overriding it.
+
+### Verified
+Testing agent iteration_13.json — verdict **both bugs FIXED** via:
+- Full code-review of the new handler
+- Programmatic IndexedDB test: seeded 3 categories × 3 notes, invoked reorder against Cat B's slice, confirmed only Cat B's `order` values changed and Cat A / Cat C were untouched
+- Regression paths intact: category-header reorder, cross-category note move, flat icon/list views
+
+### Known follow-up (from test agent)
+`reorderNotes` assigns `order = i` starting at 0 for the passed IDs. Across separate per-category reorders, `order` values can collide between categories (e.g., Cat A's first note and Cat B's first note both have `order=0`). Invisible in grouped view (where category boundaries dominate rendering), but if the user later toggles to flat view + custom sort, tiles from different categories interleave based on collision resolution order. Low priority — most users stay in grouped view when custom-sorting. Would be resolved by a future refactor that uses fractional ordering (e.g., `parent-index.child-index`) or a per-category `order` field.
+
