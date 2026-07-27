@@ -200,9 +200,17 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
 
             <div>
               <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.color")}</label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2" data-testid="note-color-picker">
                 {NOTE_COLORS.map((c) => (
-                  <button key={c.name} onClick={() => setColor(c.name)} className={`color-swatch-sm ${color === c.name ? "active" : ""}`} style={{ backgroundColor: c.accent }} />
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => setColor(c.name)}
+                    className={`color-swatch-sm ${color === c.name ? "active" : ""}`}
+                    style={{ background: c.gradient || c.accent }}
+                    title={c.label}
+                    data-testid={`note-color-swatch-${c.name}`}
+                  />
                 ))}
               </div>
             </div>

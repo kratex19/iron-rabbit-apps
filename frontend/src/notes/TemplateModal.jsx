@@ -26,7 +26,7 @@ export default function TemplateModal({ isOpen, onClose, templates, onSelect, is
               className={`w-full p-2.5 rounded-lg text-left transition-all ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'}`}
             >
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: NOTE_COLORS.find(c => c.name === t.color)?.accent || '#a855f7' }} />
+                <div className="w-3 h-3 rounded-full" style={{ background: NOTE_COLORS.find(c => c.name === t.color)?.gradient || NOTE_COLORS.find(c => c.name === t.color)?.accent || '#a855f7' }} />
                 <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.name}</span>
                 {t.category && <Badge variant="outline" className={`text-xs ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{t.category}</Badge>}
               </div>

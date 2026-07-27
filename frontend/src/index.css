@@ -79,6 +79,14 @@ code {
     box-shadow: 0 0 15px rgba(249, 115, 22, 0.15);
 }
 
+/* Base class for gradient note colors — inline styles from `getNoteColorStyle`
+   override background/border-color; this class supplies the shared shadow. */
+.note-gradient {
+    box-shadow: 0 0 15px rgba(148, 163, 184, 0.18);
+    border-width: 1px;
+    border-style: solid;
+}
+
 /* Note animations are defined in App.css */
 
 /* Calculator styling */

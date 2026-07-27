@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { NOTE_COLORS } from "./constants";
+import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 
 /**
  * A single collapsible note row for List view.
@@ -24,7 +24,11 @@ export default function AccordionNoteItem({
   const wasEdited = updatedDate.getTime() - createdDate.getTime() > 1000;
 
   return (
-    <div className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 ${isDragging ? 'opacity-50' : ''}`} data-testid={`accordion-note-${note.id}`}>
+    <div
+      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 ${isDragging ? 'opacity-50' : ''}`}
+      style={getNoteColorStyle(colorConfig) || undefined}
+      data-testid={`accordion-note-${note.id}`}
+    >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger className="w-full">
           <div className={`flex items-center gap-2 p-3 cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'}`}>

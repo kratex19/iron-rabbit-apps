@@ -491,3 +491,37 @@ Testing agent iteration_11.json — **9/9 scenarios PASS (100%)**. Regression su
 - AlertDialog description mentions "attachments will be permanently removed" — `StorageService.deleteNote` handles the note row; attachment cleanup in the separate `files` store should be verified in a future pass.
 - List/accordion view multi-select parity gap still open (unrelated).
 
+
+## [2026-02-27] Expanded color palette — 25 colors (5 solids + 20 gradients)
+
+The Edit Note "Color" picker went from **5** solid dots to **25** dots (5 original solids + 20 new gradient combos). Same expansion mirrors into the Batch Studio Recolor picker and the FullScreenNote color dot.
+
+### New 20 gradient palettes (all 135° linear-gradients)
+sunset · ocean · forest · lavender · gold · crimson · teal · indigo · rose · mint · sky · peach · slate · copper · plum · lagoon · cherry · neon · dusk · graphite.
+
+Each entry now carries:
+```js
+{ name, label, class: "note-gradient", accent /* hex */,
+  gradient /* full gradient CSS */,
+  bg      /* subtle tile background */,
+  border  /* border-color */ }
+```
+
+### Backwards-compatible model
+- Original 5 solid entries keep their own CSS classes (`.note-purple` etc.) — existing notes are untouched.
+- New entries share `.note-gradient` and drive look via **inline styles** returned by a new helper `getNoteColorStyle(colorConfig)` in `notes/constants.js`.
+
+### Wired into
+- `notes/NoteModal.jsx` — color picker now uses `flex flex-wrap`; swatch background is `gradient || accent`. Added `data-testid="note-color-picker"` and `note-color-swatch-<name>`.
+- `notes/BatchStudioSheet.jsx` — Recolor sub-picker also wraps to multiple rows and shows gradient dots.
+- `notes/AccordionNoteItem.jsx`, `notes/CategoryGroup.jsx`, `notes/FullScreenNote.jsx` — spread `getNoteColorStyle(colorConfig)` inline so the accordion row / category container / full-screen editor render the gradient background + border.
+- `notes/TemplateModal.jsx` — small template color dot also shows gradient when the template's color is one of the new ones.
+- `NotesApp.jsx` + `hooks/useBulkActions.js` — jsPDF text color for exports still uses `accent` (works for all 25).
+
+### CSS additions
+- `index.css` — added `.note-gradient` base class (shared shadow + border spec).
+- `App.css` — added shared `.note-gradient:hover` filter for a subtle brighten/saturate effect on hover.
+
+### Verified
+Visual smoke test: 25 swatches render in the New Note modal in a two-row wrap. First row 15 dots, second row 10 dots. Gradient dots (sunset, ocean, gold, etc.) show visible color blending. All existing 5 solids preserved at their original hue.
+

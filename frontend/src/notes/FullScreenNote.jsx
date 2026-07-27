@@ -4,7 +4,7 @@ import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare } from "luc
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Attachments from "../components/Attachments";
-import { NOTE_COLORS } from "./constants";
+import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 
 /**
  * Full-screen note editor with inline auto-save.
@@ -66,11 +66,14 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="fullscreen-note">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
-      <div className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]' : 'bg-white'} border ${colorConfig.class}`} style={{ borderWidth: '2px' }}>
+      <div
+        className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]' : 'bg-white'} border ${colorConfig.class}`}
+        style={{ borderWidth: '2px', ...(getNoteColorStyle(colorConfig) || {}) }}
+      >
         {/* Header */}
         <div className={`flex items-center justify-between gap-3 p-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
+            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: colorConfig.gradient || colorConfig.accent }} />
             <input
               value={title}
               onChange={(e) => { setTitle(e.target.value); setDirty(true); }}

@@ -66,6 +66,16 @@
 .accordion-note.light.note-pink { background: rgba(236, 72, 153, 0.06); border-color: rgba(236, 72, 153, 0.35); }
 .accordion-note.light.note-orange { background: rgba(249, 115, 22, 0.06); border-color: rgba(249, 115, 22, 0.35); }
 
+/* Gradient note colors — background & border are set inline from getNoteColorStyle().
+   Both dark and light themes reuse the same inline styles; hover boosts opacity. */
+.accordion-note.note-gradient, .category-group.note-gradient, .note-gradient {
+    transition: filter 150ms ease, box-shadow 150ms ease;
+}
+.accordion-note.note-gradient:hover, .category-group.note-gradient:hover, .note-gradient:hover {
+    filter: brightness(1.15) saturate(1.1);
+    box-shadow: 0 0 22px rgba(148, 163, 184, 0.25);
+}
+
 /* Smaller FAB */
 .fab-button-sm {
     @apply fixed bottom-6 right-6 w-12 h-12 rounded-full;

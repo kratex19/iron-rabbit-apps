@@ -155,14 +155,14 @@ export default function BatchStudioSheet({
             <div className={`text-xs mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
               Choose a color to apply to all {count} note{count === 1 ? "" : "s"}:
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap gap-2">
               {NOTE_COLORS.map((c) => (
                 <button
                   key={c.name}
                   type="button"
                   onClick={() => { handleClose(); onSetColor && onSetColor(c.name); }}
-                  className="w-9 h-9 rounded-full transition-transform hover:scale-110 border-2 border-transparent hover:border-white/40"
-                  style={{ backgroundColor: c.accent }}
+                  className="w-8 h-8 rounded-full transition-transform hover:scale-110 border-2 border-transparent hover:border-white/40"
+                  style={{ background: c.gradient || c.accent }}
                   title={c.label}
                   data-testid={`bs-color-${c.name}`}
                 />
