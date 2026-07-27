@@ -609,3 +609,47 @@ Testing agent iteration_14.json — **7/7 scenarios PASS (100%)**:
 ### New testids
 `accordion-select-<id>` (button, only in select mode), `accordion-select-indicator-<id>` (circle indicator, only in select mode).
 
+
+## [2026-02-27] Feature — Swipe-to-select + Delete UX overhaul (Archive / Trash / Persistent Undo)
+
+### 1. Swipe-to-select on list rows
+`AccordionNoteItem` now supports an iOS-Notes-style right-swipe gesture (touch only). On drag > 70px right, the row enters select mode + adds itself to the selection. Small "Swipe to select" / "Release to select" left rail hint appears during the gesture.
+- Files: `AccordionNoteItem.jsx` (touch handlers + `swipeDx` state + rail), `NotesApp.jsx` (new `handleSwipeSelect`), `CategoryGroup.jsx` (passes through).
+- Skipped by the testing agent (can't reliably simulate touch pan via Playwright); relies on user manual verification.
+
+### 2. Delete UX overhaul — Archive vs Trash + Persistent Undo
+
+**Data model addition** — every note now carries:
+- `archived_at: string|null` — non-null means archived (kept indefinitely, hidden from default view)
+- `deleted_at:  string|null` — non-null means in Trash (retained per `settings.trash_retention_days`, currently manual-purge only)
+
+**New components**
+- `notes/DeleteChoiceDialog.jsx` — shadcn AlertDialog with three buttons: Cancel · Archive (emerald) · Move to Trash (red). Fires on any delete (single + bulk). Copy explicitly explains: "Archive → kept indefinitely" and "Trash → permanently deleted after {N days} unless restored".
+- `notes/RecentActionPill.jsx` — floating pill at the bottom of the screen (like MultiSelectBar). Shows `1 note archived / N notes moved to Trash`. Undo button (`recent-action-undo`) restores; Dismiss button (`recent-action-dismiss`) hides the pill but keeps the state change. **Never auto-dismisses** — stays until the user acts.
+- `notes/ArchiveTrashModal.jsx` — dedicated two-tab modal (Archive · Trash) opened by the new header `archive-trash-btn`. Each item has a Restore action; trashed items also get a permanent-delete X. Empty Trash button with inline red confirmation.
+
+**Storage service** — `archiveNote`, `moveNoteToTrash`, `restoreNote`, `restoreLifecycle` (Undo), `emptyTrash`. Each returns a snapshot of the prior lifecycle timestamps so Undo can restore exactly.
+
+**Filter dropdown** — new options `Archived` and `Trash`. `processedNotes` memoization filters archived/trashed out of every other view (including `All Notes`).
+
+**Settings** — new "Trash retention" dropdown with 5 options: 7 / 30 / 90 / 365 days, or Forever (0). Stored as `settings.trash_retention_days`. Auto-purge is intentionally disabled — only manual Empty Trash removes items.
+
+**Batch Studio** — bulk delete now routes through the same DeleteChoiceDialog with `fromBulk: true`, so users can Archive or Trash entire selections in one shot. The old bulk-delete AlertDialog was removed.
+
+### Verified
+Testing agent iteration_15.json — **27/29 (~93%) PASS**. All lifecycle assertions passed:
+- DeleteChoiceDialog 3-button flow, Cancel no-op, Archive/Trash state transitions ✅
+- Persistent pill (verified no auto-dismiss at 6.5s) ✅
+- Undo restores exact prior lifecycle snapshot ✅
+- Dismiss keeps state ✅
+- Filter dropdown functionally correct + Archive/Trash values isolate the right subset ✅
+- Header button opens Archive & Trash modal with both tabs ✅
+- Restore + Empty Trash + inline red confirm ✅
+- Retention setting persists + DeleteChoiceDialog reads current value ✅
+- Bulk delete → same dialog with plural copy ✅
+
+**Bug caught + fixed in same pass**: Filter dropdown labels were displaying "All Notes" for the two new options due to a hard-coded ternary. Rewritten to use `t(\`filter.${opt.value}\`, opt.label)` for translation with fallback. Also added `data-testid="filter-option-<value>"` for stable testing. Also added `aria-live="polite"` on RecentActionPill for screen readers.
+
+### New testids
+`delete-choice-dialog`, `delete-choice-cancel`, `delete-choice-archive`, `delete-choice-trash`, `recent-action-pill`, `recent-action-undo`, `recent-action-dismiss`, `archive-trash-btn`, `archive-trash-modal`, `archive-trash-tab-archive`, `archive-trash-tab-trash`, `archive-trash-item-<id>`, `archive-trash-restore-<id>`, `archive-trash-purge-<id>`, `archive-trash-empty-btn`, `archive-trash-empty-confirm`, `archive-trash-empty-cancel`, `settings-retention-select`, `filter-option-<value>`.
+

@@ -22,6 +22,7 @@ export default function RecentActionPill({ action, onUndo, onDismiss, isDark }) 
       }`}
       data-testid="recent-action-pill"
       role="status"
+      aria-live="polite"
     >
       <span className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isArchive ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
         <Icon className="w-3.5 h-3.5" />

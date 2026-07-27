@@ -1163,7 +1163,7 @@ export default function NotesApp() {
               </SelectTrigger>
               <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
                 {FILTER_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">{t(`filter.${opt.value === "week" ? "week" : opt.value === "month" ? "month" : opt.value === "today" ? "today" : "all"}`, opt.label)}</SelectItem>
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs" data-testid={`filter-option-${opt.value}`}>{t(`filter.${opt.value}`, opt.label)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
