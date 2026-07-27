@@ -1,26 +1,18 @@
 import React from "react";
-import { X, Trash2, FolderInput, Copy, CopyPlus, Check } from "lucide-react";
+import { X, Sparkles, Check } from "lucide-react";
 
 /**
- * Floating action bar that appears at the bottom when the user is in
- * multi-select mode. Shows selection count and bulk actions:
- *  - Move/Copy to another category (label swaps based on Smart Batch mode)
- *  - Duplicate in place (always adds " (copy)" suffix)
- *  - Delete
+ * Floating pill shown when the user is in multi-select mode.
+ * Now a lean launcher for the Batch Studio sheet — one button
+ * exposes every bulk action available on the current selection.
  */
 export default function MultiSelectBar({
   count,
   onClear,
-  onDelete,
-  onMoveTo,
-  onDuplicate,
-  mode = "move",
+  onOpenStudio,
   isDark,
 }) {
   if (count === 0) return null;
-  const isCopy = mode === "copy";
-  const MoveIcon = isCopy ? Copy : FolderInput;
-  const moveLabel = isCopy ? "Copy to…" : "Move to…";
   return (
     <div
       className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border ${
@@ -36,34 +28,15 @@ export default function MultiSelectBar({
       </span>
       <button
         type="button"
-        onClick={onMoveTo}
-        className={`h-8 px-3 rounded-full text-xs flex items-center gap-1.5 transition-colors ${
-          isDark ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30" : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+        onClick={onOpenStudio}
+        className={`h-8 px-3 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors ${
+          isDark
+            ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-400 hover:to-purple-400"
+            : "bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600"
         }`}
-        data-testid="multiselect-move-btn"
+        data-testid="multiselect-studio-btn"
       >
-        <MoveIcon className="w-3.5 h-3.5" /> {moveLabel}
-      </button>
-      {onDuplicate && (
-        <button
-          type="button"
-          onClick={onDuplicate}
-          className={`h-8 px-3 rounded-full text-xs flex items-center gap-1.5 transition-colors ${
-            isDark ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-          }`}
-          data-testid="multiselect-duplicate-btn"
-          title="Duplicate in place (adds ' (copy)' to titles, stays in same category)"
-        >
-          <CopyPlus className="w-3.5 h-3.5" /> Duplicate
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="h-8 px-3 rounded-full text-xs flex items-center gap-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30"
-        data-testid="multiselect-delete-btn"
-      >
-        <Trash2 className="w-3.5 h-3.5" /> Delete
+        <Sparkles className="w-3.5 h-3.5" /> Batch Studio
       </button>
       <button
         type="button"

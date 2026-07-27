@@ -33,6 +33,7 @@ import OrganizationModal from "./notes/OrganizationModal";
 import MultiSelectBar from "./notes/MultiSelectBar";
 import MoveToCategoryModal from "./notes/MoveToCategoryModal";
 import CopySuffixDialog from "./notes/CopySuffixDialog";
+import BatchStudioSheet from "./notes/BatchStudioSheet";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
 import SecurityService from "./security/SecurityService";
@@ -95,6 +96,7 @@ export default function NotesApp() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [moveToOpen, setMoveToOpen] = useState(false);
+  const [batchStudioOpen, setBatchStudioOpen] = useState(false);
   const [pendingCopyTarget, setPendingCopyTarget] = useState(null); // string | null
   const [tourOpen, setTourOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
@@ -622,6 +624,134 @@ export default function NotesApp() {
         },
       },
     });
+  };
+
+  // ---- Batch Studio helpers (Pin, Color, Alarm, PDF) ----
+  const _snapshotSelected = async () => {
+    const ids = Array.from(selectedIds);
+    const snap = new Map();
+    for (const id of ids) {
+      const n = await StorageService.getNote(id);
+      if (n) snap.set(id, n);
+    }
+    return { ids, snap };
+  };
+  const _restore = async (snap) => {
+    for (const [id, n] of snap.entries()) {
+      try { await StorageService.saveNote({ ...n, id }); } catch (_e) { /* continue */ }
+    }
+    fetchData();
+  };
+
+  // Pin/unpin toggle — if any selected is unpinned, pin all; otherwise unpin all.
+  const bulkTogglePin = async () => {
+    const { ids, snap } = await _snapshotSelected();
+    if (ids.length === 0) return;
+    const anyUnpinned = Array.from(snap.values()).some((n) => !n.pinned);
+    const target = anyUnpinned; // true => pin all, false => unpin all
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      const n = snap.get(id);
+      if (!n) continue;
+      await StorageService.saveNote({ ...n, pinned: target, updated_at: now });
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`${target ? "Pinned" : "Unpinned"} ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
+      duration: 6000,
+      action: { label: "Undo", onClick: () => _restore(snap) },
+    });
+  };
+
+  const bulkSetColor = async (colorName) => {
+    const { ids, snap } = await _snapshotSelected();
+    if (ids.length === 0) return;
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      const n = snap.get(id);
+      if (!n) continue;
+      await StorageService.saveNote({ ...n, color: colorName, updated_at: now });
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Recolored ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
+      duration: 6000,
+      action: { label: "Undo", onClick: () => _restore(snap) },
+    });
+  };
+
+  const bulkSetAlarm = async (isoDateTime, sound = "bell") => {
+    const { ids, snap } = await _snapshotSelected();
+    if (ids.length === 0) return;
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      const n = snap.get(id);
+      if (!n) continue;
+      await StorageService.saveNote({
+        ...n,
+        alarm: { enabled: true, datetime: isoDateTime, sound, haptic: false },
+        updated_at: now,
+      });
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Alarm set on ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
+      duration: 6000,
+      action: { label: "Undo", onClick: () => _restore(snap) },
+    });
+  };
+
+  const bulkClearAlarm = async () => {
+    const { ids, snap } = await _snapshotSelected();
+    if (ids.length === 0) return;
+    const now = new Date().toISOString();
+    for (const id of ids) {
+      const n = snap.get(id);
+      if (!n) continue;
+      await StorageService.saveNote({
+        ...n,
+        alarm: { enabled: false, datetime: null, sound: n.alarm?.sound || "bell", haptic: false },
+        updated_at: now,
+      });
+    }
+    clearSelection();
+    fetchData();
+    toast.success(`Cleared alarms on ${ids.length} note${ids.length === 1 ? "" : "s"}`, {
+      duration: 6000,
+      action: { label: "Undo", onClick: () => _restore(snap) },
+    });
+  };
+
+  const bulkExportPDF = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const notesToExport = [];
+    for (const id of ids) {
+      const n = await StorageService.getNote(id);
+      if (n) notesToExport.push(n);
+    }
+    if (notesToExport.length === 0) { toast.error("Nothing to export"); return; }
+    const doc = new jsPDF();
+    let y = 15;
+    doc.setFontSize(18); doc.text(settings?.company_name || "Iron Rabbit", 15, y); y += 10;
+    doc.setFontSize(9); doc.text(`Exported: ${format(new Date(), "MMM d, yyyy HH:mm")} · ${notesToExport.length} notes`, 15, y); y += 10;
+    notesToExport.forEach((note) => {
+      if (y > 270) { doc.addPage(); y = 15; }
+      doc.setFontSize(12);
+      doc.setTextColor(NOTE_COLORS.find(c => c.name === note.color)?.accent || "#000");
+      doc.text(note.title || "Untitled", 15, y); y += 6;
+      doc.setFontSize(8); doc.setTextColor(100);
+      doc.text(`${format(new Date(note.created_at), "MMM d, yyyy HH:mm")}${note.category ? ` | ${note.category}` : ''}`, 15, y); y += 5;
+      doc.setFontSize(10); doc.setTextColor(0);
+      doc.splitTextToSize(note.content || "", 180).forEach(line => {
+        if (y > 280) { doc.addPage(); y = 15; }
+        doc.text(line, 15, y); y += 5;
+      });
+      y += 8;
+    });
+    doc.save(`${settings?.company_name || "notes"}-selected-${format(new Date(), "yyyy-MM-dd")}.pdf`);
+    clearSelection();
+    toast.success(`Exported ${notesToExport.length} note${notesToExport.length === 1 ? "" : "s"} to PDF`);
   };
 
   const handleDragEnd = async (result) => {
@@ -1427,10 +1557,23 @@ export default function NotesApp() {
       <MultiSelectBar
         count={selectedIds.size}
         onClear={clearSelection}
-        onDelete={bulkDelete}
+        onOpenStudio={() => setBatchStudioOpen(true)}
+        isDark={isDark}
+      />
+
+      <BatchStudioSheet
+        isOpen={batchStudioOpen}
+        onClose={() => setBatchStudioOpen(false)}
+        count={selectedIds.size}
+        mode={settings?.dnd_prefs?.smartBatchMode || "move"}
         onMoveTo={() => setMoveToOpen(true)}
         onDuplicate={bulkDuplicateInPlace}
-        mode={settings?.dnd_prefs?.smartBatchMode || "move"}
+        onTogglePin={bulkTogglePin}
+        onSetColor={bulkSetColor}
+        onSetAlarm={bulkSetAlarm}
+        onClearAlarm={bulkClearAlarm}
+        onExportPDF={bulkExportPDF}
+        onDelete={bulkDelete}
         isDark={isDark}
       />
 
