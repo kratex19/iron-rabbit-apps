@@ -761,3 +761,43 @@ No changes to the `applyPack` flow needed — the existing spreader carries `cho
 ### Verified in preview
 Tile Packs modal → **Daily Chores** card shows 5 preview tiles → Apply → 12 tiles seeded under PARENT with color rotation → opening any tile shows all 12 chores with red 🔴 default status and expected `0/12 · $0/$93` summary → totals visible on tile grid.
 
+
+
+## Tags + Insights (Feb 2026)
+
+### Tags
+- `tags: string[]` field added to the note model (lowercased, deduped).
+- Editor UI in `NoteModal.jsx`: chip strip with X-to-remove, comma/Enter to add,
+  paste-multiple support (`work,urgent,personal` all captured), quick-add
+  suggestions from `allTags`, HTML datalist autocomplete.
+- Filter chip strip `TagFilterStrip.jsx` renders below the search row when at
+  least one tag exists. Tap toggles a single active tag filter.
+- Search input supports `#tag` tokens — `#work` restricts to notes tagged
+  `work`. Multiple `#tag` tokens are AND-combined; remaining free text still
+  matches title/content/category/tags.
+- `AccordionNoteItem` renders the tag chips in the expanded row content.
+
+### Insights Modal (`InsightsModal.jsx`)
+Header dashboard button (`data-testid="header-insights"`, BarChart3 icon) opens
+a full stats dashboard:
+- 4 KPI cards — Active notes (+ pinned), Streak (consecutive days with any
+  create/edit activity), Checklist done %, Active reminders (+ recurring).
+- Last-7-days bar chart with today highlighted.
+- Top categories (up to 6) with count and gradient bar.
+- Top tags (up to 8) with count chips.
+- Palette distribution (color-stacked strip) + Lifecycle counts
+  (Active/Archived/Trash).
+- All stats computed via `useMemo` from the in-memory notes array — 100%
+  offline, zero network.
+
+### New testids
+`header-insights`, `insights-modal`, `stat-total`, `stat-streak`,
+`stat-completion`, `stat-reminders`, `weekly-chart`, `category-breakdown`,
+`top-tags`, `color-distribution`, `tag-filter-strip`,
+`tag-filter-chip-<tag>`, `tags-editor`, `tag-input`, `tag-chip-<tag>`,
+`tag-suggestion-<tag>`, `note-tags-<id>`, `search-input`.
+
+### Verified in preview (testing_agent iteration_16, 95% frontend pass)
+Insights modal opens with all KPIs; tags create/filter/#search flow works;
+top-tags card updates dynamically; no regressions to core create/edit/pin
+/archive/backup flows.

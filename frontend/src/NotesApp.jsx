@@ -1193,6 +1193,7 @@ export default function NotesApp() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("search.placeholder")}
               className={`pl-8 h-9 ${isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-gray-200'}`}
+              data-testid="search-input"
             />
           </div>
           <div className="flex gap-2">

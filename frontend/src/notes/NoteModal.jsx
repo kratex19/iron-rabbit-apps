@@ -317,10 +317,16 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   value={tagDraft}
                   onChange={(e) => {
                     const v = e.target.value;
-                    if (v.endsWith(",")) {
-                      const t = v.slice(0, -1).trim().toLowerCase().replace(/^#/, "");
-                      if (t && !tags.includes(t)) setTags(prev => [...prev, t]);
-                      setTagDraft("");
+                    if (v.includes(",")) {
+                      const parts = v.split(",");
+                      const trailing = parts.pop();
+                      const additions = parts
+                        .map(p => p.trim().toLowerCase().replace(/^#/, ""))
+                        .filter(p => p && !tags.includes(p));
+                      if (additions.length) {
+                        setTags(prev => Array.from(new Set([...prev, ...additions])));
+                      }
+                      setTagDraft(trailing);
                     } else {
                       setTagDraft(v);
                     }
