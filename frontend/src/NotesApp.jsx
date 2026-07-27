@@ -554,11 +554,34 @@ export default function NotesApp() {
         return;
       }
 
-      // Same-list reorder (grid or within a category)
-      const items = Array.from(processedNotes);
-      const [reorderedItem] = items.splice(source.index, 1);
-      items.splice(destination.index, 0, reorderedItem);
-      await StorageService.reorderNotes(items.map(item => item.id));
+      // Same-list reorder (flat grid, flat list, or within one category).
+      //
+      // For per-category droppables (`notes-in-<cat>`), source.index /
+      // destination.index are LOCAL to that category — we must reorder
+      // against the local grouped[cat] slice (not `processedNotes`, which
+      // is global across categories).
+      let workingList;
+      let baseList;
+      if (srcCat !== null) {
+        const entry = srcCat === "" ? null : grouped.find(([n]) => n === srcCat);
+        baseList = entry ? entry[1] : uncategorized;
+      } else {
+        baseList = processedNotes;
+      }
+      workingList = Array.from(baseList);
+      const [reorderedItem] = workingList.splice(source.index, 1);
+      if (!reorderedItem) return; // safety
+      workingList.splice(destination.index, 0, reorderedItem);
+      await StorageService.reorderNotes(workingList.map((item) => item.id));
+
+      // Drag-and-drop implies "custom" sort. If the user is in a
+      // different sort mode the reorder would be invisible (the view
+      // would resort by date / title etc. and the item would snap back).
+      // Auto-switching preserves the user's action.
+      if (sortBy !== "custom") {
+        setSortBy("custom");
+        toast.success("Custom order enabled");
+      }
       fetchData();
     } catch (err) {
       console.error("Reorder error:", err);
