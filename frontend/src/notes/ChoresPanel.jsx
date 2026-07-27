@@ -18,7 +18,7 @@ const FREQUENCIES = [
  * Kids tap Todo → In Progress → Done. The rightmost circle only shows an
  * inner ✓ once the parent has approved (parent_approved=true).
  */
-function StatusPill({ status, parentApproved, onChange, onApprove, isDark }) {
+function StatusPill({ status, parentApproved, onChange, onApprove, isDark, choreId }) {
   const stops = [
     { key: "todo",     color: "bg-red-500",    ring: "ring-red-400/60",     label: "Todo" },
     { key: "progress", color: "bg-amber-500",  ring: "ring-amber-400/60",   label: "In Progress" },
@@ -51,7 +51,7 @@ function StatusPill({ status, parentApproved, onChange, onApprove, isDark }) {
               ? "bg-emerald-500 text-white"
               : (isDark ? "bg-white/10 text-slate-300 hover:bg-white/20" : "bg-gray-100 text-gray-700 hover:bg-gray-200")
           }`}
-          data-testid="chore-parent-approve"
+          data-testid={choreId ? `chore-parent-approve-${choreId}` : "chore-parent-approve"}
           title={parentApproved ? "Parent approved" : "Approve as parent"}
         >
           {parentApproved ? <><Trophy className="w-3 h-3" /> Approved</> : <>Parent ✓</>}
@@ -195,6 +195,7 @@ export default function ChoresPanel({ chores = [], onChange, isDark }) {
                   onChange={(s) => update(c.id, { status: s, parent_approved: s === "done" ? c.parent_approved : false })}
                   onApprove={() => update(c.id, { parent_approved: !c.parent_approved })}
                   isDark={isDark}
+                  choreId={c.id}
                 />
               </div>
 

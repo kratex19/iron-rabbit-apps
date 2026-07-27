@@ -906,3 +906,64 @@ No regressions to Tags / Insights / Translate.
   put an entry in an adjacent bucket by 1h. Acceptable for a personal
   allowance ledger.
 
+
+## OCR + Kid Dashboard (Feb 2026)
+
+### OCR from photos
+Backend:
+- `POST /api/ocr` in `server.py`. Payload `{image_base64, mime_type}`,
+  response `{extracted_text}`.
+- Uses `emergentintegrations.llm.chat.LlmChat` with `ImageContent(image_base64)`,
+  model `anthropic/claude-sonnet-4-6`.
+- Data-URI prefix is tolerated & stripped. Whitelist:
+  PNG/JPEG/WEBP. >5 MB decoded → 413.
+- System prompt is pure OCR (no analysis, no translation). Model may
+  return `NO_TEXT_FOUND` for blank images — endpoint normalises to `""`.
+
+Frontend:
+- `storageService.getAttachmentBlob(id)` — new helper (returns raw Blob).
+- `Attachments.jsx` — added `blobToBase64`, `handleExtractText`, an
+  indigo ScanText button per image (hover-visible on the thumb,
+  `attachment-ocr-<id>`), and an `onExtractText` prop.
+- Wired into `NoteModal` (appends to draft content) and `FullScreenNote`
+  (appends + immediate `onSaveInline`).
+- CSS `.attachment-ocr` added to `App.css`.
+
+### Kid Dashboard (`KidDashboardModal.jsx`)
+- New Baby-icon header button `header-kid-mode` opens a giant-button,
+  child-friendly view.
+- **KidPicker**: cards for every note with `chores.length > 0` showing
+  streak, approved-count, and lifetime earnings.
+- **KidBoard**: 3 giant KPI cards (Streak / Approved / This week $) +
+  monthly & lifetime line, then a stack of huge tap-to-toggle chore
+  buttons. Kids can flip todo↔done but CANNOT self-approve — parent
+  approval remains parent-only (intentional).
+- Uses shared `computeChoreStreak / computeNoteStreak / buildLedger`
+  from streakUtils.js — no duplication.
+- History append + 60 s dedupe mirrored from ChoresPanel so streaks
+  stay accurate when a parent later approves.
+
+### Quality fixes (from iteration_19 review)
+- `data-testid=chore-parent-approve-<id>` — now unique per chore.
+- `data-testid=accordion-fullscreen-<noteId>` — added on the Maximize2
+  button so tests can open any list-view note in FullScreen.
+- `KidDashboardModal` adds `sr-only` `DialogTitle` — silences the Radix
+  a11y warning.
+- Renamed KPI "Done today" → "Approved" (matches what the count
+  actually represents).
+
+### New testids
+`attachment-ocr-<id>`, `header-kid-mode`, `kid-dashboard-modal`,
+`kid-empty`, `kid-picker`, `kid-card-<noteId>`, `kid-back-btn`,
+`kid-exit-btn`, `kid-stat-streak`, `kid-stat-done`, `kid-stat-week`,
+`kid-chore-list`, `kid-chore-<choreId>`, `kid-chore-toggle-<choreId>`,
+`chore-parent-approve-<choreId>`, `accordion-fullscreen-<noteId>`.
+
+### Verified in preview (testing_agent iteration_19)
+- Backend: 6/6 pytest on `/api/ocr` (happy path, empty, bad mime,
+  oversized, data-URI prefix, blank image).
+- Frontend: Kid Dashboard empty state → seed via Daily Chores tile pack
+  → picker shows 12 kid cards → drill in → toggle chore → line-through
+  + "Waiting for grown-up ✓" badge → back/exit works. 95% pass; the 5%
+  gap was purely a testid uniqueness issue (now fixed).
+

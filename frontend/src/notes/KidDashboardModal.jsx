@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import {
   X, Flame, Wallet, Trophy, Check, Circle, ArrowLeft, User, ChevronRight, PartyPopper,
 } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { NOTE_COLORS } from "./constants";
 import { computeChoreStreak, computeNoteStreak, buildLedger } from "./streakUtils";
@@ -39,6 +39,7 @@ export default function KidDashboardModal({ isOpen, onClose, notes, onSaveNote, 
         className={`max-w-3xl max-h-[92vh] overflow-y-auto p-0 ${isDark ? "bg-[#0B1221] border-white/10" : "bg-gray-50 border-gray-200"}`}
         data-testid="kid-dashboard-modal"
       >
+        <DialogTitle className="sr-only">Kid Mode</DialogTitle>
         {/* Header — huge & fun */}
         <div className={`sticky top-0 z-10 px-5 py-4 flex items-center gap-3 border-b ${isDark ? "bg-gradient-to-r from-indigo-900/80 via-purple-900/60 to-pink-900/80 border-white/10" : "bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100 border-gray-200"}`}>
           {selected ? (
@@ -189,7 +190,7 @@ function KidBoard({ note, onSaveNote, isDark }) {
       {/* Big stats row */}
       <div className="grid grid-cols-3 gap-2">
         <StatCard label="Streak" value={streak} icon={<Flame className="w-6 h-6" />} accent="text-orange-500" isDark={isDark} testid="kid-stat-streak" />
-        <StatCard label="Done today" value={`${done}/${total}`} icon={<Trophy className="w-6 h-6" />} accent="text-amber-500" isDark={isDark} testid="kid-stat-done" />
+        <StatCard label="Approved" value={`${done}/${total}`} icon={<Trophy className="w-6 h-6" />} accent="text-amber-500" isDark={isDark} testid="kid-stat-done" />
         <StatCard label="This week" value={`$${thisWeek.toFixed(2)}`} icon={<Wallet className="w-6 h-6" />} accent="text-emerald-500" isDark={isDark} testid="kid-stat-week" />
       </div>
       <div className={`text-xs flex justify-between px-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
