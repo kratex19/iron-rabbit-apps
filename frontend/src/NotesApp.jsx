@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,9 @@ import MultiSelectBar from "./notes/MultiSelectBar";
 import MoveToCategoryModal from "./notes/MoveToCategoryModal";
 import CopySuffixDialog from "./notes/CopySuffixDialog";
 import BatchStudioSheet from "./notes/BatchStudioSheet";
+import DeleteChoiceDialog from "./notes/DeleteChoiceDialog";
+import RecentActionPill from "./notes/RecentActionPill";
+import ArchiveTrashModal from "./notes/ArchiveTrashModal";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
@@ -406,30 +409,46 @@ export default function NotesApp() {
     } catch { /* non-fatal */ }
   };
 
-  const handleDeleteNote = async (noteId) => {
-    try {
-      const doomed = await StorageService.getNote(noteId);
-      await StorageService.deleteNote(noteId);
-      haptic("long");
-      fetchData();
-      // Undo grace period — sonner action lets the user restore
-      toast("Note deleted", {
-        duration: 5000,
-        action: doomed ? {
-          label: "Undo",
-          onClick: async () => {
-            try {
-              await StorageService.saveNote(doomed);
-              haptic("success");
-              toast.success("Restored");
-              fetchData();
-            } catch { toast.error("Could not undo"); }
-          },
-        } : undefined,
-      });
-    } catch (err) {
-      toast.error("Failed");
+  // Delete flow — open a two-choice dialog (Archive vs Trash) and defer the
+  // actual action. `recentAction` drives the persistent floating pill.
+  const [deleteChoice, setDeleteChoice] = useState(null); // { ids: string[] } | null
+  const [recentAction, setRecentAction] = useState(null); // { type, count, undoSnap } | null
+  const [archiveTrashOpen, setArchiveTrashOpen] = useState(false);
+
+  const handleDeleteNote = (noteId) => {
+    setDeleteChoice({ ids: [noteId] });
+  };
+
+  const performArchive = async (ids) => {
+    const snap = new Map();
+    for (const id of ids) {
+      const prev = await StorageService.archiveNote(id);
+      if (prev) snap.set(id, prev);
     }
+    haptic("long");
+    fetchData();
+    setRecentAction({ type: "archive", count: ids.length, undoSnap: snap });
+  };
+
+  const performTrash = async (ids) => {
+    const snap = new Map();
+    for (const id of ids) {
+      const prev = await StorageService.moveNoteToTrash(id);
+      if (prev) snap.set(id, prev);
+    }
+    haptic("long");
+    fetchData();
+    setRecentAction({ type: "trash", count: ids.length, undoSnap: snap });
+  };
+
+  const undoRecentAction = async () => {
+    if (!recentAction?.undoSnap) return;
+    for (const [id, prev] of recentAction.undoSnap.entries()) {
+      await StorageService.restoreLifecycle(id, prev);
+    }
+    setRecentAction(null);
+    fetchData();
+    toast.success("Restored");
   };
 
   const handleTogglePin = async (noteId) => {
@@ -627,6 +646,15 @@ export default function NotesApp() {
 
   const processedNotes = useMemo(() => {
     let result = [...notes];
+    // Lifecycle filter — hide archived and trashed from every view except
+    // their dedicated "archived" / "trash" filter selections.
+    if (filterBy === "archived") {
+      result = result.filter(n => n.archived_at);
+    } else if (filterBy === "trash") {
+      result = result.filter(n => n.deleted_at);
+    } else {
+      result = result.filter(n => !n.archived_at && !n.deleted_at);
+    }
     // Panic mode: filter to only the "safe" category (or empty view if none set)
     if (autoLock.panic) {
       const safeCat = autoLock.safeCategory || "";
@@ -641,7 +669,7 @@ export default function NotesApp() {
         n.subcategory?.toLowerCase().includes(q)
       );
     }
-    if (filterBy !== "all") {
+    if (filterBy !== "all" && filterBy !== "archived" && filterBy !== "trash") {
       result = result.filter(n => {
         const date = parseISO(n.created_at);
         if (filterBy === "today") return isToday(date);
@@ -1087,6 +1115,7 @@ export default function NotesApp() {
                 {SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.flag || "🌐"}
               </span>
             </button>
+            <Button variant="ghost" size="icon" onClick={() => setArchiveTrashOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
           </div>
         </div>
@@ -1376,41 +1405,54 @@ export default function NotesApp() {
         onSetAlarm={bulkSetAlarm}
         onClearAlarm={bulkClearAlarm}
         onExportPDF={bulkExportPDF}
-        onDelete={openDeleteConfirm}
+        onDelete={() => setDeleteChoice({ ids: Array.from(selectedIds), fromBulk: true })}
         isDark={isDark}
       />
 
-      {/* Bulk delete confirmation — shadcn AlertDialog (replaces window.confirm) */}
-      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent
-          className={`${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
-          data-testid="confirm-bulk-delete"
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle className={isDark ? 'text-white' : 'text-gray-900'}>
-              Delete {selectedIds.size} note{selectedIds.size === 1 ? "" : "s"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription className={isDark ? 'text-slate-400' : 'text-gray-500'}>
-              This cannot be undone. All selected notes and their attachments will be permanently removed from this device.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              className={isDark ? 'border-white/10 text-slate-300 hover:bg-white/5' : ''}
-              data-testid="confirm-bulk-delete-cancel"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmBulkDelete}
-              className="bg-red-500 hover:bg-red-600 text-white"
-              data-testid="confirm-bulk-delete-confirm"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete choice — Archive vs Trash. Used by single delete AND bulk. */}
+      <DeleteChoiceDialog
+        isOpen={deleteChoice !== null}
+        onClose={() => setDeleteChoice(null)}
+        count={deleteChoice?.ids?.length || 0}
+        retentionLabel={(() => {
+          const d = settings?.trash_retention_days ?? 7;
+          if (!d) return "Forever";
+          if (d === 365) return "1 year";
+          return `${d} days`;
+        })()}
+        onArchive={async () => {
+          const ids = deleteChoice?.ids || [];
+          const fromBulk = deleteChoice?.fromBulk;
+          setDeleteChoice(null);
+          await performArchive(ids);
+          if (fromBulk) clearSelection();
+        }}
+        onTrash={async () => {
+          const ids = deleteChoice?.ids || [];
+          const fromBulk = deleteChoice?.fromBulk;
+          setDeleteChoice(null);
+          await performTrash(ids);
+          if (fromBulk) clearSelection();
+        }}
+        isDark={isDark}
+      />
+
+      {/* Persistent floating Undo pill — stays until user acts on it */}
+      <RecentActionPill
+        action={recentAction}
+        onUndo={undoRecentAction}
+        onDismiss={() => setRecentAction(null)}
+        isDark={isDark}
+      />
+
+      {/* Archive & Trash view */}
+      <ArchiveTrashModal
+        isOpen={archiveTrashOpen}
+        onClose={() => setArchiveTrashOpen(false)}
+        onDataChanged={fetchData}
+        settings={settings}
+        isDark={isDark}
+      />
 
       {/* Two-step "Clear All Data" confirmation */}
       <Dialog open={clearStep === 1} onOpenChange={(o) => !o && setClearStep(0)}>

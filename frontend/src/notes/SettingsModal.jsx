@@ -303,6 +303,28 @@ export default function SettingsModal({
             </Button>
           )}
 
+          {/* Trash retention (auto-purge age) */}
+          <div className={`p-3 rounded-md ${isDark ? "bg-white/5" : "bg-gray-50"}`}>
+            <div className={`text-sm mb-0.5 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-800"}`}>
+              <Trash2 className="w-4 h-4" /> Trash retention
+            </div>
+            <div className={`text-[11px] mb-2 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+              Deletions never auto-purge — only manual Empty Trash removes them.
+            </div>
+            <select
+              value={formData.trash_retention_days ?? 7}
+              onChange={(e) => setFormData(prev => ({ ...prev, trash_retention_days: parseInt(e.target.value, 10) }))}
+              className={`w-full h-9 text-xs rounded-md px-2 border ${isDark ? "bg-black/20 border-white/10 text-white" : "bg-white border-gray-200"}`}
+              data-testid="settings-retention-select"
+            >
+              <option value={7}>7 days</option>
+              <option value={30}>30 days</option>
+              <option value={90}>90 days</option>
+              <option value={365}>1 year</option>
+              <option value={0}>Forever (never auto-purge)</option>
+            </select>
+          </div>
+
           {/* Clear All Data */}
           <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
             <Button

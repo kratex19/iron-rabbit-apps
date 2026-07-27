@@ -105,6 +105,55 @@ export const StorageService = {
     return prev;
   },
 
+  // ========== ARCHIVE / TRASH ==========
+  // Notes carry two lifecycle timestamps:
+  //   archived_at : non-null => kept indefinitely, hidden from default views
+  //   deleted_at  : non-null => in Trash; permanently purged on Empty Trash
+  //                            or when older than settings.trash_retention_days
+  // A note is "active" when both are null.
+  async archiveNote(noteId) {
+    const note = await notesStore.getItem(noteId);
+    if (!note) return null;
+    const now = new Date().toISOString();
+    const prev = { archived_at: note.archived_at || null, deleted_at: note.deleted_at || null };
+    await notesStore.setItem(noteId, { ...note, archived_at: now, deleted_at: null, updated_at: now });
+    return prev;
+  },
+  async moveNoteToTrash(noteId) {
+    const note = await notesStore.getItem(noteId);
+    if (!note) return null;
+    const now = new Date().toISOString();
+    const prev = { archived_at: note.archived_at || null, deleted_at: note.deleted_at || null };
+    await notesStore.setItem(noteId, { ...note, deleted_at: now, archived_at: null, updated_at: now });
+    return prev;
+  },
+  async restoreNote(noteId) {
+    const note = await notesStore.getItem(noteId);
+    if (!note) return null;
+    const now = new Date().toISOString();
+    const prev = { archived_at: note.archived_at || null, deleted_at: note.deleted_at || null };
+    await notesStore.setItem(noteId, { ...note, archived_at: null, deleted_at: null, updated_at: now });
+    return prev;
+  },
+  async restoreLifecycle(noteId, prev) {
+    // Used by Undo — restores archived_at / deleted_at to a previously captured snapshot.
+    const note = await notesStore.getItem(noteId);
+    if (!note) return;
+    const now = new Date().toISOString();
+    await notesStore.setItem(noteId, {
+      ...note,
+      archived_at: prev?.archived_at || null,
+      deleted_at: prev?.deleted_at || null,
+      updated_at: now,
+    });
+  },
+  async emptyTrash() {
+    const all = await this.getAllNotes();
+    const trashed = all.filter(n => n.deleted_at);
+    for (const n of trashed) await notesStore.removeItem(n.id);
+    return trashed.length;
+  },
+
   // ========== CATEGORIES ==========
   async getCategories() {
     const notes = await this.getAllNotes();

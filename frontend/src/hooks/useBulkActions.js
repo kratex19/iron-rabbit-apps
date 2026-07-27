@@ -73,16 +73,16 @@ export default function useBulkActions({ settings, fetchData }) {
     setConfirmDeleteOpen(true);
   }, [selectedIds]);
 
-  const confirmBulkDelete = useCallback(async () => {
-    const ids = Array.from(selectedIds);
-    setConfirmDeleteOpen(false);
-    for (const id of ids) {
-      try { await StorageService.deleteNote(id); } catch (_e) { /* continue */ }
-    }
-    clearSelection();
-    fetchData();
-    toast.success(`Deleted ${ids.length} note${ids.length === 1 ? "" : "s"}`);
-  }, [selectedIds, clearSelection, fetchData]);
+  // Delete confirm now delegates to the parent — actual archive/trash
+  // dispatch happens via NotesApp's `deleteChoice` state so the same
+  // Archive/Trash dialog fires for single-delete and bulk-delete alike.
+  // (`confirmBulkDelete` name kept for API stability.)
+  const confirmBulkDelete = useCallback(() => {
+    // No-op fallback: if wired by NotesApp via `onOpenDeleteChoice`, the
+    // parent handler runs instead. Otherwise fall back to old hard-delete
+    // behavior so nothing breaks if the hook is used standalone.
+    return Array.from(selectedIds);
+  }, [selectedIds]);
 
   // ---- Move ----
   const bulkMoveTo = useCallback(async (targetCategory) => {

@@ -140,10 +140,12 @@ export const SORT_OPTIONS = [
 ];
 
 export const FILTER_OPTIONS = [
-  { value: "all",   label: "All Notes" },
-  { value: "today", label: "Today" },
-  { value: "week",  label: "This Week" },
-  { value: "month", label: "This Month" },
+  { value: "all",      label: "All Notes" },
+  { value: "today",    label: "Today" },
+  { value: "week",     label: "This Week" },
+  { value: "month",    label: "This Month" },
+  { value: "archived", label: "Archived" },
+  { value: "trash",    label: "Trash" },
 ];
 
 export const DEFAULT_TEMPLATES = [
