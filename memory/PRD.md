@@ -421,3 +421,37 @@ Added a third bulk action on `MultiSelectBar`: **Duplicate** (green pill, `CopyP
 ### Verified
 Screenshot confirms the green Duplicate button renders alongside Move to… and Delete in Select mode. Independent of Smart Batch Mode (works in both Move and Copy configurations).
 
+
+## [2026-02-27] Batch Studio — bottom sheet redesign of bulk actions
+
+The floating multi-select pill is now a lean launcher: **`{N} selected · [✨ Batch Studio] · [X Cancel]`**. All bulk actions moved to a new bottom sheet with a 2x3 tile grid + inline sub-pickers + a red Delete row.
+
+### New / changed files
+- **New**: `notes/BatchStudioSheet.jsx` — full sheet with tile grid, inline color swatch row, inline date/time picker for alarms.
+- **Rewrote**: `notes/MultiSelectBar.jsx` — now just count + gradient Batch Studio button + Cancel.
+- **Extended**: `NotesApp.jsx` — added handlers `bulkTogglePin`, `bulkSetColor`, `bulkSetAlarm`, `bulkClearAlarm`, `bulkExportPDF` (uses jsPDF like the global export but scoped to selection). Added `_snapshotSelected` / `_restore` helpers for Undo. New state `batchStudioOpen`. Wired all handlers into the sheet.
+
+### Actions available
+| Action | Details |
+| --- | --- |
+| Move to Category | Delegates to MoveToCategoryModal (respects Smart Batch Mode Move/Copy) |
+| Duplicate | Adds " (copy)" suffix, stays in same category, Undo removes copies |
+| Pin / Unpin | Auto-detects: if any unpinned, pins all; else unpins all. Undo restores prior state. |
+| Recolor | Inline 5-color swatch row (NOTE_COLORS palette). Applies to all. Undo restores originals. |
+| Set Alarm | Inline date+time picker → applies same ISO datetime + bell sound to all. Undo restores. |
+| Clear Alarm | One-tap clears alarms on all selected. Undo restores. |
+| Export PDF | jsPDF combined document of selected notes only, filename `<company>-selected-<date>.pdf`. |
+| Delete | Destructive red section with window.confirm gate. |
+
+### Testids added (Batch Studio)
+`multiselect-studio-btn`, `batch-studio-sheet`, `bs-move`, `bs-duplicate`, `bs-pin`, `bs-color`, `bs-color-<name>`, `bs-alarm`, `bs-alarm-date`, `bs-alarm-time`, `bs-alarm-apply`, `bs-alarm-clear`, `bs-export-pdf`, `bs-delete`, `bs-cancel`.
+
+### Verified
+Testing agent iteration_10.json: **12/12 scenarios passed (100%)**. Every mutating action has a working Undo toast; Move handoff to MoveToCategoryModal + Copy path both verified.
+
+### Known gaps (from test agent)
+- Multi-select still only wired to icon-view `NoteTile`, not list-view `AccordionNoteItem`. Parity gap flagged previously — still open.
+- Bulk-Delete uses `window.confirm()` — inconsistent with rest of app (shadcn Dialogs). Small polish opportunity.
+- Alarm picker doesn't block times in the past — could disable Apply when datetime ≤ now.
+- `NotesApp.jsx` now ~1652 lines — refactor into `useBulkActions.js` custom hook is overdue.
+
