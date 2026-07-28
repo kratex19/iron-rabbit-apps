@@ -409,11 +409,20 @@ export default function NotesApp() {
     try {
       const now = new Date().toISOString();
       let maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+      // Tag every note with its pack of origin so the tile can render the
+      // same colored-square + Sparkles + pack-name header shown in the
+      // Tile Packs modal.
+      const packMeta = {
+        pack_id: pack.id,
+        pack_name: pack.name,
+        pack_accent: pack.accent,
+      };
       for (const n of pack.notes) {
         maxOrder += 1;
         await StorageService.saveNote({
           id: uuidv4(),
           ...n,
+          ...packMeta,
           order: maxOrder,
           created_at: now,
           updated_at: now,
