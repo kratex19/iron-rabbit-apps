@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
-  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid,
+  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import LanguagePicker from "./LanguagePicker";
  */
 export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
-  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, isDark,
+  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onSyncPackColors, isDark,
 }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
@@ -216,6 +216,34 @@ export default function SettingsModal({
               <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
             </button>
           </div>
+
+          {/* Sync pack colors row */}
+          {onSyncPackColors && (
+            <div>
+              <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                <Sparkles className="w-3.5 h-3.5" /> Tile packs
+              </label>
+              <button
+                type="button"
+                onClick={onSyncPackColors}
+                className={`w-full flex items-center gap-3 rounded-md h-11 px-3 transition-colors ${
+                  isDark
+                    ? "bg-black/20 border border-white/10 hover:bg-white/5 text-white"
+                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800"
+                }`}
+                data-testid="settings-sync-pack-colors"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-medium">Sync pack colors</div>
+                  <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                    Match previously-applied tiles back to their pack accents
+                  </div>
+                </div>
+                <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+              </button>
+            </div>
+          )}
 
           <div>
             <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("settings.company_name")}</label>

@@ -47,6 +47,7 @@ import TagFilterStrip from "./notes/TagFilterStrip";
 import InsightsModal from "./notes/InsightsModal";
 import KidDashboardModal from "./notes/KidDashboardModal";
 import CategoryHeader from "./notes/CategoryHeader";
+import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
@@ -439,6 +440,44 @@ export default function NotesApp() {
       toast.error("Could not apply pack");
     }
   };
+
+  // Sync existing pack-applied notes back to their original pack's accent —
+  // used by the Settings "Sync pack colors" button. Best-effort match by note
+  // title against TILE_PACKS + any custom packs the user has built.
+  const handleSyncPackColors = async () => {
+    try {
+      const s = await StorageService.getSettings();
+      const customPacks = Array.isArray(s?.custom_packs) ? s.custom_packs : [];
+      const allPacks = [...TILE_PACKS, ...customPacks];
+      let updated = 0;
+      for (const n of notes) {
+        if (n.pack_accent || n.archived_at || n.deleted_at) continue;
+        // Prefer an exact title + icon match (higher confidence),
+        // fall back to title only.
+        const match = allPacks.find(p => p.notes.some(pn =>
+          pn.title === n.title && (pn.icon || null) === (n.icon || null)
+        )) || allPacks.find(p => p.notes.some(pn => pn.title === n.title));
+        if (!match) continue;
+        await StorageService.saveNote({
+          ...n,
+          pack_id: match.id,
+          pack_name: match.name,
+          pack_accent: match.accent,
+        });
+        updated += 1;
+      }
+      if (updated === 0) {
+        toast.info("No matches found — nothing to sync.");
+      } else {
+        toast.success(`Synced ${updated} tile${updated === 1 ? "" : "s"} back to their pack colors`);
+      }
+      fetchData();
+    } catch (err) {
+      console.error("Sync pack colors error:", err);
+      toast.error("Could not sync pack colors");
+    }
+  };
+
 
   const handleTourDismiss = async () => {
     setTourOpen(false);
@@ -1355,6 +1394,7 @@ export default function NotesApp() {
         onOpenOrganization={() => setOrganizationOpen(true)}
         onOpenQuickAccess={() => { setSettingsModalOpen(false); setQuickAccessOpen(true); }}
         onOpenBackup={() => { setSettingsModalOpen(false); setBackupOpen(true); }}
+        onSyncPackColors={handleSyncPackColors}
         isDark={isDark}
       />
       <FullScreenNote
