@@ -20,6 +20,11 @@ import { NOTE_COLORS } from "./constants";
  */
 export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark }) {
   const derived = accent || (() => {
+    // 1. Prefer the pack's own accent if any note in this group was applied
+    //    from a Tile Pack (kept in sync with the pack card in TilePacksModal).
+    const withPack = Array.isArray(notes) ? notes.find(n => n?.pack_accent) : null;
+    if (withPack) return withPack.pack_accent;
+    // 2. Fall back to the first note's color from NOTE_COLORS.
     const first = Array.isArray(notes) ? notes.find(n => n?.color) : null;
     const cfg = first ? NOTE_COLORS.find(c => c.name === first.color) : null;
     return cfg?.gradient || cfg?.accent || "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)";

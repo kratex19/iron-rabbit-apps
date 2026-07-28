@@ -23,6 +23,13 @@ export default function CategoryGroup({
     const winner = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "purple";
     return NOTE_COLORS.find(c => c.name === winner) || NOTE_COLORS[0];
   }, [children]);
+  // If notes in this category were applied from a Tile Pack, prefer the
+  // pack's own accent so the section header stays perfectly in sync with
+  // the pack card in TilePacksModal.
+  const headerAccent = useMemo(() => {
+    const withPack = children.find(n => n?.pack_accent);
+    return withPack?.pack_accent || colorConfig.gradient || colorConfig.accent;
+  }, [children, colorConfig]);
   const alarmCount = children.filter(n => n.alarm?.enabled).length;
 
   return (
@@ -51,7 +58,7 @@ export default function CategoryGroup({
         >
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md"
-            style={{ background: colorConfig.gradient || colorConfig.accent }}
+            style={{ background: headerAccent }}
             aria-hidden="true"
           >
             <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />

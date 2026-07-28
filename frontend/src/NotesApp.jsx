@@ -410,11 +410,20 @@ export default function NotesApp() {
     try {
       const now = new Date().toISOString();
       let maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
+      // Attach pack-of-origin metadata so section headers can render the
+      // exact same accent color you see on the pack card in TilePacksModal.
+      // This is data-only — no visible ribbon is added to the tile itself.
+      const packMeta = {
+        pack_id: pack.id,
+        pack_name: pack.name,
+        pack_accent: pack.accent,
+      };
       for (const n of pack.notes) {
         maxOrder += 1;
         await StorageService.saveNote({
           id: uuidv4(),
           ...n,
+          ...packMeta,
           order: maxOrder,
           created_at: now,
           updated_at: now,
