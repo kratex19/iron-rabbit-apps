@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Bell, ChevronDown, GripVertical } from "lucide-react";
+import { Bell, ChevronDown, GripVertical, Sparkles } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
@@ -49,11 +49,14 @@ export default function CategoryGroup({
           className={`flex-1 flex items-center gap-2 text-left cursor-pointer transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'} rounded`}
           data-testid={`category-toggle-${category}`}
         >
-          <div className="relative flex items-center gap-0.5 flex-shrink-0" aria-hidden="true">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colorConfig.accent }} />
-            <span className="font-bold text-lg leading-none" style={{ color: colorConfig.accent }}>*</span>
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{ background: colorConfig.gradient || colorConfig.accent }}
+            aria-hidden="true"
+          >
+            <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />
           </div>
-          <span className={`font-semibold truncate flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="category-title">{category}</span>
+          <span className={`font-semibold text-sm truncate flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="category-title">{category}</span>
           <Badge variant="outline" className={`text-xs flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`} data-testid="category-count">{children.length}</Badge>
           {alarmCount > 0 && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
           <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />

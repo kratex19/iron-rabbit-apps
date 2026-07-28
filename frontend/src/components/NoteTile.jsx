@@ -1,6 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, StickyNote, Pin, CalendarDays, CheckSquare, Trophy, Flame, Sparkles } from "lucide-react";
+import { Bell, Repeat, StickyNote, Pin, CalendarDays, CheckSquare, Trophy, Flame } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
 import { computeNoteStreak } from "../notes/streakUtils";
 import { haptic } from "../utils/haptic";
@@ -35,32 +35,13 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
     <button
       type="button"
       onClick={handleClick}
-      className={`note-tile group ${note.pack_name ? "has-pack" : ""} ${selected ? "ring-4 ring-indigo-400" : ""}`}
+      className={`note-tile group ${selected ? "ring-4 ring-indigo-400" : ""}`}
       style={bgStyle}
       data-testid={`note-tile-${note.id}`}
       aria-label={`Open ${note.title || "Untitled"}`}
     >
       {/* Dark overlay for readability over images/light colors */}
       <span className="note-tile-overlay" aria-hidden="true" />
-
-      {/* Pack-of-origin ribbon — matches the header shown in the
-          Tile Packs modal card (colored square + Sparkles + name). */}
-      {note.pack_name && (
-        <span
-          className="note-tile-pack"
-          data-testid={`note-tile-pack-${note.id}`}
-          title={`From "${note.pack_name}" pack`}
-        >
-          <span
-            className="note-tile-pack-badge"
-            style={{ background: note.pack_accent || "linear-gradient(135deg,#6366f1,#ec4899)" }}
-            aria-hidden="true"
-          >
-            <Sparkles className="w-3 h-3 text-white" strokeWidth={2} />
-          </span>
-          <span className="note-tile-pack-name">{note.pack_name}</span>
-        </span>
-      )}
 
       {/* Selection checkmark overlay (only in select mode) */}
       {selectMode && (

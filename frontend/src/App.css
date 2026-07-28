@@ -481,55 +481,6 @@
     width: 100%;
 }
 
-/* Pack-of-origin ribbon — mirrors the header row on Tile-Packs cards:
-   a small rounded accent-colored square containing a Sparkles glyph, followed
-   by the pack name in font-semibold text-sm. Anchored at the top of the tile. */
-.note-tile-pack {
-    position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
-    right: 0.5rem;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.25rem 0.4rem;
-    border-radius: 0.5rem;
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    pointer-events: none;
-}
-
-.note-tile-pack-badge {
-    width: 20px;
-    height: 20px;
-    border-radius: 0.375rem;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-}
-
-.note-tile-pack-name {
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: -0.005em;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-}
-
-@media (min-width: 768px) {
-    .note-tile-pack-name { font-size: 0.8rem; }
-}
-
 .note-tile-icon {
     width: 40%;
     height: 40%;
@@ -581,15 +532,6 @@
 
 .note-tile-badges:empty {
     display: none;
-}
-
-/* When a pack ribbon is shown, shift the badges & edit button down so
-   they don't overlap the ribbon. */
-.note-tile.has-pack .note-tile-badges {
-    top: 42px;
-}
-.note-tile.has-pack .note-tile-edit {
-    top: 42px;
 }
 
 .note-tile-edit {

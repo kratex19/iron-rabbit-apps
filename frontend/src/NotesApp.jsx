@@ -46,6 +46,7 @@ import ArchiveTrashModal from "./notes/ArchiveTrashModal";
 import TagFilterStrip from "./notes/TagFilterStrip";
 import InsightsModal from "./notes/InsightsModal";
 import KidDashboardModal from "./notes/KidDashboardModal";
+import CategoryHeader from "./notes/CategoryHeader";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
@@ -409,20 +410,11 @@ export default function NotesApp() {
     try {
       const now = new Date().toISOString();
       let maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
-      // Tag every note with its pack of origin so the tile can render the
-      // same colored-square + Sparkles + pack-name header shown in the
-      // Tile Packs modal.
-      const packMeta = {
-        pack_id: pack.id,
-        pack_name: pack.name,
-        pack_accent: pack.accent,
-      };
       for (const n of pack.notes) {
         maxOrder += 1;
         await StorageService.saveNote({
           id: uuidv4(),
           ...n,
-          ...packMeta,
           order: maxOrder,
           created_at: now,
           updated_at: now,
@@ -847,9 +839,7 @@ export default function NotesApp() {
     if (pinnedNotes.length === 0) return null;
     return (
       <div className="mb-4" data-testid="pinned-rail">
-        <div className={`text-xs font-semibold uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
-          <Pin className="w-3 h-3" /> Pinned
-        </div>
+        <CategoryHeader title="Pinned" notes={pinnedNotes} pinned isDark={isDark} />
         {viewMode === "icon" ? (
           <div className="notes-grid">
             {pinnedNotes.map(note => (
@@ -907,7 +897,7 @@ export default function NotesApp() {
             <div data-testid="notes-icon-grouped">
               {grouped.map(([cat, items]) => (
                 <div key={cat} className="mb-5">
-                  <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 px-1 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{cat}</h3>
+                  <CategoryHeader title={cat} notes={items} isDark={isDark} />
                   <Droppable droppableId={`notes-in-${cat}`} type="note" direction="horizontal">
                     {(prov, snap) => (
                       <div
@@ -938,7 +928,7 @@ export default function NotesApp() {
               {uncategorized.length > 0 && (
                 <div>
                   {grouped.length > 0 && (
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 px-1 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Uncategorized</h3>
+                    <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
                   )}
                   <Droppable droppableId="notes-in-" type="note" direction="horizontal">
                     {(prov, snap) => (
@@ -1079,8 +1069,8 @@ export default function NotesApp() {
                           isDark ? "border-white/10" : "border-gray-200"
                         } ${uncSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""}`}
                       >
-                        <div className={`text-[10px] uppercase tracking-wider font-semibold px-2 pt-1 pb-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
-                          Uncategorized
+                        <div className="px-1 pt-1 pb-1">
+                          <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
                         </div>
                         {uncategorized.map((note, idx) => (
                           <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx} isDragDisabled={inSelectMode}>
