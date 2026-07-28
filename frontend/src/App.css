@@ -482,22 +482,24 @@
 }
 
 .note-tile-icon {
-    width: 44%;
-    height: 44%;
-    max-width: 56px;
-    max-height: 56px;
+    width: 40%;
+    height: 40%;
+    max-width: 52px;
+    max-height: 52px;
     color: white;
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
     flex-shrink: 0;
 }
 
 .note-tile-title {
-    font-size: 0.78rem;
-    font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: 0.01em;
+    /* Matches the `font-semibold text-sm` style used on Tile-Packs pack
+       cards — noticeably more prominent than the previous 0.78rem. */
+    font-size: 0.875rem;         /* Tailwind text-sm */
+    font-weight: 600;            /* Tailwind font-semibold */
+    line-height: 1.15;
+    letter-spacing: -0.005em;    /* Tailwind tracking-tight */
     color: white;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
     /* Max 2 lines, ellipsised */
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -510,7 +512,7 @@
 }
 
 @media (min-width: 768px) {
-    .note-tile-title { font-size: 0.85rem; }
+    .note-tile-title { font-size: 0.95rem; }
 }
 
 .note-tile-badges {
