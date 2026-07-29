@@ -106,32 +106,31 @@ Then:
 
 ---
 
-## Phase 4 native enhancements (optional add-ons)
+## Phase 4 native enhancements (already wired in code)
 
-The Meal Planner, Trip Journal, and Barcode Scanner ship as **web-native** in the PWA build (using `BarcodeDetector`, `getUserMedia`, IndexedDB, and OpenFoodFacts). To get a smoother native experience — faster barcode scanning, background nutrition sync, home-screen widget — add these plugins:
+**Good news** — the ML Kit path is already implemented in `frontend/src/notes/BarcodeScannerModal.jsx`. At runtime the modal checks `Capacitor.isNativePlatform()` and:
 
-```bash
-# From frontend/
-yarn add @capacitor-mlkit/barcode-scanning        # Google ML Kit — much faster than BarcodeDetector, works offline
-yarn add @capacitor/haptics                       # Better haptic feedback than the web Vibration API
-yarn add @capacitor/local-notifications           # Fire the weekly grocery/chore digest without a background tab
-npx cap sync
+- **Native (iOS / Android)** → uses `@capacitor-mlkit/barcode-scanning` — Google ML Kit, much faster than `BarcodeDetector`, works offline, handles low-light better.
+- **Web / PWA** → falls back to `window.BarcodeDetector` (Chromium desktop, Chrome Android) or a manual-entry input on unsupported browsers.
+
+Haptics behave the same way — native builds use `@capacitor/haptics` (Taptic Engine on iOS, VIBRATOR_SERVICE on Android), web falls back to `navigator.vibrate`.
+
+The following plugins are declared in `package.json`:
+
+```json
+"@capacitor-mlkit/barcode-scanning": "^7",
+"@capacitor/haptics": "^7",
+"@capacitor/local-notifications": "^7"   // optional — see Weekly recap section
 ```
 
-### Barcode Scanner (native path)
+If you build native for the first time:
 
-`frontend/src/notes/BarcodeScannerModal.jsx` currently uses `window.BarcodeDetector`. To switch to ML Kit on native builds, add this runtime guard around the scan loop (search for `startCamera`):
-
-```js
-import { Capacitor } from "@capacitor/core";
-import { BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
-
-if (Capacitor.isNativePlatform()) {
-  const result = await BarcodeScanner.scan();
-  if (result.barcodes?.[0]) setScanned({ code: result.barcodes[0].rawValue });
-} else {
-  // existing web code
-}
+```bash
+# From the project root
+cd frontend
+yarn install
+yarn build
+npx cap sync        # copies the web build + all plugins into ios/ and android/
 ```
 
 ### Camera permission (required for scanner)
@@ -147,6 +146,23 @@ if (Capacitor.isNativePlatform()) {
 <key>NSCameraUsageDescription</key>
 <string>Iron Rabbit uses the camera to scan barcodes and add products to your shopping list.</string>
 ```
+
+### First-time Android note
+
+On Android, ML Kit's scanner ships as a **Google Play Services module** that is downloaded on-demand the first time the user scans. The modal handles this transparently:
+
+```js
+const modCheck = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+if (!modCheck.available) {
+  await BarcodeScanner.installGoogleBarcodeScannerModule();
+}
+```
+
+The install prompt appears once, ~2-5 MB, and then scanning is instant on every subsequent open. No code changes required.
+
+### Optional: `@capacitor/local-notifications`
+
+Weekly recap + chore-summary + pantry-alert notifications currently fire via the browser `Notification` API — which only works when the app is open. If you want notifications to fire even when the app is backgrounded on native, install `@capacitor/local-notifications` and swap the call sites in `utils/weeklyRecap.js`, `utils/weeklyChoreSummary.js`, and `utils/pantryAlerts.js` to use `LocalNotifications.schedule({ notifications: [{ ... }] })`. Runtime-detect via `Capacitor.isNativePlatform()` and keep the web Notification fallback for the PWA.
 
 ---
 

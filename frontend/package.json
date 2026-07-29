@@ -4,10 +4,12 @@
   "private": true,
   "dependencies": {
     "@capacitor-community/privacy-screen": "^8.0.0",
+    "@capacitor-mlkit/barcode-scanning": "7",
     "@capacitor/android": "^7",
     "@capacitor/app": "^7",
     "@capacitor/cli": "^7",
     "@capacitor/core": "^7",
+    "@capacitor/haptics": "7",
     "@capacitor/ios": "^7",
     "@capacitor/preferences": "^7",
     "@hello-pangea/dnd": "^18.0.1",

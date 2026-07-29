@@ -1,0 +1,113 @@
+import React from "react";
+import {
+  Settings, Calculator, ExternalLink, Sun, Moon, Download, Zap, Package,
+  CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt,
+  Barcode, ChefHat, PackageOpen,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { haptic } from "../utils/haptic";
+import { SUPPORTED_LANGUAGES } from "../i18n";
+
+/**
+ * Top app header — logo/title on the left, action-button strip on the right.
+ * Extracted from NotesApp.jsx (previously inline). The Shopping Mode button
+ * only renders when at least one active Grocery note exists so it stays
+ * out of the way when unused.
+ *
+ * All handlers are received as props so this component stays pure/dumb.
+ */
+export default function AppHeader({
+  isDark,
+  settings,
+  notes,
+  hasActiveGrocery,
+  onQuickAdd,
+  onTilePacks,
+  onExportPdf,
+  onToggleTheme,
+  onCalculator,
+  onCalendar,
+  onLanguagePicker,
+  onInsights,
+  onKidMode,
+  onShoppingMode,
+  onMealPlanner,
+  onPantry,
+  onBarcode,
+  onTripJournal,
+  onArchiveTrash,
+  onSettings,
+}) {
+  const { t, i18n } = useTranslation();
+  const languageCode = (i18n.language || "en").split("-")[0];
+  const activeLang = SUPPORTED_LANGUAGES.find(l => l.code === languageCode);
+
+  const iconBtnCls = "text-white/70 hover:text-white hover:bg-white/10 h-8 w-8";
+  const tap = (fn) => () => { fn(); haptic("tap"); };
+
+  return (
+    <header
+      className={`header-compact ${isDark ? "" : "light"}`}
+      style={{ backgroundImage: settings?.header_bg ? `url(${settings.header_bg})` : undefined }}
+    >
+      <div className="relative z-10 w-full px-4 py-3 flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {settings?.logo_url && (
+            <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <img src={settings.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/20" />
+            </a>
+          )}
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight truncate">
+              {settings?.company_name || "Iron Rabbit"}
+            </h1>
+            {settings?.website_url && (
+              <a
+                href={settings.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-slate-300 hover:text-white flex items-center gap-1 truncate"
+              >
+                <ExternalLink className="w-3 h-3 shrink-0" />
+                <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 flex-wrap justify-end ml-auto" data-testid="header-icon-row">
+          <Button variant="ghost" size="icon" onClick={tap(onQuickAdd)} className={iconBtnCls} title={t("header.quick_add")} data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onTilePacks)} className={iconBtnCls} title={t("header.tile_packs")} data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onExportPdf} className={iconBtnCls} title={t("header.export_pdf")}><Download className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onToggleTheme} className={iconBtnCls} title={t("header.toggle_theme")}>
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onCalculator} className={iconBtnCls} title={t("header.calculator")}><Calculator className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onCalendar)} className={iconBtnCls} title={t("header.calendar")} data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
+          <button
+            type="button"
+            onClick={tap(onLanguagePicker)}
+            className="h-8 min-w-8 px-1.5 rounded-md inline-flex items-center gap-1 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            title={`${t("settings.language")} — ${activeLang?.label || "English"}`}
+            data-testid="header-language"
+          >
+            <Globe className="w-4 h-4" />
+            <span className="text-base leading-none" aria-hidden="true">{activeLang?.flag || "🌐"}</span>
+          </button>
+          <Button variant="ghost" size="icon" onClick={tap(onInsights)} className={iconBtnCls} title="Insights" data-testid="header-insights"><BarChart3 className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onKidMode)} className={iconBtnCls} title="Kid Mode" data-testid="header-kid-mode"><Baby className="w-4 h-4" /></Button>
+          {hasActiveGrocery && (
+            <Button variant="ghost" size="icon" onClick={tap(onShoppingMode)} className={iconBtnCls} title="Shopping Mode" data-testid="header-shopping-mode"><ShoppingCart className="w-4 h-4" /></Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={tap(onMealPlanner)} className={iconBtnCls} title="Meal Planner" data-testid="header-meal-planner"><ChefHat className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onPantry)} className={iconBtnCls} title="Pantry Inventory" data-testid="header-pantry"><PackageOpen className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onBarcode)} className={iconBtnCls} title="Barcode Scanner" data-testid="header-barcode"><Barcode className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onTripJournal)} className={iconBtnCls} title="Trip Journal" data-testid="header-trip-journal"><Receipt className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onArchiveTrash} className={iconBtnCls} title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onSettings} className={iconBtnCls} title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
+        </div>
+      </div>
+    </header>
+  );
+}

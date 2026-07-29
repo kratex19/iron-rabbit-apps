@@ -9,8 +9,8 @@ import { saveAs } from "file-saver";
 import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
-  Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt, Barcode, ChefHat, PackageOpen,
+  Plus, Settings, ExternalLink, Sun, Moon,
+  Download, Pin, Package, CalendarDays, Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +43,6 @@ import RecentActionPill from "./notes/RecentActionPill";
 import QuickAccessModal from "./notes/QuickAccessModal";
 import BackupRestoreModal from "./notes/BackupRestoreModal";
 import ArchiveTrashModal from "./notes/ArchiveTrashModal";
-import TagFilterStrip from "./notes/TagFilterStrip";
 import InsightsModal from "./notes/InsightsModal";
 import KidDashboardModal from "./notes/KidDashboardModal";
 import ShoppingModeModal from "./notes/ShoppingModeModal";
@@ -52,6 +51,8 @@ import BarcodeScannerModal from "./notes/BarcodeScannerModal";
 import MealPlannerModal from "./notes/MealPlannerModal";
 import PantryModal from "./notes/PantryModal";
 import CategoryHeader from "./notes/CategoryHeader";
+import AppHeader from "./notes/AppHeader";
+import AppSearchBar from "./notes/AppSearchBar";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
 import LockScreen from "./security/LockScreen";
@@ -62,7 +63,7 @@ import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 import { maybeShowWeeklyChoreSummary } from "./utils/weeklyChoreSummary";
 import { maybeShowPantryAlerts } from "./utils/pantryAlerts";
 
-import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
+import { NOTE_COLORS, DEFAULT_TEMPLATES } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
 import CategoryGroup from "./notes/CategoryGroup";
 import NoteModal from "./notes/NoteModal";
@@ -1291,171 +1292,56 @@ export default function NotesApp() {
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`} data-testid="app-container">
       <Toaster position="top-right" theme={isDark ? "dark" : "light"} />
 
-      {/* Compact Header */}
-      <header
-        className={`header-compact ${isDark ? '' : 'light'}`}
-        style={{ backgroundImage: settings?.header_bg ? `url(${settings.header_bg})` : undefined }}
-      >
-        <div className="relative z-10 w-full px-4 py-3 flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {settings?.logo_url && (
-              <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                <img src={settings.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/20" />
-              </a>
-            )}
-            <div className="min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight truncate">
-                {settings?.company_name || "Iron Rabbit"}
-              </h1>
-              {settings?.website_url && (
-                <a href={settings.website_url} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-300 hover:text-white flex items-center gap-1 truncate">
-                  <ExternalLink className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
-                </a>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 flex-wrap justify-end ml-auto" data-testid="header-icon-row">
-            <Button variant="ghost" size="icon" onClick={() => { setQuickAddOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.quick_add")} data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setTilePacksOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.tile_packs")} data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={exportToPDF} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.export_pdf")}><Download className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={handleToggleTheme} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.toggle_theme")}>{isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</Button>
-            <Button variant="ghost" size="icon" onClick={() => setCalculatorOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.calculator")}><Calculator className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setFloatingCalendarOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.calendar")} data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
-            <button
-              type="button"
-              onClick={() => { setLanguagePickerOpen(true); haptic("tap"); }}
-              className="h-8 min-w-8 px-1.5 rounded-md inline-flex items-center gap-1 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-              title={`${t("settings.language")} — ${SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.label || "English"}`}
-              data-testid="header-language"
-            >
-              <Globe className="w-4 h-4" />
-              <span className="text-base leading-none" aria-hidden="true">
-                {SUPPORTED_LANGUAGES.find(l => l.code === (i18n.language || "en").split("-")[0])?.flag || "🌐"}
-              </span>
-            </button>
-            <Button variant="ghost" size="icon" onClick={() => { setInsightsOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Insights" data-testid="header-insights"><BarChart3 className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setKidModeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Kid Mode" data-testid="header-kid-mode"><Baby className="w-4 h-4" /></Button>
-            {notes.some(n => (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery"))) && !n.archived_at && !n.deleted_at) && (
-              <Button variant="ghost" size="icon" onClick={() => { setShoppingModeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Shopping Mode" data-testid="header-shopping-mode"><ShoppingCart className="w-4 h-4" /></Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={() => { setMealPlannerOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Meal Planner" data-testid="header-meal-planner"><ChefHat className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setPantryOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Pantry Inventory" data-testid="header-pantry"><PackageOpen className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setBarcodeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Barcode Scanner" data-testid="header-barcode"><Barcode className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => { setTripJournalOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Trip Journal" data-testid="header-trip-journal"><Receipt className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setArchiveTrashOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
-          </div>
-        </div>
-      </header>
+      {/* Compact Header (extracted) */}
+      <AppHeader
+        isDark={isDark}
+        settings={settings}
+        notes={notes}
+        hasActiveGrocery={notes.some(n =>
+          (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery")))
+          && !n.archived_at && !n.deleted_at
+        )}
+        onQuickAdd={() => setQuickAddOpen(true)}
+        onTilePacks={() => setTilePacksOpen(true)}
+        onExportPdf={exportToPDF}
+        onToggleTheme={handleToggleTheme}
+        onCalculator={() => setCalculatorOpen(true)}
+        onCalendar={() => setFloatingCalendarOpen(true)}
+        onLanguagePicker={() => setLanguagePickerOpen(true)}
+        onInsights={() => setInsightsOpen(true)}
+        onKidMode={() => setKidModeOpen(true)}
+        onShoppingMode={() => setShoppingModeOpen(true)}
+        onMealPlanner={() => setMealPlannerOpen(true)}
+        onPantry={() => setPantryOpen(true)}
+        onBarcode={() => setBarcodeOpen(true)}
+        onTripJournal={() => setTripJournalOpen(true)}
+        onArchiveTrash={() => setArchiveTrashOpen(true)}
+        onSettings={() => setSettingsModalOpen(true)}
+      />
 
       {/* Main Content */}
       <main className="px-4 py-3 max-w-4xl mx-auto">
-        {/* Search & Controls */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-3">
-          <div className="relative flex-1">
-            <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("search.placeholder")}
-              className={`pl-8 h-9 ${isDark ? 'bg-white/5 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-gray-200'}`}
-              data-testid="search-input"
-            />
-          </div>
-          <div className="flex gap-2">
-            <div className={`view-toggle ${isDark ? "" : "light"}`} data-testid="view-mode-toggle">
-              <button
-                type="button"
-                onClick={() => handleChangeViewMode("list")}
-                className={viewMode === "list" ? "active" : ""}
-                aria-label="List view"
-                data-testid="view-mode-list"
-                title="List view"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleChangeViewMode("icon")}
-                className={viewMode === "icon" ? "active" : ""}
-                aria-label="Icon view"
-                data-testid="view-mode-icon"
-                title="Icon view"
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-            </div>
-            <Select value={filterBy} onValueChange={setFilterBy}>
-              <SelectTrigger className={`w-32 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-                <Filter className="w-3 h-3 mr-1" /><SelectValue />
-              </SelectTrigger>
-              <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
-                {FILTER_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs" data-testid={`filter-option-${opt.value}`}>{t(`filter.${opt.value}`, opt.label)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className={`w-40 h-9 text-xs ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className={isDark ? 'bg-[#0B1221] border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}>
-                {SORT_OPTIONS.map(opt => {
-                  const label = opt.value === "newest" ? t("sort.newest", opt.label)
-                    : opt.value === "oldest" ? t("sort.oldest", opt.label)
-                    : opt.value === "a-z" ? t("sort.az", opt.label)
-                    : opt.value === "z-a" ? t("sort.za", opt.label)
-                    : opt.label;
-                  return (
-                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                      <span className="flex items-center gap-1.5"><opt.icon className="w-3 h-3" />{label}</span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Tag filter strip (only shown when there are tags) */}
-        <TagFilterStrip
-          notes={notes}
-          activeTag={activeTag}
-          onSelectTag={(t) => { setActiveTag(t); haptic("tap"); }}
+        <AppSearchBar
           isDark={isDark}
+          notes={notes}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          viewMode={viewMode}
+          onChangeViewMode={handleChangeViewMode}
+          filterBy={filterBy}
+          onFilterChange={setFilterBy}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          activeTag={activeTag}
+          onSelectTag={setActiveTag}
+          groupByCategory={groupByCategory}
+          onToggleGroup={() => setGroupByCategory(v => !v)}
+          selectMode={selectMode}
+          onEnterSelectMode={enterSelectMode}
+          onClearSelection={clearSelection}
+          selectedCount={selectedIds.size}
+          visibleCount={processedNotes.length}
         />
-
-        {/* Group toggle + count */}
-        <div className={`flex items-center justify-between mb-2 gap-3 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
-          <button
-            type="button"
-            onClick={() => setGroupByCategory(v => !v)}
-            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md transition-colors ${
-              groupByCategory
-                ? (isDark ? 'bg-white/10 text-white' : 'bg-gray-200 text-gray-800')
-                : (isDark ? 'text-slate-500 hover:text-slate-300' : 'text-gray-400 hover:text-gray-700')
-            }`}
-            aria-pressed={groupByCategory}
-            data-testid="group-toggle"
-            title="Toggle category grouping"
-          >
-            <FolderTree className="w-3.5 h-3.5" /> {t("app.groupBy")}
-          </button>
-          <button
-            onClick={() => selectMode ? clearSelection() : enterSelectMode()}
-            className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
-              selectMode
-                ? "bg-indigo-500 border-indigo-500 text-white"
-                : isDark ? "border-white/10 text-slate-300 hover:bg-white/5" : "border-gray-300 text-gray-700 hover:bg-gray-50"
-            }`}
-            data-testid="select-mode-toggle"
-            title={selectMode ? "Cancel selection" : "Select multiple notes"}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" /> {selectMode ? `Selected ${selectedIds.size}` : "Select"}
-          </button>
-          <div className="text-xs font-mono">{t("app.notes_count", { count: processedNotes.length })}</div>
-        </div>
 
         {renderPinnedRail()}
         {renderNotes()}

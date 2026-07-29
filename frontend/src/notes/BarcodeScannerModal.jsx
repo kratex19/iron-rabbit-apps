@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   Camera, CameraOff, Barcode, Search, X, Check, AlertCircle, Loader2, Info,
 } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,10 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
   const [customName, setCustomName] = useState("");
   const [fromCache, setFromCache] = useState(false);
 
+  const IS_NATIVE = (() => {
+    try { return Capacitor?.isNativePlatform?.() === true; } catch { return false; }
+  })();
+
   const stopCamera = () => {
     try {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
@@ -51,6 +56,57 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
   const startCamera = async () => {
     setError("");
     setStatus("starting");
+
+    // NATIVE (iOS/Android via Capacitor) → use Google ML Kit for scanning.
+    // Much faster than BarcodeDetector, works offline, better low-light detection.
+    if (IS_NATIVE) {
+      try {
+        const mod = await import("@capacitor-mlkit/barcode-scanning");
+        const BarcodeScanner = mod.BarcodeScanner;
+        // Check module availability (ML Kit ships as a Play Services module on Android)
+        const { available } = await BarcodeScanner.isSupported();
+        if (!available) {
+          setStatus("unsupported");
+          return;
+        }
+        // Ensure permission
+        const perm = await BarcodeScanner.checkPermissions();
+        if (perm.camera !== "granted") {
+          const req = await BarcodeScanner.requestPermissions();
+          if (req.camera !== "granted") {
+            setError("Camera permission denied");
+            setStatus("error");
+            return;
+          }
+        }
+        // Ensure ML Kit module is installed (Android only; no-op on iOS)
+        if (typeof BarcodeScanner.isGoogleBarcodeScannerModuleAvailable === "function") {
+          const modCheck = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+          if (!modCheck.available) {
+            await BarcodeScanner.installGoogleBarcodeScannerModule();
+          }
+        }
+        setStatus("scanning");
+        const { barcodes } = await BarcodeScanner.scan();
+        if (barcodes && barcodes.length > 0) {
+          const raw = String(barcodes[0].rawValue || "").trim();
+          if (raw) {
+            haptic("success");
+            setScanned({ code: raw });
+            setStatus("idle");
+            return;
+          }
+        }
+        setStatus("idle");
+      } catch (err) {
+        console.error("ML Kit scan error:", err);
+        setError(err?.message || "Native scanner failed");
+        setStatus("error");
+      }
+      return;
+    }
+
+    // WEB → BarcodeDetector API when available
     if (typeof window === "undefined" || !("BarcodeDetector" in window)) {
       setStatus("unsupported");
       return;
@@ -121,8 +177,10 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
 
   useEffect(() => {
     if (isOpen) {
-      // auto-start camera if BarcodeDetector is supported
-      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+      // auto-start scanner: ML Kit on native, BarcodeDetector on web
+      if (IS_NATIVE) {
+        startCamera();
+      } else if (typeof window !== "undefined" && "BarcodeDetector" in window) {
         startCamera();
       } else {
         setStatus("unsupported");
@@ -190,7 +248,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
           <div className="space-y-3">
             {/* Video / status area */}
             <div className={`relative aspect-video rounded-xl overflow-hidden border ${isDark ? "border-white/10 bg-black" : "border-gray-200 bg-gray-900"}`}>
-              {status === "scanning" && (
+              {status === "scanning" && !IS_NATIVE && (
                 <>
                   <video ref={videoRef} className="w-full h-full object-cover" playsInline muted data-testid="barcode-video" />
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -200,6 +258,13 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
                     scanning
                   </div>
                 </>
+              )}
+              {status === "scanning" && IS_NATIVE && (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white text-center px-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+                  <div className="text-sm font-medium">Native ML Kit scanner active</div>
+                  <div className="text-xs text-slate-400">Point at a barcode — result is captured instantly.</div>
+                </div>
               )}
               {status === "starting" && (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white">
@@ -227,7 +292,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
               {status === "idle" && (
                 <div className="w-full h-full flex items-center justify-center">
                   <Button size="sm" onClick={startCamera} className="bg-emerald-500 hover:bg-emerald-600" data-testid="barcode-start-btn">
-                    <Camera className="w-4 h-4 mr-1" /> Start camera
+                    <Camera className="w-4 h-4 mr-1" /> {IS_NATIVE ? "Open ML Kit scanner" : "Start camera"}
                   </Button>
                 </div>
               )}
