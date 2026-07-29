@@ -449,4 +449,54 @@ export const TILE_PACKS = [
       })),
     };
   })(),
+
+  // ============================================================
+  // 🛒 Smart Grocery Cart — 15 department tiles + starter checklists.
+  // Each note lives under the "Grocery" category so users can drag the
+  // whole pack around as a unit. Uses the existing checklist system, so
+  // ✓ / quantity / notes work immediately. Phase 2 will add a Shopping
+  // Mode view on top of this same data.
+  // ============================================================
+  {
+    id: "smart-grocery-cart",
+    name: "🛒 Smart Grocery Cart",
+    accent: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)",
+    tagline: "A grocery organizer, pantry manager, meal planner and shopping assistant — all offline.",
+    notes: (() => {
+      // Shared shape: each department is a checklist-backed note with a
+      // themed icon + gradient background and a couple of starter items
+      // so the checklist UI is populated on first open.
+      const dept = (title, icon, color, bg, seed = []) => ({
+        title,
+        content: "",
+        color,
+        icon,
+        background: bg,
+        category: "Grocery",
+        tags: ["grocery"],
+        checklist: seed.map((text, i) => ({
+          id: `gc-${title.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${i}`,
+          text,
+          done: false,
+        })),
+      });
+      return [
+        dept("Produce",         "Apple",         "lime",   grad(G.mint),      ["Apples", "Bananas", "Lettuce", "Tomatoes", "Onions"]),
+        dept("Meat & Seafood",  "Beef",          "red",    solid("#dc2626"),  ["Chicken breast", "Ground beef", "Salmon"]),
+        dept("Dairy",           "Milk",          "cyan",   grad(G.ocean),     ["Milk", "Eggs", "Butter", "Yogurt", "Cheese"]),
+        dept("Frozen Foods",    "Snowflake",     "sky",    solid("#0ea5e9"),  ["Frozen vegetables", "Frozen pizza", "Ice cream"]),
+        dept("Bakery",          "Croissant",     "orange", grad(G.peach),     ["Bread", "Bagels", "Muffins"]),
+        dept("Pantry & Dry Goods","Wheat",       "amber",  solid("#d97706"),  ["Rice", "Pasta", "Flour", "Sugar", "Olive oil"]),
+        dept("Snacks",          "Cookie",        "orange", grad(G.sunset),    ["Chips", "Crackers", "Granola bars", "Nuts"]),
+        dept("Beverages",       "GlassWater",    "cyan",   grad(G.aurora),    ["Water", "Coffee", "Juice", "Soda"]),
+        dept("Household Supplies","SprayCan",    "purple", solid("#7c3aed"),  ["Paper towels", "Trash bags", "Dish soap", "Laundry detergent"]),
+        dept("Health & Beauty", "HeartPulse",    "pink",   solid("#ec4899"),  ["Shampoo", "Toothpaste", "Deodorant"]),
+        dept("Baby",            "Baby",          "pink",   grad(G.peach),     ["Diapers", "Wipes", "Baby food"]),
+        dept("Pet Supplies",    "Dog",           "amber",  solid("#b45309"),  ["Pet food", "Litter", "Treats"]),
+        dept("Pharmacy",        "Pill",          "red",    solid("#e11d48"),  ["Pain reliever", "Bandages", "Vitamins"]),
+        dept("Seasonal Items",  "PartyPopper",   "purple", grad(G.aurora),    ["Holiday decor", "Seasonal treats"]),
+        dept("Miscellaneous",   "MoreHorizontal","slate",  solid("#475569"),  []),
+      ];
+    })(),
+  },
 ];
