@@ -279,15 +279,15 @@ export function RestaurantDeliveryModal({ isOpen, onClose, isDark }) {
           )}
         </DialogContent>
       </Dialog>
-      {editing && <DeliveryEditor restaurants={restaurants} item={editing.id ? editing : null} isDark={isDark} onClose={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <DeliveryEditor restaurants={restaurants} item={editing.id ? editing : null} defaultRestaurantId={editing.restaurant_id} isDark={isDark} onClose={() => setEditing(null)} onSave={handleSave} />}
     </>
   );
 }
 
-function DeliveryEditor({ restaurants, item, isDark, onClose, onSave }) {
+function DeliveryEditor({ restaurants, item, defaultRestaurantId, isDark, onClose, onSave }) {
   const isEdit = !!item;
   const [f, setF] = useState({
-    id: item?.id, restaurant_id: item?.restaurant_id || "", driver_name: item?.driver_name || "",
+    id: item?.id, restaurant_id: item?.restaurant_id || defaultRestaurantId || "", driver_name: item?.driver_name || "",
     order_time: item?.order_time || "", delivery_time: item?.delivery_time || "",
     arrival_time: item?.arrival_time || "", minutes: item?.minutes ?? "",
     food_temp: item?.food_temp || "hot", packaging_quality: item?.packaging_quality ?? 0,

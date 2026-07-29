@@ -774,7 +774,7 @@ export function RestaurantCouponsModal({ isOpen, onClose, isDark }) {
             <div className="space-y-3">
               <div className="flex gap-2 items-center">
                 <div className="flex-1" />
-                <Button className="h-9 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditing({ restaurant_id: selectedR || restaurants[0]?.id })} disabled={restaurants.length === 0} data-testid="coupons-add-btn">
+                <Button className="h-9 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditing({ restaurant_id: restaurants[0]?.id })} disabled={restaurants.length === 0} data-testid="coupons-add-btn">
                   <Plus className="w-4 h-4 mr-1" /> Add coupon
                 </Button>
               </div>
@@ -814,15 +814,15 @@ export function RestaurantCouponsModal({ isOpen, onClose, isDark }) {
           )}
         </DialogContent>
       </Dialog>
-      {editing && <CouponEditor restaurants={restaurants} item={editing.id ? editing : null} isDark={isDark} onClose={() => setEditing(null)} onSave={handleSave} />}
+      {editing && <CouponEditor restaurants={restaurants} item={editing.id ? editing : null} defaultRestaurantId={editing.restaurant_id} isDark={isDark} onClose={() => setEditing(null)} onSave={handleSave} />}
     </>
   );
 }
 
-function CouponEditor({ restaurants, item, isDark, onClose, onSave }) {
+function CouponEditor({ restaurants, item, defaultRestaurantId, isDark, onClose, onSave }) {
   const isEdit = !!item;
   const [f, setF] = useState({
-    id: item?.id, restaurant_id: item?.restaurant_id || "", code: item?.code || "",
+    id: item?.id, restaurant_id: item?.restaurant_id || defaultRestaurantId || "", code: item?.code || "",
     description: item?.description || "", discount: item?.discount || "",
     expires_at: item?.expires_at ? item.expires_at.slice(0, 10) : "",
     loyalty_number: item?.loyalty_number || "",

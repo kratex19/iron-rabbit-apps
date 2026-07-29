@@ -1,0 +1,36 @@
+{
+  "summary": "Phase 5 focused regression retest — all THREE previously failing items from iteration_29 are now FIXED. Coupons ReferenceError gone, Coupons pre-seed works (RegTest Diner auto-selected), Delivery pre-seed works (save button enabled immediately after driver-rating click, entry saved to delivery-list). Smoke check across home load, RG modal, Menus and Reviews workspaces shows zero console errors. Only one non-blocking React key warning surfaced in RestaurantDeliveryModal after saving a delivery.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "regression_results": {
+    "regression_1_coupons_reference_error": "PASS — Clicking coupons-add-btn no longer throws 'selectedR is not defined'. Coupon editor Dialog opens smoothly, FIX2026 saved and appears in coupons-list.",
+    "regression_2_delivery_preseed": "PASS — delivery-editor-save is ENABLED immediately when editor opens (restaurant_id pre-seeded to RegTest Diner). After filling driver=Jane, minutes=30, rating=5 and clicking save, entry 'RegTest Diner · Jane · 30 min 🔥' appears in delivery-list.",
+    "regression_3_coupons_preseed": "PASS — Restaurant dropdown in coupon-editor shows 'RegTest Diner' selected (value=rest_..., text='RegTest Diner'), not blank. defaultRestaurantId now flows through correctly."
+  },
+  "smoke_check": {
+    "home_load_console_errors": [],
+    "rg_modal_open_console_errors": [],
+    "menus_workspace_open_close": "PASS (visible=true, no console errors)",
+    "reviews_workspace_open_close": "PASS (visible=true, no console errors)"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Nice-to-have) Fix React key warning in RestaurantDeliveryModal: after saving a delivery, console logs 'Each child in a list should have a unique key prop. Check the render method of `RestaurantDeliveryModal`.' — likely from the driver_rating <Star> row or newly saved entry rendering before id assignment. Not blocking, but should be cleaned up."
+  ],
+  "critical_code_review_comments": [
+    "Both bug fixes match the previously recommended pattern: pass defaultRestaurantId explicitly and let editor merge it with item?.restaurant_id in useState init. Clean.",
+    "Consider extracting the (editing.id ? editing : null) + defaultRestaurantId={editing.restaurant_id} pattern into a small helper openNewWith(defaults) to avoid future copy-paste bugs like the original selectedR one."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% (3/3 regressions PASS, smoke check clean)"},
+  "test_credentials": "none — local IndexedDB PWA",
+  "seed_data_creation": "One 'RegTest Diner' restaurant created via Directory workspace in test browser's IndexedDB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All three iteration_29 regressions confirmed FIXED on preview URL https://color-task-timer.preview.emergentagent.com. RestaurantWorkspaces.jsx line 777 now uses restaurants[0]?.id (no more selectedR ReferenceError). CouponEditor (line 822) and DeliveryEditor (line 287) both accept defaultRestaurantId and merge it into initial restaurant_id state. Delivery save saves and appears in delivery-list. Coupons save saves and appears in coupons-list. Minor non-blocking: React 'unique key prop' warning fires in RestaurantDeliveryModal after adding a delivery. Testing tips for RG modal: (1) Multi-step first-run tour has ~3 dialogs, click 'Skip' text button (not just tour-skip X) in a loop until dismissed. (2) Do NOT manually document.querySelector remove() sonner toast nodes — breaks React reconciliation and produces a 'insertBefore Node' NotFoundError. Instead just wait ~2.5s for toasts to auto-dismiss, then use JS .click() on header-restaurants-galore to bypass any transient overlay.",
+  "rca of the issue": "iteration_29 fixes were correct: (a) RestaurantWorkspaces.jsx:777 removed undefined `selectedR` reference; (b) both CouponEditor and DeliveryEditor now receive defaultRestaurantId prop and initialise state with `item?.restaurant_id || defaultRestaurantId || ''`. Parent still uses `item={editing.id ? editing : null}` but now also passes `defaultRestaurantId={editing.restaurant_id}` — this alternative solution works equally well without changing isEdit logic. All three regressions verified fixed end-to-end."
+}
