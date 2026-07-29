@@ -632,7 +632,12 @@ export default function NotesApp() {
         const [moved] = items.splice(source.index, 1);
         items.splice(destination.index, 0, moved);
         await StorageService.saveCategoryOrder(items);
-        fetchData();
+        // IMPORTANT: await fetchData() so the settings state (and therefore
+        // the `grouped` memo dependent on it) is fully re-hydrated before
+        // React re-renders. Previously this was fire-and-forget, causing
+        // the toast to appear while the DOM still showed stale order.
+        await fetchData();
+        haptic("success");
         toast.success(`Moved "${moved}"`);
         return;
       }
