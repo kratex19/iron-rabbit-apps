@@ -1,0 +1,76 @@
+{
+  "summary": "Frontend-only verification of iteration 22: Grid-view Tile-Pack drag-handle enhancement + cross-category COPY behavior. Verified via live browser sessions against the preview URL. Cursor-grab semantics on category headers PASS unambiguously. Cross-category tile drop = COPY (with correct toast, preserved source, new UUID, and functional Undo) PASSES end-to-end. Category-header drag registers the handler (toast 'Moved \"<name>\"' fires) but the visible category order in the DOM did NOT change after the drag in either the multi-category (OTHER/PARENT/WORK) or 3-cat (AAA/BBB/CCC) reproductions — this could be a real persistence/render bug, OR a snapshot-timing race between saveCategoryOrder→fetchData→setSettings→memoized grouped. Main agent should manually confirm. No console errors from @hello-pangea/dnd during any operation.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "NotesApp — grouped grid view / handleDragEnd (category-reorder branch)",
+        "issue": "Category header drag fires the correct toast ('Moved \"PARENT\"') and handler runs (source.index != destination.index), tiles inside the moved category are preserved, but the persisted category order does NOT visibly change in the DOM afterwards (verified in two sessions: (a) OTHER→PARENT→WORK sequence — dragging PARENT down produced toast but DOM order stayed [OTHER, PARENT, WORK]; (b) AAA/BBB/CCC session — no toast fired at all on the second attempt with a fresh page, and post-reload order was unchanged). Cross-cat COPY works fine so the shared handler is at least partially wired. Recommend the main agent verify saveCategoryOrder is actually reaching IndexedDB and that fetchData/setSettings properly triggers a re-memoization of `grouped`.",
+        "selector": "[data-testid^='category-header-']",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_22.json"],
+  "action_items": [
+    "Manually verify grid-view category REORDER persists across reload. Possible RCA: (1) `grouped` memo may not observe the settings change because `settings` object identity is stable, (2) fetchData in handleDragEnd may not await settings refresh before the next render, or (3) drag-drop `destination.index` is being computed differently than expected (@hello-pangea/dnd sometimes returns the same index if the drop-target isn't a sibling Draggable of the correct type). Suggest logging `source.index / destination.index / items` inside handleDragEnd and confirming settings.category_order in IndexedDB (`localforage settings/main`) after a drag."
+  ],
+  "critical_code_review_comments": [
+    "NotesApp.jsx lines 985-1035 correctly wrap the grouped grid in <Droppable id=\"category-list-grid\" type=\"category\"> around a <Draggable> per category; CategoryHeader receives catDp.dragHandleProps as expected. Structure is clean.",
+    "CategoryHeader.jsx (lines 36-40): dragHandleProps are spread onto the root div AFTER the className, so `cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2 hover:bg-black/5 dark:hover:bg-white/5` applies. Verified in DOM — all named category headers have cursor-grab; Uncategorized (which is rendered OUTSIDE the category droppable at NotesApp.jsx:1036-1068) does NOT receive dragHandleProps and correctly lacks cursor-grab.",
+    "handleDragEnd cross-cat COPY branch (NotesApp.jsx:651-678): correctly uses uuidv4() for the new id, preserves alarms/tags/checklist via spread, resets subcategory (good — avoids stale subcategory pointing at source's subs), sets fresh created_at/updated_at, and computes maxOrder+1. Toast wording 'Copied to \"<dst>\"' with functional Undo action matches spec. Verified end-to-end. GOOD.",
+    "Cross-cat COPY handler is SHARED with list view (NotesApp.jsx:1102 also uses handleDragEnd) — per the review request this is a known side-effect. List-view users who previously experienced MOVE on cross-cat drop will now see COPY. Recommend either (a) documenting this in release notes, or (b) branching on view mode inside handleDragEnd to preserve list-view MOVE semantics if that regression is undesirable.",
+    "Category reorder branch (NotesApp.jsx:629-638) fires toast BEFORE awaiting `fetchData()` — actually looking again, it awaits saveCategoryOrder then calls fetchData() (not awaited) then toast.success. fetchData is async; the toast fires immediately after the save resolves. Non-blocking but means UI might briefly render stale grouping before the settings state updates. Consider `await fetchData()` for determinism.",
+    "The Uncategorized section is correctly rendered OUTSIDE the category droppable (NotesApp.jsx:1036-1068) so it stays anchored — verified in DOM (Uncategorized had no cursor-grab, no drag handle props).",
+    "NoteTile renders TWO elements per note with data-testid — `note-tile-<id>` (the tile itself) AND `note-tile-edit-<id>` (the pencil-edit hover button). Any test iterating '[data-testid^=note-tile-]' will count 2 per note. Recommend adding a stricter data-testid pattern (e.g. `note-tile-body-<id>` vs `note-tile-edit-<id>`) so future tests can filter reliably."
+  ],
+  "test_evidence": {
+    "test1_cursor_grab": {
+      "named_headers_all_have_cursor_grab": true,
+      "uncategorized_no_cursor_grab": true,
+      "sample_named": ["PARENT", "OTHER", "WORK", "Test", "Test notes"],
+      "pass": true
+    },
+    "test2_category_reorder": {
+      "toast_text": "Moved \"PARENT\"",
+      "toast_matches_spec": true,
+      "handler_ran": true,
+      "tiles_inside_moved_cat_preserved": true,
+      "dom_order_changed_after_drag": false,
+      "dom_order_persisted_across_reload": false,
+      "note": "Toast fires (proving handler branch executed with source.index != destination.index) but DOM order remained unchanged. Two attempts in two different sessions produced the same observation. Needs main-agent RCA — possible settings persistence or memo-invalidation issue."
+    },
+    "test3_cross_cat_copy": {
+      "toast_text": "Copied to \"WORK\"Undo",
+      "toast_matches_spec": true,
+      "original_still_in_source_category": true,
+      "destination_grew_by_one_note": true,
+      "new_tile_has_different_uuid": true,
+      "undo_removes_copy": true,
+      "post_undo_destination_count_matches_pre": true,
+      "pass": true
+    },
+    "test4_within_category_reorder": {
+      "count_preserved": true,
+      "order_changed": false,
+      "note": "Within-cat drag was executed but the tile grid is horizontal and my drop coord (t1.x + t1.w/2 + 10) may not have crossed the reorder threshold. Because per-category tile reorder was previously verified in iteration_20 as passing, treating this as inconclusive rather than a regression. Recommend main agent smoke-test manually."
+    },
+    "console_errors": {
+      "count_during_full_flow": 0,
+      "any_pangea_dnd_errors": false
+    },
+    "list_view_regression_check": {
+      "list_grouped_container_present": true,
+      "note": "List view container renders (data-testid='notes-grouped'). Did not perform full drag repro in list view — main agent should smoke-check that cross-cat drop in list view NOW ALSO copies (per shared handler), which per spec is expected/known behavior."
+    }
+  },
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "5/7 hard-verified pass; 1 needs main-agent RCA (category reorder DOM persistence); 1 inconclusive (within-cat reorder drop-target coord)"},
+  "seed_data_creation": "Session 1 (over pre-existing 8 notes): 3 new notes: 'Parent Note 1' (cat PARENT), 'Parent Note 2' (cat PARENT), 'Work Note 1' (cat WORK). Session 2: reused IndexedDB. Session 3 (fresh): 'A1'/'AAA', 'B1'/'BBB', 'C1'/'CCC'. All notes created via fab-add-note + NoteModal. No cleanup performed (offline PWA, no backend).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Grid-view: view-mode toggle testid='view-mode-icon'; group-by-category toggle testid='group-toggle'; grouped container testid='notes-icon-grouped'; each named category header testid='category-header-<name>'; each tile has DUAL testid — 'note-tile-<id>' AND 'note-tile-edit-<id>' — the edit-pencil sibling. Uncategorized section is rendered OUTSIDE the category droppable so it never has cursor-grab (verified). @hello-pangea/dnd requires: mousedown → tiny nudge (~10px) → gradual move (25-35 steps) → mouseup. Real drop coordinate must be inside the target droppable's bounding box AND above/below a sibling Draggable index. For category reorder, TARGET should be inside another category's outer Draggable container (not just its header) — I used `getBoundingClientRect` on `[data-rfd-draggable-id]`. Cross-cat COPY branch is fully verified and working end-to-end including Undo (paths: NotesApp.jsx lines 651-678). The one open item: category reorder DOES fire the toast (indicating handler ran with source!=destination) but visible order did NOT change — RCA needed.",
+  "rca of the issue": "For category-reorder persistence: hypotheses in priority order: (1) fetchData() is NOT awaited in handleDragEnd's category branch, so the toast fires and control returns while React state is still stale — but the next render should still show the new order because setSettings would re-memoize grouped. (2) saveCategoryOrder writes {id:'main', category_order:[...]} to settingsStore, but if the settings object retrieved by fetchData is not deeply equal or if setSettings is compared by reference and never triggers re-memoization of `grouped`, the order stays. (3) The @hello-pangea drop destination.index for type='category' droppable might be miscalculated because the droppable contains N Draggables of type='category' but the Uncategorized section renders as a sibling <div> that could confuse index math — but Uncategorized is OUTSIDE the droppable, so this should be fine. Recommended fix path: (a) `await fetchData()` in handleDragEnd, (b) add a console.log in the category branch printing `source.index → destination.index / items`, (c) inspect settings via `await localforage.createInstance({name:'iron-rabbit'}).getItem('main')` after a drag to confirm category_order actually persists."
+}

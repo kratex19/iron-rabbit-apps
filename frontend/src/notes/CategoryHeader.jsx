@@ -18,7 +18,7 @@ import { NOTE_COLORS } from "./constants";
  *   pinned     – if true, replaces the Sparkles glyph with a Pin icon.
  *   isDark
  */
-export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark }) {
+export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark, dragHandleProps = null }) {
   const derived = accent || (() => {
     // 1. Prefer the pack's own accent if any note in this group was applied
     //    from a Tile Pack (kept in sync with the pack card in TilePacksModal).
@@ -33,7 +33,11 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
   const Ico = pinned ? Pin : Sparkles;
 
   return (
-    <div className="flex items-center gap-2 px-1 mb-2" data-testid={`category-header-${title}`}>
+    <div
+      className={`flex items-center gap-2 px-1 mb-2 rounded-md ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
+      data-testid={`category-header-${title}`}
+      {...(dragHandleProps || {})}
+    >
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md"
         style={{ background: derived }}

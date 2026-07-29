@@ -643,18 +643,35 @@ export default function NotesApp() {
       const srcCat = source.droppableId.startsWith(CAT_PREFIX) ? source.droppableId.slice(CAT_PREFIX.length) : null;
       const dstCat = destination.droppableId.startsWith(CAT_PREFIX) ? destination.droppableId.slice(CAT_PREFIX.length) : null;
 
-      // Cross-category move
+      // Cross-category tile drag = COPY by default. The original stays
+      // put in its source category; a duplicate lands in the destination
+      // with a new UUID (all other content, alarms, attachments and
+      // metadata preserved). Users can still MOVE via the note's edit
+      // form → Category field, or via Batch Studio → Move To.
       if (srcCat !== null && dstCat !== null && srcCat !== dstCat) {
-        const prev = await StorageService.moveNoteToCategory(noteId, dstCat, "");
+        const original = notes.find(n => n.id === noteId);
+        if (!original) return;
+        const now = new Date().toISOString();
+        const maxOrder = notes.reduce((m, n) => Math.max(m, n.order || 0), 0);
+        const copy = {
+          ...original,
+          id: uuidv4(),
+          category: dstCat,
+          subcategory: "",
+          created_at: now,
+          updated_at: now,
+          order: maxOrder + 1,
+        };
+        await StorageService.saveNote(copy);
         fetchData();
-        toast.success(`Moved to "${dstCat}"`, {
-          action: prev ? {
+        toast.success(`Copied to "${dstCat}"`, {
+          action: {
             label: "Undo",
             onClick: async () => {
-              await StorageService.moveNoteToCategory(noteId, prev.category, prev.subcategory);
+              await StorageService.deleteNote(copy.id);
               fetchData();
             },
-          } : undefined,
+          },
           duration: 6000,
         });
         return;
@@ -966,71 +983,89 @@ export default function NotesApp() {
       if (groupByCategory) {
         return (
           <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div data-testid="notes-icon-grouped">
-              {grouped.map(([cat, items]) => (
-                <div key={cat} className="mb-5">
-                  <CategoryHeader title={cat} notes={items} isDark={isDark} />
-                  <Droppable droppableId={`notes-in-${cat}`} type="note" direction="horizontal">
-                    {(prov, snap) => (
-                      <div
-                        ref={prov.innerRef}
-                        {...prov.droppableProps}
-                        className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
-                      >
-                        {items.map((note, idx) => (
-                          <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
-                            {(dp, ds) => (
+            <Droppable droppableId="category-list-grid" type="category">
+              {(catProv) => (
+                <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-icon-grouped">
+                  {grouped.map(([cat, items], catIdx) => (
+                    <Draggable key={cat} draggableId={`cat-${cat}`} index={catIdx}>
+                      {(catDp, catSnap) => (
+                        <div
+                          ref={catDp.innerRef}
+                          {...catDp.draggableProps}
+                          className={`mb-5 ${catSnap.isDragging ? "opacity-90 shadow-2xl ring-2 ring-indigo-400/60 rounded-lg" : ""}`}
+                        >
+                          <CategoryHeader
+                            title={cat}
+                            notes={items}
+                            isDark={isDark}
+                            dragHandleProps={catDp.dragHandleProps}
+                          />
+                          <Droppable droppableId={`notes-in-${cat}`} type="note" direction="horizontal">
+                            {(prov, snap) => (
                               <div
-                                ref={dp.innerRef}
-                                {...dp.draggableProps}
-                                {...dp.dragHandleProps}
-                                className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
+                                ref={prov.innerRef}
+                                {...prov.droppableProps}
+                                className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
                               >
-                                <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                                {items.map((note, idx) => (
+                                  <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
+                                    {(dp, ds) => (
+                                      <div
+                                        ref={dp.innerRef}
+                                        {...dp.draggableProps}
+                                        {...dp.dragHandleProps}
+                                        className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
+                                      >
+                                        <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                ))}
+                                {prov.placeholder}
                               </div>
                             )}
-                          </Draggable>
-                        ))}
-                        {prov.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              ))}
-              {uncategorized.length > 0 && (
-                <div>
-                  {grouped.length > 0 && (
-                    <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
-                  )}
-                  <Droppable droppableId="notes-in-" type="note" direction="horizontal">
-                    {(prov, snap) => (
-                      <div
-                        ref={prov.innerRef}
-                        {...prov.droppableProps}
-                        className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
-                        data-testid="notes-icon-uncategorized"
-                      >
-                        {uncategorized.map((note, idx) => (
-                          <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
-                            {(dp, ds) => (
-                              <div
-                                ref={dp.innerRef}
-                                {...dp.draggableProps}
-                                {...dp.dragHandleProps}
-                                className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
-                              >
-                                <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {prov.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+                          </Droppable>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {catProv.placeholder}
                 </div>
               )}
-            </div>
+            </Droppable>
+            {uncategorized.length > 0 && (
+              <div>
+                {grouped.length > 0 && (
+                  <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
+                )}
+                <Droppable droppableId="notes-in-" type="note" direction="horizontal">
+                  {(prov, snap) => (
+                    <div
+                      ref={prov.innerRef}
+                      {...prov.droppableProps}
+                      className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
+                      data-testid="notes-icon-uncategorized"
+                    >
+                      {uncategorized.map((note, idx) => (
+                        <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
+                          {(dp, ds) => (
+                            <div
+                              ref={dp.innerRef}
+                              {...dp.draggableProps}
+                              {...dp.dragHandleProps}
+                              className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
+                            >
+                              <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {prov.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+            )}
           </DragDropContext>
         );
       }
