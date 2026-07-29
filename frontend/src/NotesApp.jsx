@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import "@/App.css";
 import { Toaster, toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -596,6 +596,23 @@ export default function NotesApp() {
 
   const handleDragStart = () => { haptic("tap"); };
 
+  // Modifier-key state during drag. Hold ⌘ / Ctrl while dropping across
+  // packs to switch the default COPY behaviour into a MOVE. The ref is
+  // updated by a window-level key listener (below) so drag-end can read
+  // the live value without state-timing races.
+  const modifierHeldRef = useRef(false);
+  useEffect(() => {
+    const onKey = (e) => {
+      modifierHeldRef.current = !!(e.metaKey || e.ctrlKey);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+    };
+  }, []);
+
   // Multi-select + bulk actions — every selection helper, modal flag,
   // and bulk handler is owned by the hook.
   const bulk = useBulkActions({ settings, fetchData });
@@ -648,14 +665,31 @@ export default function NotesApp() {
       const srcCat = source.droppableId.startsWith(CAT_PREFIX) ? source.droppableId.slice(CAT_PREFIX.length) : null;
       const dstCat = destination.droppableId.startsWith(CAT_PREFIX) ? destination.droppableId.slice(CAT_PREFIX.length) : null;
 
-      // Cross-category tile drag = COPY by default. The original stays
-      // put in its source category; a duplicate lands in the destination
-      // with a new UUID (all other content, alarms, attachments and
-      // metadata preserved). Users can still MOVE via the note's edit
-      // form → Category field, or via Batch Studio → Move To.
+      // Cross-category tile drag. DEFAULT = COPY (original stays, new
+      // duplicate lands in the destination). Hold ⌘ (Mac) or Ctrl
+      // (Windows/Linux) at drop time to switch to MOVE. Move is still
+      // available via NoteModal → Category field or Batch Studio → Move.
       if (srcCat !== null && dstCat !== null && srcCat !== dstCat) {
         const original = notes.find(n => n.id === noteId);
         if (!original) return;
+        const wantMove = modifierHeldRef.current === true;
+
+        if (wantMove) {
+          const prev = await StorageService.moveNoteToCategory(noteId, dstCat, "");
+          await fetchData();
+          toast.success(`Moved to "${dstCat}"`, {
+            action: prev ? {
+              label: "Undo",
+              onClick: async () => {
+                await StorageService.moveNoteToCategory(noteId, prev.category, prev.subcategory);
+                fetchData();
+              },
+            } : undefined,
+            duration: 6000,
+          });
+          return;
+        }
+
         const now = new Date().toISOString();
         const maxOrder = notes.reduce((m, n) => Math.max(m, n.order || 0), 0);
         const copy = {
@@ -668,8 +702,8 @@ export default function NotesApp() {
           order: maxOrder + 1,
         };
         await StorageService.saveNote(copy);
-        fetchData();
-        toast.success(`Copied to "${dstCat}"`, {
+        await fetchData();
+        toast.success(`Copied to "${dstCat}" · Hold ⌘/Ctrl to move`, {
           action: {
             label: "Undo",
             onClick: async () => {
