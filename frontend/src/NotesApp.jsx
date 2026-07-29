@@ -54,6 +54,7 @@ import useAutoLock from "./security/useAutoLock";
 import SecurityService from "./security/SecurityService";
 import { SUPPORTED_LANGUAGES } from "./i18n";
 import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
+import { maybeShowWeeklyChoreSummary } from "./utils/weeklyChoreSummary";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
@@ -227,6 +228,7 @@ export default function NotesApp() {
       // Weekly recap: fires a local notification if it's Sunday & not already
       // sent this week. Silently no-ops otherwise.
       maybeShowWeeklyRecap(notesData);
+      maybeShowWeeklyChoreSummary(notesData);
     } catch (err) {
       console.error("Error:", err);
       toast.error("Failed to load");

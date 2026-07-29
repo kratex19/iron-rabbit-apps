@@ -178,7 +178,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
           <div className="space-y-3">
             <div>
               <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.title")}</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("note.title_placeholder")} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} data-testid="note-title-input" />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("note.title_placeholder")} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 caret-indigo-600'}`} data-testid="note-title-input" />
             </div>
 
             <div>
@@ -213,18 +213,18 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 </div>
               </div>
-              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} data-testid="note-content-input" />
+              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`} data-testid="note-content-input" />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.category")}</label>
-                <Input value={category} onChange={(e) => { setCategory(e.target.value); setSubcategory(""); }} placeholder="e.g., Work" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} list="categories" />
+                <Input value={category} onChange={(e) => { setCategory(e.target.value); setSubcategory(""); }} placeholder="e.g., Work" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'}`} list="categories" />
                 <datalist id="categories">{Object.keys(categories).map(cat => <option key={cat} value={cat} />)}</datalist>
               </div>
               <div>
                 <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.subcategory")}</label>
-                <Input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} placeholder="e.g., Meetings" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200'}`} list="subcategories" />
+                <Input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} placeholder="e.g., Meetings" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'}`} list="subcategories" />
                 <datalist id="subcategories">{subcategories.map(sub => <option key={sub} value={sub} />)}</datalist>
               </div>
             </div>

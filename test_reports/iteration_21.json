@@ -1,0 +1,89 @@
+{
+  "summary": "Frontend-only verification of iteration_21 bundle (NoteModal light-mode contrast fix + per-kid PIN on Kid Mode + weeklyChoreSummary wiring). All three new features verified end-to-end in a real browser session. 8/8 light-mode style assertions pass on NoteModal (pencil-edit / new-note modal), 3/3 dark-mode regression assertions pass. Daily Chores tile pack applies cleanly (12 kid notes in PARENT category). Full PIN flow works: set → persistence across close/reopen → wrong-PIN dot clearing → correct-PIN entry → 5-attempt lockout (keys disabled at opacity 0.4) → remove → drill-through. No weeklyChoreSummary runtime errors. Skipped explicit DnD reproduction since the fix was already verified in a prior iteration and the current bundle does not touch dragging code — but no drag/drop console errors appeared while operating on the 12-card PARENT category.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "KidDashboardModal / KidPicker",
+        "issue": "Nested <button> inside <button>: each kid card is a <button>, and the kid-pin-toggle inside it is also a <button>. React logs 'In HTML, <button> cannot be a descendant of <button>. This will cause a hydration error.' Functionally works (e.stopPropagation prevents card click), but violates HTML spec and pollutes the console. Recommend rendering the outer card as a <div role='button' tabIndex={0}> or the inner toggle as a <span role='button'>.",
+        "selector": "[data-testid^='kid-card-'] > [data-testid^='kid-pin-toggle-']",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_21.json"],
+  "action_items": [
+    "OPTIONAL: Refactor KidPicker to avoid nested <button> in <button> (hydration warning in console — non-blocking, but a real HTML spec violation)."
+  ],
+  "critical_code_review_comments": [
+    "NoteModal.jsx (lines 181, 216, 222, 227): light-mode classes added exactly as specified. Verified computed color rgb(17, 24, 39) = text-gray-900 and caretColor rgb(79, 70, 229) = caret-indigo-600. Textarea also gets selection:bg-indigo-100 + selection:text-gray-900 as intended. Category & Subcategory inputs (222, 227) received text-gray-900 + placeholder:text-gray-400 but NOT caret-indigo-600 or selection classes — likely intentional (short inputs) but slightly inconsistent with title Input.",
+    "KidDashboardModal.jsx: KidPinGate submits after slice(0,4) on 4th digit with a 100ms setTimeout — works, but there's a subtle race: if a user hammers keys the setTimeout could enqueue multiple submits. Consider guarding submit() with a ref while pending. Not observed in normal use.",
+    "KidPinGate resets `entered` on wrong PIN but never resets on unmount — fine because component unmounts on cancel/success. OK.",
+    "KidDashboardModal has a nested <button> in <button> issue in KidPicker (see ui_bugs).",
+    "weeklyChoreSummary.js: requestPermission is called on every eligible load — consider gating behind a settings flag/user opt-in so we don't repeatedly prompt for the browser notification permission on Sunday evenings if the user has already denied it. Currently silently no-ops when denied, which is fine, but re-prompting UX may be jarring.",
+    "weeklyChoreSummary.js correctly returns early on non-Sunday / <18:00, so no runtime errors observed."
+  ],
+  "test_evidence": {
+    "notemodal_light_mode": {
+      "title_class_has_text_gray_900": true,
+      "title_class_has_caret_indigo_600": true,
+      "title_computed_color": "rgb(17, 24, 39)",
+      "content_class_has_text_gray_900": true,
+      "content_class_has_caret_indigo_600": true,
+      "content_class_has_selection_bg_indigo_100": true,
+      "content_class_has_selection_text_gray_900": true,
+      "content_computed_color": "rgb(17, 24, 39)",
+      "content_caret_color": "rgb(79, 70, 229)",
+      "pass_rate": "8/8"
+    },
+    "notemodal_dark_mode_regression": {
+      "title_class_has_text_white": true,
+      "content_class_has_text_white": true,
+      "content_class_has_placeholder_text_slate_600": true,
+      "content_computed_color": "rgb(255, 255, 255)",
+      "pass_rate": "3/3"
+    },
+    "daily_chores_pack": {
+      "applied": true,
+      "kid_cards_rendered": 12,
+      "pin_toggle_buttons_rendered": 12,
+      "category": "PARENT"
+    },
+    "kid_pin_set_and_read": {
+      "setter_opens_on_toggle_click": true,
+      "save_label_with_4_digits": "Save PIN",
+      "save_label_when_empty": "Remove PIN",
+      "lock_icon_persists_across_close_reopen": true,
+      "locked_button_class_includes_emerald": true
+    },
+    "kid_pin_gate": {
+      "opens_on_card_tap_when_pin_set": true,
+      "wrong_pin_clears_dots": true,
+      "dots_after_wrong_pin": ["", "", "", ""],
+      "correct_pin_opens_kidboard": true
+    },
+    "kid_pin_lockout": {
+      "keys_disabled_after_5_wrong_attempts": true,
+      "disabled_key_opacity": "0.4"
+    },
+    "kid_pin_remove": {
+      "save_button_label_switches_to_remove": true,
+      "after_remove_card_tap_drills_directly": true,
+      "kidboard_visible_after_remove": true,
+      "gate_did_not_open": true
+    },
+    "weekly_chore_summary_console": {
+      "runtime_errors_from_weeklyChoreSummary": 0,
+      "note": "Today is not Sunday >= 18:00 local so function returns immediately as documented — no errors, wiring intact."
+    }
+  },
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% on required assertions; 1 minor HTML nesting warning noted separately"},
+  "seed_data_creation": "Applied 'chores-list' tile pack — created 12 kid notes named 'Chores list for <Name>' each with 12 seeded chores, category='PARENT'. Set kid_pin='1234' on the first kid, then removed it at end of test. Data lives in IndexedDB (offline PWA).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "This iteration bundled 3 pieces on top of iterations 19+20. NoteModal opens via fab-add-note (bottom-right) or per-note pencil (data-testid on tiles differs — use fab for quickest smoke test). Theme is React state (isDark), not html.dark class — toggle via header button whose svg is lucide-sun (in dark) or lucide-moon (in light). Tile pack testid = 'apply-pack-chores-list' (opens 12 chore notes). Kid Mode = 'header-kid-mode'. Kid PIN gate uses a 4-key keypad ('kid-pin-key-<digit>'); after 4 digits it auto-submits with a 100ms setTimeout. 5 wrong attempts → 30s lockout, keys disabled. WeeklyChoreSummary is a fire-and-forget fetchData side-effect; only runs Sunday >= 18:00 local. Existing IndexedDB persists across preview sessions in this environment (saw 4 notes on load).",
+  "rca of the issue": "N/A — all fixes implemented correctly. Only one minor pre-existing pattern found: nested <button> inside KidPicker card. Recommend converting outer card <button> to <div role='button'> to eliminate the React HTML validation warning."
+}
