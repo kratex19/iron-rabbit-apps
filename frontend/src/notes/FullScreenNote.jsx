@@ -71,7 +71,18 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
       <div
         className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]' : 'bg-white'} border ${colorConfig.class}`}
-        style={{ borderWidth: '2px', ...(getNoteColorStyle(colorConfig, isDark) || {}) }}
+        style={{
+          borderWidth: '2px',
+          // In dark mode we keep the tinted gradient background for atmosphere.
+          // In light mode we *only* borrow the border accent — the colored
+          // gradient over white was overriding `bg-white` and dropping text
+          // contrast for `text-gray-700` body copy. Plain white background
+          // makes every heading / body / list / caret readable while the
+          // 2px accent border still identifies the note's color.
+          ...(isDark
+            ? (getNoteColorStyle(colorConfig, true) || {})
+            : { borderColor: colorConfig.border || colorConfig.accent }),
+        }}
       >
         {/* Header */}
         <div className={`flex items-center justify-between gap-3 p-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
@@ -103,7 +114,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
-            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-700 placeholder:text-gray-400'}`}
+            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
@@ -151,7 +162,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                       </svg>
                     )}
                   </span>
-                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-700")}`}>
+                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-900")}`}>
                     {item.text}
                   </span>
                 </button>
