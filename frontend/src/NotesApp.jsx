@@ -662,21 +662,43 @@ export default function NotesApp() {
       //
       // For per-category droppables (`notes-in-<cat>`), source.index /
       // destination.index are LOCAL to that category — we must reorder
-      // against the local grouped[cat] slice (not `processedNotes`, which
-      // is global across categories).
-      let workingList;
-      let baseList;
+      // against the local grouped[cat] slice, THEN splice the result back
+      // into the FULL global note order before persisting. Persisting only
+      // the local slice would reset `note.order` values 0..N-1 for that
+      // category and collide with every other category's order values,
+      // causing tiles to jump to unexpected positions on the next render.
+      let localList;
       if (srcCat !== null) {
         const entry = srcCat === "" ? null : grouped.find(([n]) => n === srcCat);
-        baseList = entry ? entry[1] : uncategorized;
+        localList = entry ? entry[1] : uncategorized;
       } else {
-        baseList = processedNotes;
+        localList = processedNotes;
       }
-      workingList = Array.from(baseList);
-      const [reorderedItem] = workingList.splice(source.index, 1);
+
+      const reorderedLocal = Array.from(localList);
+      const [reorderedItem] = reorderedLocal.splice(source.index, 1);
       if (!reorderedItem) return; // safety
-      workingList.splice(destination.index, 0, reorderedItem);
-      await StorageService.reorderNotes(workingList.map((item) => item.id));
+      reorderedLocal.splice(destination.index, 0, reorderedItem);
+
+      // Build the FULL new ordering: iterate the currently-sorted global
+      // list and, whenever we hit a note that belonged to the reordered
+      // slice, replace it with the next item from the new local order.
+      // Every other note keeps its relative position.
+      let finalOrderIds;
+      if (srcCat === null) {
+        // Flat / ungrouped path — the visible list IS the global list.
+        finalOrderIds = reorderedLocal.map(n => n.id);
+      } else {
+        const localIds = new Set(localList.map(n => n.id));
+        const globalSorted = [...notes].sort(
+          (a, b) => ((a.order ?? 0) - (b.order ?? 0)) ||
+                    ((a.created_at || "") < (b.created_at || "") ? 1 : -1)
+        );
+        const queue = [...reorderedLocal];
+        finalOrderIds = globalSorted.map(n => (localIds.has(n.id) ? queue.shift().id : n.id));
+      }
+
+      await StorageService.reorderNotes(finalOrderIds);
 
       // Drag-and-drop implies "custom" sort. If the user is in a
       // different sort mode the reorder would be invisible (the view
