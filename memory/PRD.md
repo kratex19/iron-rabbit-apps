@@ -1021,3 +1021,31 @@ Frontend:
 
 **Files added:** `notes/PantryModal.jsx`, `utils/pantryAlerts.js`
 **Files updated:** `storage/storageService.js`, `utils/priceHistory.js`, `notes/TripJournalModal.jsx`, `notes/SettingsModal.jsx`, `NotesApp.jsx`
+
+## Session 2026-02-XX — Iteration 26 (ML Kit swap + NotesApp refactor)
+
+**Delivered & verified via testing_agent iteration_26 (100% regression-clean):**
+- **Native ML Kit barcode swap (P3)** — `BarcodeScannerModal.jsx` now branches on `Capacitor.isNativePlatform()`. Native builds use `@capacitor-mlkit/barcode-scanning` (Google ML Kit) via dynamic import; web builds keep the existing `window.BarcodeDetector` path with manual-entry fallback. Includes Android on-demand module install (`isGoogleBarcodeScannerModuleAvailable` + `installGoogleBarcodeScannerModule`). New "Open ML Kit scanner" button label when native.
+- **Haptics upgrade** — `utils/haptic.js` now uses `@capacitor/haptics` (dynamic import) on native for proper Taptic Engine / VIBRATOR_SERVICE feedback with `success/error/light/medium` impact styles; web falls back to `navigator.vibrate`.
+- **NotesApp.jsx refactor (P3)** — extracted two clean pure components:
+  - `notes/AppHeader.jsx` (~113 lines) — top bar with 17 action buttons; takes 15 `onXxx` callbacks as props.
+  - `notes/AppSearchBar.jsx` (~152 lines) — search input, view-mode toggle, filter + sort dropdowns, tag strip, group-by toggle, multi-select mode toggle.
+  - Removed 17 now-unused imports from NotesApp.jsx.
+  - **File size: 1917 → 1802 lines (−6%)**. Testing agent flagged remaining opportunities: `<AppModals />` wrapper and `<NoteListView />` — good candidates for next session.
+- **Capacitor setup docs updated** — `/app/CAPACITOR_SETUP.md` Phase 4 rewritten: ML Kit path documented as already wired, camera permission snippets for iOS + Android, first-time Android Play Services module install note.
+- **New deps**: `@capacitor-mlkit/barcode-scanning@7.5.0`, `@capacitor/haptics@7.0.5` (v7 to match existing Capacitor 7).
+
+**Verification highlights (from iteration_26):**
+- All 17 header testids render + click through to correct modals
+- All 6 AppSearchBar testids function
+- BarcodeDetector unavailable in Playwright → graceful "Camera scan not supported" state; manual EAN entry `3017620422003` → Nutella/Ferrero with full nutrition still works end-to-end
+- Zero console errors, zero @capacitor/haptics or ML Kit fetch attempts on web (dynamic imports properly gated)
+
+**Files added:** `notes/AppHeader.jsx`, `notes/AppSearchBar.jsx`
+**Files updated:** `NotesApp.jsx`, `notes/BarcodeScannerModal.jsx`, `utils/haptic.js`, `CAPACITOR_SETUP.md`
+
+## Backlog (next session candidates)
+- Extract `<AppModals />` wrapper (would remove another ~200 lines from NotesApp.jsx)
+- Extract `<NoteListView />` for grouped + ungrouped rendering blocks
+- Fix low-priority hydration warnings (PantryModal Unit Select key, TripJournalModal nested button — already fixed in iter 25 but re-verify)
+- Custom domain link via Entri (user action pending)
