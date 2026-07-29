@@ -455,7 +455,7 @@ function NotificationsPanel({ isDark }) {
   const [status, setStatus] = useState(() =>
     typeof Notification === "undefined" ? "unsupported" : Notification.permission
   );
-  const [prefs, setPrefs] = useState({ weekly_recap: true, chore_summary: true });
+  const [prefs, setPrefs] = useState({ weekly_recap: true, chore_summary: true, pantry_expiration: true });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -464,6 +464,7 @@ function NotificationsPanel({ isDark }) {
       setPrefs({
         weekly_recap: s?.notif_weekly_recap !== false,
         chore_summary: s?.notif_chore_summary !== false,
+        pantry_expiration: s?.notif_pantry_expiration !== false,
       });
       setLoading(false);
     })();
@@ -555,6 +556,14 @@ function NotificationsPanel({ isDark }) {
           onChange={(v) => savePref("chore_summary", v)}
           isDark={isDark}
           testid="notif-toggle-chore-summary"
+        />
+        <NotifToggle
+          label="Pantry expiration alerts"
+          hint="Once a day · items expired or expiring within 3 days"
+          checked={prefs.pantry_expiration}
+          onChange={(v) => savePref("pantry_expiration", v)}
+          isDark={isDark}
+          testid="notif-toggle-pantry-expiration"
         />
       </div>
       <div className={`text-[10px] mt-2 ${isDark ? "text-slate-500" : "text-gray-500"}`}>

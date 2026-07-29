@@ -84,3 +84,61 @@ export function clearPriceHistoryCache() {
 export function getCachedHistory() {
   return cache;
 }
+
+// Detailed per-item history: raw price points sorted oldest-first for
+// sparkline / trend rendering.
+export async function itemPriceSeries(itemText, lookbackTrips = 30) {
+  const trips = await StorageService.getGroceryTrips();
+  const recent = trips
+    .filter(t => Array.isArray(t.items) && t.items.length > 0)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-lookbackTrips);
+  const key = (itemText || "").toLowerCase().trim();
+  const series = [];
+  for (const t of recent) {
+    for (const it of t.items) {
+      if ((it.text || "").toLowerCase().trim() !== key) continue;
+      const price = Number(it.price);
+      if (!price || price <= 0) continue;
+      series.push({ date: t.date, price, dept: it.dept || "" });
+    }
+  }
+  return series;
+}
+
+// Best day-of-week to buy each item, based on median price by weekday.
+// Returns { day: 0-6, dayName, median, savings_pct, count } for items that
+// have prices across at least 3 different weekdays.
+export async function bestDayToBuy(itemText, lookbackTrips = 30) {
+  const series = await itemPriceSeries(itemText, lookbackTrips);
+  if (series.length < 3) return null;
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const byDay = new Map(); // dayIdx → prices[]
+  for (const p of series) {
+    const d = new Date(p.date).getDay();
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d).push(p.price);
+  }
+  if (byDay.size < 2) return null; // need at least 2 different weekdays
+
+  const medians = [];
+  for (const [d, prices] of byDay.entries()) {
+    const sorted = [...prices].sort((a, b) => a - b);
+    const median = sorted.length % 2 === 1
+      ? sorted[Math.floor(sorted.length / 2)]
+      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+    medians.push({ day: d, dayName: dayNames[d], median, count: prices.length });
+  }
+  medians.sort((a, b) => a.median - b.median);
+  const best = medians[0];
+  const worst = medians[medians.length - 1];
+  const savings_pct = worst.median > 0 ? ((worst.median - best.median) / worst.median) * 100 : 0;
+  return {
+    ...best,
+    median: Number(best.median.toFixed(2)),
+    worst_day: worst.dayName,
+    worst_median: Number(worst.median.toFixed(2)),
+    savings_pct: Number(savings_pct.toFixed(1)),
+    total_points: series.length,
+  };
+}

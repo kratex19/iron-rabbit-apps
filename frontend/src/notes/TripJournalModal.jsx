@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Receipt, Calendar, DollarSign, TrendingUp, Trash2, ChevronDown, ChevronRight,
-  ShoppingBag, Store, X,
+  ShoppingBag, Store, X, Clock,
 } from "lucide-react";
 import { format, parseISO, startOfWeek, startOfMonth, subMonths, isSameMonth } from "date-fns";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import StorageService from "../storage/storageService";
+import { bestDayToBuy, itemPriceSeries } from "../utils/priceHistory";
 
 /**
  * Trip Journal — full history of grocery shopping trips.
@@ -27,6 +28,8 @@ export default function TripJournalModal({ isOpen, onClose, isDark }) {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(new Set());
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // Per-item deep analytics (best-day + sparkline) for top 6 most-bought items.
+  const [analytics, setAnalytics] = useState({}); // { itemText → { best, series } }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -100,6 +103,26 @@ export default function TripJournalModal({ isOpen, onClose, isDark }) {
 
     return { monthTrips: monthTrips.length, monthSpend, monthItems, total, avg, biggest, months, departments, deptMax, topItems };
   }, [trips]);
+
+  // Load best-day + price series for the top 6 items whenever the item ranking changes.
+  useEffect(() => {
+    if (!stats?.topItems?.length) return;
+    let cancelled = false;
+    (async () => {
+      const target = stats.topItems.slice(0, 6);
+      const map = {};
+      for (const it of target) {
+        // eslint-disable-next-line no-await-in-loop
+        const [best, series] = await Promise.all([
+          bestDayToBuy(it.text, 30),
+          itemPriceSeries(it.text, 30),
+        ]);
+        map[it.text] = { best, series };
+      }
+      if (!cancelled) setAnalytics(map);
+    })();
+    return () => { cancelled = true; };
+  }, [stats?.topItems]);
 
   const handleDelete = async (id) => {
     await StorageService.deleteGroceryTrip(id);
@@ -227,22 +250,80 @@ export default function TripJournalModal({ isOpen, onClose, isDark }) {
                 </div>
                 <div className={cardCls}>
                   <div className={`flex items-center gap-1.5 mb-3 font-medium text-sm ${isDark ? "text-white" : "text-gray-900"}`}>
-                    <ShoppingBag className="w-4 h-4 text-fuchsia-400" /> Most bought
+                    <ShoppingBag className="w-4 h-4 text-fuchsia-400" /> Most bought & best day to buy
                   </div>
                   {stats.topItems.length === 0 ? (
                     <div className={`text-xs ${isDark ? "text-slate-500" : "text-gray-500"}`}>
                       No items yet.
                     </div>
                   ) : (
-                    <div className="space-y-1.5">
-                      {stats.topItems.map(it => (
-                        <div key={it.text} className={`flex items-center justify-between text-xs ${isDark ? "text-slate-300" : "text-gray-700"}`}>
-                          <span className="truncate">{it.text}</span>
-                          <span className={`font-mono text-[11px] ml-2 shrink-0 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
-                            ×{it.count} · ${it.spend.toFixed(2)}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="space-y-2" data-testid="trip-top-items">
+                      {stats.topItems.slice(0, 6).map(it => {
+                        const a = analytics[it.text];
+                        const best = a?.best;
+                        const series = (a?.series || []).map((p, i) => ({ i, price: p.price }));
+                        return (
+                          <div
+                            key={it.text}
+                            className={`rounded-lg p-2 border ${isDark ? "border-white/10 bg-white/[0.02]" : "border-gray-200 bg-white"}`}
+                            data-testid={`top-item-${it.text.toLowerCase().replace(/\s+/g, "-")}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className={`text-xs font-medium truncate ${isDark ? "text-white" : "text-gray-900"}`}>
+                                  {it.text}
+                                </div>
+                                <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                                  bought ×{it.count} · ${it.spend.toFixed(2)} total
+                                </div>
+                              </div>
+                              {best ? (
+                                <div
+                                  className={`shrink-0 flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${isDark ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/25" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}
+                                  title={`Median $${best.median.toFixed(2)} on ${best.dayName}s vs $${best.worst_median.toFixed(2)} on ${best.worst_day}s — ${best.savings_pct.toFixed(0)}% savings across ${best.total_points} data points`}
+                                  data-testid={`best-day-${it.text.toLowerCase().replace(/\s+/g, "-")}`}
+                                >
+                                  <Clock className="w-2.5 h-2.5" />
+                                  Best: {best.dayName}s
+                                  {best.savings_pct > 5 && <span className="opacity-70">· save {best.savings_pct.toFixed(0)}%</span>}
+                                </div>
+                              ) : (
+                                <div className={`text-[10px] ${isDark ? "text-slate-600" : "text-gray-400"}`}>
+                                  {(a && a.series.length < 3) ? "Need more data" : "…"}
+                                </div>
+                              )}
+                            </div>
+                            {series.length >= 2 && (
+                              <div className="h-8 mt-1" data-testid={`sparkline-${it.text.toLowerCase().replace(/\s+/g, "-")}`}>
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <LineChart data={series} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+                                    <Tooltip
+                                      cursor={{ stroke: isDark ? "#334155" : "#e5e7eb" }}
+                                      contentStyle={{
+                                        background: isDark ? "#0f172a" : "#fff",
+                                        border: `1px solid ${isDark ? "#1e293b" : "#e5e7eb"}`,
+                                        borderRadius: 6,
+                                        fontSize: 11,
+                                        padding: "2px 6px",
+                                      }}
+                                      formatter={(v) => [`$${Number(v).toFixed(2)}`, "price"]}
+                                      labelFormatter={() => ""}
+                                    />
+                                    <Line
+                                      type="monotone"
+                                      dataKey="price"
+                                      stroke="#d946ef"
+                                      strokeWidth={1.75}
+                                      dot={false}
+                                      isAnimationActive={false}
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

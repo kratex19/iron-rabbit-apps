@@ -593,6 +593,38 @@ export const StorageService = {
     await this.saveSettings({ custom_recipes: list.filter(r => r.id !== id) });
     return true;
   },
+
+  // ========== PANTRY ==========
+  // Pantry items are stored in `settings.pantry_items[]`.
+  // Shape: { id, name, qty, unit, dept, added_at, expires_at?, opened_at?, notes? }
+  async getPantryItems() {
+    const settings = await this.getSettings();
+    return Array.isArray(settings?.pantry_items) ? settings.pantry_items : [];
+  },
+  async savePantryItem(item) {
+    const list = await this.getPantryItems();
+    const withId = {
+      id: item.id || `pantry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      added_at: item.added_at || new Date().toISOString(),
+      ...item,
+    };
+    const idx = list.findIndex(p => p.id === withId.id);
+    if (idx >= 0) list[idx] = { ...list[idx], ...withId };
+    else list.push(withId);
+    await this.saveSettings({ pantry_items: list });
+    return withId;
+  },
+  async deletePantryItem(id) {
+    const list = await this.getPantryItems();
+    await this.saveSettings({ pantry_items: list.filter(p => p.id !== id) });
+    return true;
+  },
+  async updatePantryItem(id, updates) {
+    const list = await this.getPantryItems();
+    const next = list.map(p => p.id === id ? { ...p, ...updates } : p);
+    await this.saveSettings({ pantry_items: next });
+    return next.find(p => p.id === id);
+  },
 };
 
 // ==================== FUTURE: CLOUD SYNC INTERFACE ====================

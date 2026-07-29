@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt, Barcode, ChefHat,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt, Barcode, ChefHat, PackageOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ import ShoppingModeModal from "./notes/ShoppingModeModal";
 import TripJournalModal from "./notes/TripJournalModal";
 import BarcodeScannerModal from "./notes/BarcodeScannerModal";
 import MealPlannerModal from "./notes/MealPlannerModal";
+import PantryModal from "./notes/PantryModal";
 import CategoryHeader from "./notes/CategoryHeader";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
@@ -59,6 +60,7 @@ import SecurityService from "./security/SecurityService";
 import { SUPPORTED_LANGUAGES } from "./i18n";
 import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 import { maybeShowWeeklyChoreSummary } from "./utils/weeklyChoreSummary";
+import { maybeShowPantryAlerts } from "./utils/pantryAlerts";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES, SORT_OPTIONS, FILTER_OPTIONS } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
@@ -116,6 +118,7 @@ export default function NotesApp() {
   const [tripJournalOpen, setTripJournalOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [mealPlannerOpen, setMealPlannerOpen] = useState(false);
+  const [pantryOpen, setPantryOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -237,6 +240,7 @@ export default function NotesApp() {
       // sent this week. Silently no-ops otherwise.
       maybeShowWeeklyRecap(notesData);
       maybeShowWeeklyChoreSummary(notesData);
+      maybeShowPantryAlerts();
     } catch (err) {
       console.error("Error:", err);
       toast.error("Failed to load");
@@ -1336,6 +1340,7 @@ export default function NotesApp() {
               <Button variant="ghost" size="icon" onClick={() => { setShoppingModeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Shopping Mode" data-testid="header-shopping-mode"><ShoppingCart className="w-4 h-4" /></Button>
             )}
             <Button variant="ghost" size="icon" onClick={() => { setMealPlannerOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Meal Planner" data-testid="header-meal-planner"><ChefHat className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setPantryOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Pantry Inventory" data-testid="header-pantry"><PackageOpen className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => { setBarcodeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Barcode Scanner" data-testid="header-barcode"><Barcode className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => { setTripJournalOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Trip Journal" data-testid="header-trip-journal"><Receipt className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setArchiveTrashOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
@@ -1656,6 +1661,51 @@ export default function NotesApp() {
         onClose={() => setMealPlannerOpen(false)}
         isDark={isDark}
         onGeneratedGroceryNote={() => fetchData()}
+      />
+
+      <PantryModal
+        isOpen={pantryOpen}
+        onClose={() => setPantryOpen(false)}
+        isDark={isDark}
+        onSendToShoppingList={async (pantryItem) => {
+          // Add the out-of-stock pantry item back to the newest grocery note
+          // (or create one). Mirrors the barcode-onCapture flow.
+          const groceryNotes = notes
+            .filter(n =>
+              !n.archived_at && !n.deleted_at &&
+              (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery")))
+            )
+            .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+
+          const newItem = {
+            id: Math.random().toString(36).slice(2, 12),
+            text: pantryItem.name,
+            done: false,
+            dept: pantryItem.dept || "",
+          };
+          if (groceryNotes.length > 0) {
+            const target = groceryNotes[0];
+            const nextList = [...(target.checklist || []), newItem];
+            await handleSaveInline(target.id, { checklist: nextList });
+            toast.success(`"${pantryItem.name}" added to "${target.title}"`);
+          } else {
+            const now = new Date().toISOString();
+            await StorageService.saveNote({
+              id: uuidv4(),
+              title: "Shopping List",
+              content: "",
+              category: "Grocery",
+              tags: ["grocery"],
+              color: "lime",
+              checklist: [newItem],
+              created_at: now,
+              updated_at: now,
+              order: Date.now(),
+            });
+            toast.success(`Shopping List created with "${pantryItem.name}"`);
+            fetchData();
+          }
+        }}
       />
 
       <LanguagePicker
