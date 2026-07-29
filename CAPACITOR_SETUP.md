@@ -106,6 +106,50 @@ Then:
 
 ---
 
+## Phase 4 native enhancements (optional add-ons)
+
+The Meal Planner, Trip Journal, and Barcode Scanner ship as **web-native** in the PWA build (using `BarcodeDetector`, `getUserMedia`, IndexedDB, and OpenFoodFacts). To get a smoother native experience — faster barcode scanning, background nutrition sync, home-screen widget — add these plugins:
+
+```bash
+# From frontend/
+yarn add @capacitor-mlkit/barcode-scanning        # Google ML Kit — much faster than BarcodeDetector, works offline
+yarn add @capacitor/haptics                       # Better haptic feedback than the web Vibration API
+yarn add @capacitor/local-notifications           # Fire the weekly grocery/chore digest without a background tab
+npx cap sync
+```
+
+### Barcode Scanner (native path)
+
+`frontend/src/notes/BarcodeScannerModal.jsx` currently uses `window.BarcodeDetector`. To switch to ML Kit on native builds, add this runtime guard around the scan loop (search for `startCamera`):
+
+```js
+import { Capacitor } from "@capacitor/core";
+import { BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
+
+if (Capacitor.isNativePlatform()) {
+  const result = await BarcodeScanner.scan();
+  if (result.barcodes?.[0]) setScanned({ code: result.barcodes[0].rawValue });
+} else {
+  // existing web code
+}
+```
+
+### Camera permission (required for scanner)
+
+**Android** — `android/app/src/main/AndroidManifest.xml`:
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-feature android:name="android.hardware.camera" android:required="false" />
+```
+
+**iOS** — `ios/App/App/Info.plist`:
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Iron Rabbit uses the camera to scan barcodes and add products to your shopping list.</string>
+```
+
+---
+
 ## Store submission checklist
 
 **Android (Google Play):**

@@ -536,6 +536,65 @@ export const StorageService = {
     await metadataStore.setItem(key, value);
     return value;
   },
+
+  // ========== GROCERY TRIP JOURNAL ==========
+  // Trips are stored as an array in `settings.grocery_trips`.
+  // Shape: { id, date (ISO), item_count, total_spent, items: [{text, price, dept}], notes }
+  async getGroceryTrips() {
+    const settings = await this.getSettings();
+    return Array.isArray(settings?.grocery_trips) ? settings.grocery_trips : [];
+  },
+  async saveGroceryTrip(trip) {
+    const trips = await this.getGroceryTrips();
+    const withId = { id: trip.id || `trip_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...trip };
+    trips.push(withId);
+    // Cap history at 500 trips
+    const trimmed = trips.slice(-500);
+    await this.saveSettings({ grocery_trips: trimmed });
+    return withId;
+  },
+  async deleteGroceryTrip(id) {
+    const trips = await this.getGroceryTrips();
+    const next = trips.filter(t => t.id !== id);
+    await this.saveSettings({ grocery_trips: next });
+    return true;
+  },
+  async updateGroceryTrip(id, updates) {
+    const trips = await this.getGroceryTrips();
+    const next = trips.map(t => t.id === id ? { ...t, ...updates } : t);
+    await this.saveSettings({ grocery_trips: next });
+    return next.find(t => t.id === id);
+  },
+
+  // ========== MEAL PLAN + RECIPES ==========
+  // Meal plan is a 7-day map keyed by ISO date (yyyy-mm-dd) →
+  // { breakfast: recipeId|null, lunch: recipeId|null, dinner: recipeId|null }
+  async getMealPlan() {
+    const settings = await this.getSettings();
+    return settings?.meal_plan || {};
+  },
+  async saveMealPlan(plan) {
+    await this.saveSettings({ meal_plan: plan });
+    return plan;
+  },
+  async getCustomRecipes() {
+    const settings = await this.getSettings();
+    return Array.isArray(settings?.custom_recipes) ? settings.custom_recipes : [];
+  },
+  async saveCustomRecipe(recipe) {
+    const list = await this.getCustomRecipes();
+    const withId = { id: recipe.id || `recipe_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...recipe };
+    const idx = list.findIndex(r => r.id === withId.id);
+    if (idx >= 0) list[idx] = withId;
+    else list.push(withId);
+    await this.saveSettings({ custom_recipes: list });
+    return withId;
+  },
+  async deleteCustomRecipe(id) {
+    const list = await this.getCustomRecipes();
+    await this.saveSettings({ custom_recipes: list.filter(r => r.id !== id) });
+    return true;
+  },
 };
 
 // ==================== FUTURE: CLOUD SYNC INTERFACE ====================

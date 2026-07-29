@@ -49,6 +49,7 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
       if (openSnapshot) {
         let newlyChecked = 0;
         let spent = 0;
+        const items = [];
         for (const n of notes || []) {
           if (n.category !== "Grocery" && !(Array.isArray(n.tags) && n.tags.includes("grocery"))) continue;
           for (const it of (n.checklist || [])) {
@@ -56,21 +57,23 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
             const wasDone = openSnapshot[key] === true;
             if (!wasDone && it.done) {
               newlyChecked += 1;
-              spent += Number(it.price) || 0;
+              const price = Number(it.price) || 0;
+              spent += price;
+              items.push({
+                text: it.text || "",
+                price,
+                dept: n.title || "",
+              });
             }
           }
         }
         if (newlyChecked > 0) {
-          const settings = await StorageService.getSettings();
-          const trips = Array.isArray(settings?.grocery_trips) ? settings.grocery_trips : [];
-          trips.push({
+          await StorageService.saveGroceryTrip({
             date: new Date().toISOString(),
             item_count: newlyChecked,
             total_spent: Number(spent.toFixed(2)),
+            items,
           });
-          // Keep at most the last 200 trips to avoid runaway growth.
-          const trimmed = trips.slice(-200);
-          await StorageService.saveSettings({ grocery_trips: trimmed });
           toast.success(
             spent > 0
               ? `Trip saved · ${newlyChecked} items · $${spent.toFixed(2)}`

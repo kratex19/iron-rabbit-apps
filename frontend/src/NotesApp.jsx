@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, Calculator, ExternalLink, Sun, Moon, Search, Filter,
-  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart,
+  FolderTree, Download, LayoutGrid, List, Pin, Zap, Package, CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt, Barcode, ChefHat,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,9 @@ import TagFilterStrip from "./notes/TagFilterStrip";
 import InsightsModal from "./notes/InsightsModal";
 import KidDashboardModal from "./notes/KidDashboardModal";
 import ShoppingModeModal from "./notes/ShoppingModeModal";
+import TripJournalModal from "./notes/TripJournalModal";
+import BarcodeScannerModal from "./notes/BarcodeScannerModal";
+import MealPlannerModal from "./notes/MealPlannerModal";
 import CategoryHeader from "./notes/CategoryHeader";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
@@ -110,6 +113,9 @@ export default function NotesApp() {
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [kidModeOpen, setKidModeOpen] = useState(false);
   const [shoppingModeOpen, setShoppingModeOpen] = useState(false);
+  const [tripJournalOpen, setTripJournalOpen] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [mealPlannerOpen, setMealPlannerOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -1329,6 +1335,9 @@ export default function NotesApp() {
             {notes.some(n => (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery"))) && !n.archived_at && !n.deleted_at) && (
               <Button variant="ghost" size="icon" onClick={() => { setShoppingModeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Shopping Mode" data-testid="header-shopping-mode"><ShoppingCart className="w-4 h-4" /></Button>
             )}
+            <Button variant="ghost" size="icon" onClick={() => { setMealPlannerOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Meal Planner" data-testid="header-meal-planner"><ChefHat className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setBarcodeOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Barcode Scanner" data-testid="header-barcode"><Barcode className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { setTripJournalOpen(true); haptic("tap"); }} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Trip Journal" data-testid="header-trip-journal"><Receipt className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setArchiveTrashOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsModalOpen(true)} className="text-white/70 hover:text-white hover:bg-white/10 h-8 w-8" title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
           </div>
@@ -1569,6 +1578,7 @@ export default function NotesApp() {
         onClose={() => setInsightsOpen(false)}
         notes={notes}
         isDark={isDark}
+        onOpenTripJournal={() => setTripJournalOpen(true)}
       />
 
       <KidDashboardModal
@@ -1585,6 +1595,67 @@ export default function NotesApp() {
         notes={notes}
         onSaveNote={handleSaveInline}
         isDark={isDark}
+      />
+
+      <TripJournalModal
+        isOpen={tripJournalOpen}
+        onClose={() => setTripJournalOpen(false)}
+        isDark={isDark}
+      />
+
+      <BarcodeScannerModal
+        isOpen={barcodeOpen}
+        onClose={() => setBarcodeOpen(false)}
+        isDark={isDark}
+        onCapture={async (captured) => {
+          // Find the most recently updated grocery note, or create a new one.
+          const groceryNotes = notes
+            .filter(n =>
+              !n.archived_at && !n.deleted_at &&
+              (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery")))
+            )
+            .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+
+          const newItem = {
+            id: Math.random().toString(36).slice(2, 12),
+            text: captured.name,
+            done: false,
+            barcode: captured.code,
+            nutrition: captured.nutrition || null,
+            nutriscore: captured.nutriscore || null,
+          };
+
+          if (groceryNotes.length > 0) {
+            const target = groceryNotes[0];
+            const nextList = [...(target.checklist || []), newItem];
+            await handleSaveInline(target.id, { checklist: nextList });
+            toast.success(`Added "${captured.name}" to "${target.title}"`);
+          } else {
+            const now = new Date().toISOString();
+            const newNote = {
+              id: uuidv4(),
+              title: "Shopping List",
+              content: "",
+              category: "Grocery",
+              tags: ["grocery"],
+              color: "lime",
+              checklist: [newItem],
+              created_at: now,
+              updated_at: now,
+              order: Date.now(),
+            };
+            await StorageService.saveNote(newNote);
+            toast.success(`New Shopping List created with "${captured.name}"`);
+            fetchData();
+          }
+        }}
+      />
+
+      <MealPlannerModal
+        isOpen={mealPlannerOpen}
+        onClose={() => setMealPlannerOpen(false)}
+        isDark={isDark}
+        onGeneratedGroceryNote={() => fetchData()}
       />
 
       <LanguagePicker

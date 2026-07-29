@@ -11,7 +11,7 @@ import { NOTE_COLORS } from "./constants";
  * Insights dashboard modal — computes and renders every stat purely from
  * the in-memory notes array (offline-first). No network calls.
  */
-export default function InsightsModal({ isOpen, onClose, notes, isDark }) {
+export default function InsightsModal({ isOpen, onClose, notes, isDark, onOpenTripJournal }) {
   const [trips, setTrips] = React.useState([]);
   React.useEffect(() => {
     if (!isOpen) return;
@@ -353,6 +353,16 @@ export default function InsightsModal({ isOpen, onClose, notes, isDark }) {
                 <div className={`text-[11px] mt-2 text-right ${isDark ? "text-slate-500" : "text-gray-500"}`}>
                   Biggest trip so far: <b className={isDark ? "text-emerald-300" : "text-emerald-700"}>${biggest.toFixed(2)}</b> · {trips.length} trips lifetime
                 </div>
+                {typeof onOpenTripJournal === "function" && (
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); setTimeout(() => onOpenTripJournal(), 100); }}
+                    className={`mt-2 w-full text-xs py-1.5 rounded-lg font-medium transition-colors ${isDark ? "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"}`}
+                    data-testid="insights-open-trip-journal"
+                  >
+                    View full Trip Journal →
+                  </button>
+                )}
               </div>
             );
           })()}
