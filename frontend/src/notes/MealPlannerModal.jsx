@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   ChefHat, Calendar, Plus, X, ShoppingCart, Search, Coffee, Sun, Moon,
-  ArrowLeft, ArrowRight, Clock, Users, Sparkles, Trash2,
+  ArrowLeft, ArrowRight, Clock, Users, Sparkles, Trash2, GripVertical,
 } from "lucide-react";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -271,24 +271,37 @@ export default function MealPlannerModal({ isOpen, onClose, isDark, onGeneratedG
                               {r ? (
                                 <Draggable draggableId={`drag|${dk}|${mt.key}`} index={0}>
                                   {(dragProvided, dragSnap) => (
-                                    <button
+                                    <div
                                       ref={dragProvided.innerRef}
                                       {...dragProvided.draggableProps}
-                                      {...dragProvided.dragHandleProps}
-                                      type="button"
-                                      onClick={() => setPickerOpen({ dateKey: dk, mealType: mt.key })}
-                                      className={`w-full text-left px-1.5 py-1.5 ${cellCls} ${dragSnap.isDragging ? "shadow-2xl opacity-90" : ""}`}
-                                      style={{ borderLeftColor: mt.accent, borderLeftWidth: "3px", ...dragProvided.draggableProps.style }}
-                                      data-testid={`meal-slot-${dk}-${mt.key}`}
+                                      className={`relative w-full ${dragSnap.isDragging ? "shadow-2xl opacity-90 z-10" : ""}`}
+                                      style={{ ...dragProvided.draggableProps.style }}
                                     >
-                                      <div className={`text-[9px] uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
-                                        <Icon className="w-2.5 h-2.5" style={{ color: mt.accent }} />
-                                        {mt.label}
+                                      <button
+                                        type="button"
+                                        onClick={() => setPickerOpen({ dateKey: dk, mealType: mt.key })}
+                                        className={`w-full text-left px-1.5 py-1.5 pr-6 ${cellCls}`}
+                                        style={{ borderLeftColor: mt.accent, borderLeftWidth: "3px" }}
+                                        data-testid={`meal-slot-${dk}-${mt.key}`}
+                                      >
+                                        <div className={`text-[9px] uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                                          <Icon className="w-2.5 h-2.5" style={{ color: mt.accent }} />
+                                          {mt.label}
+                                        </div>
+                                        <div className={`text-xs mt-0.5 truncate ${isDark ? "text-white font-medium" : "text-gray-900 font-medium"}`}>
+                                          {r.name}
+                                        </div>
+                                      </button>
+                                      <div
+                                        {...dragProvided.dragHandleProps}
+                                        className={`absolute top-1/2 right-1 -translate-y-1/2 w-5 h-6 rounded flex items-center justify-center cursor-grab active:cursor-grabbing ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}
+                                        title="Drag to another slot"
+                                        data-testid={`meal-slot-drag-${dk}-${mt.key}`}
+                                        aria-label={`Drag ${r.name}`}
+                                      >
+                                        <GripVertical className="w-3 h-3" />
                                       </div>
-                                      <div className={`text-xs mt-0.5 truncate ${isDark ? "text-white font-medium" : "text-gray-900 font-medium"}`}>
-                                        {r.name}
-                                      </div>
-                                    </button>
+                                    </div>
                                   )}
                                 </Draggable>
                               ) : (

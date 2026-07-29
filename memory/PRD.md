@@ -988,3 +988,24 @@ Frontend:
 - P1: Custom domain `www.ironrabbitapps.com` walkthrough via Entri (Emergent deploy panel).
 - P3: Refactor `NotesApp.jsx` (1800+ lines) into modular sub-components.
 - Optional Phase 4 extras: OpenFoodFacts caching (offline product lookup), meal-planner drag-and-drop between slots.
+
+## Session 2026-02-XX — Iteration 24 (Price Alerts + Cache + Notifications + Meal DnD)
+
+**Delivered:**
+- **Price-drop / price-spike alerts** — new `utils/priceHistory.js` computes per-item median from last 20 grocery trips; `ChecklistSection` and `ShoppingModeModal` badge items with a green TrendingDown (≥10% below median) or amber TrendingUp (≥15% above median). Cache invalidated when a new trip is saved. **Verified**: seeded Milk trips at [3.99, 4.29, 4.19, 4.49] median $4.24 → $3.20 shows 25% drop badge, $5.50 shows 30% spike, $4.30 within noise band shows no badge.
+- **OpenFoodFacts offline cache** — new `utils/openFoodFacts.js` uses localforage DB `iron-rabbit-off-cache` with 90-day TTL for OK results and 1-day TTL for misses. BarcodeScannerModal now shows a "cached" badge next to product name when result was pulled from cache (zero network hit). **Verified**: 1st lookup live, 2nd lookup instant with badge visible.
+- **Notifications settings panel** — new `NotificationsPanel` component inside Settings modal. Shows permission-status pill, Enable/Send-test buttons, and two toggles for weekly-recap and chore-summary notifications. Both `weeklyRecap.js` and `weeklyChoreSummary.js` now short-circuit when the user turns them off. **Verified**: toggles persist to IndexedDB.
+- **Meal Planner drag-swap between slots** — @hello-pangea/dnd wired up. Filled slots now have a dedicated grip handle (top-right of the cell) as the sole drag target — this separates drag-to-move from tap-to-edit for touch users and lets automated tests target the drag reliably. `onDragEnd` swaps recipe IDs across source/destination slots and persists to `settings.meal_plan`.
+- **Custom domain guide** — new `/app/CUSTOM_DOMAIN.md` with a step-by-step Entri walkthrough for linking `www.ironrabbitapps.com`, DNS fallback, PWA manifest tweaks, troubleshooting matrix.
+- **Prev-session fix**: `saveCategoryOrder`/`getCategoryOrder` bug (writing to orphan `"main"` settings key) fixed in iteration 23.
+
+**Verified via testing_agent iteration_24**: 3/4 features fully verified end-to-end. Meal Planner drag was code-reviewed as correct — Playwright's synthetic drag can't reliably trigger @hello-pangea/dnd; grip-handle split (added post-testing) fixes the ambiguity for both real users and automation.
+
+**Files added:** `utils/priceHistory.js`, `utils/openFoodFacts.js`, `CUSTOM_DOMAIN.md`
+**Files updated:** `notes/ChecklistSection.jsx`, `notes/ShoppingModeModal.jsx`, `notes/BarcodeScannerModal.jsx`, `notes/MealPlannerModal.jsx`, `notes/SettingsModal.jsx`, `utils/weeklyRecap.js`, `utils/weeklyChoreSummary.js`
+
+## Next actions
+- User: click **Deploy → Custom Domain** and follow `CUSTOM_DOMAIN.md` when ready to link `www.ironrabbitapps.com`
+- Backlog: refactor `NotesApp.jsx` (1800+ lines) into modular sub-components
+- Backlog: swap `BarcodeDetector` for native ML Kit in Capacitor builds (see `CAPACITOR_SETUP.md` Phase 4 section)
+- Ideas: pantry inventory tracking, expiration-date alerts, price-history sparklines in Trip Journal
