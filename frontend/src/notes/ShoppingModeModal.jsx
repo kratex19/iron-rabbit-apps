@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   ShoppingCart, Check, Circle, ArrowLeft, X, Filter, Eye, EyeOff, DollarSign,
@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { NOTE_COLORS } from "./constants";
 import { haptic } from "../utils/haptic";
+import StorageService from "../storage/storageService";
 
 /**
  * Phase-2 Shopping Mode.
@@ -22,6 +23,67 @@ import { haptic } from "../utils/haptic";
 export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, isDark }) {
   const [deptFilter, setDeptFilter] = useState("all");
   const [hideDone, setHideDone] = useState(false);
+  // Snapshot of item→done state at modal open. When the modal closes we
+  // diff this against the current state to see which items were freshly
+  // checked and log a "grocery trip" for the Insights budget card.
+  const [openSnapshot, setOpenSnapshot] = useState(null);
+
+  // Capture snapshot when the modal first opens.
+  useEffect(() => {
+    if (isOpen && openSnapshot === null) {
+      const map = {};
+      for (const n of notes || []) {
+        for (const it of (n.checklist || [])) {
+          map[`${n.id}:${it.id}`] = !!it.done;
+        }
+      }
+      setOpenSnapshot(map);
+    }
+    if (!isOpen) setOpenSnapshot(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // On close, log a Grocery trip if the user checked at least one new item.
+  const handleClose = async () => {
+    try {
+      if (openSnapshot) {
+        let newlyChecked = 0;
+        let spent = 0;
+        for (const n of notes || []) {
+          if (n.category !== "Grocery" && !(Array.isArray(n.tags) && n.tags.includes("grocery"))) continue;
+          for (const it of (n.checklist || [])) {
+            const key = `${n.id}:${it.id}`;
+            const wasDone = openSnapshot[key] === true;
+            if (!wasDone && it.done) {
+              newlyChecked += 1;
+              spent += Number(it.price) || 0;
+            }
+          }
+        }
+        if (newlyChecked > 0) {
+          const settings = await StorageService.getSettings();
+          const trips = Array.isArray(settings?.grocery_trips) ? settings.grocery_trips : [];
+          trips.push({
+            date: new Date().toISOString(),
+            item_count: newlyChecked,
+            total_spent: Number(spent.toFixed(2)),
+          });
+          // Keep at most the last 200 trips to avoid runaway growth.
+          const trimmed = trips.slice(-200);
+          await StorageService.saveSettings({ grocery_trips: trimmed });
+          toast.success(
+            spent > 0
+              ? `Trip saved · ${newlyChecked} items · $${spent.toFixed(2)}`
+              : `Trip saved · ${newlyChecked} items`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Trip log error:", err);
+    }
+    onClose();
+  };
+
 
   const groceryNotes = useMemo(
     () => (notes || []).filter(
@@ -76,7 +138,7 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent
         className={`max-w-3xl max-h-[92vh] overflow-y-auto p-0 ${isDark ? "bg-[#0B1221] border-white/10" : "bg-gray-50 border-gray-200"}`}
         data-testid="shopping-mode-modal"
@@ -96,7 +158,7 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-white hover:bg-gray-100 text-gray-800 shadow-sm"}`}
             aria-label="Close shopping mode"
             data-testid="shopping-close-btn"

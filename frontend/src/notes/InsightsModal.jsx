@@ -12,6 +12,16 @@ import { NOTE_COLORS } from "./constants";
  * the in-memory notes array (offline-first). No network calls.
  */
 export default function InsightsModal({ isOpen, onClose, notes, isDark }) {
+  const [trips, setTrips] = React.useState([]);
+  React.useEffect(() => {
+    if (!isOpen) return;
+    (async () => {
+      try {
+        const settings = await (await import("../storage/storageService")).default.getSettings();
+        setTrips(Array.isArray(settings?.grocery_trips) ? settings.grocery_trips : []);
+      } catch { /* ignore */ }
+    })();
+  }, [isOpen]);
   const stats = useMemo(() => {
     const now = new Date();
     const startToday = startOfDay(now);
@@ -319,6 +329,33 @@ export default function InsightsModal({ isOpen, onClose, notes, isDark }) {
               </div>
             </div>
           </div>
+
+          {/* Grocery trip history — appears once the user has logged at least one trip via Shopping Mode */}
+          {trips.length > 0 && (() => {
+            const now = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthTrips = trips.filter(t => new Date(t.date) >= monthStart);
+            const monthSpend = monthTrips.reduce((s, t) => s + (Number(t.total_spent) || 0), 0);
+            const monthItems = monthTrips.reduce((s, t) => s + (Number(t.item_count) || 0), 0);
+            const avg = trips.length > 0 ? trips.reduce((s, t) => s + (Number(t.total_spent) || 0), 0) / trips.length : 0;
+            const biggest = trips.reduce((m, t) => Math.max(m, Number(t.total_spent) || 0), 0);
+            return (
+              <div className={cardCls} data-testid="grocery-trip-card">
+                <div className={`flex items-center gap-1.5 mb-3 font-medium text-sm ${isDark ? "text-white" : "text-gray-900"}`}>
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-emerald-500 to-teal-400" /> Grocery trips
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+                  <div><div className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{monthTrips.length}</div><div className={labelCls}>this month</div></div>
+                  <div><div className={`text-lg font-bold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>${monthSpend.toFixed(2)}</div><div className={labelCls}>month spend</div></div>
+                  <div><div className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{monthItems}</div><div className={labelCls}>items bought</div></div>
+                  <div><div className={`text-lg font-bold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>${avg.toFixed(2)}</div><div className={labelCls}>avg trip</div></div>
+                </div>
+                <div className={`text-[11px] mt-2 text-right ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                  Biggest trip so far: <b className={isDark ? "text-emerald-300" : "text-emerald-700"}>${biggest.toFixed(2)}</b> · {trips.length} trips lifetime
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </DialogContent>
     </Dialog>

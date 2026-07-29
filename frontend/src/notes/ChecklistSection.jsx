@@ -22,6 +22,8 @@ export default function ChecklistSection({ value = [], onChange, isDark }) {
     onChange(items.map((c) => (c.id === id ? { ...c, done: !c.done } : c)));
   const updateText = (id, text) =>
     onChange(items.map((c) => (c.id === id ? { ...c, text } : c)));
+  const updatePrice = (id, price) =>
+    onChange(items.map((c) => (c.id === id ? { ...c, price } : c)));
 
   const doneCount = items.filter((i) => i.done).length;
 
@@ -96,6 +98,25 @@ export default function ChecklistSection({ value = [], onChange, isDark }) {
                     : "text-gray-800"
                 }`}
               />
+              <div className={`flex items-center gap-0.5 text-[10px] font-mono ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+                <span>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={item.price ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updatePrice(item.id, v === "" ? undefined : Number(v));
+                  }}
+                  placeholder="—"
+                  className={`w-12 bg-transparent border-0 outline-none text-right text-[11px] ${
+                    isDark ? "placeholder:text-slate-700" : "placeholder:text-gray-300"
+                  }`}
+                  aria-label={`Price for ${item.text}`}
+                  data-testid={`checklist-price-${item.id}`}
+                />
+              </div>
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
