@@ -1049,3 +1049,31 @@ Frontend:
 - Extract `<NoteListView />` for grouped + ungrouped rendering blocks
 - Fix low-priority hydration warnings (PantryModal Unit Select key, TripJournalModal nested button — already fixed in iter 25 but re-verify)
 - Custom domain link via Entri (user action pending)
+
+## Session 2026-02-XX — Iteration 27 (Refactor round 2: AppModals + useGroceryQuickAdd)
+
+**Delivered & verified via testing_agent iteration_27 (100% regression-clean — 12/12 header modals, FAB add, meal-planner→grocery gen, multi-select→batch-studio→delete-choice→undo, settings notif toggles, clear-all 2-step, LockScreen absence — zero console errors):**
+
+- **`notes/AppModals.jsx` (420 lines, new)** — single mount point for every modal, dialog, sheet, floating pill in Iron Rabbit. Takes ~85 props from NotesApp; internal logic limited to close-handlers, FloatingCalendarModal's inline event-note creation, and two `useGroceryQuickAdd` callsites (Barcode onCapture, Pantry onSendToShoppingList).
+- **`hooks/useGroceryQuickAdd.js` (59 lines, new)** — pure helper hook consolidating the previously-duplicated logic to either append to the newest active Grocery note or create a fresh "Shopping List". Used inside AppModals by BarcodeScannerModal (with `barcode`/`nutrition`/`nutriscore`) and PantryModal (with `dept`).
+- **NotesApp.jsx reduced from 1802 → 1405 lines (−22%)** — ~440 lines of inline modal JSX replaced with a single `<AppModals {...bag} />` mount. Removed 30+ now-unused imports (Input, Dialog*, Select*, AlertDialog*, IconPicker, TilePacksModal, FloatingCalendarModal, LanguagePicker, SecurityModal, OrganizationModal, MultiSelectBar, MoveToCategoryModal, CopySuffixDialog, BatchStudioSheet, DeleteChoiceDialog, RecentActionPill, QuickAccessModal, BackupRestoreModal, ArchiveTrashModal, InsightsModal, KidDashboardModal, ShoppingModeModal, TripJournalModal, BarcodeScannerModal, MealPlannerModal, PantryModal, NoteModal, CalculatorWidget, ShareModal, SettingsModal, FullScreenNote, FirstRunTour, LockScreen).
+
+**Cumulative refactor progress (Iterations 26 + 27):**
+| File | Original | Now | Δ |
+|---|---:|---:|---:|
+| NotesApp.jsx | 1917 | **1405** | −512 lines |
+| notes/AppHeader.jsx | (new) | 113 | +113 |
+| notes/AppSearchBar.jsx | (new) | 152 | +152 |
+| notes/AppModals.jsx | (new) | 420 | +420 |
+| hooks/useGroceryQuickAdd.js | (new) | 59 | +59 |
+
+Files changed: `NotesApp.jsx`
+Files added: `notes/AppModals.jsx`, `hooks/useGroceryQuickAdd.js`
+
+**NotesApp.jsx is now readable at a glance**: header + search + main content + one `<AppModals />` — no more 400-line scroll of inline modal JSX.
+
+## Backlog (remaining)
+- Extract `renderNotes()` + `renderPinnedRail()` into `NoteListView` component (~200-300 more lines out — but tightly coupled to DnD context + selection state so risk is higher)
+- Extract `useNoteActions` hook (handleSaveNote / handleSaveInline / handleDeleteNote / bulk operations)
+- Custom domain link via Entri (user's local action — follow `/app/CUSTOM_DOMAIN.md`)
+- Native build: `cd frontend && yarn build && npx cap sync` on user's local machine
