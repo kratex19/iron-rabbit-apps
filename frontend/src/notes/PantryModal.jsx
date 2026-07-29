@@ -455,7 +455,7 @@ function PantryEditModal({ item, isDark, onClose, onSave }) {
                   <SelectValue placeholder="—" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">—</SelectItem>
+                  <SelectItem key="__none" value="__none">—</SelectItem>
                   {UNITS.filter(u => u).map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -477,7 +477,6 @@ function PantryEditModal({ item, isDark, onClose, onSave }) {
                         : isDark ? "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                     data-testid={`pantry-edit-zone-${z.key}`}
-                    style={active ? undefined : { color: undefined }}
                   >
                     <z.icon className="w-3.5 h-3.5" style={{ color: z.color }} />
                     {z.label}

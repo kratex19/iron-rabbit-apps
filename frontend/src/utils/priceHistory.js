@@ -108,7 +108,7 @@ export async function itemPriceSeries(itemText, lookbackTrips = 30) {
 
 // Best day-of-week to buy each item, based on median price by weekday.
 // Returns { day: 0-6, dayName, median, savings_pct, count } for items that
-// have prices across at least 3 different weekdays.
+// have prices across at least 2 different weekdays (min 3 total data points).
 export async function bestDayToBuy(itemText, lookbackTrips = 30) {
   const series = await itemPriceSeries(itemText, lookbackTrips);
   if (series.length < 3) return null;

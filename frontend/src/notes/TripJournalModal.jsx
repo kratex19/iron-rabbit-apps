@@ -345,38 +345,41 @@ export default function TripJournalModal({ isOpen, onClose, isDark }) {
                         className={`rounded-lg border ${isDark ? "border-white/10 bg-white/[0.02]" : "border-gray-200 bg-white"}`}
                         data-testid={`trip-row-${t.id}`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => toggleExpand(t.id)}
-                          className="w-full flex items-center gap-2 p-2.5 text-left"
-                        >
-                          {isOpen ? (
-                            <ChevronDown className={`w-4 h-4 shrink-0 ${isDark ? "text-slate-400" : "text-gray-500"}`} />
-                          ) : (
-                            <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? "text-slate-400" : "text-gray-500"}`} />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
-                              {format(d, "EEE, MMM d, yyyy · h:mm a")}
-                            </div>
-                            <div className={`text-[11px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>
-                              {t.item_count} item{t.item_count === 1 ? "" : "s"}
-                              {t.notes ? ` · ${t.notes}` : ""}
-                            </div>
-                          </div>
-                          <div className={`text-base font-mono font-semibold shrink-0 ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
-                            ${Number(t.total_spent || 0).toFixed(2)}
-                          </div>
+                        <div className="flex items-stretch">
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); setConfirmDelete(t); }}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}
+                            onClick={() => toggleExpand(t.id)}
+                            className="flex-1 flex items-center gap-2 p-2.5 text-left min-w-0"
+                            aria-expanded={isOpen}
+                          >
+                            {isOpen ? (
+                              <ChevronDown className={`w-4 h-4 shrink-0 ${isDark ? "text-slate-400" : "text-gray-500"}`} />
+                            ) : (
+                              <ChevronRight className={`w-4 h-4 shrink-0 ${isDark ? "text-slate-400" : "text-gray-500"}`} />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                                {format(d, "EEE, MMM d, yyyy · h:mm a")}
+                              </div>
+                              <div className={`text-[11px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                                {t.item_count} item{t.item_count === 1 ? "" : "s"}
+                                {t.notes ? ` · ${t.notes}` : ""}
+                              </div>
+                            </div>
+                            <div className={`text-base font-mono font-semibold shrink-0 ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+                              ${Number(t.total_spent || 0).toFixed(2)}
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDelete(t)}
+                            className={`w-9 flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}
                             aria-label="Delete trip"
                             data-testid={`trip-delete-${t.id}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        </button>
+                        </div>
                         {isOpen && (
                           <div className={`border-t px-3 py-2 ${isDark ? "border-white/5" : "border-gray-100"}`} data-testid={`trip-detail-${t.id}`}>
                             {Array.isArray(t.items) && t.items.length > 0 ? (

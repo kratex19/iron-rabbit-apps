@@ -1009,3 +1009,15 @@ Frontend:
 - Backlog: refactor `NotesApp.jsx` (1800+ lines) into modular sub-components
 - Backlog: swap `BarcodeDetector` for native ML Kit in Capacitor builds (see `CAPACITOR_SETUP.md` Phase 4 section)
 - Ideas: pantry inventory tracking, expiration-date alerts, price-history sparklines in Trip Journal
+
+## Session 2026-02-XX — Iteration 25 (Pantry + Expiration + Best-Day + Sparklines)
+
+**Delivered & verified via testing_agent iteration_25 (100% pass — 12/12 checks):**
+- **Pantry Inventory Manager** — new `PantryModal.jsx` with full CRUD, quantity +/− controls, 3 storage zones (Fridge / Freezer / Pantry), expiration-date-aware badges (emerald `Xd left` / yellow `Expires in 3d` / orange `Expires today/tomorrow` / red `Expired Xd ago`), zone + expiration filters, and search. When qty drops to 0 the user is prompted to add the item back to their newest grocery list. Header entry point `data-testid="header-pantry"`.
+- **Expiration alerts** — new `utils/pantryAlerts.js` fires a local Notification at most once per calendar day summarizing expired / due-today / expiring-within-3-days items. Called from `NotesApp.fetchData()` alongside weekly recaps. New Settings toggle `notif-toggle-pantry-expiration`.
+- **Best day to buy** — extended `utils/priceHistory.js` with `bestDayToBuy(text, lookback)` that computes median price per weekday from the last 30 trips and returns the cheapest day + estimated savings %. Rendered as an emerald badge in Trip Journal → "Most bought" per item (needs ≥3 data points across ≥2 weekdays). Verified: Milk seeded Mon×3 @ $3.50, Wed×2 @ $4.50, Sat×1 @ $4.20 → "Best: Mons · save 22%".
+- **Price-history sparklines** — extended `utils/priceHistory.js` with `itemPriceSeries()` and added recharts LineChart sparklines under each item card in Trip Journal → "Most bought". Renders when ≥2 data points exist; hover shows exact price.
+- **Bonus cleanup**: removed duplicate `exportAllData` / `importAllData` in `storageService.js` (silently shadowed dead code with divergent shape); fixed React `key` warning in PantryModal Unit Select; refactored TripJournalModal trip row to eliminate nested `<button>` hydration warning.
+
+**Files added:** `notes/PantryModal.jsx`, `utils/pantryAlerts.js`
+**Files updated:** `storage/storageService.js`, `utils/priceHistory.js`, `notes/TripJournalModal.jsx`, `notes/SettingsModal.jsx`, `NotesApp.jsx`
