@@ -1,0 +1,67 @@
+{
+  "summary": "Frontend-only verification of iteration 24 (Price-drop alerts + Notifications panel + OpenFoodFacts cache + Meal Planner drag-swap). Tested against live preview URL via Playwright. THREE of four new features fully verified end-to-end: (1) Price-signal badges in NoteModal Checklist — with 4 seeded Milk trips at [3.99, 4.29, 4.19, 4.49] (median 4.24), entering Milk @ $3.20 rendered a green TrendingDown '25%' badge (data-testid=checklist-signal-<id>), Milk @ $5.50 rendered an amber TrendingUp '30%' badge, and Milk @ $4.30 rendered NO badge (within ±10-15% noise band). Titles read 'Great deal! Median from last 4 trips: $4.24 · you're saving 25%' and 'Watch out: median from last 4 trips: $4.24 · this is 30% higher'. (2) Notifications panel in Settings — panel renders with data-testid='notifications-panel', permission-status badge shows correct state ('Blocked' in Playwright since granted permission is treated as denied by Notification.permission in this Chromium sandbox), notif-toggle-weekly-recap and notif-toggle-chore-summary toggle correctly (true→false), settings.notif_weekly_recap and settings.notif_chore_summary are persisted to IndexedDB IronRabbit→settings→app_settings, notifications-enable-btn renders when Not-asked/Blocked, notifications-test-btn is correctly hidden when not granted. (3) OpenFoodFacts caching — 1st manual lookup of 3017620422003 completed live (no cached badge), closed and reopened modal, 2nd lookup rendered barcode-from-cache-badge with text 'cached' next to product name (instant, no network). Verified localforage DB 'iron-rabbit-off-cache' with store 'products' exists in IDB after 1st lookup. (4) MEAL PLANNER DRAG-SWAP — could NOT be verified end-to-end via Playwright due to a known hello-pangea/dnd + Playwright automated-drag limitation. Slots assigned correctly, but Playwright mouse.down/move/up sequence (with threshold pre-move + 30 intermediate steps + 250ms hold) did not trigger onDragEnd — final IDB meal_plan showed the two original assignments unchanged with no swap. Code review of onDragEnd (lines 85-108) is CORRECT: it reads source/destination droppableIds ('slot|<date>|<meal>'), swaps recipe ids between src and dst slot maps, persists via StorageService.saveMealPlan. This is a test-tooling limitation, not necessarily an app bug — main agent or a manual user should verify by physically dragging in the browser. No console errors during any of the flows.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Meal Planner drag between slots (@hello-pangea/dnd)", "issue": "Automated Playwright drag (mouse.down/move/up + threshold pre-move + 30 intermediate steps + 250ms hold) did not trigger the library's onDragEnd — meal_plan state unchanged after drag. Confirmed code path is correct via review. Likely Playwright+hello-pangea interaction issue since the same slot element is both a <button onClick=openPicker> AND the Draggable. Main agent should verify with a real user drag OR consider adding a separate drag handle (e.g. a small grip icon that is the dragHandleProps target instead of the whole button) to make the gesture distinguishable from a click.", "affected_selectors": ["[data-testid='meal-slot-<date>-breakfast']", "[data-testid='meal-slot-<date>-dinner']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_24.json"],
+  "action_items": [
+    "MEAL PLANNER DRAG: Consider splitting drag handle from click target so drag gesture is unambiguous — currently the whole slot button is both {...dragHandleProps} AND has onClick=setPickerOpen. In Playwright automated mouse sequences this ambiguity causes the drop to be dropped as a click. A tiny grip-dot in the top-right of each filled slot as the sole dragHandleProps target (with pointer-events preserved on the rest of the button for click-to-edit) would fix automated tests AND likely improve UX on touch devices where a long-press could otherwise interfere with the tap-to-edit gesture.",
+    "REGRESSION: All prior Iteration-23 features (Trip Journal empty state + KPI + trip list + expand + delete, Meal Planner 21 slots + 15 recipes + Generate Shopping List, Barcode Scanner manual entry) are still present with matching data-testids in the source (spot-checked)."
+  ],
+  "critical_code_review_comments": [
+    "priceHistory.js buildPriceHistory correctly lowercases+trims item text as the map key, filters out zero/negative prices, sorts trips by date desc and slices lookbackTrips (default 20). Median is computed correctly (single-element and even-length branch both handled). priceSignal correctly requires ≥2 data points, applies -10% drop / +15% spike thresholds with a noise band that returns null.",
+    "ChecklistSection.jsx correctly loads history once on mount, cleans up on unmount with the `alive` flag, and re-computes signals inline per render. Badge testid pattern 'checklist-signal-<item.id>' matches spec.",
+    "openFoodFacts.js correctly uses localforage.createInstance({name:'iron-rabbit-off-cache', storeName:'products'}), 90-day OK TTL / 1-day MISS TTL, and returns {cached:true} on cache hit. Offline branch gracefully returns state:'offline'. Cache write is wrapped in try/catch so a cache-write failure doesn't break the live lookup.",
+    "BarcodeScannerModal.jsx renders 'cached' badge (data-testid='barcode-from-cache-badge') only when result.cached is true — verified visually.",
+    "SettingsModal.jsx NotificationsPanel: (a) reads settings.notif_weekly_recap/chore_summary with correct !==false defaulting-to-true logic, (b) saveSettings merges via storageService (verified), (c) enable-btn shown only when status is 'default' or 'denied' (correct — hides after grant), (d) test-btn shown only when granted (correct). weeklyRecap.js and weeklyChoreSummary.js should short-circuit if the corresponding setting is false — not directly tested but the source imports settings.notif_* and early-returns per spec.",
+    "MealPlannerModal.jsx onDragEnd swap logic is correct: reads source.droppableId & destination.droppableId, splits by '|' into [_, date, meal], swaps recipe ids between src and dst slots, deletes empty date maps, and persists via saveMealPlan. Draggable/Droppable IDs match spec ('slot|<dk>|<mt>' / 'drag|<dk>|<mt>'). Only concern is UX/testability: filled slot is both a click-to-edit button AND the dragHandleProps target — see integration_issues above."
+  ],
+  "test_evidence": {
+    "price_signals": {
+      "milk_$3.20_drop_badge": "25% (green TrendingDown, title 'Great deal! Median from last 4 trips: $4.24 · you're saving 25%')",
+      "milk_$5.50_spike_badge": "30% (amber TrendingUp, title 'Watch out: median from last 4 trips: $4.24 · this is 30% higher')",
+      "milk_$4.30_no_badge": true,
+      "testids_matched": ["checklist-signal-<id>"]
+    },
+    "notifications_panel": {
+      "panel_rendered": true,
+      "permission_status_text": "Blocked (Playwright sandbox; grant_permissions API doesn't affect Notification.permission in the way real user consent would)",
+      "enable_btn_visible_when_not_granted": true,
+      "weekly_recap_toggle": "true -> false",
+      "chore_summary_toggle": "true -> false",
+      "persisted_to_idb": {"notif_weekly_recap": false, "notif_chore_summary": false},
+      "test_btn_hidden_when_not_granted": true
+    },
+    "barcode_cache": {
+      "first_lookup_cached_badge_count": 0,
+      "second_lookup_cached_badge_count": 1,
+      "cached_badge_text": "cached",
+      "cache_db_stores": ["local-forage-detect-blob-support", "products"],
+      "network_status_first_lookup": "live",
+      "network_status_second_lookup": "cache hit (instant, no OFF fetch)"
+    },
+    "meal_planner_drag": {
+      "modal_opens": true,
+      "slots_rendered": 21,
+      "assign_via_picker_mon_bkf": "Spaghetti Bolognese",
+      "assign_via_picker_tue_dnr": "Overnight Oats",
+      "drag_attempted_via_playwright_mouse_events": true,
+      "onDragEnd_fired": false,
+      "meal_plan_after_drag_unchanged": true,
+      "note": "Playwright + @hello-pangea/dnd known interaction issue when the slot element is both the click target and the drag handle. Code review confirms swap logic is correct."
+    },
+    "console_errors": 0
+  },
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "3/4 new features fully verified. 1/4 (meal planner drag-swap) not verifiable via automated Playwright drag on @hello-pangea/dnd — code review confirms logic is correct; needs manual verification or drag-handle split."},
+  "test_credentials": "none required",
+  "seed_data_creation": "Seeded IronRabbit→settings→'app_settings' with 4 grocery_trips of Milk at prices 3.99/4.29/4.19/4.49 (median 4.24). Also set settings.tour_completed=true and settings.quick_access_wizard_seen=true to suppress FirstRunTour and QuickAccessModal so header-barcode / header-meal-planner / settings-btn are directly clickable without dismissing wizards. NOTE: Playwright browser contexts are fresh per script invocation — IDB does NOT persist between separate mcp_browser_automation calls, so seeding must occur inside each test run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "For iteration 24: All new data-testids match spec exactly. IDB seed pattern for grocery_trips: IronRabbit→settings→'app_settings'.grocery_trips = [{id, date (ISO), item_count, total_spent, items:[{text, price, dept}]}]. To skip the FirstRunTour + QuickAccessModal you MUST set settings.tour_completed=true AND settings.quick_access_wizard_seen=true BEFORE reload, because they will re-appear on any fresh browser context. Meal Planner drag automated testing is unreliable — Playwright mouse events + hello-pangea/dnd + click-handler-on-same-element = the drop is consumed as a click. Prefer direct code inspection or manual browser drag. Barcode cache DB is 'iron-rabbit-off-cache' storeName 'products'. Notifications: Playwright's ctx.grant_permissions() does grant navigator.permissions.query({name:'notifications'}) but the actual Notification.permission API returns 'denied' in this Chromium context — so enable-btn will still be visible and test-btn will not render. This is a browser sandbox limitation, not an app bug."
+}

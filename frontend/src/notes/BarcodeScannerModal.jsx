@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { haptic } from "../utils/haptic";
+import { lookupBarcode } from "../utils/openFoodFacts";
 
 /**
  * Barcode Scanner + OpenFoodFacts lookup.
@@ -34,6 +35,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
   const [lookup, setLookup] = useState(null);   // { name, brand, image, nutrition } | null
   const [lookupState, setLookupState] = useState("idle"); // idle | loading | ok | not_found | offline | error
   const [customName, setCustomName] = useState("");
+  const [fromCache, setFromCache] = useState(false);
 
   const stopCamera = () => {
     try {
@@ -94,50 +96,24 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
     rafRef.current = requestAnimationFrame(scanLoop);
   };
 
-  // Lookup on OpenFoodFacts when we have a scanned code
+  // Lookup on OpenFoodFacts (with 90-day localforage cache) when we have a scanned code
   useEffect(() => {
     if (!scanned?.code) return;
     let cancelled = false;
     (async () => {
       setLookupState("loading");
-      if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        if (!cancelled) setLookupState("offline");
-        return;
-      }
-      try {
-        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(scanned.code)}.json`);
-        const json = await res.json();
-        if (cancelled) return;
-        if (json.status === 1 && json.product) {
-          const p = json.product;
-          const nutriments = p.nutriments || {};
-          setLookup({
-            name: p.product_name || p.product_name_en || "",
-            brand: p.brands || "",
-            image: p.image_thumb_url || p.image_front_thumb_url || "",
-            nutrition: {
-              energy_kcal_100g: nutriments["energy-kcal_100g"] ?? nutriments["energy-kcal"] ?? null,
-              fat_100g: nutriments["fat_100g"] ?? null,
-              saturated_fat_100g: nutriments["saturated-fat_100g"] ?? null,
-              carbs_100g: nutriments["carbohydrates_100g"] ?? null,
-              sugars_100g: nutriments["sugars_100g"] ?? null,
-              protein_100g: nutriments["proteins_100g"] ?? null,
-              salt_100g: nutriments["salt_100g"] ?? null,
-              serving_size: p.serving_size || null,
-            },
-            nutriscore: p.nutriscore_grade || p.nutrition_grade_fr || null,
-          });
-          setCustomName(p.product_name || p.product_name_en || "");
-          setLookupState("ok");
-        } else {
-          setLookupState("not_found");
-          setCustomName("");
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setLookupState("error");
-          setCustomName("");
-        }
+      setFromCache(false);
+      const result = await lookupBarcode(scanned.code);
+      if (cancelled) return;
+      if (result.state === "ok" && result.product) {
+        setLookup(result.product);
+        setCustomName(result.product.name || "");
+        setLookupState("ok");
+        setFromCache(!!result.cached);
+      } else {
+        setLookupState(result.state); // not_found | offline | error
+        setCustomName("");
+        setFromCache(false);
       }
     })();
     return () => { cancelled = true; };
@@ -304,6 +280,15 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
                       {lookup.brand && (
                         <span className={`ml-2 text-[11px] font-normal ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                           {lookup.brand}
+                        </span>
+                      )}
+                      {fromCache && (
+                        <span
+                          className={`ml-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${isDark ? "bg-indigo-500/20 text-indigo-300" : "bg-indigo-100 text-indigo-700"}`}
+                          title="Loaded from offline cache — no network hit"
+                          data-testid="barcode-from-cache-badge"
+                        >
+                          cached
                         </span>
                       )}
                     </div>

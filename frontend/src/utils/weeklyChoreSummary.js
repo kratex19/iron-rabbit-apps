@@ -20,6 +20,8 @@ export async function maybeShowWeeklyChoreSummary(notes) {
     if (kidNotes.length === 0) return;
 
     const settings = await StorageService.getSettings();
+    // Respect user preference from Settings → Notifications
+    if (settings?.notif_chore_summary === false) return;
     const lastMap = (settings && settings.last_kid_summary) || {};
 
     // Best-effort permission request; if denied, silently skip.

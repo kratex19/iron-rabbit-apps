@@ -3,12 +3,13 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
-  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles,
+  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import StorageService from "../storage/storageService";
+import notificationService from "../notifications/notificationService";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import LanguagePicker from "./LanguagePicker";
 
@@ -215,6 +216,14 @@ export default function SettingsModal({
               </div>
               <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
             </button>
+          </div>
+
+          {/* Notifications row */}
+          <div>
+            <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <Bell className="w-3.5 h-3.5" /> Notifications
+            </label>
+            <NotificationsPanel isDark={isDark} />
           </div>
 
           {/* Sync pack colors row */}
@@ -436,5 +445,140 @@ export default function SettingsModal({
         isDark={isDark}
       />
     </Dialog>
+  );
+}
+
+// ============================================================================
+// Notifications Panel — permission status + weekly recap toggle + test button
+// ============================================================================
+function NotificationsPanel({ isDark }) {
+  const [status, setStatus] = useState(() =>
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission
+  );
+  const [prefs, setPrefs] = useState({ weekly_recap: true, chore_summary: true });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const s = await StorageService.getSettings();
+      setPrefs({
+        weekly_recap: s?.notif_weekly_recap !== false,
+        chore_summary: s?.notif_chore_summary !== false,
+      });
+      setLoading(false);
+    })();
+  }, []);
+
+  const requestPermission = async () => {
+    if (typeof Notification === "undefined") {
+      toast.error("Your browser doesn't support notifications");
+      return;
+    }
+    const granted = await notificationService.requestPermission();
+    setStatus(Notification.permission);
+    if (granted) toast.success("Notifications enabled");
+    else toast.error("Notifications blocked in browser settings");
+  };
+
+  const savePref = async (key, val) => {
+    const next = { ...prefs, [key]: val };
+    setPrefs(next);
+    await StorageService.saveSettings({
+      notif_weekly_recap: next.weekly_recap,
+      notif_chore_summary: next.chore_summary,
+    });
+  };
+
+  const fireTest = () => {
+    if (status !== "granted") { toast.error("Grant permission first"); return; }
+    try {
+      // eslint-disable-next-line no-new
+      new Notification("Iron Rabbit · Test", {
+        body: "Nice — notifications are working. Weekly recaps will fire on Sunday evenings.",
+        tag: "iron-rabbit-test",
+      });
+    } catch { toast.error("Test notification failed"); }
+  };
+
+  const chipCls = isDark
+    ? "bg-black/20 border border-white/10 text-white"
+    : "bg-gray-50 border border-gray-200 text-gray-800";
+
+  const badgeCls =
+    status === "granted" ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+    : status === "denied" ? "bg-red-500/20 text-red-300 border border-red-500/30"
+    : status === "unsupported" ? "bg-slate-500/20 text-slate-300 border border-slate-500/30"
+    : "bg-amber-500/20 text-amber-300 border border-amber-500/30";
+
+  if (loading) return null;
+
+  return (
+    <div className={`rounded-md p-3 ${chipCls}`} data-testid="notifications-panel">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeCls}`} data-testid="notifications-permission-status">
+          {status === "granted" ? "Enabled" : status === "denied" ? "Blocked" : status === "unsupported" ? "Not supported" : "Not asked"}
+        </div>
+        {status !== "granted" && status !== "unsupported" && (
+          <button
+            type="button"
+            onClick={requestPermission}
+            className="text-xs px-3 py-1 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white"
+            data-testid="notifications-enable-btn"
+          >
+            Enable
+          </button>
+        )}
+        {status === "granted" && (
+          <button
+            type="button"
+            onClick={fireTest}
+            className={`text-xs px-3 py-1 rounded-md ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-white border border-gray-200 hover:bg-gray-100 text-gray-800"}`}
+            data-testid="notifications-test-btn"
+          >
+            Send test
+          </button>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <NotifToggle
+          label="Weekly week-in-review"
+          hint="Sundays · summary of notes created + edits + categories"
+          checked={prefs.weekly_recap}
+          onChange={(v) => savePref("weekly_recap", v)}
+          isDark={isDark}
+          testid="notif-toggle-weekly-recap"
+        />
+        <NotifToggle
+          label="Weekly chore + allowance summary"
+          hint="Sunday evenings · per-kid earnings + streak"
+          checked={prefs.chore_summary}
+          onChange={(v) => savePref("chore_summary", v)}
+          isDark={isDark}
+          testid="notif-toggle-chore-summary"
+        />
+      </div>
+      <div className={`text-[10px] mt-2 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+        Fires locally when you open the app — no server, 100% offline.
+      </div>
+    </div>
+  );
+}
+
+function NotifToggle({ label, hint, checked, onChange, isDark, testid }) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer" data-testid={testid}>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${checked ? "bg-emerald-500" : isDark ? "bg-white/10" : "bg-gray-300"}`}
+        aria-pressed={checked}
+      >
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`} />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className={`text-xs font-medium ${isDark ? "text-white" : "text-gray-900"}`}>{label}</div>
+        <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>{hint}</div>
+      </div>
+    </label>
   );
 }

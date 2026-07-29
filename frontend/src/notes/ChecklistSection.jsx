@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { CheckSquare, Plus, X, GripVertical } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { CheckSquare, Plus, X, GripVertical, TrendingDown, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { buildPriceHistory, priceSignal } from "../utils/priceHistory";
 
 const rid = () => Math.random().toString(36).slice(2, 10);
 
@@ -10,7 +11,15 @@ const rid = () => Math.random().toString(36).slice(2, 10);
  */
 export default function ChecklistSection({ value = [], onChange, isDark }) {
   const [newText, setNewText] = useState("");
+  const [history, setHistory] = useState(null);
   const items = Array.isArray(value) ? value : [];
+
+  useEffect(() => {
+    // Load price-history for grocery-badge signals.
+    let alive = true;
+    buildPriceHistory().then(h => { if (alive) setHistory(h); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const addItem = () => {
     if (!newText.trim()) return;
@@ -50,7 +59,9 @@ export default function ChecklistSection({ value = [], onChange, isDark }) {
 
       {items.length > 0 && (
         <div className="space-y-1 mb-2">
-          {items.map((item) => (
+          {items.map((item) => {
+            const signal = history ? priceSignal(item.text, item.price, history) : null;
+            return (
             <div
               key={item.id}
               className={`flex items-center gap-2 rounded-md px-2 py-1 ${
@@ -117,6 +128,26 @@ export default function ChecklistSection({ value = [], onChange, isDark }) {
                   data-testid={`checklist-price-${item.id}`}
                 />
               </div>
+              {signal && (
+                <div
+                  className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                    signal.kind === "drop"
+                      ? isDark ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                      : isDark ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-amber-100 text-amber-700 border border-amber-200"
+                  }`}
+                  title={signal.kind === "drop"
+                    ? `Great deal! Median from last ${signal.count} trips: $${signal.median.toFixed(2)} · you're saving ${Math.abs(signal.pct).toFixed(0)}%`
+                    : `Watch out: median from last ${signal.count} trips: $${signal.median.toFixed(2)} · this is ${signal.pct.toFixed(0)}% higher`
+                  }
+                  data-testid={`checklist-signal-${item.id}`}
+                >
+                  {signal.kind === "drop" ? (
+                    <><TrendingDown className="w-2.5 h-2.5" /> {Math.abs(signal.pct).toFixed(0)}%</>
+                  ) : (
+                    <><TrendingUp className="w-2.5 h-2.5" /> {signal.pct.toFixed(0)}%</>
+                  )}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
@@ -129,7 +160,8 @@ export default function ChecklistSection({ value = [], onChange, isDark }) {
                 <X className="w-3 h-3" />
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

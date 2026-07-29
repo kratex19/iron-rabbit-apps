@@ -2,12 +2,14 @@ import React, { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   ShoppingCart, Check, Circle, ArrowLeft, X, Filter, Eye, EyeOff, DollarSign,
+  TrendingDown, TrendingUp,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { NOTE_COLORS } from "./constants";
 import { haptic } from "../utils/haptic";
 import StorageService from "../storage/storageService";
+import { buildPriceHistory, priceSignal, clearPriceHistoryCache } from "../utils/priceHistory";
 
 /**
  * Phase-2 Shopping Mode.
@@ -27,6 +29,12 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
   // diff this against the current state to see which items were freshly
   // checked and log a "grocery trip" for the Insights budget card.
   const [openSnapshot, setOpenSnapshot] = useState(null);
+  const [priceHistory, setPriceHistory] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    buildPriceHistory().then(setPriceHistory).catch(() => {});
+  }, [isOpen]);
 
   // Capture snapshot when the modal first opens.
   useEffect(() => {
@@ -273,6 +281,27 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
                     <div className={`text-xs truncate ${isDark ? "text-slate-500" : "text-gray-500"}`}>
                       {row.noteTitle}
                       {row.item.price ? <span className={`ml-2 font-mono ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>${Number(row.item.price).toFixed(2)}</span> : null}
+                      {(() => {
+                        const s = priceHistory ? priceSignal(row.item.text, row.item.price, priceHistory) : null;
+                        if (!s) return null;
+                        const isDrop = s.kind === "drop";
+                        return (
+                          <span
+                            className={`ml-2 inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ${
+                              isDrop
+                                ? isDark ? "bg-emerald-500/25 text-emerald-200" : "bg-emerald-100 text-emerald-700"
+                                : isDark ? "bg-amber-500/25 text-amber-200" : "bg-amber-100 text-amber-700"
+                            }`}
+                            title={isDrop
+                              ? `Great deal! Median $${s.median.toFixed(2)} across last ${s.count} trips`
+                              : `Above median $${s.median.toFixed(2)} across last ${s.count} trips`}
+                            data-testid={`shopping-price-signal-${row.item.id}`}
+                          >
+                            {isDrop ? <TrendingDown className="w-2.5 h-2.5" /> : <TrendingUp className="w-2.5 h-2.5" />}
+                            {Math.abs(s.pct).toFixed(0)}%
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </button>

@@ -13,6 +13,8 @@ export async function maybeShowWeeklyRecap(notes) {
     if (!isSunday) return;
 
     const settings = await StorageService.getSettings();
+    // Respect user preference from Settings → Notifications
+    if (settings?.notif_weekly_recap === false) return;
     const lastRecap = settings?.last_recap ? new Date(settings.last_recap) : null;
     if (lastRecap && (now - lastRecap) < SIX_DAYS_MS) return; // already sent this week
 

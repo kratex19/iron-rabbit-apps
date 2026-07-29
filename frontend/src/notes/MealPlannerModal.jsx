@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,32 @@ export default function MealPlannerModal({ isOpen, onClose, isDark, onGeneratedG
     setPlan(next);
     await StorageService.saveMealPlan(next);
     toast.success("Week cleared");
+  };
+
+  // Drag between meal slots. Droppable IDs are `slot-<dateKey>-<mealType>`.
+  const onDragEnd = async (result) => {
+    const { source, destination } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId) return;
+    const [, srcDate, srcMeal] = source.droppableId.split("|");
+    const [, dstDate, dstMeal] = destination.droppableId.split("|");
+    const next = { ...plan };
+    const srcSlots = { ...(next[srcDate] || {}) };
+    const dstSlots = { ...(next[dstDate] || {}) };
+    const moved = srcSlots[srcMeal];
+    if (!moved) return;
+    const displaced = dstSlots[dstMeal] || null;
+    // Swap: put src recipe into destination, and destination's (if any) back into src
+    dstSlots[dstMeal] = moved;
+    if (displaced) srcSlots[srcMeal] = displaced;
+    else delete srcSlots[srcMeal];
+    if (Object.keys(srcSlots).length === 0) delete next[srcDate];
+    else next[srcDate] = srcSlots;
+    if (Object.keys(dstSlots).length === 0) delete next[dstDate];
+    else next[dstDate] = dstSlots;
+    setPlan(next);
+    await StorageService.saveMealPlan(next);
+    haptic("tap");
   };
 
   const generateShoppingList = async () => {
@@ -210,6 +237,7 @@ export default function MealPlannerModal({ isOpen, onClose, isDark, onGeneratedG
           </div>
 
           {/* Week grid */}
+          <DragDropContext onDragEnd={onDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2" data-testid="meal-plan-grid">
             {days.map(d => {
               const dk = dateKey(d);
@@ -231,23 +259,58 @@ export default function MealPlannerModal({ isOpen, onClose, isDark, onGeneratedG
                       const recipeId = slots[mt.key];
                       const r = recipeId ? findRecipe(recipeId) : null;
                       const Icon = mt.icon;
+                      const droppableId = `slot|${dk}|${mt.key}`;
                       return (
-                        <button
-                          key={mt.key}
-                          type="button"
-                          onClick={() => setPickerOpen({ dateKey: dk, mealType: mt.key })}
-                          className={`w-full text-left px-1.5 py-1.5 ${cellCls}`}
-                          style={r ? { borderLeftColor: mt.accent, borderLeftWidth: "3px" } : undefined}
-                          data-testid={`meal-slot-${dk}-${mt.key}`}
-                        >
-                          <div className={`text-[9px] uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
-                            <Icon className="w-2.5 h-2.5" style={{ color: mt.accent }} />
-                            {mt.label}
-                          </div>
-                          <div className={`text-xs mt-0.5 truncate ${r ? (isDark ? "text-white font-medium" : "text-gray-900 font-medium") : (isDark ? "text-slate-600" : "text-gray-400")}`}>
-                            {r ? r.name : "Tap to add…"}
-                          </div>
-                        </button>
+                        <Droppable droppableId={droppableId} key={mt.key}>
+                          {(dropProvided, dropSnap) => (
+                            <div
+                              ref={dropProvided.innerRef}
+                              {...dropProvided.droppableProps}
+                              className={`relative ${dropSnap.isDraggingOver ? "ring-2 ring-amber-400 rounded-lg" : ""}`}
+                            >
+                              {r ? (
+                                <Draggable draggableId={`drag|${dk}|${mt.key}`} index={0}>
+                                  {(dragProvided, dragSnap) => (
+                                    <button
+                                      ref={dragProvided.innerRef}
+                                      {...dragProvided.draggableProps}
+                                      {...dragProvided.dragHandleProps}
+                                      type="button"
+                                      onClick={() => setPickerOpen({ dateKey: dk, mealType: mt.key })}
+                                      className={`w-full text-left px-1.5 py-1.5 ${cellCls} ${dragSnap.isDragging ? "shadow-2xl opacity-90" : ""}`}
+                                      style={{ borderLeftColor: mt.accent, borderLeftWidth: "3px", ...dragProvided.draggableProps.style }}
+                                      data-testid={`meal-slot-${dk}-${mt.key}`}
+                                    >
+                                      <div className={`text-[9px] uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                                        <Icon className="w-2.5 h-2.5" style={{ color: mt.accent }} />
+                                        {mt.label}
+                                      </div>
+                                      <div className={`text-xs mt-0.5 truncate ${isDark ? "text-white font-medium" : "text-gray-900 font-medium"}`}>
+                                        {r.name}
+                                      </div>
+                                    </button>
+                                  )}
+                                </Draggable>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setPickerOpen({ dateKey: dk, mealType: mt.key })}
+                                  className={`w-full text-left px-1.5 py-1.5 ${cellCls}`}
+                                  data-testid={`meal-slot-${dk}-${mt.key}`}
+                                >
+                                  <div className={`text-[9px] uppercase tracking-wider flex items-center gap-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                                    <Icon className="w-2.5 h-2.5" style={{ color: mt.accent }} />
+                                    {mt.label}
+                                  </div>
+                                  <div className={`text-xs mt-0.5 truncate ${isDark ? "text-slate-600" : "text-gray-400"}`}>
+                                    Tap to add…
+                                  </div>
+                                </button>
+                              )}
+                              {dropProvided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
                       );
                     })}
                   </div>
@@ -255,6 +318,7 @@ export default function MealPlannerModal({ isOpen, onClose, isDark, onGeneratedG
               );
             })}
           </div>
+          </DragDropContext>
 
           {/* Actions */}
           <div className="flex flex-wrap gap-2 pt-1">
