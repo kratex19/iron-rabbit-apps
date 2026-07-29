@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import RestaurantsService from "../storage/restaurantsService";
 import { haptic } from "../utils/haptic";
+import { MapsPickerModal } from "./RestaurantWorkspacesP5";
 
 const AMENITY_TAGS = [
   { key: "drive_thru", label: "Drive-Thru", icon: Car },
@@ -41,6 +42,7 @@ export default function RestaurantDirectoryModal({ isOpen, onClose, isDark }) {
   const [filter, setFilter] = useState("all"); // all | favorites | hidden | archived
   const [editing, setEditing] = useState(null); // {} for new, item for edit, null closed
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [mapsFor, setMapsFor] = useState(null); // restaurant to open in Maps picker
 
   const reload = async () => {
     setLoading(true);
@@ -213,9 +215,9 @@ export default function RestaurantDirectoryModal({ isOpen, onClose, isDark }) {
                                 </a>
                               )}
                               {r.address && (
-                                <a href={`https://maps.google.com/?q=${encodeURIComponent(r.address)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:underline">
-                                  <MapPin className="w-2.5 h-2.5" /> Maps
-                                </a>
+                                <button type="button" onClick={() => setMapsFor(r)} className="inline-flex items-center gap-1 hover:underline" data-testid={`directory-maps-${r.id}`}>
+                                  <MapPin className="w-2.5 h-2.5" /> Directions
+                                </button>
                               )}
                               {r.email && (
                                 <span className="inline-flex items-center gap-1"><Mail className="w-2.5 h-2.5" /> {r.email}</span>
@@ -297,6 +299,16 @@ export default function RestaurantDirectoryModal({ isOpen, onClose, isDark }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {mapsFor && (
+        <MapsPickerModal
+          isOpen={!!mapsFor}
+          onClose={() => setMapsFor(null)}
+          isDark={isDark}
+          address={mapsFor.address}
+          name={mapsFor.name}
+        />
+      )}
     </>
   );
 }

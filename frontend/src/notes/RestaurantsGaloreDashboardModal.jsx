@@ -3,7 +3,7 @@ import {
   Utensils, Store, Heart, DollarSign, Star, Ticket, Cake, Clock,
   ChefHat, Menu as MenuIcon, Receipt, Truck, Users, Camera,
   Mic, MessageCircle, ClipboardList, Coffee, Cookie, Search,
-  AlertCircle, TrendingUp, Sparkles,
+  AlertCircle, TrendingUp, Sparkles, HardDriveDownload,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,10 @@ import RestaurantsService from "../storage/restaurantsService";
  */
 export default function RestaurantsGaloreDashboardModal({
   isOpen, onClose, isDark, onOpenDirectory,
+  onOpenMenus, onOpenMeals, onOpenOrders, onOpenSpending, onOpenCoupons,
+  onOpenReviews, onOpenDelivery, onOpenStaff, onOpenWishlist, onOpenPhotos,
+  onOpenVoice, onOpenSearch, onOpenBeverages, onOpenDesserts, onOpenAI,
+  onOpenBackup,
 }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -163,23 +167,24 @@ export default function RestaurantsGaloreDashboardModal({
               </div>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                 {launcher(Store, "Directory", onOpenDirectory, false, "launcher-directory")}
-                {launcher(MenuIcon, "Menus", () => {}, true, "launcher-menus")}
-                {launcher(ChefHat, "Favorite meals", () => {}, true, "launcher-favmeals")}
-                {launcher(Receipt, "Order history", () => {}, true, "launcher-orders")}
-                {launcher(Star, "Reviews", () => {}, true, "launcher-reviews")}
-                {launcher(Truck, "Delivery", () => {}, true, "launcher-delivery")}
-                {launcher(TrendingUp, "Spending", () => {}, true, "launcher-spending")}
-                {launcher(Ticket, "Coupons", () => {}, true, "launcher-coupons")}
-                {launcher(Camera, "Photos", () => {}, true, "launcher-photos")}
-                {launcher(Mic, "Voice journal", () => {}, true, "launcher-voice")}
-                {launcher(Sparkles, "Smart assistant", () => {}, true, "launcher-assistant")}
-                {launcher(Users, "Favorite staff", () => {}, true, "launcher-staff")}
-                {launcher(ClipboardList, "Wish list", () => {}, true, "launcher-wishlist")}
-                {launcher(Coffee, "Beverages", () => {}, true, "launcher-beverages")}
-                {launcher(Cookie, "Desserts", () => {}, true, "launcher-desserts")}
-                {launcher(Search, "Search all", () => {}, true, "launcher-search")}
-                {launcher(MessageCircle, "AI insights", () => {}, true, "launcher-ai")}
-                {launcher(DollarSign, "Tip calc", () => {}, true, "launcher-tip")}
+                {launcher(MenuIcon, "Menus", onOpenMenus, false, "launcher-menus")}
+                {launcher(ChefHat, "Favorite meals", onOpenMeals, false, "launcher-favmeals")}
+                {launcher(Receipt, "Order history", onOpenOrders, false, "launcher-orders")}
+                {launcher(Star, "Reviews", onOpenReviews, false, "launcher-reviews")}
+                {launcher(Truck, "Delivery", onOpenDelivery, false, "launcher-delivery")}
+                {launcher(TrendingUp, "Spending", onOpenSpending, false, "launcher-spending")}
+                {launcher(Ticket, "Coupons", onOpenCoupons, false, "launcher-coupons")}
+                {launcher(Camera, "Photos", onOpenPhotos, false, "launcher-photos")}
+                {launcher(Mic, "Voice journal", onOpenVoice, false, "launcher-voice")}
+                {launcher(Sparkles, "Smart assistant", onOpenAI, false, "launcher-assistant")}
+                {launcher(Users, "Favorite staff", onOpenStaff, false, "launcher-staff")}
+                {launcher(ClipboardList, "Wish list", onOpenWishlist, false, "launcher-wishlist")}
+                {launcher(Coffee, "Beverages", onOpenBeverages, false, "launcher-beverages")}
+                {launcher(Cookie, "Desserts", onOpenDesserts, false, "launcher-desserts")}
+                {launcher(Search, "Search all", onOpenSearch, false, "launcher-search")}
+                {launcher(MessageCircle, "AI insights", onOpenAI, false, "launcher-ai")}
+                {launcher(DollarSign, "Tip calc", onOpenOrders, false, "launcher-tip")}
+                {launcher(HardDriveDownload, "Backup", onOpenBackup, false, "launcher-backup")}
               </div>
               <div className={`text-[10px] mt-2 ${isDark ? "text-slate-600" : "text-gray-400"}`}>
                 <b>{stats.total_restaurants}</b> restaurants · <b>{stats.total_orders}</b> orders · <b>{stats.total_reviews}</b> reviews stored offline

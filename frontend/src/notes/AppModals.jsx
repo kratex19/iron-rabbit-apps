@@ -22,6 +22,28 @@ import MealPlannerModal from "./MealPlannerModal";
 import PantryModal from "./PantryModal";
 import RestaurantsGaloreDashboardModal from "./RestaurantsGaloreDashboardModal";
 import RestaurantDirectoryModal from "./RestaurantDirectoryModal";
+import {
+  RestaurantMenusModal,
+  RestaurantMealsModal,
+  RestaurantOrdersModal,
+  RestaurantSpendingModal,
+  RestaurantCouponsModal,
+} from "./RestaurantWorkspaces";
+import {
+  RestaurantReviewsModal,
+  RestaurantDeliveryModal,
+  RestaurantStaffModal,
+  RestaurantWishlistModal,
+  RestaurantPhotosModal,
+} from "./RestaurantWorkspacesP3";
+import {
+  RestaurantVoiceJournalModal,
+  RestaurantSearchModal,
+  RestaurantBeveragesModal,
+  RestaurantDessertsModal,
+  RestaurantAIInsightsModal,
+} from "./RestaurantWorkspacesP4";
+import { RestaurantBackupModal } from "./RestaurantWorkspacesP5";
 import LanguagePicker from "./LanguagePicker";
 import SecurityModal from "./SecurityModal";
 import LockScreen from "../security/LockScreen";
@@ -220,11 +242,111 @@ export default function AppModals(p) {
         onClose={() => p.setRestaurantsGaloreOpen(false)}
         isDark={p.isDark}
         onOpenDirectory={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantDirectoryOpen(true), 150); }}
+        onOpenMenus={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantMenusOpen(true), 150); }}
+        onOpenMeals={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantMealsOpen(true), 150); }}
+        onOpenOrders={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantOrdersOpen(true), 150); }}
+        onOpenSpending={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantSpendingOpen(true), 150); }}
+        onOpenCoupons={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantCouponsOpen(true), 150); }}
+        onOpenReviews={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantReviewsOpen(true), 150); }}
+        onOpenDelivery={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantDeliveryOpen(true), 150); }}
+        onOpenStaff={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantStaffOpen(true), 150); }}
+        onOpenWishlist={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantWishlistOpen(true), 150); }}
+        onOpenPhotos={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantPhotosOpen(true), 150); }}
+        onOpenVoice={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantVoiceOpen(true), 150); }}
+        onOpenSearch={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantSearchOpen(true), 150); }}
+        onOpenBeverages={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantBeveragesOpen(true), 150); }}
+        onOpenDesserts={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantDessertsOpen(true), 150); }}
+        onOpenAI={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantAIOpen(true), 150); }}
+        onOpenBackup={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantBackupOpen(true), 150); }}
       />
 
       <RestaurantDirectoryModal
         isOpen={p.restaurantDirectoryOpen}
         onClose={() => p.setRestaurantDirectoryOpen(false)}
+        isDark={p.isDark}
+      />
+
+      <RestaurantMenusModal
+        isOpen={p.restaurantMenusOpen}
+        onClose={() => p.setRestaurantMenusOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantMealsModal
+        isOpen={p.restaurantMealsOpen}
+        onClose={() => p.setRestaurantMealsOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantOrdersModal
+        isOpen={p.restaurantOrdersOpen}
+        onClose={() => p.setRestaurantOrdersOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantSpendingModal
+        isOpen={p.restaurantSpendingOpen}
+        onClose={() => p.setRestaurantSpendingOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantCouponsModal
+        isOpen={p.restaurantCouponsOpen}
+        onClose={() => p.setRestaurantCouponsOpen(false)}
+        isDark={p.isDark}
+      />
+
+      <RestaurantReviewsModal
+        isOpen={p.restaurantReviewsOpen}
+        onClose={() => p.setRestaurantReviewsOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantDeliveryModal
+        isOpen={p.restaurantDeliveryOpen}
+        onClose={() => p.setRestaurantDeliveryOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantStaffModal
+        isOpen={p.restaurantStaffOpen}
+        onClose={() => p.setRestaurantStaffOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantWishlistModal
+        isOpen={p.restaurantWishlistOpen}
+        onClose={() => p.setRestaurantWishlistOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantPhotosModal
+        isOpen={p.restaurantPhotosOpen}
+        onClose={() => p.setRestaurantPhotosOpen(false)}
+        isDark={p.isDark}
+      />
+
+      <RestaurantVoiceJournalModal
+        isOpen={p.restaurantVoiceOpen}
+        onClose={() => p.setRestaurantVoiceOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantSearchModal
+        isOpen={p.restaurantSearchOpen}
+        onClose={() => p.setRestaurantSearchOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantBeveragesModal
+        isOpen={p.restaurantBeveragesOpen}
+        onClose={() => p.setRestaurantBeveragesOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantDessertsModal
+        isOpen={p.restaurantDessertsOpen}
+        onClose={() => p.setRestaurantDessertsOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantAIInsightsModal
+        isOpen={p.restaurantAIOpen}
+        onClose={() => p.setRestaurantAIOpen(false)}
+        isDark={p.isDark}
+      />
+
+      <RestaurantBackupModal
+        isOpen={p.restaurantBackupOpen}
+        onClose={() => p.setRestaurantBackupOpen(false)}
         isDark={p.isDark}
       />
 

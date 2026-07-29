@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone
 import aiofiles
@@ -417,6 +417,61 @@ async def ocr_image(payload: OCRRequest):
     if text == "NO_TEXT_FOUND":
         text = ""
     return OCRResponse(extracted_text=text)
+
+
+# ================== DINING INSIGHTS ENDPOINT ==================
+class DiningInsightsRequest(BaseModel):
+    stats: Dict[str, Any]  # arbitrary summary computed on the client
+    question: Optional[str] = None  # optional user question
+
+
+class DiningInsightsResponse(BaseModel):
+    insights: str
+
+
+@api_router.post("/dining_insights", response_model=DiningInsightsResponse)
+async def dining_insights(payload: DiningInsightsRequest):
+    """Turn Restaurants Galore stats into a short, human-readable
+    analysis. Purely opt-in — no data is stored server-side."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="LLM key not configured on server")
+    if not payload.stats:
+        raise HTTPException(status_code=400, detail="stats payload is required")
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    import json as _json
+
+    stats_json = _json.dumps(payload.stats, default=str)[:8000]
+    question = (payload.question or "Give me 3-5 concise insights about my dining habits, spending patterns, and any smart suggestions to save money or discover something new. Keep it warm, punchy, bullet-formatted.").strip()
+
+    system_msg = (
+        "You are a friendly personal dining analyst. You will receive a JSON "
+        "summary of a person's restaurant history (monthly spend, top "
+        "restaurants, favorites, review averages, coupon expirations, etc). "
+        "Answer their question using only the data provided. "
+        "Formatting rules: (1) 3-5 short bullet points max; "
+        "(2) each bullet begins with • ; "
+        "(3) use concrete numbers where possible; "
+        "(4) no fluff, no headers, no disclaimers, no 'as an AI'; "
+        "(5) if data is thin, say so and suggest what to log next."
+    )
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"dining-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    prompt = f"STATS:\n{stats_json}\n\nQUESTION:\n{question}"
+    try:
+        result = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.exception("Dining insights call failed")
+        raise HTTPException(status_code=502, detail=f"Insights failed: {str(e)[:200]}")
+
+    insights = str(result or "").strip()
+    if not insights:
+        raise HTTPException(status_code=502, detail="Empty response from model")
+    return DiningInsightsResponse(insights=insights)
 
 
 # Include the router in the main app

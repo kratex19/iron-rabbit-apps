@@ -534,8 +534,8 @@ function OrderEditor({ restaurants, item, defaultRestaurantId, isDark, onClose, 
               {f.items.map((it, i) => (
                 <div key={i} className="flex gap-1.5">
                   <Input value={it.name} onChange={(e) => setItem(i, "name", e.target.value)} placeholder="Item" className={inputCls(isDark) + " flex-1"} data-testid={`order-item-name-${i}`} />
-                  <Input type="number" min="1" value={it.qty} onChange={(e) => setItem(i, "qty", e.target.value)} className={inputCls(isDark) + " w-14"} />
-                  <Input type="number" step="0.01" value={it.price} onChange={(e) => setItem(i, "price", e.target.value)} placeholder="$" className={inputCls(isDark) + " w-20"} />
+                  <Input type="number" min="1" value={it.qty} onChange={(e) => setItem(i, "qty", e.target.value)} className={inputCls(isDark) + " w-14"} data-testid={`order-item-qty-${i}`} />
+                  <Input type="number" step="0.01" value={it.price} onChange={(e) => setItem(i, "price", e.target.value)} placeholder="$" className={inputCls(isDark) + " w-20"} data-testid={`order-item-price-${i}`} />
                   {f.items.length > 1 && <button type="button" onClick={() => rmItem(i)} className={`w-8 h-9 rounded flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400" : "text-gray-400 hover:text-red-500"}`}><X className="w-3.5 h-3.5" /></button>}
                 </div>
               ))}
@@ -774,7 +774,7 @@ export function RestaurantCouponsModal({ isOpen, onClose, isDark }) {
             <div className="space-y-3">
               <div className="flex gap-2 items-center">
                 <div className="flex-1" />
-                <Button className="h-9 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditing({})} disabled={restaurants.length === 0} data-testid="coupons-add-btn">
+                <Button className="h-9 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditing({ restaurant_id: selectedR || restaurants[0]?.id })} disabled={restaurants.length === 0} data-testid="coupons-add-btn">
                   <Plus className="w-4 h-4 mr-1" /> Add coupon
                 </Button>
               </div>

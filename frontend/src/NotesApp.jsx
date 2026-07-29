@@ -87,6 +87,22 @@ export default function NotesApp() {
   const [pantryOpen, setPantryOpen] = useState(false);
   const [restaurantsGaloreOpen, setRestaurantsGaloreOpen] = useState(false);
   const [restaurantDirectoryOpen, setRestaurantDirectoryOpen] = useState(false);
+  const [restaurantMenusOpen, setRestaurantMenusOpen] = useState(false);
+  const [restaurantMealsOpen, setRestaurantMealsOpen] = useState(false);
+  const [restaurantOrdersOpen, setRestaurantOrdersOpen] = useState(false);
+  const [restaurantSpendingOpen, setRestaurantSpendingOpen] = useState(false);
+  const [restaurantCouponsOpen, setRestaurantCouponsOpen] = useState(false);
+  const [restaurantReviewsOpen, setRestaurantReviewsOpen] = useState(false);
+  const [restaurantDeliveryOpen, setRestaurantDeliveryOpen] = useState(false);
+  const [restaurantStaffOpen, setRestaurantStaffOpen] = useState(false);
+  const [restaurantWishlistOpen, setRestaurantWishlistOpen] = useState(false);
+  const [restaurantPhotosOpen, setRestaurantPhotosOpen] = useState(false);
+  const [restaurantVoiceOpen, setRestaurantVoiceOpen] = useState(false);
+  const [restaurantSearchOpen, setRestaurantSearchOpen] = useState(false);
+  const [restaurantBeveragesOpen, setRestaurantBeveragesOpen] = useState(false);
+  const [restaurantDessertsOpen, setRestaurantDessertsOpen] = useState(false);
+  const [restaurantAIOpen, setRestaurantAIOpen] = useState(false);
+  const [restaurantBackupOpen, setRestaurantBackupOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -1357,6 +1373,22 @@ export default function NotesApp() {
         tripJournalOpen={tripJournalOpen} setTripJournalOpen={setTripJournalOpen}
         restaurantsGaloreOpen={restaurantsGaloreOpen} setRestaurantsGaloreOpen={setRestaurantsGaloreOpen}
         restaurantDirectoryOpen={restaurantDirectoryOpen} setRestaurantDirectoryOpen={setRestaurantDirectoryOpen}
+        restaurantMenusOpen={restaurantMenusOpen} setRestaurantMenusOpen={setRestaurantMenusOpen}
+        restaurantMealsOpen={restaurantMealsOpen} setRestaurantMealsOpen={setRestaurantMealsOpen}
+        restaurantOrdersOpen={restaurantOrdersOpen} setRestaurantOrdersOpen={setRestaurantOrdersOpen}
+        restaurantSpendingOpen={restaurantSpendingOpen} setRestaurantSpendingOpen={setRestaurantSpendingOpen}
+        restaurantCouponsOpen={restaurantCouponsOpen} setRestaurantCouponsOpen={setRestaurantCouponsOpen}
+        restaurantReviewsOpen={restaurantReviewsOpen} setRestaurantReviewsOpen={setRestaurantReviewsOpen}
+        restaurantDeliveryOpen={restaurantDeliveryOpen} setRestaurantDeliveryOpen={setRestaurantDeliveryOpen}
+        restaurantStaffOpen={restaurantStaffOpen} setRestaurantStaffOpen={setRestaurantStaffOpen}
+        restaurantWishlistOpen={restaurantWishlistOpen} setRestaurantWishlistOpen={setRestaurantWishlistOpen}
+        restaurantPhotosOpen={restaurantPhotosOpen} setRestaurantPhotosOpen={setRestaurantPhotosOpen}
+        restaurantVoiceOpen={restaurantVoiceOpen} setRestaurantVoiceOpen={setRestaurantVoiceOpen}
+        restaurantSearchOpen={restaurantSearchOpen} setRestaurantSearchOpen={setRestaurantSearchOpen}
+        restaurantBeveragesOpen={restaurantBeveragesOpen} setRestaurantBeveragesOpen={setRestaurantBeveragesOpen}
+        restaurantDessertsOpen={restaurantDessertsOpen} setRestaurantDessertsOpen={setRestaurantDessertsOpen}
+        restaurantAIOpen={restaurantAIOpen} setRestaurantAIOpen={setRestaurantAIOpen}
+        restaurantBackupOpen={restaurantBackupOpen} setRestaurantBackupOpen={setRestaurantBackupOpen}
         barcodeOpen={barcodeOpen} setBarcodeOpen={setBarcodeOpen}
         mealPlannerOpen={mealPlannerOpen} setMealPlannerOpen={setMealPlannerOpen}
         pantryOpen={pantryOpen} setPantryOpen={setPantryOpen}

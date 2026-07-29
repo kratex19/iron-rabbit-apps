@@ -1,0 +1,46 @@
+{
+  "summary": "Phase 5 focused regression + new-feature test. Backup/Restore and MapsPicker both PASS end-to-end. However BOTH pre-seed regression fixes (Delivery + Coupons) are BROKEN — delivery-editor-save remains disabled after fill, and clicking coupons-add-btn throws an uncaught ReferenceError ('selectedR is not defined') which surfaces the CRA error overlay. Root cause identified in both files.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "RestaurantCouponsModal (RestaurantWorkspaces.jsx:777)",
+        "issue": "Uncaught ReferenceError: 'selectedR is not defined' fires immediately when user clicks coupons-add-btn. Line 777 uses `selectedR || restaurants[0]?.id` but `selectedR` state is NOT declared in this component (it exists only in RestaurantStaffModal below). CRA red error overlay covers the whole page.",
+        "selector": "[data-testid='coupons-add-btn']",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "DeliveryTracker → DeliveryEditor (RestaurantWorkspacesP3.jsx:243 + 282)",
+        "issue": "Pre-seed of restaurant_id is thrown away. Parent sets `setEditing({ restaurant_id: restaurants[0]?.id })` (line 243) but then passes `item={editing.id ? editing : null}` to the child (line 282). Since the pre-seed object has no `.id`, item becomes null, so child initialises `restaurant_id: item?.restaurant_id || \"\" = \"\"`. Result: canSave = false → delivery-editor-save stays disabled even after filling driver/minutes/rating. Repro exactly matches the bug iteration_29 was supposed to fix.",
+        "selector": "[data-testid='delivery-editor-save']",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "RestaurantCouponsModal → CouponEditor (RestaurantWorkspaces.jsx:817)",
+        "issue": "Same pattern as Delivery — `item={editing.id ? editing : null}` discards the {restaurant_id} pre-seed. Even after the selectedR ReferenceError is fixed, the coupon save button will still be disabled after fill because CouponEditor initialises restaurant_id from item?.restaurant_id.",
+        "selector": "[data-testid='coupon-editor-save']",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "RestaurantWorkspaces.jsx line 777: replace `selectedR || restaurants[0]?.id` with just `restaurants[0]?.id` (there is no `selectedR` state in RestaurantCouponsModal).",
+    "RestaurantWorkspacesP3.jsx line 282: change `item={editing.id ? editing : null}` to `item={editing}` and inside DeliveryEditor derive `const isEdit = !!item?.id;`. This lets the pre-seeded restaurant_id flow through.",
+    "RestaurantWorkspaces.jsx line 817: same fix as above for CouponEditor (`item={editing}` + `isEdit = !!item?.id`)."
+  ],
+  "critical_code_review_comments": [
+    "Two workspaces share the exact same anti-pattern for 'pre-seed on Add' — consider a small helper `openNewWith(defaults) => setEditing({ __new: true, ...defaults })` and use `isEdit = !item?.__new` to avoid this class of bug across all future workspaces.",
+    "Coupons `selectedR` typo would have been caught by a lint rule like `no-undef`; ESLint is likely misconfigured for this file — worth verifying `react-app` preset isn't being overridden."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "60% (3/5 new-feature checks pass, 0/2 regressions pass)"},
+  "test_credentials": "none — local IndexedDB app",
+  "seed_data_creation": "Added one 'TEST_P5 Diner' restaurant with address '1 Times Square, New York, NY' to enable Delivery/Coupons/Maps tests. Stored in the testing browser's IndexedDB only.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "PASSED: (a) 19th launcher tile 'launcher-backup' exists and labeled 'Backup'; (b) backup-modal opens with backup-export-btn/backup-choose-btn/backup-file-input all present; (c) Export downloads file named restaurants-galore-backup-YYYY-MM-DD-HH-MM-SS.json and shows toast 'Exported N restaurants + all data'; (d) directory-maps-<id> is now a button that opens maps-picker with maps-google-btn/maps-waze-btn/maps-apple-btn, all containing the encoded address. FAILED: delivery-editor-save stays disabled after fill (pre-seed not reaching child); coupons-add-btn throws 'selectedR is not defined' runtime error. NOTE: Each launcher CLOSES the RG modal then opens the workspace after 150ms, so after closing a workspace you must re-open RG via [data-testid=header-restaurants-galore]. Sonner toasts (top-right) can intercept the header button — wait for [data-sonner-toast] to disappear (or use JS .click()) before re-opening RG. Zero console errors on the app home page and after opening the RG modal + Directory/Delivery/Backup workspaces (excluding the coupons ReferenceError above).",
+  "rca of the issue": "Both Delivery and Coupons had a 'Log delivery' / 'Add coupon' handler updated to pre-populate `restaurant_id` via `setEditing({ restaurant_id: restaurants[0]?.id })`. However the render line just below (`{editing && <Editor item={editing.id ? editing : null} ... />}`) treats any object without `.id` as a brand-new entity and passes null. Since the editor's useState reads from `item?.restaurant_id`, the pre-seed is discarded and canSave stays false. Fix: pass `item={editing}` directly and let the editor decide isEdit from `!!item?.id`. Separately, the CouponsModal add-btn onClick referenced `selectedR` which only exists inside the sibling StaffModal — this is a scope/copy-paste bug and blows up on first click."
+}

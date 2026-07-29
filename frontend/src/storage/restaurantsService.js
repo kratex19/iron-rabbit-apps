@@ -63,6 +63,10 @@ const ordersStore      = mkStore("orders");
 const reviewsStore     = mkStore("reviews");
 const deliveriesStore  = mkStore("deliveries");
 const couponsStore     = mkStore("coupons");
+const staffStore       = mkStore("staff");
+const wishlistStore    = mkStore("wishlist");
+const photosStore      = mkStore("photos");
+const voiceJournalStore = mkStore("voice_journal");
 
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -101,8 +105,8 @@ const RestaurantsService = {
     return record;
   },
   async deleteRestaurant(id) {
-    // Cascade: remove menus + favorite meals + orders + reviews + deliveries + coupons for this restaurant
-    for (const store of [menusStore, favoriteMealsStore, ordersStore, reviewsStore, deliveriesStore, couponsStore]) {
+    // Cascade: remove menus + favorite meals + orders + reviews + deliveries + coupons + staff + photos for this restaurant
+    for (const store of [menusStore, favoriteMealsStore, ordersStore, reviewsStore, deliveriesStore, couponsStore, staffStore, photosStore]) {
       const items = await iterAll(store);
       for (const it of items) {
         if (it.restaurant_id === id) await store.removeItem(it.id);
@@ -228,6 +232,10 @@ const RestaurantsService = {
     await deliveriesStore.setItem(record.id, record);
     return record;
   },
+  async deleteDelivery(id) {
+    await deliveriesStore.removeItem(id);
+    return true;
+  },
 
   // ================= COUPONS =================
   async listCoupons({ includeUsed = true, includeExpired = true } = {}) {
@@ -254,6 +262,95 @@ const RestaurantsService = {
   },
   async deleteCoupon(id) {
     await couponsStore.removeItem(id);
+    return true;
+  },
+
+  // ================= FAVORITE STAFF =================
+  async listStaff(restaurantId) {
+    const all = await iterAll(staffStore);
+    return all
+      .filter(s => !restaurantId || s.restaurant_id === restaurantId)
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  },
+  async saveStaff(s) {
+    const now = new Date().toISOString();
+    const record = {
+      id: s.id || rid("staff"),
+      created_at: s.created_at || now,
+      updated_at: now,
+      ...s,
+    };
+    await staffStore.setItem(record.id, record);
+    return record;
+  },
+  async deleteStaff(id) {
+    await staffStore.removeItem(id);
+    return true;
+  },
+
+  // ================= WISH LIST =================
+  async listWishlist() {
+    const all = await iterAll(wishlistStore);
+    return all.sort((a, b) => (a.priority || 99) - (b.priority || 99));
+  },
+  async saveWishlistItem(w) {
+    const record = {
+      id: w.id || rid("wish"),
+      created_at: w.created_at || new Date().toISOString(),
+      visited: false,
+      ...w,
+    };
+    await wishlistStore.setItem(record.id, record);
+    return record;
+  },
+  async deleteWishlistItem(id) {
+    await wishlistStore.removeItem(id);
+    return true;
+  },
+
+  // ================= PHOTOS =================
+  async listPhotos({ restaurantId, orderId, reviewId } = {}) {
+    const all = await iterAll(photosStore);
+    return all
+      .filter(p => !restaurantId || p.restaurant_id === restaurantId)
+      .filter(p => !orderId || p.order_id === orderId)
+      .filter(p => !reviewId || p.review_id === reviewId)
+      .sort((a, b) => new Date(b.taken_at || b.created_at) - new Date(a.taken_at || a.created_at));
+  },
+  async savePhoto(p) {
+    const record = {
+      id: p.id || rid("photo"),
+      created_at: p.created_at || new Date().toISOString(),
+      taken_at: p.taken_at || new Date().toISOString(),
+      ...p,
+    };
+    await photosStore.setItem(record.id, record);
+    return record;
+  },
+  async deletePhoto(id) {
+    await photosStore.removeItem(id);
+    return true;
+  },
+
+  // ================= VOICE JOURNAL =================
+  async listVoiceJournal(restaurantId) {
+    const all = await iterAll(voiceJournalStore);
+    return all
+      .filter(v => !restaurantId || v.restaurant_id === restaurantId)
+      .sort((a, b) => new Date(b.taken_at || b.created_at) - new Date(a.taken_at || a.created_at));
+  },
+  async saveVoiceJournalEntry(v) {
+    const record = {
+      id: v.id || rid("voice"),
+      created_at: v.created_at || new Date().toISOString(),
+      taken_at: v.taken_at || new Date().toISOString(),
+      ...v,
+    };
+    await voiceJournalStore.setItem(record.id, record);
+    return record;
+  },
+  async deleteVoiceJournalEntry(id) {
+    await voiceJournalStore.removeItem(id);
     return true;
   },
 
@@ -343,7 +440,42 @@ const RestaurantsService = {
       reviews: await iterAll(reviewsStore),
       deliveries: await iterAll(deliveriesStore),
       coupons: await iterAll(couponsStore),
+      staff: await iterAll(staffStore),
+      wishlist: await iterAll(wishlistStore),
+      photos: await iterAll(photosStore),
+      voice_journal: await iterAll(voiceJournalStore),
     };
+  },
+
+  // ================= IMPORT ALL (restore) =================
+  async importAll(data, mode = "merge") {
+    if (!data || typeof data !== "object") throw new Error("No data to import");
+    const map = {
+      restaurants: restaurantsStore,
+      menus: menusStore,
+      favorite_meals: favoriteMealsStore,
+      orders: ordersStore,
+      reviews: reviewsStore,
+      deliveries: deliveriesStore,
+      coupons: couponsStore,
+      staff: staffStore,
+      wishlist: wishlistStore,
+      photos: photosStore,
+      voice_journal: voiceJournalStore,
+    };
+    if (mode === "replace") {
+      for (const s of Object.values(map)) await s.clear();
+    }
+    let restored = 0;
+    for (const [key, store] of Object.entries(map)) {
+      const arr = Array.isArray(data[key]) ? data[key] : [];
+      for (const item of arr) {
+        if (!item || !item.id) continue;
+        await store.setItem(item.id, item);
+        restored += 1;
+      }
+    }
+    return { restored, mode };
   },
 };
 
