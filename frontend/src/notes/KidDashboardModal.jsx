@@ -159,11 +159,13 @@ function KidPicker({ kidNotes, onPick, onSetPin, isDark }) {
           return s + h.reduce((ss, x) => ss + (Number(x.paid) || 0), 0);
         }, 0);
         return (
-          <button
+          <div
             key={n.id}
-            type="button"
+            role="button"
+            tabIndex={0}
             onClick={() => onPick(n)}
-            className={`relative text-left p-4 rounded-2xl border-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onPick(n); } }}
+            className={`relative text-left p-4 rounded-2xl border-2 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
               isDark ? "bg-white/[0.03] border-white/10 hover:border-white/30" : "bg-white border-gray-200 hover:border-indigo-400 shadow-sm"
             }`}
             style={{ borderLeftColor: colorCfg.accent, borderLeftWidth: "6px" }}
@@ -201,7 +203,7 @@ function KidPicker({ kidNotes, onPick, onSetPin, isDark }) {
                 <Wallet className="w-4 h-4" /> ${earnings.toFixed(2)}
               </span>
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
