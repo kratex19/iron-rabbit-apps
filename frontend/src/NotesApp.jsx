@@ -85,6 +85,8 @@ export default function NotesApp() {
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [mealPlannerOpen, setMealPlannerOpen] = useState(false);
   const [pantryOpen, setPantryOpen] = useState(false);
+  const [restaurantsGaloreOpen, setRestaurantsGaloreOpen] = useState(false);
+  const [restaurantDirectoryOpen, setRestaurantDirectoryOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -1280,6 +1282,7 @@ export default function NotesApp() {
         onPantry={() => setPantryOpen(true)}
         onBarcode={() => setBarcodeOpen(true)}
         onTripJournal={() => setTripJournalOpen(true)}
+        onRestaurantsGalore={() => setRestaurantsGaloreOpen(true)}
         onArchiveTrash={() => setArchiveTrashOpen(true)}
         onSettings={() => setSettingsModalOpen(true)}
       />
@@ -1352,6 +1355,8 @@ export default function NotesApp() {
         kidModeOpen={kidModeOpen} setKidModeOpen={setKidModeOpen}
         shoppingModeOpen={shoppingModeOpen} setShoppingModeOpen={setShoppingModeOpen}
         tripJournalOpen={tripJournalOpen} setTripJournalOpen={setTripJournalOpen}
+        restaurantsGaloreOpen={restaurantsGaloreOpen} setRestaurantsGaloreOpen={setRestaurantsGaloreOpen}
+        restaurantDirectoryOpen={restaurantDirectoryOpen} setRestaurantDirectoryOpen={setRestaurantDirectoryOpen}
         barcodeOpen={barcodeOpen} setBarcodeOpen={setBarcodeOpen}
         mealPlannerOpen={mealPlannerOpen} setMealPlannerOpen={setMealPlannerOpen}
         pantryOpen={pantryOpen} setPantryOpen={setPantryOpen}

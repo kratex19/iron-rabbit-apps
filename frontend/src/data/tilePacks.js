@@ -26,6 +26,25 @@ const grad = (v) => ({ type: "gradient", value: v });
 const solid = (v) => ({ type: "color", value: v });
 
 export const TILE_PACKS = [
+  // ---- Restaurants Galore™ (opens the dedicated dashboard) ----
+  {
+    id: "restaurants-galore",
+    name: "Restaurants Galore™",
+    tagline: "Complete dining organizer — restaurants, menus, orders, reviews, budget & smart insights.",
+    accent: "#f59e0b",
+    special_action: "open_restaurants_galore",
+    notes: [
+      {
+        title: "Restaurants Galore",
+        content: "Complete offline restaurant organizer.\n\n• Restaurant directory with hours, phones, amenities\n• Menu tracking with price history\n• Order history + tip calculator + split bill\n• Reviews with 11 rating metrics\n• Delivery tracker + spending center\n• Coupons, favorite meals, voice journal\n\nTap this tile to open the Restaurants Galore dashboard.",
+        color: "amber",
+        icon: "utensils",
+        background: grad(G.amber),
+        category: "Restaurants",
+        pinned: true,
+      },
+    ],
+  },
   // ---- Personal Productivity ----
   {
     id: "fitness-journey", name: "Fitness Journey", accent: "#10b981",

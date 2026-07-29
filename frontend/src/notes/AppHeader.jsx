@@ -2,7 +2,7 @@ import React from "react";
 import {
   Settings, Calculator, ExternalLink, Sun, Moon, Download, Zap, Package,
   CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt,
-  Barcode, ChefHat, PackageOpen,
+  Barcode, ChefHat, PackageOpen, Utensils,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ export default function AppHeader({
   onPantry,
   onBarcode,
   onTripJournal,
+  onRestaurantsGalore,
   onArchiveTrash,
   onSettings,
 }) {
@@ -104,6 +105,7 @@ export default function AppHeader({
           <Button variant="ghost" size="icon" onClick={tap(onPantry)} className={iconBtnCls} title="Pantry Inventory" data-testid="header-pantry"><PackageOpen className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onBarcode)} className={iconBtnCls} title="Barcode Scanner" data-testid="header-barcode"><Barcode className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onTripJournal)} className={iconBtnCls} title="Trip Journal" data-testid="header-trip-journal"><Receipt className="w-4 h-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={tap(onRestaurantsGalore)} className={iconBtnCls} title="Restaurants Galore" data-testid="header-restaurants-galore"><Utensils className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={onArchiveTrash} className={iconBtnCls} title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={onSettings} className={iconBtnCls} title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
         </div>

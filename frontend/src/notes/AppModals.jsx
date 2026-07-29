@@ -20,6 +20,8 @@ import TripJournalModal from "./TripJournalModal";
 import BarcodeScannerModal from "./BarcodeScannerModal";
 import MealPlannerModal from "./MealPlannerModal";
 import PantryModal from "./PantryModal";
+import RestaurantsGaloreDashboardModal from "./RestaurantsGaloreDashboardModal";
+import RestaurantDirectoryModal from "./RestaurantDirectoryModal";
 import LanguagePicker from "./LanguagePicker";
 import SecurityModal from "./SecurityModal";
 import LockScreen from "../security/LockScreen";
@@ -211,6 +213,19 @@ export default function AppModals(p) {
           text: pantryItem.name,
           dept: pantryItem.dept,
         })}
+      />
+
+      <RestaurantsGaloreDashboardModal
+        isOpen={p.restaurantsGaloreOpen}
+        onClose={() => p.setRestaurantsGaloreOpen(false)}
+        isDark={p.isDark}
+        onOpenDirectory={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantDirectoryOpen(true), 150); }}
+      />
+
+      <RestaurantDirectoryModal
+        isOpen={p.restaurantDirectoryOpen}
+        onClose={() => p.setRestaurantDirectoryOpen(false)}
+        isDark={p.isDark}
       />
 
       <LanguagePicker
