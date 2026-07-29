@@ -353,6 +353,9 @@ function RestaurantEditModal({ item, isDark, onClose, onSave }) {
           <DialogTitle className={isDark ? "text-white" : "text-gray-900"}>
             {isEdit ? `Edit ${item.name}` : "New restaurant"}
           </DialogTitle>
+          <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
+            All fields save locally &mdash; nothing leaves this device.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-2">

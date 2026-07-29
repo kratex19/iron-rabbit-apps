@@ -283,6 +283,7 @@ const RestaurantsService = {
 
     // Most recent 5 restaurants by last visit
     const recentVisits = orders
+      .slice()
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 5)
       .map(o => activeRestaurants.find(r => r.id === o.restaurant_id))

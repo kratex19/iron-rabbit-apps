@@ -1077,3 +1077,45 @@ Files added: `notes/AppModals.jsx`, `hooks/useGroceryQuickAdd.js`
 - Extract `useNoteActions` hook (handleSaveNote / handleSaveInline / handleDeleteNote / bulk operations)
 - Custom domain link via Entri (user's local action — follow `/app/CUSTOM_DOMAIN.md`)
 - Native build: `cd frontend && yarn build && npx cap sync` on user's local machine
+
+## Session 2026-02-XX — Iteration 28 (Restaurants Galore™ — Phase 1)
+
+**Delivered & verified via testing_agent iteration_28 (100% pass — 12/12 scenarios):**
+
+**Storage foundation:**
+- `storage/restaurantsService.js` — 7 dedicated localforage stores (all namespaced under `IronRabbit` DB with `rg_` prefix):
+  - `rg_restaurants`, `rg_menus`, `rg_favorite_meals`, `rg_orders`, `rg_reviews`, `rg_deliveries`, `rg_coupons`
+- Full CRUD for each entity + `computeDashboardStats()` aggregator + cascade delete + `exportAll()` for future backup integration
+
+**Command Center Dashboard** (`notes/RestaurantsGaloreDashboardModal.jsx`):
+- 4 KPI cards: this month, this year, avg meal price, restaurants count
+- Smart reminders card: restaurants needing reviews, coupons expiring in 7 days, upcoming birthdays in 30 days
+- Recently visited + Favorites grids
+- 18-workspace launcher grid (Directory active, 17 stubbed with "Coming soon" for Phase 2-4)
+
+**Restaurant Directory** (`notes/RestaurantDirectoryModal.jsx`):
+- Full CRUD with search + 4 filter chips (Active / Favorites / Hidden / Archived)
+- Inline favorite heart toggle
+- Edit sub-modal with 20+ fields: name, nickname, category, cuisine (autocomplete), phones[] (add/remove), website, online ordering, email, hours, holiday hours, address (→ Maps), parking notes, 8 amenity toggles (drive-thru/delivery/pickup/reservations/outdoor/wheelchair/kid-friendly/pet-friendly), notes, favorite/hidden/archived states
+- Cascade delete confirmation
+
+**Wiring:**
+- New `header-restaurants-galore` icon (Utensils) in `AppHeader` between Trip Journal and Archive
+- New tile pack `restaurants-galore` at the top of `TILE_PACKS` (amber gradient, marked as flagship)
+- Full state pipeline through NotesApp → AppHeader + AppModals
+
+**Master spec locked at** `/app/specs/RESTAURANTS_GALORE.md` — every future phase must re-read this doc first.
+
+**Bonus fixes applied post-review:**
+- Added `DialogDescription` to RestaurantEditModal (a11y warning eliminated)
+- `computeDashboardStats` now uses `.slice().sort()` to avoid mutating stored arrays
+
+**Files added:** `storage/restaurantsService.js`, `notes/RestaurantsGaloreDashboardModal.jsx`, `notes/RestaurantDirectoryModal.jsx`, `specs/RESTAURANTS_GALORE.md`
+**Files updated:** `NotesApp.jsx`, `notes/AppHeader.jsx`, `notes/AppModals.jsx`, `data/tilePacks.js`
+
+## Restaurants Galore — Phase Roadmap
+- **Phase 1** ✅ (this session) — Dashboard + Directory + storage foundation
+- **Phase 2** — Menus, Favorite Meals, Order History (with items), Tip Calc, Split Bill, Spending Center charts, Coupons + expiration alerts
+- **Phase 3** — Reviews (11-metric), Delivery Tracker, Favorite Staff, Wish List, Calendar integration, Photos
+- **Phase 4** — Voice Journal (browser SpeechRecognition), Smart Assistant, AI Insights, Search Center, Recipe Recreation, Beverage/Dessert Centers, Family Dining, Emergency Info
+- **Phase 5** — Glass Workspace theme, Maps & Navigation picker, deep accessibility, full backup integration
