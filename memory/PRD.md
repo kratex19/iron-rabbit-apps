@@ -967,3 +967,24 @@ Frontend:
   + "Waiting for grown-up ✓" badge → back/exit works. 95% pass; the 5%
   gap was purely a testid uniqueness issue (now fixed).
 
+
+## Session 2026-02-XX — Iteration 23 (Trip Journal + Phase 4 + Capacitor)
+
+**Delivered:**
+- **Trip Journal (P2)** — new `TripJournalModal.jsx` with KPI cards (this month, avg trip, biggest, total), 6-month spend bar chart (recharts), top-departments breakdown, most-bought items list, and expandable per-trip detail with per-item price rows. Delete confirm dialog. Access: new "Receipt" icon in header (`data-testid="header-trip-journal"`) + "View full Trip Journal →" button inside Insights modal grocery card. `ShoppingModeModal` upgraded to persist item-level breakdown on trip save.
+- **Smart Grocery Cart Phase 4 — Barcode Scanner (P2)** — new `BarcodeScannerModal.jsx` using `window.BarcodeDetector` API with graceful fallback to manual entry when unsupported. Product lookup via free public OpenFoodFacts API returns name, brand, thumbnail, per-100g nutrition (energy/fat/sat-fat/carbs/sugars/protein) and Nutri-Score badge. On accept, item is added to newest grocery note or a fresh "Shopping List" note is created. Header entry point (`data-testid="header-barcode"`).
+- **Smart Grocery Cart Phase 4 — Meal Planner (P2)** — new `MealPlannerModal.jsx` with 7-day × 3-meal (breakfast/lunch/dinner) grid, week nav, offline recipe library of 15 built-in recipes (`/app/frontend/src/data/recipes.js`), custom recipe creation (name / tagline / ingredients with qty + department), and "Generate shopping list" that consolidates all planned ingredients into a new Grocery-category note with department metadata. Header entry point (`data-testid="header-meal-planner"`).
+- **Storage helpers** added to `storageService.js`: `getGroceryTrips` / `saveGroceryTrip` / `deleteGroceryTrip` / `updateGroceryTrip`, `getMealPlan` / `saveMealPlan`, `getCustomRecipes` / `saveCustomRecipe` / `deleteCustomRecipe`.
+- **Capacitor (P3)** — `CAPACITOR_SETUP.md` updated with Phase 4 native scanner instructions (ML Kit plugin swap, camera permissions for iOS/Android).
+- **Bonus fix**: root-caused and fixed pre-existing iteration-22 category-reorder-persistence bug — `saveCategoryOrder` / `getCategoryOrder` were writing/reading settings key `"main"` while every other settings API uses `"app_settings"`. Fixed to use `saveSettings`/`getSettings` consistently.
+
+**Verified via testing_agent iteration_23**: All Phase 4 flows end-to-end pass — Trip Journal (with seeded trips), Meal Planner recipe pick + list generation + custom recipe, Barcode Scanner manual entry + OpenFoodFacts lookup + accept-to-list. No console errors.
+
+**Files changed:** `NotesApp.jsx`, `ShoppingModeModal.jsx`, `InsightsModal.jsx`, `storageService.js`, `CAPACITOR_SETUP.md`
+**Files added:** `notes/TripJournalModal.jsx`, `notes/BarcodeScannerModal.jsx`, `notes/MealPlannerModal.jsx`, `data/recipes.js`
+
+## Next actions
+- P1: Weekly chore-summary push notifications (Sunday recap) — utility `weeklyChoreSummary.js` exists, needs Notifications API wiring + service worker schedule.
+- P1: Custom domain `www.ironrabbitapps.com` walkthrough via Entri (Emergent deploy panel).
+- P3: Refactor `NotesApp.jsx` (1800+ lines) into modular sub-components.
+- Optional Phase 4 extras: OpenFoodFacts caching (offline product lookup), meal-planner drag-and-drop between slots.
