@@ -13,49 +13,19 @@ import {
   Download, Pin, Package, CalendarDays, Archive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import StorageService from "./storage/storageService";
 import notificationService from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
-import IconPicker from "./components/IconPicker";
 import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
-import TilePacksModal from "./notes/TilePacksModal";
-import FirstRunTour from "./notes/FirstRunTour";
-import FloatingCalendarModal from "./notes/FloatingCalendarModal";
-import LanguagePicker from "./notes/LanguagePicker";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
-import SecurityModal from "./notes/SecurityModal";
-import OrganizationModal from "./notes/OrganizationModal";
-import MultiSelectBar from "./notes/MultiSelectBar";
-import MoveToCategoryModal from "./notes/MoveToCategoryModal";
-import CopySuffixDialog from "./notes/CopySuffixDialog";
-import BatchStudioSheet from "./notes/BatchStudioSheet";
-import DeleteChoiceDialog from "./notes/DeleteChoiceDialog";
-import RecentActionPill from "./notes/RecentActionPill";
-import QuickAccessModal from "./notes/QuickAccessModal";
-import BackupRestoreModal from "./notes/BackupRestoreModal";
-import ArchiveTrashModal from "./notes/ArchiveTrashModal";
-import InsightsModal from "./notes/InsightsModal";
-import KidDashboardModal from "./notes/KidDashboardModal";
-import ShoppingModeModal from "./notes/ShoppingModeModal";
-import TripJournalModal from "./notes/TripJournalModal";
-import BarcodeScannerModal from "./notes/BarcodeScannerModal";
-import MealPlannerModal from "./notes/MealPlannerModal";
-import PantryModal from "./notes/PantryModal";
 import CategoryHeader from "./notes/CategoryHeader";
 import AppHeader from "./notes/AppHeader";
 import AppSearchBar from "./notes/AppSearchBar";
+import AppModals from "./notes/AppModals";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
-import LockScreen from "./security/LockScreen";
 import useAutoLock from "./security/useAutoLock";
 import SecurityService from "./security/SecurityService";
 import { SUPPORTED_LANGUAGES } from "./i18n";
@@ -66,11 +36,6 @@ import { maybeShowPantryAlerts } from "./utils/pantryAlerts";
 import { NOTE_COLORS, DEFAULT_TEMPLATES } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
 import CategoryGroup from "./notes/CategoryGroup";
-import NoteModal from "./notes/NoteModal";
-import CalculatorWidget from "./notes/CalculatorWidget";
-import ShareModal from "./notes/ShareModal";
-import SettingsModal from "./notes/SettingsModal";
-import FullScreenNote from "./notes/FullScreenNote";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -1357,446 +1322,84 @@ export default function NotesApp() {
         <Plus className="w-6 h-6" />
       </button>
 
-      {/* Modals */}
-      <NoteModal
-        isOpen={noteModalOpen}
-        onClose={() => { setNoteModalOpen(false); setEditingNote(null); }}
-        note={editingNote}
-        onSave={handleSaveNote}
-        onOpenCalculator={openCalculatorWithCallback}
-        isDark={isDark}
+      {/* All modals, dialogs, sheets and floating pills (extracted) */}
+      <AppModals
+        // — data —
+        notes={notes}
+        settings={settings}
         categories={categories}
         templates={templates}
         allTags={allTags}
-      />
-      <CalculatorWidget
-        isOpen={calculatorOpen}
-        onClose={() => { setCalculatorOpen(false); setCalculatorCallback(null); }}
-        onInsertResult={calculatorCallback}
-        isDark={isDark}
-      />
-      <ShareModal
-        isOpen={shareModalOpen}
-        onClose={() => { setShareModalOpen(false); setSharingNote(null); }}
-        note={sharingNote}
-        isDark={isDark}
-      />
-      <SettingsModal
-        isOpen={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
-        settings={settings}
-        onSave={handleSaveSettings}
-        onBackup={handleBackup}
-        onRestore={handleRestore}
-        onClearData={handleClearAllData}
-        onInstallPWA={handleInstallPWA}
-        canInstallPWA={!!deferredPrompt}
         storageInfo={storageInfo}
-        onRestoreFromServer={handleRestoreFromServer}
-        onOpenSecurity={() => setSecurityOpen(true)}
-        onOpenOrganization={() => setOrganizationOpen(true)}
-        onOpenQuickAccess={() => { setSettingsModalOpen(false); setQuickAccessOpen(true); }}
-        onOpenBackup={() => { setSettingsModalOpen(false); setBackupOpen(true); }}
-        onSyncPackColors={handleSyncPackColors}
-        isDark={isDark}
-      />
-      <FullScreenNote
-        note={fullScreenNote}
-        isOpen={!!fullScreenNote}
-        onClose={() => setFullScreenNote(null)}
-        onSaveInline={handleSaveInline}
-        onDelete={handleDeleteNote}
-        onShare={openShareModal}
-        isDark={isDark}
-      />
-      <IconPicker
-        isOpen={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
-        mode="quick-add"
-        onQuickAdd={handleQuickAdd}
-        onSelect={() => {}}
-        isDark={isDark}
-      />
-      <TilePacksModal
-        isOpen={tilePacksOpen}
-        onClose={() => setTilePacksOpen(false)}
-        onApply={handleApplyPack}
-        isDark={isDark}
-      />
-      <FloatingCalendarModal
-        isOpen={floatingCalendarOpen}
-        onClose={() => setFloatingCalendarOpen(false)}
-        notes={notes}
-        onOpenNote={(noteId) => {
-          const n = notes.find((x) => x.id === noteId);
-          if (n) setFullScreenNote(n);
-        }}
-        onCreateEvent={async ({ title, datetime, alarm_enabled }) => {
-          try {
-            const now = new Date().toISOString();
-            const maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
-            const newNote = {
-              id: uuidv4(),
-              title,
-              content: "",
-              color: "purple",
-              category: "Calendar",
-              order: maxOrder + 1,
-              events: [{
-                id: uuidv4(),
-                title,
-                datetime,
-                alarm_enabled: !!alarm_enabled,
-                notes: "",
-              }],
-              created_at: now,
-              updated_at: now,
-              last_viewed: now,
-            };
-            await StorageService.saveNote(newNote);
-            toast.success(`Event added for ${new Date(datetime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`);
-            fetchData();
-          } catch (e) {
-            toast.error("Could not create event");
-          }
-        }}
-        isDark={isDark}
-      />
-      <FirstRunTour open={tourOpen} onDismiss={handleTourDismiss} isDark={isDark} />
-
-      <InsightsModal
-        isOpen={insightsOpen}
-        onClose={() => setInsightsOpen(false)}
-        notes={notes}
-        isDark={isDark}
-        onOpenTripJournal={() => setTripJournalOpen(true)}
-      />
-
-      <KidDashboardModal
-        isOpen={kidModeOpen}
-        onClose={() => setKidModeOpen(false)}
-        notes={notes}
-        onSaveNote={handleSaveInline}
-        isDark={isDark}
-      />
-
-      <ShoppingModeModal
-        isOpen={shoppingModeOpen}
-        onClose={() => setShoppingModeOpen(false)}
-        notes={notes}
-        onSaveNote={handleSaveInline}
-        isDark={isDark}
-      />
-
-      <TripJournalModal
-        isOpen={tripJournalOpen}
-        onClose={() => setTripJournalOpen(false)}
-        isDark={isDark}
-      />
-
-      <BarcodeScannerModal
-        isOpen={barcodeOpen}
-        onClose={() => setBarcodeOpen(false)}
-        isDark={isDark}
-        onCapture={async (captured) => {
-          // Find the most recently updated grocery note, or create a new one.
-          const groceryNotes = notes
-            .filter(n =>
-              !n.archived_at && !n.deleted_at &&
-              (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery")))
-            )
-            .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
-
-          const newItem = {
-            id: Math.random().toString(36).slice(2, 12),
-            text: captured.name,
-            done: false,
-            barcode: captured.code,
-            nutrition: captured.nutrition || null,
-            nutriscore: captured.nutriscore || null,
-          };
-
-          if (groceryNotes.length > 0) {
-            const target = groceryNotes[0];
-            const nextList = [...(target.checklist || []), newItem];
-            await handleSaveInline(target.id, { checklist: nextList });
-            toast.success(`Added "${captured.name}" to "${target.title}"`);
-          } else {
-            const now = new Date().toISOString();
-            const newNote = {
-              id: uuidv4(),
-              title: "Shopping List",
-              content: "",
-              category: "Grocery",
-              tags: ["grocery"],
-              color: "lime",
-              checklist: [newItem],
-              created_at: now,
-              updated_at: now,
-              order: Date.now(),
-            };
-            await StorageService.saveNote(newNote);
-            toast.success(`New Shopping List created with "${captured.name}"`);
-            fetchData();
-          }
-        }}
-      />
-
-      <MealPlannerModal
-        isOpen={mealPlannerOpen}
-        onClose={() => setMealPlannerOpen(false)}
-        isDark={isDark}
-        onGeneratedGroceryNote={() => fetchData()}
-      />
-
-      <PantryModal
-        isOpen={pantryOpen}
-        onClose={() => setPantryOpen(false)}
-        isDark={isDark}
-        onSendToShoppingList={async (pantryItem) => {
-          // Add the out-of-stock pantry item back to the newest grocery note
-          // (or create one). Mirrors the barcode-onCapture flow.
-          const groceryNotes = notes
-            .filter(n =>
-              !n.archived_at && !n.deleted_at &&
-              (n.category === "Grocery" || (Array.isArray(n.tags) && n.tags.includes("grocery")))
-            )
-            .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
-
-          const newItem = {
-            id: Math.random().toString(36).slice(2, 12),
-            text: pantryItem.name,
-            done: false,
-            dept: pantryItem.dept || "",
-          };
-          if (groceryNotes.length > 0) {
-            const target = groceryNotes[0];
-            const nextList = [...(target.checklist || []), newItem];
-            await handleSaveInline(target.id, { checklist: nextList });
-            toast.success(`"${pantryItem.name}" added to "${target.title}"`);
-          } else {
-            const now = new Date().toISOString();
-            await StorageService.saveNote({
-              id: uuidv4(),
-              title: "Shopping List",
-              content: "",
-              category: "Grocery",
-              tags: ["grocery"],
-              color: "lime",
-              checklist: [newItem],
-              created_at: now,
-              updated_at: now,
-              order: Date.now(),
-            });
-            toast.success(`Shopping List created with "${pantryItem.name}"`);
-            fetchData();
-          }
-        }}
-      />
-
-      <LanguagePicker
-        isOpen={languagePickerOpen}
-        onClose={() => setLanguagePickerOpen(false)}
-        isDark={isDark}
-      />
-
-      <SecurityModal
-        isOpen={securityOpen}
-        onClose={() => { setSecurityOpen(false); autoLock.refresh(); }}
-        categories={categories}
-        isDark={isDark}
-      />
-
-      {/* App-lock overlay — rendered above everything when app is locked */}
-      <LockScreen
-        isOpen={autoLock.locked}
-        onUnlock={autoLock.unlock}
-        isDark={isDark}
-      />
-
-      <OrganizationModal
-        isOpen={organizationOpen}
-        onClose={() => setOrganizationOpen(false)}
-        isDark={isDark}
-      />
-
-      <MoveToCategoryModal
-        isOpen={moveToOpen}
-        onClose={() => setMoveToOpen(false)}
-        categories={grouped.map(([n]) => n)}
-        count={selectedIds.size}
-        onMove={bulkMoveTo}
-        mode={settings?.dnd_prefs?.smartBatchMode || "move"}
-        isDark={isDark}
-      />
-
-      <CopySuffixDialog
-        isOpen={pendingCopyTarget !== null}
-        onClose={() => setPendingCopyTarget(null)}
-        count={selectedIds.size}
-        targetCategory={pendingCopyTarget || ""}
-        onConfirm={async (addSuffix) => {
-          const target = pendingCopyTarget;
-          setPendingCopyTarget(null);
-          await bulkCopyTo(target, addSuffix);
-        }}
-        isDark={isDark}
-      />
-
-      <MultiSelectBar
-        count={selectedIds.size}
-        onClear={clearSelection}
-        onOpenStudio={() => setBatchStudioOpen(true)}
-        isDark={isDark}
-      />
-
-      <BatchStudioSheet
-        isOpen={batchStudioOpen}
-        onClose={() => setBatchStudioOpen(false)}
-        count={selectedIds.size}
-        mode={settings?.dnd_prefs?.smartBatchMode || "move"}
-        onMoveTo={() => setMoveToOpen(true)}
-        onDuplicate={bulkDuplicateInPlace}
-        onTogglePin={bulkTogglePin}
-        onSetColor={bulkSetColor}
-        onSetAlarm={bulkSetAlarm}
-        onClearAlarm={bulkClearAlarm}
-        onExportPDF={bulkExportPDF}
-        onDelete={() => setDeleteChoice({ ids: Array.from(selectedIds), fromBulk: true })}
-        isDark={isDark}
-      />
-
-      {/* Delete choice — Archive vs Trash. Used by single delete AND bulk. */}
-      <DeleteChoiceDialog
-        isOpen={deleteChoice !== null}
-        onClose={() => setDeleteChoice(null)}
-        count={deleteChoice?.ids?.length || 0}
-        retentionLabel={(() => {
-          const d = settings?.trash_retention_days ?? 7;
-          if (!d) return "Forever";
-          if (d === 365) return "1 year";
-          return `${d} days`;
-        })()}
-        onArchive={async () => {
-          const ids = deleteChoice?.ids || [];
-          const fromBulk = deleteChoice?.fromBulk;
-          setDeleteChoice(null);
-          await performArchive(ids);
-          if (fromBulk) clearSelection();
-        }}
-        onTrash={async () => {
-          const ids = deleteChoice?.ids || [];
-          const fromBulk = deleteChoice?.fromBulk;
-          setDeleteChoice(null);
-          await performTrash(ids);
-          if (fromBulk) clearSelection();
-        }}
-        isDark={isDark}
-      />
-
-      {/* Persistent floating Undo pill — stays until user acts on it */}
-      <RecentActionPill
-        action={recentAction}
-        onUndo={undoRecentAction}
-        onDismiss={() => setRecentAction(null)}
-        isDark={isDark}
-      />
-
-      {/* Archive & Trash view */}
-      <ArchiveTrashModal
-        isOpen={archiveTrashOpen}
-        onClose={() => setArchiveTrashOpen(false)}
-        onDataChanged={fetchData}
-        settings={settings}
-        isDark={isDark}
-      />
-
-      {/* Quick Access — First-launch wizard + reopenable from Settings */}
-      <QuickAccessModal
-        isOpen={quickAccessOpen}
-        onClose={handleCloseQuickAccess}
         canInstallPWA={!!deferredPrompt}
-        onInstallPWA={handleInstallPWA}
+        grouped={grouped}
+        selectedIds={selectedIds}
+        autoLock={autoLock}
+        // — open/close state + setters —
+        noteModalOpen={noteModalOpen} setNoteModalOpen={setNoteModalOpen}
+        editingNote={editingNote} setEditingNote={setEditingNote}
+        calculatorOpen={calculatorOpen} setCalculatorOpen={setCalculatorOpen}
+        calculatorCallback={calculatorCallback} setCalculatorCallback={setCalculatorCallback}
+        shareModalOpen={shareModalOpen} setShareModalOpen={setShareModalOpen}
+        sharingNote={sharingNote} setSharingNote={setSharingNote}
+        settingsModalOpen={settingsModalOpen} setSettingsModalOpen={setSettingsModalOpen}
+        fullScreenNote={fullScreenNote} setFullScreenNote={setFullScreenNote}
+        quickAddOpen={quickAddOpen} setQuickAddOpen={setQuickAddOpen}
+        tilePacksOpen={tilePacksOpen} setTilePacksOpen={setTilePacksOpen}
+        floatingCalendarOpen={floatingCalendarOpen} setFloatingCalendarOpen={setFloatingCalendarOpen}
+        tourOpen={tourOpen}
+        insightsOpen={insightsOpen} setInsightsOpen={setInsightsOpen}
+        kidModeOpen={kidModeOpen} setKidModeOpen={setKidModeOpen}
+        shoppingModeOpen={shoppingModeOpen} setShoppingModeOpen={setShoppingModeOpen}
+        tripJournalOpen={tripJournalOpen} setTripJournalOpen={setTripJournalOpen}
+        barcodeOpen={barcodeOpen} setBarcodeOpen={setBarcodeOpen}
+        mealPlannerOpen={mealPlannerOpen} setMealPlannerOpen={setMealPlannerOpen}
+        pantryOpen={pantryOpen} setPantryOpen={setPantryOpen}
+        languagePickerOpen={languagePickerOpen} setLanguagePickerOpen={setLanguagePickerOpen}
+        securityOpen={securityOpen} setSecurityOpen={setSecurityOpen}
+        organizationOpen={organizationOpen} setOrganizationOpen={setOrganizationOpen}
+        moveToOpen={moveToOpen} setMoveToOpen={setMoveToOpen}
+        pendingCopyTarget={pendingCopyTarget} setPendingCopyTarget={setPendingCopyTarget}
+        batchStudioOpen={batchStudioOpen} setBatchStudioOpen={setBatchStudioOpen}
+        deleteChoice={deleteChoice} setDeleteChoice={setDeleteChoice}
+        recentAction={recentAction} setRecentAction={setRecentAction}
+        archiveTrashOpen={archiveTrashOpen} setArchiveTrashOpen={setArchiveTrashOpen}
+        quickAccessOpen={quickAccessOpen}
+        backupOpen={backupOpen} setBackupOpen={setBackupOpen}
+        clearStep={clearStep} setClearStep={setClearStep}
+        // — handlers —
         isDark={isDark}
+        fetchData={fetchData}
+        handleSaveNote={handleSaveNote}
+        handleSaveInline={handleSaveInline}
+        handleDeleteNote={handleDeleteNote}
+        openShareModal={openShareModal}
+        openCalculatorWithCallback={openCalculatorWithCallback}
+        handleSaveSettings={handleSaveSettings}
+        handleBackup={handleBackup}
+        handleRestore={handleRestore}
+        handleClearAllData={handleClearAllData}
+        handleInstallPWA={handleInstallPWA}
+        handleRestoreFromServer={handleRestoreFromServer}
+        handleSyncPackColors={handleSyncPackColors}
+        handleQuickAdd={handleQuickAdd}
+        handleApplyPack={handleApplyPack}
+        handleTourDismiss={handleTourDismiss}
+        handleCloseQuickAccess={handleCloseQuickAccess}
+        bulkMoveTo={bulkMoveTo}
+        bulkCopyTo={bulkCopyTo}
+        bulkDuplicateInPlace={bulkDuplicateInPlace}
+        bulkTogglePin={bulkTogglePin}
+        bulkSetColor={bulkSetColor}
+        bulkSetAlarm={bulkSetAlarm}
+        bulkClearAlarm={bulkClearAlarm}
+        bulkExportPDF={bulkExportPDF}
+        performArchive={performArchive}
+        performTrash={performTrash}
+        performClearAllData={performClearAllData}
+        clearSelection={clearSelection}
+        undoRecentAction={undoRecentAction}
       />
-
-      {/* Offline JSON Backup & Restore */}
-      <BackupRestoreModal
-        isOpen={backupOpen}
-        onClose={() => setBackupOpen(false)}
-        onDataChanged={fetchData}
-        isDark={isDark}
-      />
-
-      {/* Two-step "Clear All Data" confirmation */}
-      <Dialog open={clearStep === 1} onOpenChange={(o) => !o && setClearStep(0)}>
-        <DialogContent
-          className={`max-w-sm ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
-          data-testid="clear-confirm-step-1"
-        >
-          <DialogHeader>
-            <DialogTitle className={isDark ? 'text-white' : 'text-gray-900'}>
-              Are you sure you want to delete all data?
-            </DialogTitle>
-            <DialogDescription className={isDark ? 'text-slate-400' : 'text-gray-500'}>
-              This will clear every note, template, category and setting stored on this device.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setClearStep(0)}
-              className={`flex-1 sm:flex-none ${isDark ? 'border-white/10 text-slate-300' : ''}`}
-              data-testid="clear-step-1-no"
-            >
-              No
-            </Button>
-            <Button
-              onClick={() => setClearStep(2)}
-              className="flex-1 sm:flex-none bg-red-500 hover:bg-red-600 text-white"
-              data-testid="clear-step-1-yes"
-            >
-              Yes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={clearStep === 2} onOpenChange={(o) => !o && setClearStep(0)}>
-        <DialogContent
-          className={`max-w-sm ${isDark ? 'bg-[#0B1221] border-red-500/40' : 'bg-white border-red-300'}`}
-          data-testid="clear-confirm-step-2"
-        >
-          <DialogHeader>
-            <DialogTitle className="text-red-500 flex items-center gap-2">
-              Are you absolutely positive?
-            </DialogTitle>
-            <DialogDescription className={isDark ? 'text-slate-300' : 'text-gray-600'}>
-              In doing so you will lose <strong>any and all</strong> data — notes, files, images and videos.
-              This cannot be undone.
-              <br /><br />
-              Do you wish to proceed with data wipe?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setClearStep(0)}
-              className={`flex-1 sm:flex-none ${isDark ? 'border-white/10 text-slate-300' : ''}`}
-              data-testid="clear-step-2-no"
-            >
-              No, take me back
-            </Button>
-            <Button
-              onClick={performClearAllData}
-              className="flex-1 sm:flex-none bg-red-600 hover:bg-red-700 text-white"
-              data-testid="clear-step-2-yes"
-            >
-              Yes, wipe everything
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
