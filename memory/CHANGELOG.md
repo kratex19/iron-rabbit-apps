@@ -1,6 +1,48 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 5) — Refactor + A11y + Cloud Sync ✅
+
+### Refactor — Phase 3/4/5/6 moved into `/notes/rg/`
+- All Restaurants Galore workspaces now live in one folder: `/app/frontend/src/notes/rg/`
+- `RestaurantWorkspacesP3.jsx` (Phase 3), `P4`, `P5`, `P6` all moved. Import paths inside them updated (`../../storage/*`, `./PhotoAttachPanel`).
+- `AppModals.jsx` + `RestaurantDirectoryModal.jsx` updated to import from `./rg/*`.
+- Result: cleaner directory structure, zero behavioral change.
+
+### A11y sweep
+- **Star widgets** — every 5-star button now has `aria-label="Rate 3 of 5 for Food"` (per-metric) + `aria-pressed` + `focus-visible:ring-2 ring-amber-400`.
+- **Icon-only buttons** — Python regex sweep injected `aria-label` on every Edit/Delete/Cook/Dial button across all workspace files. Values are contextual: "Edit recipe", "Delete family", "Log cook recipe", "Call delivery", etc.
+- **Launcher tiles** — added `focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2` + `aria-label` on each of the 21 tiles.
+
+### Backup 30-day nudge
+- `daysSinceLastBackup()` reads `localStorage.rg_last_backup_at`.
+- Dashboard `launcher-backup` shows an amber badge: `!` when never backed up, or `<N>d` when >30 days stale.
+- All export paths (local download, WebDAV push, Google Drive push) write the timestamp on success.
+- Backup modal Export card also shows "Last: N days ago" and a small stale banner (data-testid `backup-stale-nudge`) when overdue.
+
+### WebDAV cloud sync
+- One-time config: URL + username + app-password + optional path, all stored in `localStorage.rg_webdav_cfg` (never sent to Emergent).
+- **Push** (HTTP PUT) uploads the full JSON backup with Basic auth.
+- **Pull** (HTTP GET) fetches and loads it into the Restore preview → user chooses Merge or Replace.
+- Works with Nextcloud, ownCloud, Fastmail Files, and any spec-compliant WebDAV server.
+- All rendered inside a new `webdav-panel` in the Backup modal.
+
+### Google Drive cloud sync
+- Uses Google Identity Services (`accounts.google.com/gsi/client`) token flow with `drive.file` scope (Google Drive only sees files this app creates — never anything else).
+- Config: user pastes their own Google Cloud OAuth Client ID (stored in `localStorage.rg_gdrive_client_id`). Instructions inline in the modal.
+- **Push** (multipart upload) creates or PATCHes a single file `iron-rabbit-backup.json` in the user's Drive.
+- **Pull** searches for the file by name, downloads with `alt=media`, and loads into Restore preview.
+- Rendered inside a new `gdrive-panel` with the official multi-color Drive logo.
+
+### Testing
+- `iteration_33.json` — All 11 assertions PASS. Zero React warnings, zero console errors. Refactor validated (21 modals still open).
+
+---
+
 ## 2026-02-08 (session 4) — Batches A + B + C Complete ✅
+See earlier entries.
+
+## Prior sessions
+See earlier entries + `PRD.md` for original problem statement.
 
 ### Batch A — Recipe polish
 - **"Cook this again"** — one-tap flame button on each recipe row (`recipe-cook-<id>`). Increments `cook_count`, records `last_cooked_at`, and shows a live "cooked N× · last: <time>" badge.
