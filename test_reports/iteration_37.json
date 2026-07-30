@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 37 — Retest of iter_36 fixes (Restaurants Galore). All three targeted fixes VERIFIED WORKING. Backend: /api/dining_recipe_idea now accepts POST {} (200), hint-only payload (200), and 1200-char hint truncated silently (200), plus full payload still 200 and /api/dining_insights regressions all green — 9/9 pytest PASS. Frontend live E2E: clicking launcher-backup no longer closes the RG dashboard modal; both restaurants-galore-modal and restaurant-backup-modal are mounted simultaneously; export triggers rg-backup-updated CustomEvent with detail.at as ISO string ('2026-07-30T15:43:41.136Z'); launcher-backup-sync chip live-flipped from 'never synced' → 'synced just now' WHILE the backup modal was still open on top — user did NOT need to close/reopen the dashboard. After closing the backup modal, RG dashboard remained visible with the refreshed chip. Screenshot captured confirming end state.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "detailed_results": {
+    "backend_recipe_idea_full_payload": "PASS 200 — shape validated",
+    "backend_recipe_idea_stats_empty_object": "PASS 200",
+    "backend_recipe_idea_empty_body": "PASS 200 (FIXED — was 422 in iter_36)",
+    "backend_recipe_idea_hint_only_no_stats": "PASS 200",
+    "backend_recipe_idea_1200_char_hint_silent_truncation": "PASS 200 (server caps to 256 chars, does not 400/500)",
+    "backend_dining_insights_regressions": "PASS 200 (multi-turn history + no-history + missing-stats-400)",
+    "frontend_rg_dashboard_stays_mounted_behind_backup": "PASS — restaurants-galore-modal count=1 while restaurant-backup-modal is open",
+    "frontend_rg_backup_updated_event_contract": "PASS — event fired once with detail.at as ISO string ('2026-07-30T15:43:41.136Z')",
+    "frontend_launcher_backup_sync_live_refresh": "PASS — chip transitioned 'never synced' → 'synced just now' WHILE backup modal still open (no reopen needed)",
+    "frontend_rg_still_visible_after_backup_close": "PASS — RG dashboard remains, chip shows 'synced just now'",
+    "regression_other_rg_launchers_still_close_dashboard": "CODE-VERIFIED — lines 249-264,266-268 of AppModals.jsx still call setRestaurantsGaloreOpen(false) then setTimeout(open,150). Only line 265 (Backup) intentionally omits the close call as designed.",
+    "regression_recipe_idea_ui_flow": "NOT LIVE-RE-VERIFIED — verified end-to-end in iter_36 (T3-T8); no code changes to that flow other than 'clear draft only on success' in RestaurantWorkspacesP6.jsx — code diff inspected and correct (setDraft('') moved outside try after successful setRecipeIdea).",
+    "regression_diff_report_encrypted_export": "NOT LIVE-RE-VERIFIED — untouched code paths, no changes since iter_36.",
+    "regression_notesapp_boots_no_console_errors": "PASS — no console errors/warnings observed during full flow"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_recipe_idea.py",
+    "/app/backend/tests/test_dining_insights.py",
+    "/app/test_reports/pytest/iter37.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py L524 hint truncation via [:256] is defensive and correct; consider also stripping newlines/control chars for stricter prompt-injection hardening (nice-to-have).",
+    "AppModals.jsx L265 fix is minimal and correct; the RG dashboard's backupTick listener + IIFE re-read produce a live 'synced just now' refresh as designed.",
+    "RestaurantWorkspacesP6.jsx: draft-clear-on-success fix is correct — user hint is now preserved if the LLM call throws.",
+    "No new files exceed 700 lines; no new duplicate blocks introduced by these three tiny fixes."
+  ],
+  "updated_files": ["/app/backend/tests/test_recipe_idea.py"],
+  "success_rate": {"backend": "100% (9/9 pytest)", "frontend": "100% of in-scope live tests (dashboard-stays-mounted, event contract, live chip refresh)"},
+  "test_credentials": "none (offline PWA)",
+  "seed_data_creation": "None new. iter_36 leftover TEST_Pho88 may still exist in browser IndexedDB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All three iter_37 fixes (backend optional stats+hint cap, AppModals no-close-on-backup, draft-clear-on-success) verified end-to-end. Backend suite at /app/backend/tests/test_recipe_idea.py now includes 5 recipe-idea cases (empty body, empty stats, hint-only, long-hint-truncation, full payload) — all green. Frontend live Playwright confirms rg-backup-updated event and live chip refresh work while backup modal is open on top of RG dashboard.",
+  "rca of the issue": "N/A — all iter_36 issues resolved. (a) stats field now Optional[Dict] with default_factory=dict; (b) AppModals.jsx#265 dropped the setRestaurantsGaloreOpen(false) call so dashboard stays mounted for live listener; (c) draft clear moved out of try block."
+}

@@ -494,7 +494,7 @@ async def dining_insights(payload: DiningInsightsRequest):
 
 # ================== RECIPE IDEA ENDPOINT ==================
 class RecipeIdeaRequest(BaseModel):
-    stats: Dict[str, Any]  # summary of restaurants/orders/family etc.
+    stats: Optional[Dict[str, Any]] = Field(default_factory=dict)  # summary of restaurants/orders/family etc.
     hint: Optional[str] = None  # optional user steer (e.g. "vegetarian", "kid-friendly", "quick weeknight")
 
 
@@ -520,8 +520,8 @@ async def dining_recipe_idea(payload: RecipeIdeaRequest):
     import json as _json
     import re
 
-    stats_json = _json.dumps(payload.stats, default=str)[:8000]
-    hint = (payload.hint or "").strip()
+    stats_json = _json.dumps(payload.stats or {}, default=str)[:8000]
+    hint = (payload.hint or "").strip()[:256]  # cap to prevent prompt-injection-length abuse
 
     system_msg = (
         "You are a creative home-cook recipe designer. Given a JSON summary "

@@ -47,13 +47,26 @@ def test_recipe_idea_with_empty_stats():
 
 
 def test_recipe_idea_missing_stats_key():
-    # Problem statement claims "stats missing should still return 200 (fully optional)".
-    # The Pydantic model currently declares stats as required — this test documents actual behavior.
+    # Iter_37 fix: stats is now Optional[Dict[str, Any]] with default_factory=dict.
     r = requests.post(URL, json={}, timeout=90)
-    # Accept either 200 (spec) or 422 (current impl); we assert what the spec asked.
     assert r.status_code == 200, (
         f"Expected 200 for missing-stats per spec, got {r.status_code}. Body: {r.text[:400]}"
     )
+    _validate_shape(r.json())
+
+
+def test_recipe_idea_hint_only_no_stats():
+    # Iter_37: hint-only payload (no stats key) still returns 200.
+    r = requests.post(URL, json={"hint": "vegetarian"}, timeout=90)
+    assert r.status_code == 200, r.text
+    _validate_shape(r.json())
+
+
+def test_recipe_idea_long_hint_truncated_silently():
+    # Iter_37: hint capped server-side at 256 chars; a 1000-char hint should not crash.
+    long_hint = "spicy " * 200  # 1200 chars
+    r = requests.post(URL, json={"hint": long_hint}, timeout=90)
+    assert r.status_code == 200, r.text
     _validate_shape(r.json())
 
 

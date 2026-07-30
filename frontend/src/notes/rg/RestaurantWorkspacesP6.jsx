@@ -109,14 +109,14 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
   const fetchRecipeIdea = async () => {
     if (!stats || recipeBusy) return;
     setRecipeBusy(true);
+    const hint = draft.trim(); // reuse the input text as an optional steer
     try {
-      const hint = draft.trim(); // reuse the input text as an optional steer
       const res = await axios.post(`${API}/dining_recipe_idea`, { stats, hint }, { timeout: 45000 });
       setRecipeIdea(res.data);
       // Default target restaurant: user's favorite if any, else the first
       const fav = restaurants.find(r => r.favorite);
       setRecipeRestaurantId((fav || restaurants[0])?.id || "");
-      if (hint) setDraft("");
+      if (hint) setDraft(""); // only clear on success — don't lose the hint on failure
     } catch (e) {
       toast.error(e?.response?.data?.detail || e?.message || "Couldn't generate a recipe idea");
     } finally {
