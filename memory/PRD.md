@@ -1,6 +1,8 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 ## What's Live
+> **Session 12 (2026-02-08) update:** Cook Mode now **persists in-progress sessions** — close the app or switch recipes and the exact step + timer state resumes when you reopen (with a subtle `recipe-resume-hint` on the recipe row). After the last step, a **Post-Cook Notes** prompt asks "How did it go?" so personal tweaks are saved to a rolling log per recipe and surfaced as "Last time: …" on the row. Includes a StrictMode-safe fix for the reset-on-step-change effect.
+
 > **Session 11 (2026-02-08) update:** Shopping List items can now be **manually reassigned to a different aisle** via a tiny emoji-picker on each row (with a "Reset to auto" option). Cook Mode requests a **Screen Wake Lock** so the phone stays unlocked between steps, with a "Screen on" indicator in the modal header.
 
 > **Session 10 (2026-02-08) update:** Cook Mode's timer is now **drift-proof** (wall-clock `endsAt` — accurate even when the tab is hidden) and produces a **loud repeating alarm** on finish (repeated beeps, document-title flash, browser Notification, `⏰ Timer done` styling, 20s auto-terminate). The **Shopping List** gains a **By-aisle grouping** toggle that auto-classifies every ingredient into produce / meat / dairy / bakery / pantry / spices / beverages / frozen / household / other. Preference persists.

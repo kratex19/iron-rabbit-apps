@@ -1,5 +1,28 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 12) — Persistent Cook Session + Post-Cook Notes ✅
+
+### Persistent Cook Session
+- Single active cook session persisted to `localStorage.rg_cook_session` with `{recipe_id, step_idx, ends_at, paused_remaining, saved_at}`.
+- New `RestaurantsService.saveCookSession / loadCookSession / clearCookSession` helpers.
+- `CookModeModal` loads and applies the saved session on mount when `recipe_id` matches — step index, running countdown (via `ends_at`), and paused state (via `paused_remaining`) all resume seamlessly. A `Resumed at step N` toast fires (deduped via toast id `rg-cook-resume`).
+- Persistence effect skips writing when in a clean-start state for a *different* recipe than the saved one, so peeking at another recipe never destroys the in-progress cook.
+- Recipes modal shows a `recipe-resume-hint-<id>` line on the row whose recipe has an active session so the user can find their way back easily.
+- Session is cleared on Finish and on Close (X or Esc).
+- **StrictMode-safe timer reset**: replaced the boolean mount-guard with an idx-value guard (`prevIdxRef.current === idx` short-circuit) so React.StrictMode's double-effect-invocation doesn't clobber the resumed timer state.
+
+### Post-Cook Notes
+- After the last step's `Done cooking` click, a new `cook-note-prompt` panel appears (in-modal, no extra dialog) with a textarea + `Save note & finish` + `Skip`. Save disabled until non-whitespace present.
+- New `RestaurantsService.addRecipeCookNote(id, text)` appends `{text (max 400 chars), cooked_at}` to a per-recipe rolling log (`cook_notes`, cap 20 entries).
+- Recipes modal shows the latest note as a Sparkles-prefixed "Last time: …" line (`recipe-last-note-<id>`) so tweaks aren't forgotten between cooks.
+
+### Testing
+- Iteration 41: caught 2 real bugs (StrictMode-driven timer wipe + peek-overwrites-session). Both fixed and retested.
+- Iteration 42: **13/13 (100%)** pass. Timer resume works with future `ends_at`, paused resume shows Resume label, pause writes integer `paused_remaining`, peek preserves the other recipe's session, actual interaction correctly overwrites. Notes-after-cook prompt/save/skip/rolling-log all green. Zero console errors.
+
+---
+
+
 ## 2026-02-08 (session 11) — Aisle Overrides + Cook Mode Screen Wake ✅
 
 ### Aisle Overrides

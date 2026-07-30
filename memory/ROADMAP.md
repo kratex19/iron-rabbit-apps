@@ -1,6 +1,6 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08 (session 11)_
+_Last updated: 2026-02-08 (session 12)_
 
 ## Restaurants Galore Backlog
 
@@ -16,11 +16,12 @@ _Last updated: 2026-02-08 (session 11)_
 - [x] Cook Mode — step-by-step view with a per-step timer. ✅ session 9
 - [x] Cook Timer — wall-clock accuracy + loud repeating alarm + browser notification. ✅ session 10
 - [x] Cook Mode — Screen Wake Lock so phone stays unlocked between steps. ✅ session 11
-- [ ] Persistent Cook Session — resume mid-recipe after closing the app.
+- [x] Persistent Cook Session — resume mid-recipe after closing the app. ✅ session 12
+- [x] Post-Cook Recipe Notes — prompt user for tweaks after finishing. ✅ session 12
 - [x] Shopping List — aggregate recipe ingredients into a checkable dedup'd list. ✅ session 9
 - [x] Grocery Aisle Grouping — auto-group shopping list by aisle. ✅ session 10
 - [x] Aisle Overrides — manually reassign an item to a different aisle. ✅ session 11
-- [ ] Refactor CookModeModal into its own file (RestaurantWorkspacesP6.jsx is now ~1007 lines).
+- [ ] Refactor CookModeModal (~370 lines) into its own file (RestaurantWorkspacesP6.jsx is now ~1140 lines).
 
 ### P2 — Cloud sync polish
 - [x] WebDAV: auto-schedule (weekly / monthly push). ✅ session 6
