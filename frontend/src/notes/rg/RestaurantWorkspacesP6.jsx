@@ -499,12 +499,20 @@ function parseStepMinutes(text) {
 function CookModeModal({ recipe, isDark, onClose, onComplete }) {
   const steps = recipe.steps || [];
   const [idx, setIdx] = useState(0);
-  const [seconds, setSeconds] = useState(0); // remaining seconds
-  const [running, setRunning] = useState(false);
+  const [endsAt, setEndsAt] = useState(null); // wall-clock target so we don't drift while tab is hidden
+  const [pausedRemaining, setPausedRemaining] = useState(null); // seconds saved when paused
+  const [now, setNow] = useState(() => Date.now());
+  const [alarming, setAlarming] = useState(false); // repeating alarm loop after timer finish
   const intervalRef = useRef(null);
+  const alarmIntervalRef = useRef(null);
   const audioCtxRef = useRef(null);
+  const finishedForStepRef = useRef(-1);
+  const originalTitleRef = useRef(typeof document !== "undefined" ? document.title : "Iron Rabbit");
   const stepMinutes = parseStepMinutes(steps[idx]);
   const hasTimer = stepMinutes !== null;
+  const running = endsAt !== null;
+  const remainingMs = running ? Math.max(0, endsAt - now) : (pausedRemaining !== null ? pausedRemaining * 1000 : (stepMinutes ? stepMinutes * 60_000 : 0));
+  const remainingSec = Math.ceil(remainingMs / 1000);
 
   // Prime the AudioContext on the first user-gesture click so the timer's
   // end beep can play. Autoplay policies require a gesture before audio.
@@ -520,50 +528,132 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
     } catch { /* audio not permitted */ }
   };
 
+  const playBeep = (frequency = 880, ms = 400, gain = 0.12) => {
+    try {
+      const ctx = audioCtxRef.current;
+      if (!ctx || ctx.state === "closed") return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = frequency;
+      g.gain.value = gain;
+      o.start();
+      setTimeout(() => { try { o.stop(); } catch { /* already stopped */ } }, ms);
+    } catch { /* audio not permitted */ }
+  };
+
+  const stopAlarm = () => {
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+      alarmIntervalRef.current = null;
+    }
+    setAlarming(false);
+    if (typeof document !== "undefined") document.title = originalTitleRef.current;
+  };
+
+  const startAlarm = () => {
+    if (alarming) return;
+    setAlarming(true);
+    // First beep immediately
+    playBeep(880, 300, 0.15);
+    playBeep(660, 300, 0.15);
+    // Repeat every 900ms; document title flashes so the user notices from another tab
+    let flip = false;
+    alarmIntervalRef.current = setInterval(() => {
+      playBeep(flip ? 880 : 660, 250, 0.12);
+      if (typeof document !== "undefined") {
+        document.title = flip ? "⏰ Timer done — Iron Rabbit" : originalTitleRef.current;
+      }
+      flip = !flip;
+    }, 900);
+    // Auto-stop after 20s so users don't get stuck if they walk away
+    setTimeout(stopAlarm, 20_000);
+    // Browser notification if permitted
+    try {
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        new Notification("Iron Rabbit — Cook Mode", {
+          body: `Step ${idx + 1} timer done: ${steps[idx]?.slice(0, 80) || ""}`,
+          tag: "rg-cook-timer",
+          silent: false,
+        });
+      } else if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    } catch { /* Notification not supported */ }
+  };
+
   // Reset timer whenever step changes
   useEffect(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    setRunning(false);
-    setSeconds(stepMinutes ? stepMinutes * 60 : 0);
-  }, [idx, stepMinutes]);
+    stopAlarm();
+    setEndsAt(null);
+    setPausedRemaining(null);
+    finishedForStepRef.current = -1;
+  }, [idx]);
 
   // Close audio ctx when the modal unmounts
   useEffect(() => {
     return () => {
+      if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (typeof document !== "undefined") document.title = originalTitleRef.current;
       try { audioCtxRef.current?.close(); } catch { /* already closed */ }
       audioCtxRef.current = null;
     };
   }, []);
 
+  // Wall-clock ticker — never drifts even when the tab is hidden. On visibility
+  // change we force an immediate re-render so a long-hidden tab catches up
+  // instantly rather than waiting up to a second.
   useEffect(() => {
     if (!running) return;
-    intervalRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s <= 1) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-          setRunning(false);
-          try {
-            toast.success(`Step ${idx + 1} timer done`);
-            // Small beep via the primed Web Audio context (see primeAudio above)
-            const ctx = audioCtxRef.current;
-            if (ctx && ctx.state !== "closed") {
-              const o = ctx.createOscillator(); const g = ctx.createGain();
-              o.connect(g); g.connect(ctx.destination);
-              o.frequency.value = 880; g.gain.value = 0.08;
-              o.start(); setTimeout(() => { try { o.stop(); } catch { /* already stopped */ } }, 400);
-            }
-          } catch { /* audio not permitted */ }
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
-  }, [running, idx]);
+    intervalRef.current = setInterval(() => setNow(Date.now()), 500);
+    const onVis = () => setNow(Date.now());
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      clearInterval(intervalRef.current); intervalRef.current = null;
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [running]);
+
+  // When the deadline passes, fire the alarm exactly once per step
+  useEffect(() => {
+    if (!running || remainingMs > 0) return;
+    if (finishedForStepRef.current === idx) return;
+    finishedForStepRef.current = idx;
+    setEndsAt(null); // timer done
+    setPausedRemaining(0);
+    toast.success(`Step ${idx + 1} timer done`);
+    startAlarm();
+  }, [running, remainingMs, idx]);
 
   const fmt = (s) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
   const progress = steps.length ? ((idx + 1) / steps.length) * 100 : 0;
+
+  const startTimer = () => {
+    primeAudio();
+    stopAlarm();
+    let baseSec;
+    if (pausedRemaining !== null && pausedRemaining > 0) baseSec = pausedRemaining;
+    else baseSec = stepMinutes ? stepMinutes * 60 : 0;
+    if (baseSec <= 0) return;
+    setPausedRemaining(null);
+    finishedForStepRef.current = -1;
+    setEndsAt(Date.now() + baseSec * 1000);
+    setNow(Date.now());
+  };
+  const pauseTimer = () => {
+    if (!endsAt) return;
+    const remain = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+    setPausedRemaining(remain);
+    setEndsAt(null);
+  };
+  const resetTimer = () => {
+    stopAlarm();
+    setEndsAt(null);
+    setPausedRemaining(null);
+    finishedForStepRef.current = -1;
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -588,24 +678,28 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
 
         {/* Timer */}
         {hasTimer && (
-          <div className={`rounded-lg border p-3 flex items-center gap-3 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid="cook-mode-timer">
-            <div className={`text-3xl font-mono tabular-nums ${isDark ? "text-white" : "text-gray-900"}`} data-testid="cook-mode-timer-display">{fmt(seconds)}</div>
+          <div className={`rounded-lg border p-3 flex items-center gap-3 ${alarming ? (isDark ? "bg-amber-500/10 border-amber-500/50 animate-pulse" : "bg-amber-100 border-amber-400 animate-pulse") : (isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200")}`} data-testid="cook-mode-timer">
+            <div className={`text-3xl font-mono tabular-nums ${alarming ? (isDark ? "text-amber-300" : "text-amber-700") : (isDark ? "text-white" : "text-gray-900")}`} data-testid="cook-mode-timer-display">{fmt(remainingSec)}</div>
             <div className="flex-1" />
-            {!running ? (
+            {alarming ? (
+              <Button type="button" onClick={stopAlarm} className="bg-amber-500 hover:bg-amber-600 text-white h-9" data-testid="cook-mode-alarm-stop">
+                <CheckCircle2 className="w-4 h-4 mr-1" /> Silence
+              </Button>
+            ) : !running ? (
               <Button
                 type="button"
-                onClick={() => { primeAudio(); if (seconds === 0) setSeconds(stepMinutes * 60); setRunning(true); }}
+                onClick={startTimer}
                 className="bg-sky-500 hover:bg-sky-600 text-white h-9"
                 data-testid="cook-mode-timer-start"
               >
-                <Play className="w-4 h-4 mr-1" /> {seconds === 0 ? "Restart" : "Start"}
+                <Play className="w-4 h-4 mr-1" /> {pausedRemaining !== null && pausedRemaining > 0 ? "Resume" : "Start"}
               </Button>
             ) : (
-              <Button type="button" onClick={() => setRunning(false)} variant="outline" className="h-9" data-testid="cook-mode-timer-pause">
+              <Button type="button" onClick={pauseTimer} variant="outline" className="h-9" data-testid="cook-mode-timer-pause">
                 <Pause className="w-4 h-4 mr-1" /> Pause
               </Button>
             )}
-            <Button type="button" onClick={() => { setSeconds(stepMinutes * 60); setRunning(false); }} variant="outline" className="h-9 px-2" title="Reset" data-testid="cook-mode-timer-reset">
+            <Button type="button" onClick={resetTimer} variant="outline" className="h-9 px-2" title="Reset" data-testid="cook-mode-timer-reset">
               <RotateCcw className="w-4 h-4" />
             </Button>
           </div>

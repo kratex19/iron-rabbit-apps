@@ -5,16 +5,26 @@
 // can be cleared in bulk.
 import React, { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
-import { ShoppingCart, Plus, Trash2, CheckCircle2, X as XIcon, Sparkles } from "lucide-react";
+import { ShoppingCart, Plus, Trash2, CheckCircle2, X as XIcon, Sparkles, LayoutList, Store } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import RestaurantsService from "../../storage/restaurantsService";
+import { classifyAisle, aisleMeta, AISLE_ORDER } from "./aisleClassifier";
+
+const GROUP_PREF_KEY = "rg_shopping_group_by_aisle";
 
 export function RestaurantShoppingListModal({ isOpen, onClose, isDark }) {
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
+  const [groupByAisle, setGroupByAisle] = useState(() => localStorage.getItem(GROUP_PREF_KEY) === "1");
+
+  const toggleGrouping = () => {
+    const next = !groupByAisle;
+    setGroupByAisle(next);
+    localStorage.setItem(GROUP_PREF_KEY, next ? "1" : "0");
+  };
 
   const reload = async () => {
     setLoading(true);
@@ -27,6 +37,21 @@ export function RestaurantShoppingListModal({ isOpen, onClose, isDark }) {
     const total = items.length;
     const checked = items.filter((i) => i.checked).length;
     return { total, checked, remaining: total - checked };
+  }, [items]);
+
+  // Group unchecked items by aisle (checked items stay in a single "Done" pile
+  // at the bottom so users have a clear "still to buy" view).
+  const grouped = useMemo(() => {
+    const groups = {};
+    for (const it of items) {
+      if (it.checked) {
+        (groups.__checked = groups.__checked || []).push(it);
+      } else {
+        const key = classifyAisle(it.name);
+        (groups[key] = groups[key] || []).push(it);
+      }
+    }
+    return groups;
   }, [items]);
 
   const addFromDraft = async () => {
@@ -62,12 +87,57 @@ export function RestaurantShoppingListModal({ isOpen, onClose, isDark }) {
     toast.success("Shopping list cleared");
   };
 
+  const renderRow = (it) => (
+    <div
+      key={it.id}
+      className={`group flex items-center gap-2 rounded-md px-2 py-1.5 border transition-colors ${it.checked ? (isDark ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-gray-100 border-gray-200 opacity-60") : (isDark ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.08]" : "bg-white border-gray-200 hover:bg-gray-50")}`}
+      data-testid={`shopping-item-${it.id}`}
+    >
+      <button
+        type="button"
+        onClick={() => toggle(it.id)}
+        className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 ${it.checked ? "bg-emerald-500 border-emerald-500 text-white" : (isDark ? "border-white/30 hover:border-emerald-400" : "border-gray-300 hover:border-emerald-500")}`}
+        aria-label={it.checked ? "Uncheck" : "Check"}
+        aria-pressed={it.checked}
+        data-testid={`shopping-toggle-${it.id}`}
+      >
+        {it.checked && <CheckCircle2 className="w-3 h-3" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className={`text-sm ${it.checked ? "line-through" : ""} ${isDark ? "text-white" : "text-gray-900"}`}>{it.name}</div>
+        {it.sources?.length > 0 && !it.checked && (
+          <div className={`text-[10px] truncate ${isDark ? "text-slate-500" : "text-gray-500"}`}>{it.sources.slice(0, 2).join(" · ")}{it.sources.length > 2 ? ` +${it.sources.length - 2}` : ""}</div>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => remove(it.id)}
+        className={`w-6 h-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}
+        aria-label="Remove"
+        data-testid={`shopping-remove-${it.id}`}
+      >
+        <XIcon className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`max-w-lg max-h-[92vh] overflow-y-auto ${isDark ? "bg-[#0B1221] border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="shopping-list-modal">
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <ShoppingCart className="w-5 h-5 text-emerald-400" /> Shopping list
+            <button
+              type="button"
+              onClick={toggleGrouping}
+              className={`ml-auto inline-flex items-center gap-1 text-[10px] font-normal px-2 py-0.5 rounded-full border transition-colors ${groupByAisle ? (isDark ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" : "bg-emerald-500 text-white border-emerald-500") : (isDark ? "text-slate-400 border-white/10 hover:border-white/30" : "text-gray-500 border-gray-200 hover:border-gray-400")}`}
+              title={groupByAisle ? "Currently grouped by aisle" : "Grouped chronologically"}
+              data-testid="shopping-group-toggle"
+              aria-pressed={groupByAisle}
+            >
+              {groupByAisle ? <Store className="w-3 h-3" /> : <LayoutList className="w-3 h-3" />}
+              {groupByAisle ? "By aisle" : "By order"}
+            </button>
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
             Ingredients from your recipes, deduplicated and checkable. {stats.remaining} to buy · {stats.checked} done.
@@ -98,41 +168,33 @@ export function RestaurantShoppingListModal({ isOpen, onClose, isDark }) {
             <div className="text-xs">Your list is empty.</div>
             <div className="text-[10px] mt-1">Tap the cart button on any recipe to add its ingredients here.</div>
           </div>
+        ) : groupByAisle ? (
+          <div className="space-y-2" data-testid="shopping-items">
+            {AISLE_ORDER.map((key) => {
+              const rows = grouped[key];
+              if (!rows || rows.length === 0) return null;
+              const meta = aisleMeta(key);
+              return (
+                <div key={key} data-testid={`shopping-aisle-${key}`}>
+                  <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider mb-0.5 px-1 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                    <span aria-hidden>{meta.emoji}</span> {meta.label} <span className={`font-normal ${isDark ? "text-slate-600" : "text-gray-400"}`}>· {rows.length}</span>
+                  </div>
+                  <div className="space-y-0.5">{rows.map(renderRow)}</div>
+                </div>
+              );
+            })}
+            {grouped.__checked && grouped.__checked.length > 0 && (
+              <div data-testid="shopping-aisle-checked">
+                <div className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider mb-0.5 mt-3 px-1 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  <CheckCircle2 className="w-3 h-3" /> Done <span className={`font-normal ${isDark ? "text-slate-600" : "text-gray-400"}`}>· {grouped.__checked.length}</span>
+                </div>
+                <div className="space-y-0.5">{grouped.__checked.map(renderRow)}</div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-0.5" data-testid="shopping-items">
-            {items.map((it) => (
-              <div
-                key={it.id}
-                className={`group flex items-center gap-2 rounded-md px-2 py-1.5 border transition-colors ${it.checked ? (isDark ? "bg-white/[0.02] border-white/5 opacity-60" : "bg-gray-100 border-gray-200 opacity-60") : (isDark ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.08]" : "bg-white border-gray-200 hover:bg-gray-50")}`}
-                data-testid={`shopping-item-${it.id}`}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggle(it.id)}
-                  className={`w-5 h-5 rounded-full flex items-center justify-center border-2 shrink-0 ${it.checked ? "bg-emerald-500 border-emerald-500 text-white" : (isDark ? "border-white/30 hover:border-emerald-400" : "border-gray-300 hover:border-emerald-500")}`}
-                  aria-label={it.checked ? "Uncheck" : "Check"}
-                  aria-pressed={it.checked}
-                  data-testid={`shopping-toggle-${it.id}`}
-                >
-                  {it.checked && <CheckCircle2 className="w-3 h-3" />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm ${it.checked ? "line-through" : ""} ${isDark ? "text-white" : "text-gray-900"}`}>{it.name}</div>
-                  {it.sources?.length > 0 && !it.checked && (
-                    <div className={`text-[10px] truncate ${isDark ? "text-slate-500" : "text-gray-500"}`}>{it.sources.slice(0, 2).join(" · ")}{it.sources.length > 2 ? ` +${it.sources.length - 2}` : ""}</div>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => remove(it.id)}
-                  className={`w-6 h-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}
-                  aria-label="Remove"
-                  data-testid={`shopping-remove-${it.id}`}
-                >
-                  <XIcon className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+            {items.map(renderRow)}
           </div>
         )}
 
