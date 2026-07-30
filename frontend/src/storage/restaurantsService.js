@@ -562,6 +562,13 @@ const RestaurantsService = {
     const id = rid("chat");
     const record = { id, role, text, created_at: now };
     await chatHistoryStore.setItem(id, record);
+    // Rolling cap: trim to last 500 messages so a chatty user doesn't blow up IndexedDB
+    const all = await iterAll(chatHistoryStore);
+    if (all.length > 500) {
+      all.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+      const drop = all.slice(0, all.length - 500);
+      for (const m of drop) await chatHistoryStore.removeItem(m.id);
+    }
     return record;
   },
   async clearChatHistory() {

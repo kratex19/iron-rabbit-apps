@@ -1,6 +1,6 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08 (session 5)_
+_Last updated: 2026-02-08 (session 6)_
 
 ## Restaurants Galore Backlog
 
@@ -8,15 +8,18 @@ _Last updated: 2026-02-08 (session 5)_
 - [ ] Recipe photo attachment per **step** (not just per recipe).
 - [ ] Attach photo → also link to Review (data model already supports it via `review_id`; needs discoverability in Review editor).
 - [ ] Voice journal transcript polish — auto-detect language.
-- [ ] Smart Assistant conversation persistence across sessions (currently in-memory only).
+- [x] Smart Assistant conversation persistence across sessions. ✅ session 6
 - [ ] History-truncation hint in Smart Assistant when >20 turns are hit.
 
 ### P2 — Cloud sync polish
-- [ ] WebDAV: auto-schedule (weekly / monthly push).
-- [ ] Google Drive: auto-schedule.
+- [x] WebDAV: auto-schedule (weekly / monthly push). ✅ session 6
+- [x] Google Drive: auto-schedule (skipped silently — needs interactive OAuth). ✅ session 6
 - [ ] "Show last-synced-at" indicator per destination.
 - [ ] Conflict resolution when Pull would overwrite newer local data (currently: preview + Merge/Replace prompt covers this).
-- [ ] Encrypted backups (client-side AES-GCM with a passphrase).
+- [x] Encrypted backups (client-side AES-GCM with a passphrase). ✅ session 6
+- [ ] Backup diff report — after a Pull, show what will change before committing Merge/Replace.
+- [ ] Bump PBKDF2 to 600k iterations (OWASP 2023 SHA-256 guidance).
+- [ ] Add `version` field to encrypted envelope for future format bumps.
 
 ### P2 — Look & feel
 - [ ] Sound effects for Cook, Backup, Family sync (opt-in).

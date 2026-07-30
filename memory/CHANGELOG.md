@@ -1,5 +1,32 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 6) — Encrypted Backups + Auto-Schedule + Assistant Memory ✅
+
+### Encrypted backups (client-side AES-256-GCM)
+- New helpers in `restaurantsService.js`: `encryptPayload`, `decryptPayload`, `isEncryptedPayload`.
+- PBKDF2-SHA256 (200 000 iterations) → AES-256-GCM with random 16-byte salt + 12-byte IV. Envelope: `{app, encrypted:true, kdf, iterations, salt, iv, ciphertext, meta}`.
+- Backup modal has a new "Encrypt backups" toggle + passphrase input. Exports produce `.rgenc` files instead of `.json`.
+- Restore auto-detects encrypted files and shows a decrypt panel before preview. Wrong passphrase → clear toast.
+- WebDAV push/pull + Google Drive push/pull all honor encryption toggle.
+
+### Auto-scheduled backups
+- New schedule panel: Off / Weekly / Monthly + target Local / WebDAV / Google Drive.
+- Config persisted in `localStorage.rg_backup_schedule`. Optional passphrase field encrypts auto-backups.
+- `runScheduledBackupIfDue()` runs at app boot from `NotesApp.jsx` — silently pushes if the interval has elapsed. Success toast on completion.
+- Google Drive path is skipped silently (needs interactive OAuth consent).
+
+### Smart Assistant conversation persistence
+- New `rg_chat_history` store in `restaurantsService.js` with `listChatHistory`, `appendChatMessage`, `clearChatHistory`. Rolling cap of 500 messages to prevent IndexedDB bloat.
+- `RestaurantSmartAssistantModal` loads prior turns on mount, persists each user/assistant message immediately. Reset clears both UI and store.
+- Description updated to "history is saved locally on this device only".
+- `chat_history` included in `exportAll` / `importAll` so backups carry conversations too.
+
+### Testing
+- Iteration 34: 100% pass (3/3 backend pytest, 12/12 frontend Playwright). Zero console errors, zero regressions.
+
+---
+
+
 ## 2026-02-08 (session 5) — Refactor + A11y + Cloud Sync ✅
 
 ### Refactor — Phase 3/4/5/6 moved into `/notes/rg/`

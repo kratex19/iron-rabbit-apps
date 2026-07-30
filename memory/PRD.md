@@ -1,6 +1,9 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 ## What's Live
+> **Session 6 (2026-02-08) update:** Restaurants Galore now supports client-side AES-256-GCM encrypted backups (`.rgenc`), auto-scheduled weekly/monthly backups (Local / WebDAV / Google Drive) at app boot, and Smart Assistant conversation persistence across sessions. See CHANGELOG.md and ROADMAP.md for details.
+
+
 
 ### Public Website (moving to ironrabbitapps.com)
 Nested under `/site` in the current preview (will be relocated to `ironrabbitapps.com` when the domain is live).
