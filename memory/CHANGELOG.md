@@ -1,5 +1,51 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 4) — Batches A + B + C Complete ✅
+
+### Batch A — Recipe polish
+- **"Cook this again"** — one-tap flame button on each recipe row (`recipe-cook-<id>`). Increments `cook_count`, records `last_cooked_at`, and shows a live "cooked N× · last: <time>" badge.
+- **Recipe photo attach** — attach step-by-step photos to any saved recipe (client-side JPEG resize to ≤1200px @ 85%).
+
+### Batch B — Small polish
+- **Coupon photo attach** — snap a photo of the physical coupon so you never lose it. Photos stored with `coupon_id`.
+- **Review photo attach** — attach photos to reviews via `review_id`.
+- **Delivery driver tap-to-call** — new `delivery-driver-phone` input; list rows render a `tel:` anchor (`delivery-dial-<id>`) that opens the phone dialer.
+- **Family birthday auto-sync** — new `family-sync-btn` in the Family workspace creates one recurring yearly note per family member with a valid MM-DD birthday. Idempotent — clicking again updates the same notes instead of duplicating.
+
+### Batch C — Look & feel
+- **Glass workspace theme** — new `glass-toggle` in the Backup modal toggles `body[data-rg-glass]` and persists to `localStorage`. When on, all Restaurants Galore modals get a frosted-blur backdrop (`backdrop-filter: blur(18px) saturate(180%)`) with semi-transparent surface.
+
+### Cross-cutting infrastructure
+- New shared `PhotoAttachPanel.jsx` component consumed by Order/Review/Recipe/Coupon editors. Handles resize, save with correct `restaurant_id + linkId`, list, and delete.
+- `restaurantsService.listPhotos()` extended with `recipeId` + `couponId` filter args.
+- New `restaurantsService.logRecipeCook(id)` mutator.
+
+### Toast placement fix (unblocks automation)
+- Toaster moved from `top-right` → `bottom-right` in both `NotesApp.jsx` and `App.js`. The `header-restaurants-galore` button in the top-right is no longer occluded by toasts, which fixes the recurring block for the testing agent (iteration_32 pre-visit briefing PASS).
+
+### Testids polish
+- Added per-id data-testids on Edit/Delete icon buttons across every workspace: `recipe-edit-<id>`, `recipe-delete-<id>`, `meal-edit-<id>`, `menu-edit-<id>`, `coupon-edit-<id>`, `review-edit-<id>`, `delivery-edit-<id>`, `staff-edit-<id>`, `wishlist-edit-<id>`, `family-edit-<id>` (+ matching delete IDs). Also new `family-birthday` and `family-sync-btn`.
+
+### Testing
+- `iteration_32.json` (Batch A/B/C retest) — **100% PASS** on all 12 assertions. Zero React key warnings, zero console errors.
+
+---
+
+## 2026-02-08 (session 3) — Pre-Visit Briefing Card + Toast fix
+
+### Pre-Visit Briefing
+- New `directory-brief-<id>` button on every restaurant row.
+- New `PreVisitBriefingModal` (`/notes/rg/PreVisitBriefing.jsx`) assembles 8 sections from IndexedDB in <100ms:
+  1. Allergy warnings (red) — every family member's allergies
+  2. Family favorites — cross-referenced with this restaurant's menu (shows "on menu · $X" badge on match)
+  3. Upcoming birthdays (family + staff, ≤30 days)
+  4. Live coupons with countdown (< 3 days red, < 7 days amber)
+  5. Your favorite meals at this restaurant
+  6. Staff to greet (favorites first)
+  7. Latest review snippet
+  8. Last order highlights
+- Big "Add visit to my notes" CTA at the bottom creates a floating Iron Rabbit note tagged `restaurants` + `pre-visit`, with the visit datetime as an enabled alarm.
+
 ## 2026-02-08 (session 2) — P1 Batch Complete ✅
 
 ### P1a — Refactor of Phase 2 workspaces
@@ -12,76 +58,27 @@
   - `RestaurantCoupons.jsx` (~150 lines)
 
 ### P1b — Data-loss bug fix (silent)
-- `restaurantsService.js` — 10 `save*()` methods now put `id: X.id || rid('...')` **AFTER** the spread. Previously `...X` would splat `id: undefined` on top of the freshly-generated id, causing every new record to be stored under the literal key `"undefined"` and overwrite the previous one. Root cause of the mysterious "unique key prop" warnings in DeliveryModal and (potentially) silent data loss for new menu items, orders, reviews, coupons, staff, wishlist, photos, and voice entries.
+- `restaurantsService.js` — 10 `save*()` methods now put `id: X.id || rid('...')` **AFTER** the spread. Previously `...X` would splat `id: undefined` on top of the freshly-generated id, causing every new record to be stored under the literal key `"undefined"` and overwrite the previous one.
 
 ### P1c — Smart Assistant multi-turn chat
-- New modal `RestaurantSmartAssistantModal` in `RestaurantWorkspacesP6.jsx`.
-- Persists messages in component state for the session (offline-first spirit).
-- Suggests prompts on empty state, shows typing indicator, cites data-driven answers.
-- Backend `/api/dining_insights` extended with optional `history: List[{role,text}]` — transcript is replayed to preserve multi-turn context (last 20 turns).
-- New launcher tile: **Smart assistant** (previously aliased to AI Insights).
+- New modal `RestaurantSmartAssistantModal`. Backend `/api/dining_insights` extended with optional `history: List[{role,text}]`.
 
 ### P1d — Recipe Recreation workspace
-- New IndexedDB store `rg_recipes` linked to menu items (or freeform).
-- New modal `RestaurantRecipesModal` with ingredients + steps (one per line) + prep time + servings.
-- New launcher tile: **Recipes** (`launcher-recipes`).
+- New IndexedDB store `rg_recipes` + `RestaurantRecipesModal`.
 
 ### P1e — Family Dining workspace
-- New IndexedDB store `rg_family` for dining party members.
-- Tracks allergies (with red warning), dietary preferences, favorite dishes, nope-list, birthday, kid flag.
-- New modal `RestaurantFamilyModal` + `family-editor`.
-- New launcher tile: **Family dining** (`launcher-family`).
+- New IndexedDB store `rg_family` + `RestaurantFamilyModal`.
 
 ### P1f — Attach photo to order
-- OrderEditor gains a **Photos (N)** section on saved orders.
-- File picker → client-side JPEG resize to ≤1200px @ 85% → stored via `savePhoto({ order_id })`.
-- Hover reveals per-photo delete button.
-- Section is gated to edit-mode only (attach after first save).
+- OrderEditor gains a Photos section on saved orders.
 
 ### Dashboard
-- 21 total launcher tiles (was 19). Smart assistant now points to the chat, AI insights uses the Sparkles icon for one-shot analysis.
-
-### Testing
-- `iteration_31.json` — Full P1 batch validation, **100% PASS**. Zero React warnings, zero console errors.
-
-### Small polish (this session)
-- Added `data-testid="order-edit-${id}"` and `order-delete-${id}` for automated Order test targeting.
-- Removed dead-code hint text (section is gated to edit-mode).
+- 21 total launcher tiles.
 
 ---
 
 ## 2026-02-08 (session 1) — Restaurants Galore Phases 2–5 Complete ✅
-
-### Phase 2 (fully wired + validated)
-- **Menus** (`RestaurantMenusModal`) — CRUD with 30-day price sparkline via recharts, per-restaurant filter, categories, tags.
-- **Favorite Meals** (`RestaurantMealsModal`) — Signature order per restaurant with custom requests, sauces, sides, dessert, drink.
-- **Order History** (`RestaurantOrdersModal`) — Line items, tax, tip presets (15/18/20/25%) + custom, split-bill calculator (N-way with per-person total).
-- **Spending Center** (`RestaurantSpendingModal`) — Recharts monthly bar chart + top-restaurants ranking.
-- **Coupons** (`RestaurantCouponsModal`) — Codes with expiration alerts (expired / <7d / <30d), used toggle.
-
-### Phase 3 (new file: `RestaurantWorkspacesP3.jsx`)
-- **Reviews** — 11-metric 5-star rating (food, service, cleanliness, atmosphere, noise, portions, parking, value, packaging, accuracy, overall) + free-text comment.
-- **Delivery Tracker** — driver name, times, minutes, food temp (hot/warm/cold), packaging + accuracy + driver rating, aggregate avg-time and avg-rating cards.
-- **Favorite Staff** — per-restaurant server/bartender/host directory with role, phone, email, birthday, favorite flag.
-- **Wish List** — restaurants to try with priority (Must try / High / Someday), cuisine, location, visited toggle.
-- **Photos** — offline photo gallery with client-side resize to ≤1200px @ 85% JPEG, per-restaurant grid, full-screen preview.
-
-### Phase 4 (new file: `RestaurantWorkspacesP4.jsx`)
-- **Voice Journal** — browser SpeechRecognition (Web Speech API) with interim/final transcripts, per-restaurant tagging.
-- **Search All** — cross-store fuzzy search over restaurants, menus, favorite meals, orders, reviews, coupons, staff, wishlist, voice entries.
-- **Beverage Center / Dessert Center** — category-filtered menu views with per-restaurant grouping and stats (count/avg/min/max).
-- **AI Insights** — opt-in POST to `/api/dining_insights` (Claude Sonnet via Emergent LLM key) returns 3-5 concise bullet insights.
-
-### Phase 5 (new file: `RestaurantWorkspacesP5.jsx`)
-- **Backup & Restore** — one-click export of ALL Restaurants Galore data to timestamped JSON, preview + Merge or Replace on import.
-- **Maps Picker** — Google Maps / Waze / Apple Maps chooser sheet, wired into Directory rows (button "Directions" replaces the old plain Maps link).
-
-### Storage layer
-- Extended `restaurantsService.js` with new stores: `staff`, `wishlist`, `photos`, `voice_journal`, `recipes`, `family` (plus existing `restaurants`, `menus`, `favorite_meals`, `orders`, `reviews`, `deliveries`, `coupons`).
-- Added `importAll(data, mode)` with 'merge' and 'replace' modes; extended `exportAll()` and cascade delete accordingly.
-
-### Backend
-- New endpoint `POST /api/dining_insights` — accepts a stats JSON payload + optional question + optional history, returns formatted insights via Claude Sonnet 4.6. Nothing persisted server-side.
+See `/app/specs/RESTAURANTS_GALORE.md` for the master spec.
 
 ## Prior sessions
 See `PRD.md` for original problem statement, personas, and pre-2026-02 history.

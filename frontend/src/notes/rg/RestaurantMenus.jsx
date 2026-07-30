@@ -128,8 +128,8 @@ export function RestaurantMenusModal({ isOpen, onClose, isDark }) {
                                 <div className={`text-sm font-mono font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>${Number(it.price || 0).toFixed(2)}</div>
                                 {it.calories != null && <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>{it.calories} cal</div>}
                               </div>
-                              <button type="button" onClick={() => setEditing(it)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                              <button type="button" onClick={() => handleDelete(it.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                              <button type="button" onClick={() => setEditing(it)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`menu-edit-${it.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                              <button type="button" onClick={() => handleDelete(it.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`menu-delete-${it.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           );
                         })}

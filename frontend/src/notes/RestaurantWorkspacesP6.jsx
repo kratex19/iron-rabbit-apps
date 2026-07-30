@@ -250,8 +250,8 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                             )}
                           </div>
                           <button type="button" onClick={() => handleCook(rec.id)} title="Cook this again" className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"}`} data-testid={`recipe-cook-${rec.id}`}><Flame className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => setEditing(rec)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(rec.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setEditing(rec)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`recipe-edit-${rec.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => handleDelete(rec.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`recipe-delete-${rec.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     );
@@ -426,8 +426,8 @@ export function RestaurantFamilyModal({ isOpen, onClose, isDark }) {
                           )}
                           {m.notes && <div className={`text-[11px] mt-0.5 italic ${isDark ? "text-slate-500" : "text-gray-500"}`}>{m.notes}</div>}
                         </div>
-                        <button type="button" onClick={() => setEditing(m)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                        <button type="button" onClick={() => handleDelete(m.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => setEditing(m)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`family-edit-${m.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => handleDelete(m.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`family-delete-${m.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   ))}
@@ -477,7 +477,7 @@ function FamilyEditor({ item, isDark, onClose, onSave }) {
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Birthday (MM-DD)" isDark={isDark}><Input value={f.birthday} onChange={(e) => setF({ ...f, birthday: e.target.value })} placeholder="07-14" className={inputCls(isDark)} /></Field>
+            <Field label="Birthday (MM-DD)" isDark={isDark}><Input value={f.birthday} onChange={(e) => setF({ ...f, birthday: e.target.value })} placeholder="07-14" className={inputCls(isDark)} data-testid="family-birthday" /></Field>
             <label className="inline-flex items-center gap-2 mt-5"><input type="checkbox" checked={f.kid} onChange={(e) => setF({ ...f, kid: e.target.checked })} /><span className={`text-xs ${isDark ? "text-slate-300" : "text-gray-700"}`}>Kid&apos;s menu eligible</span></label>
           </div>
           <Field label="Allergies (comma separated)" isDark={isDark}><Input value={f.allergies_text} onChange={(e) => setF({ ...f, allergies_text: e.target.value })} placeholder="peanuts, shellfish" className={inputCls(isDark)} data-testid="family-allergies" /></Field>

@@ -100,8 +100,8 @@ export function RestaurantCouponsModal({ isOpen, onClose, isDark }) {
                             {r && <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>@ {r.name}</div>}
                             <div className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-gray-600"}`}>{c.description}{c.discount ? ` · ${c.discount}` : ""}{c.loyalty_number ? ` · Loyalty: ${c.loyalty_number}` : ""}</div>
                           </div>
-                          <button type="button" onClick={() => setEditing(c)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(c.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setEditing(c)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`coupon-edit-${c.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => handleDelete(c.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`coupon-delete-${c.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     );
