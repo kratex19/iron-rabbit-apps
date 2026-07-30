@@ -71,6 +71,7 @@ const recipesStore     = mkStore("recipes");
 const familyStore      = mkStore("family");
 const chatHistoryStore = mkStore("chat_history");
 const shoppingStore    = mkStore("shopping_list");
+const mealPlanStore    = mkStore("meal_plan");
 
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -589,6 +590,40 @@ const RestaurantsService = {
     return true;
   },
 
+  // ================= WEEKLY MEAL PLAN =================
+  // Each entry pins ONE recipe to ONE date (multiple entries per date allowed).
+  // Shape: {id, date: "YYYY-MM-DD", recipe_id, slot: "breakfast|lunch|dinner"|"", created_at, updated_at}
+  async listMealPlan({ from, to } = {}) {
+    const all = await iterAll(mealPlanStore);
+    let rows = all;
+    if (from) rows = rows.filter((r) => (r.date || "") >= from);
+    if (to) rows = rows.filter((r) => (r.date || "") <= to);
+    return rows.sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.created_at || "").localeCompare(b.created_at || ""));
+  },
+  async addMealPlanEntry({ date, recipe_id, slot = "" }) {
+    if (!date || !recipe_id) return null;
+    const id = rid("plan");
+    const now = new Date().toISOString();
+    const record = { id, date, recipe_id, slot, created_at: now, updated_at: now };
+    await mealPlanStore.setItem(id, record);
+    return record;
+  },
+  async deleteMealPlanEntry(id) {
+    await mealPlanStore.removeItem(id);
+    return true;
+  },
+  async clearMealPlanRange({ from, to }) {
+    const all = await iterAll(mealPlanStore);
+    let removed = 0;
+    for (const r of all) {
+      if ((!from || r.date >= from) && (!to || r.date <= to)) {
+        await mealPlanStore.removeItem(r.id);
+        removed += 1;
+      }
+    }
+    return removed;
+  },
+
   // ================= FAMILY DINING =================
   async listFamily() {
     const all = await iterAll(familyStore);
@@ -736,6 +771,7 @@ const RestaurantsService = {
       family: await iterAll(familyStore),
       chat_history: await iterAll(chatHistoryStore),
       shopping_list: await iterAll(shoppingStore),
+      meal_plan: await iterAll(mealPlanStore),
     };
   },
 
@@ -816,6 +852,7 @@ const RestaurantsService = {
       family: familyStore,
       chat_history: chatHistoryStore,
       shopping_list: shoppingStore,
+      meal_plan: mealPlanStore,
     };
     const equal = (a, b) => {
       // Strip volatile timestamps so a plain re-export doesn't mark every
@@ -918,6 +955,7 @@ const RestaurantsService = {
       family: familyStore,
       chat_history: chatHistoryStore,
       shopping_list: shoppingStore,
+      meal_plan: mealPlanStore,
     };
     if (mode === "replace") {
       for (const s of Object.values(map)) await s.clear();

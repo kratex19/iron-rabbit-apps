@@ -107,6 +107,7 @@ export default function NotesApp() {
   const [restaurantRecipesOpen, setRestaurantRecipesOpen] = useState(false);
   const [restaurantFamilyOpen, setRestaurantFamilyOpen] = useState(false);
   const [restaurantShoppingOpen, setRestaurantShoppingOpen] = useState(false);
+  const [restaurantMealPlanOpen, setRestaurantMealPlanOpen] = useState(false);
   const [floatingCalendarOpen, setFloatingCalendarOpen] = useState(false);
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
@@ -1411,6 +1412,7 @@ export default function NotesApp() {
         restaurantRecipesOpen={restaurantRecipesOpen} setRestaurantRecipesOpen={setRestaurantRecipesOpen}
         restaurantFamilyOpen={restaurantFamilyOpen} setRestaurantFamilyOpen={setRestaurantFamilyOpen}
         restaurantShoppingOpen={restaurantShoppingOpen} setRestaurantShoppingOpen={setRestaurantShoppingOpen}
+        restaurantMealPlanOpen={restaurantMealPlanOpen} setRestaurantMealPlanOpen={setRestaurantMealPlanOpen}
         barcodeOpen={barcodeOpen} setBarcodeOpen={setBarcodeOpen}
         mealPlannerOpen={mealPlannerOpen} setMealPlannerOpen={setMealPlannerOpen}
         pantryOpen={pantryOpen} setPantryOpen={setPantryOpen}

@@ -9,7 +9,7 @@ import axios from "axios";
 import {
   MessageCircle, Send, Loader2, ChefHat, Utensils, Plus, Trash2, Edit3,
   Baby, Cake, HeartHandshake, AlertTriangle, User, RotateCcw, Flame, Calendar, CheckCircle2,
-  Sparkles, Save, Star, PlayCircle, ShoppingCart, Coins, Pause, Play, SkipForward, SkipBack, X as XIcon, Eye,
+  Sparkles, Save, Star, PlayCircle, ShoppingCart, Coins, Pause, Play, SkipForward, SkipBack, X as XIcon, Eye, Search,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -347,6 +347,7 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedR, setSelectedR] = useState("");
+  const [noteQuery, setNoteQuery] = useState(""); // full-text search across cook_notes
 
   const reload = async () => {
     setLoading(true);
@@ -359,7 +360,18 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
   };
   useEffect(() => { if (isOpen) reload(); }, [isOpen]);
 
-  const filtered = useMemo(() => recipes.filter(r => !selectedR || r.restaurant_id === selectedR), [recipes, selectedR]);
+  const filtered = useMemo(() => {
+    const q = noteQuery.trim().toLowerCase();
+    return recipes.filter((r) => {
+      if (selectedR && r.restaurant_id !== selectedR) return false;
+      if (!q) return true;
+      // Match any cook_note OR the title/notes so users can find recipes by
+      // words they remember writing down after cooking.
+      if ((r.title || "").toLowerCase().includes(q)) return true;
+      if ((r.notes || "").toLowerCase().includes(q)) return true;
+      return (r.cook_notes || []).some((n) => (n.text || "").toLowerCase().includes(q));
+    });
+  }, [recipes, selectedR, noteQuery]);
   const restById = useMemo(() => new Map(restaurants.map(r => [r.id, r])), [restaurants]);
   const menuById = useMemo(() => new Map(menuItems.map(m => [m.id, m])), [menuItems]);
 
@@ -401,16 +413,41 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
           </DialogHeader>
           {loading ? <div className="py-10 text-center text-sm text-slate-400">Loading…</div> : (
             <div className="space-y-3">
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center flex-wrap">
                 <select value={selectedR} onChange={(e) => setSelectedR(e.target.value)} className={`h-9 rounded-md border px-2 text-sm ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`} data-testid="recipes-restaurant-picker">
                   <option value="">All restaurants</option>
                   {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
-                <div className="flex-1" />
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className={`absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+                  <Input
+                    value={noteQuery}
+                    onChange={(e) => setNoteQuery(e.target.value)}
+                    placeholder="Search notes… (e.g. garlic, spicy)"
+                    className={`h-9 pl-7 pr-7 text-sm ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-slate-500" : ""}`}
+                    data-testid="recipes-notes-search"
+                  />
+                  {noteQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setNoteQuery("")}
+                      className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white" : "text-gray-400 hover:text-gray-700"}`}
+                      aria-label="Clear search"
+                      data-testid="recipes-notes-search-clear"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
                 <Button className="h-9 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditing({ restaurant_id: selectedR || restaurants[0]?.id })} disabled={restaurants.length === 0} data-testid="recipes-add-btn">
                   <Plus className="w-4 h-4 mr-1" /> New recipe
                 </Button>
               </div>
+              {noteQuery && filtered.length > 0 && (
+                <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`} data-testid="recipes-notes-search-count">
+                  {filtered.length} recipe{filtered.length === 1 ? "" : "s"} match &ldquo;{noteQuery}&rdquo;
+                </div>
+              )}
               {filtered.length === 0 ? (
                 <div className={`text-center py-10 text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`}>No recipes yet — recreate your favorites.</div>
               ) : (
@@ -460,11 +497,16 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                               </div>
                             )}
                             {rec.cook_notes?.length > 0 && (() => {
-                              const last = rec.cook_notes[rec.cook_notes.length - 1];
+                              const q = noteQuery.trim().toLowerCase();
+                              // When searching, prefer the most-recent note that MATCHES so users see the hit.
+                              const notes = rec.cook_notes;
+                              const match = q ? [...notes].reverse().find((n) => (n.text || "").toLowerCase().includes(q)) : null;
+                              const shown = match || notes[notes.length - 1];
+                              const label = match ? "Match" : "Last time";
                               return (
-                                <div className={`text-[10px] mt-1 italic flex items-start gap-1 ${isDark ? "text-emerald-300/80" : "text-emerald-800"}`} data-testid={`recipe-last-note-${rec.id}`}>
+                                <div className={`text-[10px] mt-1 italic flex items-start gap-1 ${match ? (isDark ? "text-amber-300" : "text-amber-700") : (isDark ? "text-emerald-300/80" : "text-emerald-800")}`} data-testid={`recipe-last-note-${rec.id}`}>
                                   <Sparkles className="w-2.5 h-2.5 mt-0.5 shrink-0" />
-                                  <span className="min-w-0 truncate">Last time: {last.text}</span>
+                                  <span className="min-w-0 truncate">{label}: {shown.text}</span>
                                 </div>
                               );
                             })()}
