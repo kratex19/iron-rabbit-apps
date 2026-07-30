@@ -1,6 +1,8 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 ## What's Live
+> **Session 10 (2026-02-08) update:** Cook Mode's timer is now **drift-proof** (wall-clock `endsAt` — accurate even when the tab is hidden) and produces a **loud repeating alarm** on finish (repeated beeps, document-title flash, browser Notification, `⏰ Timer done` styling, 20s auto-terminate). The **Shopping List** gains a **By-aisle grouping** toggle that auto-classifies every ingredient into produce / meat / dairy / bakery / pantry / spices / beverages / frozen / household / other. Preference persists.
+
 > **Session 9 (2026-02-08) update:** Restaurants Galore gained four features: a **Chat Cost Badge** on the Smart Assistant that estimates LLM spend per session, **Recipe Ratings** (1-5 stars) that feed back into future Recipe Idea prompts, **Cook Mode** — a step-by-step guided cooking modal with a per-step timer parsed from step text, and a full **Shopping List** (new tile) that aggregates recipe ingredients into a checkable, dedup'd list. See CHANGELOG.md for details.
 
 > **Session 8 (2026-02-08) update:** Restaurants Galore Backup tile now **live-refreshes** its Sync Health chip the moment a backup completes (broadcast via `rg-backup-updated` CustomEvent — no dashboard reopen needed). The Backup **Diff Report** now supports **drill-down** (tap a collection row to see individual item names) and a **Pull Conflict Guard** that flags items you've edited more recently than the backup and prompts before overwriting. Smart Assistant gained a **Suggest a new dish** button that calls a new `/api/dining_recipe_idea` endpoint (Claude Sonnet 4.6) and saves the result straight into your Recipes.

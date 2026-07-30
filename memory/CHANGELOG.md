@@ -1,5 +1,27 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 10) — Cook Timer Alarm + Grocery Aisle Grouping ✅
+
+### Cook Timer — wall-clock + loud alarm
+- Rewrote `CookModeModal` timer to use a wall-clock `endsAt` timestamp instead of a decrementing counter. `setInterval` now only bumps a `now` state, so the countdown is drift-proof even when the browser tab is hidden or the machine sleeps briefly.
+- `visibilitychange` listener forces an immediate re-render when the tab comes back so the display catches up instantly.
+- Pause stores `pausedRemaining` (seconds); Start button relabels to "Resume" and picks up where you left off (never restarts to full).
+- Loud alarm loop on timer-finish: repeated 660/880Hz beeps every 900ms, `document.title` flashes to `⏰ Timer done — Iron Rabbit`, and a browser `Notification` fires when permission is granted (permission requested lazily on first alarm).
+- Alarm auto-terminates after 20 seconds so users never come back to a stuck loop; a new `cook-mode-alarm-stop` button replaces Start/Pause during alarm.
+- Timer container gets `animate-pulse` amber styling while alarming so it's visible from across the room.
+
+### Grocery Aisle Grouping
+- New `aisleClassifier.js` — client-side keyword classifier mapping any ingredient string to one of 10 aisles (produce, meat, dairy, bakery, pantry, spices, beverages, frozen, household, other). ~200 curated substrings.
+- Shopping List modal gains a `shopping-group-toggle` button in the title bar; grouping preference persists in `localStorage.rg_shopping_group_by_aisle`.
+- Grouped view renders aisle sections in a consistent order with emoji + count badges; checked items collect into a `Done` pile at the bottom.
+- Flat "By order" view is unchanged so users keep the option to see chronological order.
+
+### Testing
+- Iteration 39: 100% pass (18/18 live E2E). Full 60-second real-time alarm test verified: countdown → cook-mode-alarm-stop appears → amber pulse → title flash → Silence restores state. Aisle classifier verified on 7 diverse seed ingredients + the "other" fallback.
+
+---
+
+
 ## 2026-02-08 (session 9) — Cost Badge + Recipe Rating + Cook Mode + Shopping List ✅
 
 ### Chat Cost Tracking (Smart Assistant)

@@ -1,6 +1,6 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08 (session 9)_
+_Last updated: 2026-02-08 (session 10)_
 
 ## Restaurants Galore Backlog
 
@@ -14,7 +14,10 @@ _Last updated: 2026-02-08 (session 9)_
 - [x] Assistant Recipe Ideas — personalized dish suggestions saved straight into Recipes. ✅ session 8
 - [x] Recipe rating (1-5 stars) fed into future Recipe Idea prompts. ✅ session 9
 - [x] Cook Mode — step-by-step view with a per-step timer. ✅ session 9
+- [x] Cook Timer — wall-clock accuracy + loud repeating alarm + browser notification. ✅ session 10
 - [x] Shopping List — aggregate recipe ingredients into a checkable dedup'd list. ✅ session 9
+- [x] Grocery Aisle Grouping — auto-group shopping list by aisle. ✅ session 10
+- [ ] Refactor CookModeModal into its own file (RestaurantWorkspacesP6.jsx is ~960 lines).
 
 ### P2 — Cloud sync polish
 - [x] WebDAV: auto-schedule (weekly / monthly push). ✅ session 6
