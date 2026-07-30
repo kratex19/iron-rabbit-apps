@@ -449,7 +449,9 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                 </div>
               )}
               {filtered.length === 0 ? (
-                <div className={`text-center py-10 text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`}>No recipes yet — recreate your favorites.</div>
+                <div className={`text-center py-10 text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`} data-testid="recipes-empty-state">
+                  {noteQuery.trim() ? `No recipes match "${noteQuery.trim()}"` : "No recipes yet — recreate your favorites."}
+                </div>
               ) : (
                 <div className="space-y-1.5" data-testid="recipes-list">
                   {filtered.map(rec => {

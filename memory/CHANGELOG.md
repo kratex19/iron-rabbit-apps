@@ -1,5 +1,30 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 13) — Weekly Meal Plan + Cook Notes Search ✅
+
+### Weekly Meal Plan
+- New `meal_plan` localforage store + full CRUD on `RestaurantsService`: `listMealPlan({from,to})`, `addMealPlanEntry({date, recipe_id, slot?})`, `deleteMealPlanEntry(id)`, `clearMealPlanRange({from,to})`. Included in `exportAll` / `importAll` / `computeBackupDiff`.
+- New `RestaurantMealPlanModal.jsx` — 7-day Mon–Sun grid with Prev/Next/This-week navigation. Today's column is highlighted purple.
+- Popover picker per day (`meal-plan-add-<date>` → `meal-plan-picker-<date>`) with all recipes; multiple entries per day allowed; hover-to-reveal remove button.
+- **Build shopping list from this week** button aggregates ingredients from every pinned recipe into the shared shopping list via `addShoppingItems` (dedup + revive handled automatically). Toast shows added/restored counts and recipe count.
+- Clear week action (`meal-plan-clear-week`) confirms then wipes only current-week entries; other weeks preserved.
+- New `Meal plan` tile on the RG dashboard (`launcher-meal-plan`, Calendar icon).
+- Toast dedup via Sonner ids (`mp-add-<date>-<recipe_id>`, `mp-shop-<from>`) to prevent StrictMode double-fires.
+
+### Cook Notes Search
+- New search input (`recipes-notes-search`) in the Recipes modal header, with clear-× button (`recipes-notes-search-clear`).
+- Filters recipes by lowercased substring match against `title`, `notes`, AND every `cook_notes[].text`. Composes with the restaurant filter (AND).
+- `recipes-notes-search-count` line shows "N recipes match" during an active query.
+- `recipe-last-note-<id>` now dynamically switches: with an active query it shows the most-recent MATCHING note prefixed `Match: …` in amber; without, it falls back to the newest note prefixed `Last time: …` in emerald.
+- Query-aware empty state — when no recipes match, shows `No recipes match "<query>"` instead of the generic message.
+
+### Testing
+- Iteration 43: **24/24 (100%)** pass. All meal plan flows (add, multi-per-day, remove, persistence across close/reopen, week nav, build-shopping aggregation, week-scoped clear, disabled-no-recipes, deleted-recipe fallback) verified live. All 8 cook-notes-search scenarios verified (title/notes/cook_notes matching, match vs. last-time note swap, clear-×, combined restaurant filter). Zero console errors, zero regressions.
+- Post-report polish: Sonner toast ids added to prevent duplicate toasts, query-aware empty state added.
+
+---
+
+
 ## 2026-02-08 (session 12) — Persistent Cook Session + Post-Cook Notes ✅
 
 ### Persistent Cook Session

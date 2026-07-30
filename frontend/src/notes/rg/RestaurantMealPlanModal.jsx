@@ -56,7 +56,7 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
     const rec = await RestaurantsService.addMealPlanEntry({ date, recipe_id });
     if (rec) {
       setEntries((prev) => [...prev, rec]);
-      toast.success("Added to plan");
+      toast.success("Added to plan", { id: `mp-add-${date}-${recipe_id}` });
     }
   };
   const removeEntry = async (id) => {
@@ -93,7 +93,7 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
     const parts = [];
     if (totalAdded) parts.push(`${totalAdded} added`);
     if (totalRevived) parts.push(`${totalRevived} restored`);
-    toast.success(`Shopping list: ${parts.join(", ") || "already up to date"} (from ${buckets.length} recipe${buckets.length === 1 ? "" : "s"})`);
+    toast.success(`Shopping list: ${parts.join(", ") || "already up to date"} (from ${buckets.length} recipe${buckets.length === 1 ? "" : "s"})`, { id: `mp-shop-${from}` });
   };
 
   const rangeLabel = `${days[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;

@@ -1,6 +1,8 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 ## What's Live
+> **Session 13 (2026-02-08) update:** Restaurants Galore gained a **Weekly Meal Plan** — a 7-day Mon–Sun grid where recipes can be pinned to each day, with a single-tap "Build shopping list from this week" that aggregates ingredients across all pinned recipes. The Recipes modal gained a **Cook Notes Search** input that filters recipes by title, notes, and every cook-note, with a "Match: …" swap so you see the specific note that matched.
+
 > **Session 12 (2026-02-08) update:** Cook Mode now **persists in-progress sessions** — close the app or switch recipes and the exact step + timer state resumes when you reopen (with a subtle `recipe-resume-hint` on the recipe row). After the last step, a **Post-Cook Notes** prompt asks "How did it go?" so personal tweaks are saved to a rolling log per recipe and surfaced as "Last time: …" on the row. Includes a StrictMode-safe fix for the reset-on-step-change effect.
 
 > **Session 11 (2026-02-08) update:** Shopping List items can now be **manually reassigned to a different aisle** via a tiny emoji-picker on each row (with a "Reset to auto" option). Cook Mode requests a **Screen Wake Lock** so the phone stays unlocked between steps, with a "Screen on" indicator in the modal header.
