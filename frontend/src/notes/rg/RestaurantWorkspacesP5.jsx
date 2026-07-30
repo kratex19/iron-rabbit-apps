@@ -4,7 +4,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Download, Upload, HardDriveDownload, MapPin, ExternalLink, Sparkles, Cloud, CloudUpload, CloudDownload, AlertCircle, Settings2 } from "lucide-react";
+import { Download, Upload, HardDriveDownload, MapPin, ExternalLink, Sparkles, Cloud, CloudUpload, CloudDownload, AlertCircle, Settings2, Lock, LockOpen, Timer } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ const GLASS_KEY = "rg_glass_theme";
 const LAST_BACKUP_KEY = "rg_last_backup_at";
 const WEBDAV_CFG_KEY = "rg_webdav_cfg";
 const GDRIVE_CID_KEY = "rg_gdrive_client_id";
+export const SCHEDULE_CFG_KEY = "rg_backup_schedule";
+// Schedule shape: { interval: "off"|"weekly"|"monthly", target: "local"|"webdav"|"gdrive", passphrase_hint: "" }
 
 // Return days since the last successful backup, or Infinity if never backed up.
 export function daysSinceLastBackup() {
@@ -37,6 +39,89 @@ async function buildBackupPayload() {
   return { meta, data: dump };
 }
 
+// ---------------------------------------------------------------------------
+// Auto-scheduled backup runner
+// ---------------------------------------------------------------------------
+// Called at app boot from NotesApp.jsx. Silently runs a backup if:
+//   1. schedule.interval is "weekly" or "monthly"
+//   2. days since last backup >= threshold for that interval
+// Returns { ran: bool, reason: string, target: string, encrypted: bool }.
+export async function runScheduledBackupIfDue() {
+  let schedule = {};
+  try { schedule = JSON.parse(localStorage.getItem("rg_backup_schedule") || "{}"); }
+  catch { schedule = {}; }
+  const interval = schedule.interval || "off";
+  if (interval === "off" || (interval !== "weekly" && interval !== "monthly")) {
+    return { ran: false, reason: "schedule off" };
+  }
+  const thresholdDays = interval === "weekly" ? 7 : 30;
+  const last = localStorage.getItem("rg_last_auto_backup_at");
+  const lastMs = last ? new Date(last).getTime() : 0;
+  const dueMs = lastMs + thresholdDays * 86400000;
+  if (Date.now() < dueMs) {
+    return { ran: false, reason: "not due" };
+  }
+
+  const target = schedule.target || "local";
+  const passphrase = schedule.passphrase || ""; // optional: not persisted by UI; users can set separately
+  const wantEncrypt = !!passphrase;
+
+  let payload = await buildBackupPayload();
+  if (wantEncrypt) {
+    try {
+      payload = await RestaurantsService.encryptPayload(payload, passphrase);
+    } catch (e) {
+      return { ran: false, reason: "encrypt failed: " + (e.message || e) };
+    }
+  }
+
+  const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
+  const filename = wantEncrypt
+    ? `restaurants-galore-auto-${stamp}.rgenc`
+    : `restaurants-galore-auto-${stamp}.json`;
+
+  if (target === "local") {
+    try {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      return { ran: false, reason: "download failed: " + (e.message || e) };
+    }
+  } else if (target === "webdav") {
+    let cfg = {};
+    try { cfg = JSON.parse(localStorage.getItem("rg_webdav_cfg") || "{}"); }
+    catch { cfg = {}; }
+    if (!cfg.url) return { ran: false, reason: "webdav not configured" };
+    const base = (cfg.url || "").replace(/\/$/, "");
+    const path = (cfg.path || "iron-rabbit-backup.json").replace(/^\//, "");
+    const auth = "Basic " + btoa(`${cfg.user || ""}:${cfg.pass || ""}`);
+    try {
+      const res = await fetch(`${base}/${path}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: auth },
+        body: JSON.stringify(payload, null, 2),
+      });
+      if (!res.ok) return { ran: false, reason: `webdav HTTP ${res.status}` };
+    } catch (e) {
+      return { ran: false, reason: "webdav failed: " + (e.message || e) };
+    }
+  } else if (target === "gdrive") {
+    // Google Drive requires an interactive OAuth consent — silent boot-time
+    // uploads aren't possible without a prior refresh token. We skip and
+    // let the user push manually from the Backup modal.
+    return { ran: false, reason: "gdrive requires manual push (no silent OAuth)" };
+  }
+
+  const now = new Date().toISOString();
+  localStorage.setItem("rg_last_auto_backup_at", now);
+  localStorage.setItem("rg_last_backup_at", now);
+  return { ran: true, target, encrypted: wantEncrypt };
+}
+
 // =========================================================================
 // BACKUP / RESTORE
 // =========================================================================
@@ -46,28 +131,57 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
   const [preview, setPreview] = useState(null);
   const [glassOn, setGlassOn] = useState(() => localStorage.getItem(GLASS_KEY) === "1");
 
+  // Encryption
+  const [encryptOn, setEncryptOn] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
+  const [pendingEncrypted, setPendingEncrypted] = useState(null); // {envelope, filename} awaiting passphrase
+  const [importPass, setImportPass] = useState("");
+
+  // Schedule
+  const [schedule, setSchedule] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(SCHEDULE_CFG_KEY) || "{}"); }
+    catch { return {}; }
+  });
+  const persistSchedule = (next) => {
+    setSchedule(next);
+    localStorage.setItem(SCHEDULE_CFG_KEY, JSON.stringify(next));
+  };
+
   // Apply/remove the body attribute so CSS can target every open dialog
   useEffect(() => {
     document.body.setAttribute("data-rg-glass", glassOn ? "true" : "false");
     localStorage.setItem(GLASS_KEY, glassOn ? "1" : "0");
   }, [glassOn]);
 
+  // Build the final download payload — encrypted or plain — from the raw
+  // {meta, data} payload. Throws if encryption is on but passphrase is missing.
+  const maybeEncrypt = async (payload) => {
+    if (!encryptOn) return { payload, ext: "json", mime: "application/json" };
+    if (!passphrase || passphrase.length < 4) {
+      throw new Error("Enter a passphrase of 4+ characters");
+    }
+    const envelope = await RestaurantsService.encryptPayload(payload, passphrase);
+    return { payload: envelope, ext: "rgenc", mime: "application/octet-stream" };
+  };
+
   const handleExport = async () => {
     setBusy(true);
     try {
-      const payload = await buildBackupPayload();
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const raw = await buildBackupPayload();
+      const { payload, ext, mime } = await maybeEncrypt(raw);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
       a.href = url;
-      a.download = `restaurants-galore-backup-${stamp}.json`;
+      a.download = `restaurants-galore-backup-${stamp}.${ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
       localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
-      toast.success(`Exported ${payload.meta.counts.restaurants || 0} restaurants + all data`);
+      const suffix = encryptOn ? " (encrypted)" : "";
+      toast.success(`Exported ${raw.meta.counts.restaurants || 0} restaurants${suffix}`);
     } catch (e) {
       toast.error(`Export failed: ${e.message || e}`);
     } finally {
@@ -80,10 +194,33 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
+      if (RestaurantsService.isEncryptedPayload(parsed)) {
+        setPendingEncrypted({ envelope: parsed, filename: file.name });
+        setImportPass("");
+        return;
+      }
       if (!parsed.data) throw new Error("Invalid backup file — missing 'data' key");
       setPreview({ meta: parsed.meta || {}, data: parsed.data, filename: file.name });
     } catch (e) {
       toast.error(`Could not read file: ${e.message}`);
+    }
+  };
+
+  const handleDecryptPending = async () => {
+    if (!pendingEncrypted) return;
+    if (!importPass) { toast.error("Enter the passphrase"); return; }
+    setBusy(true);
+    try {
+      const decrypted = await RestaurantsService.decryptPayload(pendingEncrypted.envelope, importPass);
+      if (!decrypted.data) throw new Error("Decrypted payload has no 'data' key");
+      setPreview({ meta: decrypted.meta || pendingEncrypted.envelope.meta || {}, data: decrypted.data, filename: pendingEncrypted.filename + " (decrypted)" });
+      setPendingEncrypted(null);
+      setImportPass("");
+      toast.success("Decrypted");
+    } catch (e) {
+      toast.error(e.message || "Decrypt failed");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -123,7 +260,8 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
     if (!webdav.url) { toast.error("Add your WebDAV URL first"); return; }
     setBusy(true);
     try {
-      const payload = await buildBackupPayload();
+      const raw = await buildBackupPayload();
+      const { payload } = await maybeEncrypt(raw);
       const res = await fetch(webdavUrl(), {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: webdavAuth() },
@@ -131,7 +269,8 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
-      toast.success(`Pushed backup to ${new URL(webdav.url).hostname}`);
+      const suffix = encryptOn ? " (encrypted)" : "";
+      toast.success(`Pushed backup to ${new URL(webdav.url).hostname}${suffix}`);
     } catch (e) {
       toast.error(`WebDAV push failed: ${e.message || e}`);
     } finally { setBusy(false); }
@@ -146,6 +285,12 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const parsed = await res.json();
+      if (RestaurantsService.isEncryptedPayload(parsed)) {
+        setPendingEncrypted({ envelope: parsed, filename: `webdav:${webdav.path || "backup"}` });
+        setImportPass("");
+        toast.info("Encrypted backup — enter passphrase to decrypt");
+        return;
+      }
       if (!parsed.data) throw new Error("Not a backup file");
       setPreview({ meta: parsed.meta || {}, data: parsed.data, filename: `webdav:${webdav.path || "backup.json"}` });
       toast.success("Loaded backup — preview below");
@@ -199,7 +344,8 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
     setBusy(true);
     try {
       const token = await gdRequestToken();
-      const payload = await buildBackupPayload();
+      const raw = await buildBackupPayload();
+      const { payload } = await maybeEncrypt(raw);
       const existingId = await gdFindFileId(token);
 
       const boundary = "iron-rabbit-boundary-" + Date.now();
@@ -219,7 +365,8 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
       });
       if (!res.ok) throw new Error(`Drive upload HTTP ${res.status}`);
       localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
-      toast.success(existingId ? "Updated Drive backup" : "Uploaded to Drive");
+      const suffix = encryptOn ? " (encrypted)" : "";
+      toast.success((existingId ? "Updated Drive backup" : "Uploaded to Drive") + suffix);
     } catch (e) {
       toast.error(`Google Drive push failed: ${e.message || e}`);
     } finally { setBusy(false); }
@@ -237,6 +384,12 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
       });
       if (!res.ok) throw new Error(`Drive download HTTP ${res.status}`);
       const parsed = await res.json();
+      if (RestaurantsService.isEncryptedPayload(parsed)) {
+        setPendingEncrypted({ envelope: parsed, filename: `gdrive:${gdFileName}` });
+        setImportPass("");
+        toast.info("Encrypted backup — enter passphrase to decrypt");
+        return;
+      }
       if (!parsed.data) throw new Error("Not a valid backup");
       setPreview({ meta: parsed.meta || {}, data: parsed.data, filename: `gdrive:${gdFileName}` });
       toast.success("Loaded backup from Drive");
@@ -296,10 +449,94 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
             </Button>
           </div>
 
+          <div className={`rounded-lg p-3 border ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid="encryption-panel">
+            <div className="flex items-center justify-between mb-2">
+              <div className={`text-xs font-semibold flex items-center gap-1.5 ${isDark ? "text-white" : "text-gray-900"}`}>
+                {encryptOn ? <Lock className="w-3.5 h-3.5 text-emerald-400" /> : <LockOpen className="w-3.5 h-3.5 text-slate-400" />}
+                Encrypt backups
+                <span className={`text-[10px] font-normal ml-1 ${isDark ? "text-slate-400" : "text-gray-500"}`}>AES-256-GCM</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEncryptOn(!encryptOn)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${encryptOn ? "bg-emerald-500" : isDark ? "bg-white/20" : "bg-gray-300"}`}
+                data-testid="encrypt-toggle"
+                aria-pressed={encryptOn}
+                aria-label="Encrypt backups"
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${encryptOn ? "translate-x-5" : ""}`} />
+              </button>
+            </div>
+            {encryptOn && (
+              <div className="space-y-1.5">
+                <Input
+                  type="password"
+                  value={passphrase}
+                  onChange={(e) => setPassphrase(e.target.value)}
+                  placeholder="Enter a strong passphrase (4+ chars)"
+                  className="h-8 text-xs"
+                  data-testid="encrypt-passphrase"
+                  autoComplete="new-password"
+                />
+                <div className={`text-[10px] leading-snug ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                  Files export as <code>.rgenc</code>. The passphrase is never stored or transmitted — losing it means the backup can&apos;t be recovered.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={`rounded-lg p-3 border ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid="schedule-panel">
+            <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-white" : "text-gray-900"}`}>
+              <Timer className="w-3.5 h-3.5 text-sky-400" /> Auto-backup schedule
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={schedule.interval || "off"}
+                onChange={(e) => persistSchedule({ ...schedule, interval: e.target.value })}
+                className={`h-8 rounded-md border px-2 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}
+                data-testid="schedule-interval"
+              >
+                <option value="off">Off</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <select
+                value={schedule.target || "local"}
+                onChange={(e) => persistSchedule({ ...schedule, target: e.target.value })}
+                className={`h-8 rounded-md border px-2 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}
+                data-testid="schedule-target"
+                disabled={schedule.interval === "off" || !schedule.interval}
+              >
+                <option value="local">Local download</option>
+                <option value="webdav">WebDAV</option>
+                <option value="gdrive">Google Drive</option>
+              </select>
+            </div>
+            <div className={`text-[10px] mt-1.5 leading-snug ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+              Runs on next app open once the interval has passed. Google Drive requires re-consent per session (skipped silently).
+            </div>
+            {(schedule.interval === "weekly" || schedule.interval === "monthly") && (
+              <div className="mt-2 space-y-1">
+                <Input
+                  type="password"
+                  value={schedule.passphrase || ""}
+                  onChange={(e) => persistSchedule({ ...schedule, passphrase: e.target.value })}
+                  placeholder="Optional: passphrase to encrypt auto-backups"
+                  className="h-8 text-xs"
+                  data-testid="schedule-passphrase"
+                  autoComplete="new-password"
+                />
+                <div className={`text-[10px] leading-snug ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                  If set, auto-backups are AES-256 encrypted with this passphrase. Stored locally in your browser — clear it any time.
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className={`rounded-lg p-3 border ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`}>
             <div className={`text-xs font-semibold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Restore</div>
             <div className={`text-[11px] mb-2 ${isDark ? "text-slate-400" : "text-gray-600"}`}>Pick a backup file to preview before merging or replacing.</div>
-            <input ref={fileRef} type="file" accept="application/json,.json" onChange={(e) => handleFileSelect(e.target.files?.[0])} className="hidden" data-testid="backup-file-input" />
+            <input ref={fileRef} type="file" accept="application/json,.json,.rgenc" onChange={(e) => handleFileSelect(e.target.files?.[0])} className="hidden" data-testid="backup-file-input" />
             <Button onClick={() => fileRef.current?.click()} disabled={busy} variant="outline" className="w-full h-9" data-testid="backup-choose-btn">
               <Upload className="w-4 h-4 mr-1" /> Choose file…
             </Button>
@@ -377,6 +614,28 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
               <div className={`text-[10px] italic mt-1 ${isDark ? "text-slate-500" : "text-gray-400"}`}>Loading Google client…</div>
             )}
           </div>
+
+          {pendingEncrypted && (
+            <div className={`rounded-lg p-3 border-2 space-y-2 ${isDark ? "border-emerald-500/30 bg-emerald-500/5" : "border-emerald-300 bg-emerald-50"}`} data-testid="decrypt-panel">
+              <div className={`text-xs font-semibold flex items-center gap-1.5 ${isDark ? "text-emerald-300" : "text-emerald-900"}`}>
+                <Lock className="w-3.5 h-3.5" /> Encrypted backup — {pendingEncrypted.filename}
+              </div>
+              <Input
+                type="password"
+                value={importPass}
+                onChange={(e) => setImportPass(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleDecryptPending(); }}
+                placeholder="Passphrase"
+                className="h-9"
+                autoFocus
+                data-testid="decrypt-passphrase"
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleDecryptPending} disabled={busy || !importPass} className="flex-1 h-9 bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="decrypt-submit">Decrypt & Preview</Button>
+                <Button onClick={() => { setPendingEncrypted(null); setImportPass(""); }} variant="outline" disabled={busy}>Cancel</Button>
+              </div>
+            </div>
+          )}
 
           {preview && (
             <div className={`rounded-lg p-3 border-2 space-y-2 ${isDark ? "border-amber-500/30 bg-amber-500/5" : "border-amber-300 bg-amber-50"}`} data-testid="backup-preview">

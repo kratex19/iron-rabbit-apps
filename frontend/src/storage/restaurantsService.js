@@ -69,8 +69,58 @@ const photosStore      = mkStore("photos");
 const voiceJournalStore = mkStore("voice_journal");
 const recipesStore     = mkStore("recipes");
 const familyStore      = mkStore("family");
+const chatHistoryStore = mkStore("chat_history");
 
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+// ----- Web Crypto AES-GCM helpers (PBKDF2 → AES-256-GCM) -----
+const PBKDF2_ITERS = 200000;
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+const b64encode = (buf) => {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.byteLength; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+};
+const b64decode = (s) => {
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+};
+
+async function deriveKey(passphrase, salt) {
+  const material = await window.crypto.subtle.importKey(
+    "raw", enc.encode(passphrase), { name: "PBKDF2" }, false, ["deriveKey"],
+  );
+  return await window.crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations: PBKDF2_ITERS, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function encryptJSON(obj, passphrase) {
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(passphrase, salt);
+  const ct = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(obj)),
+  );
+  return { salt: b64encode(salt), iv: b64encode(iv), ciphertext: b64encode(ct) };
+}
+
+async function decryptJSON(envelope, passphrase) {
+  const salt = b64decode(envelope.salt);
+  const iv = b64decode(envelope.iv);
+  const ct = b64decode(envelope.ciphertext);
+  const key = await deriveKey(passphrase, salt);
+  const pt = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  return JSON.parse(dec.decode(pt));
+}
 
 async function iterAll(store) {
   const out = [];
@@ -498,6 +548,27 @@ const RestaurantsService = {
     };
   },
 
+  // ================= SMART ASSISTANT CHAT HISTORY =================
+  // Persists Smart Assistant conversation across sessions. Single sorted
+  // rolling log; users can clear it explicitly.
+  async listChatHistory({ limit = 200 } = {}) {
+    const all = await iterAll(chatHistoryStore);
+    return all
+      .sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""))
+      .slice(-limit);
+  },
+  async appendChatMessage({ role, text }) {
+    const now = new Date().toISOString();
+    const id = rid("chat");
+    const record = { id, role, text, created_at: now };
+    await chatHistoryStore.setItem(id, record);
+    return record;
+  },
+  async clearChatHistory() {
+    await chatHistoryStore.clear();
+    return true;
+  },
+
   // ================= EXPORT ALL (backup) =================
   async exportAll() {
     return {
@@ -514,7 +585,44 @@ const RestaurantsService = {
       voice_journal: await iterAll(voiceJournalStore),
       recipes: await iterAll(recipesStore),
       family: await iterAll(familyStore),
+      chat_history: await iterAll(chatHistoryStore),
     };
+  },
+
+  // ================= ENCRYPTED PAYLOAD HELPERS =================
+  // Wraps `{meta, data}` in an AES-GCM envelope readable only with the same
+  // passphrase. Envelope shape:
+  //   { app, encrypted:true, kdf:"PBKDF2-SHA256", iterations, salt, iv,
+  //     ciphertext, meta: {exported_at, counts, encrypted:true} }
+  async encryptPayload(payload, passphrase) {
+    if (!passphrase || passphrase.length < 4) {
+      throw new Error("Passphrase must be at least 4 characters");
+    }
+    const { salt, iv, ciphertext } = await encryptJSON(payload, passphrase);
+    const publicMeta = {
+      ...(payload.meta || {}),
+      encrypted: true,
+    };
+    return {
+      app: "iron-rabbit@1.0",
+      encrypted: true,
+      kdf: "PBKDF2-SHA256",
+      iterations: PBKDF2_ITERS,
+      salt, iv, ciphertext,
+      meta: publicMeta,
+    };
+  },
+  async decryptPayload(envelope, passphrase) {
+    if (!envelope?.encrypted) throw new Error("Not an encrypted backup");
+    if (!passphrase) throw new Error("Passphrase required");
+    try {
+      return await decryptJSON(envelope, passphrase);
+    } catch (e) {
+      throw new Error("Wrong passphrase or corrupted backup");
+    }
+  },
+  isEncryptedPayload(obj) {
+    return !!(obj && obj.encrypted === true && obj.ciphertext && obj.salt && obj.iv);
   },
 
   // ================= IMPORT ALL (restore) =================
@@ -534,6 +642,7 @@ const RestaurantsService = {
       voice_journal: voiceJournalStore,
       recipes: recipesStore,
       family: familyStore,
+      chat_history: chatHistoryStore,
     };
     if (mode === "replace") {
       for (const s of Object.values(map)) await s.clear();

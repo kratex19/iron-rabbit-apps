@@ -42,9 +42,10 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
   useEffect(() => {
     if (!isOpen) return;
     (async () => {
-      const [dash, all] = await Promise.all([
+      const [dash, all, chat] = await Promise.all([
         RestaurantsService.computeDashboardStats(),
         RestaurantsService.exportAll(),
+        RestaurantsService.listChatHistory({ limit: 200 }),
       ]);
       setStats({
         summary: dash,
@@ -52,6 +53,8 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
         recent_orders: all.orders.slice(-30).map(o => ({ date: o.date, total: o.total, tip: o.tip, restaurant_id: o.restaurant_id })),
         top_restaurants: all.restaurants.filter(r => !r.archived).map(r => ({ id: r.id, name: r.name, cuisine: r.cuisine, favorite: r.favorite })).slice(0, 30),
       });
+      // Restore prior conversation
+      setMessages((chat || []).map(m => ({ role: m.role, text: m.text })));
     })();
   }, [isOpen]);
 
@@ -62,28 +65,36 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
   const send = async () => {
     const q = draft.trim();
     if (!q || busy || !stats) return;
-    const nextMessages = [...messages, { role: "user", text: q }];
+    const userMsg = { role: "user", text: q };
+    const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setDraft("");
     setBusy(true);
+    // Persist user turn immediately so it survives a mid-request reload
+    RestaurantsService.appendChatMessage(userMsg).catch(() => {});
     try {
       const res = await axios.post(`${API}/dining_insights`, {
         stats,
         question: q,
         history: nextMessages.slice(0, -1),
       }, { timeout: 45000 });
-      setMessages([...nextMessages, { role: "assistant", text: res.data.insights }]);
+      const asstMsg = { role: "assistant", text: res.data.insights };
+      setMessages([...nextMessages, asstMsg]);
+      RestaurantsService.appendChatMessage(asstMsg).catch(() => {});
     } catch (e) {
       const msg = e?.response?.data?.detail || e?.message || "Failed";
       toast.error(msg);
-      setMessages([...nextMessages, { role: "assistant", text: `⚠ ${msg}` }]);
+      const errMsg = { role: "assistant", text: `⚠ ${msg}` };
+      setMessages([...nextMessages, errMsg]);
+      RestaurantsService.appendChatMessage(errMsg).catch(() => {});
     } finally {
       setBusy(false);
     }
   };
 
-  const reset = () => {
+  const reset = async () => {
     setMessages([]);
+    await RestaurantsService.clearChatHistory();
     toast.success("Chat cleared");
   };
 
@@ -105,7 +116,7 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
             </button>
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
-            Ask anything about your dining. Powered by Claude Sonnet — nothing is stored server-side.
+            Ask anything about your dining. Powered by Claude Sonnet — history is saved locally on this device only.
           </DialogDescription>
         </DialogHeader>
 

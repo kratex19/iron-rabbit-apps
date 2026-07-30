@@ -228,6 +228,20 @@ export default function NotesApp() {
       maybeShowWeeklyRecap(notesData);
       maybeShowWeeklyChoreSummary(notesData);
       maybeShowPantryAlerts();
+
+      // Restaurants Galore — run scheduled backup if it's overdue
+      // (weekly/monthly per user preference). Silently no-ops otherwise.
+      try {
+        const { runScheduledBackupIfDue } = await import("./notes/rg/RestaurantWorkspacesP5");
+        const result = await runScheduledBackupIfDue();
+        if (result?.ran) {
+          const suffix = result.encrypted ? " (encrypted)" : "";
+          toast.success(`Auto-backup saved to ${result.target}${suffix}`);
+        }
+      } catch (e) {
+        // Non-fatal — user can still back up manually
+        console.warn("Auto-backup check failed", e);
+      }
     } catch (err) {
       console.error("Error:", err);
       toast.error("Failed to load");
