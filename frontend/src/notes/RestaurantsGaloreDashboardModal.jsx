@@ -8,7 +8,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import RestaurantsService from "../storage/restaurantsService";
-import { daysSinceLastBackup } from "./rg/RestaurantWorkspacesP5";
+import { daysSinceLastBackup, lastBackupLabel } from "./rg/RestaurantWorkspacesP5";
 
 /**
  * Restaurants Galore™ — Command Center Dashboard.
@@ -190,16 +190,29 @@ export default function RestaurantsGaloreDashboardModal({
                   const d = daysSinceLastBackup();
                   const stale = isFinite(d) && d > 30;
                   const neverBackedUp = !isFinite(d);
+                  const label = lastBackupLabel();
                   return (
                     <button
                       type="button"
                       onClick={onOpenBackup}
                       className={`relative p-3 rounded-xl border text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${isDark ? "border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 text-white" : "border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-900"}`}
                       data-testid="launcher-backup"
-                      aria-label={stale ? "Backup — 30+ days overdue" : "Backup"}
+                      aria-label={stale ? "Backup — 30+ days overdue" : label ? `Backup — last synced ${label}` : "Backup"}
                     >
                       <HardDriveDownload className="w-5 h-5 mb-1.5 text-amber-400" />
                       <div className="text-xs font-medium">Backup</div>
+                      <div
+                        className={`text-[9px] leading-tight mt-0.5 ${
+                          neverBackedUp
+                            ? (isDark ? "text-slate-500" : "text-gray-400")
+                            : stale
+                              ? (isDark ? "text-amber-300" : "text-amber-700")
+                              : (isDark ? "text-emerald-400/80" : "text-emerald-700")
+                        }`}
+                        data-testid="launcher-backup-sync"
+                      >
+                        {neverBackedUp ? "never synced" : `synced ${label}`}
+                      </div>
                       {(stale || neverBackedUp) && (
                         <span
                           className={`absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${isDark ? "bg-amber-500/25 text-amber-300" : "bg-amber-100 text-amber-800"}`}

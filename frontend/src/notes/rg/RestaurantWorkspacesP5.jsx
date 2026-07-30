@@ -28,6 +28,24 @@ export function daysSinceLastBackup() {
   return Math.floor((Date.now() - then) / 86400000);
 }
 
+// Human-readable "synced X ago" label. Returns null if never backed up.
+export function lastBackupLabel() {
+  const iso = localStorage.getItem(LAST_BACKUP_KEY);
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return null;
+  const ms = Date.now() - then;
+  if (ms < 60_000) return "just now";
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
 // Build the full backup payload (used by all export paths — local, WebDAV, GDrive).
 async function buildBackupPayload() {
   const dump = await RestaurantsService.exportAll();
@@ -136,6 +154,8 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
   const [passphrase, setPassphrase] = useState("");
   const [pendingEncrypted, setPendingEncrypted] = useState(null); // {envelope, filename} awaiting passphrase
   const [importPass, setImportPass] = useState("");
+  const [diff, setDiff] = useState(null);
+  const [diffMode, setDiffMode] = useState("merge"); // "merge" | "replace"
 
   // Schedule
   const [schedule, setSchedule] = useState(() => {
@@ -152,6 +172,21 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
     document.body.setAttribute("data-rg-glass", glassOn ? "true" : "false");
     localStorage.setItem(GLASS_KEY, glassOn ? "1" : "0");
   }, [glassOn]);
+
+  // Compute the diff report whenever a preview is loaded
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!preview?.data) { setDiff(null); return; }
+      try {
+        const d = await RestaurantsService.computeBackupDiff(preview.data);
+        if (!cancelled) setDiff(d);
+      } catch {
+        if (!cancelled) setDiff(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [preview]);
 
   // Build the final download payload — encrypted or plain — from the raw
   // {meta, data} payload. Throws if encryption is on but passphrase is missing.
@@ -646,6 +681,52 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
                   <span key={k} className={`inline-block mr-2 mb-1 px-1.5 py-0.5 rounded ${isDark ? "bg-white/10" : "bg-white border border-gray-200"}`}>{k}: {Array.isArray(v) ? v.length : 0}</span>
                 ))}
               </div>
+
+              {/* ---------- Diff report ---------- */}
+              {diff && (
+                <div className={`rounded-md border p-2 space-y-1.5 ${isDark ? "bg-black/20 border-white/10" : "bg-white border-gray-200"}`} data-testid="backup-diff">
+                  <div className="flex items-center justify-between">
+                    <div className={`text-[11px] font-semibold ${isDark ? "text-slate-200" : "text-gray-800"}`}>What will change</div>
+                    <div className={`inline-flex rounded-md border overflow-hidden text-[10px] ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                      <button type="button" onClick={() => setDiffMode("merge")} className={`px-2 py-0.5 ${diffMode === "merge" ? (isDark ? "bg-emerald-500/30 text-emerald-200" : "bg-emerald-500 text-white") : (isDark ? "text-slate-400" : "text-gray-500")}`} data-testid="diff-mode-merge">If Merge</button>
+                      <button type="button" onClick={() => setDiffMode("replace")} className={`px-2 py-0.5 ${diffMode === "replace" ? (isDark ? "bg-red-500/30 text-red-200" : "bg-red-500 text-white") : (isDark ? "text-slate-400" : "text-gray-500")}`} data-testid="diff-mode-replace">If Replace</button>
+                    </div>
+                  </div>
+                  <div className={`grid grid-cols-3 gap-1 text-[10px] font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`} data-testid="diff-totals">
+                    <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-800"}`}>+{diff.totals.added} added</span>
+                    <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-sky-500/20 text-sky-300" : "bg-sky-100 text-sky-800"}`}>~{diff.totals.changed} changed</span>
+                    {diffMode === "replace" ? (
+                      <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-red-500/20 text-red-300" : "bg-red-100 text-red-800"}`}>-{diff.totals.removed} removed</span>
+                    ) : (
+                      <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-slate-500" : "bg-gray-100 text-gray-500"}`}>{diff.totals.unchanged} kept</span>
+                    )}
+                  </div>
+                  {(() => {
+                    const rows = Object.entries(diff.collections).filter(([, c]) => {
+                      if (diffMode === "replace") return c.added || c.changed || c.removed;
+                      return c.added || c.changed;
+                    });
+                    if (rows.length === 0) {
+                      return <div className={`text-[10px] italic ${isDark ? "text-slate-500" : "text-gray-500"}`}>Nothing to change — this backup matches your current library.</div>;
+                    }
+                    return (
+                      <div className="space-y-0.5 max-h-32 overflow-y-auto pr-1" data-testid="diff-collections">
+                        {rows.map(([key, c]) => (
+                          <div key={key} className={`flex justify-between items-center text-[10px] ${isDark ? "text-slate-400" : "text-gray-600"}`} data-testid={`diff-row-${key}`}>
+                            <span className="capitalize">{key.replace(/_/g, " ")}</span>
+                            <span className="tabular-nums space-x-1.5">
+                              {c.added > 0 && <span className={isDark ? "text-emerald-300" : "text-emerald-700"}>+{c.added}</span>}
+                              {c.changed > 0 && <span className={isDark ? "text-sky-300" : "text-sky-700"}>~{c.changed}</span>}
+                              {diffMode === "replace" && c.removed > 0 && <span className={isDark ? "text-red-300" : "text-red-700"}>-{c.removed}</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="flex gap-2 pt-1">
                 <Button onClick={() => handleImport("merge")} disabled={busy} className="flex-1 h-9 bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="backup-merge-btn">Merge</Button>
                 <Button onClick={() => { if (window.confirm("Replace ALL Restaurants Galore data? This cannot be undone.")) handleImport("replace"); }} disabled={busy} className="flex-1 h-9 bg-red-500 hover:bg-red-600 text-white" data-testid="backup-replace-btn">Replace all</Button>

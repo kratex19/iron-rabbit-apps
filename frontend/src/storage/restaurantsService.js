@@ -74,7 +74,12 @@ const chatHistoryStore = mkStore("chat_history");
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 // ----- Web Crypto AES-GCM helpers (PBKDF2 → AES-256-GCM) -----
-const PBKDF2_ITERS = 200000;
+// Envelope schema `version`:
+//   1 = 2026-02-08 initial format (PBKDF2-SHA256 200k, then bumped to 600k)
+// Iterations are always read from the envelope on decrypt so older files
+// (produced when the constant was 200k) still open.
+const ENVELOPE_VERSION = 1;
+const PBKDF2_ITERS = 600000;
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 const b64encode = (buf) => {
@@ -90,12 +95,12 @@ const b64decode = (s) => {
   return out;
 };
 
-async function deriveKey(passphrase, salt) {
+async function deriveKey(passphrase, salt, iterations = PBKDF2_ITERS) {
   const material = await window.crypto.subtle.importKey(
     "raw", enc.encode(passphrase), { name: "PBKDF2" }, false, ["deriveKey"],
   );
   return await window.crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERS, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -106,7 +111,7 @@ async function deriveKey(passphrase, salt) {
 async function encryptJSON(obj, passphrase) {
   const salt = window.crypto.getRandomValues(new Uint8Array(16));
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(passphrase, salt);
+  const key = await deriveKey(passphrase, salt, PBKDF2_ITERS);
   const ct = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(obj)),
   );
@@ -117,7 +122,9 @@ async function decryptJSON(envelope, passphrase) {
   const salt = b64decode(envelope.salt);
   const iv = b64decode(envelope.iv);
   const ct = b64decode(envelope.ciphertext);
-  const key = await deriveKey(passphrase, salt);
+  // Honor the iterations recorded in the envelope so pre-600k backups still open.
+  const iterations = Number(envelope.iterations) || PBKDF2_ITERS;
+  const key = await deriveKey(passphrase, salt, iterations);
   const pt = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
   return JSON.parse(dec.decode(pt));
 }
@@ -612,6 +619,7 @@ const RestaurantsService = {
     };
     return {
       app: "iron-rabbit@1.0",
+      version: ENVELOPE_VERSION,
       encrypted: true,
       kdf: "PBKDF2-SHA256",
       iterations: PBKDF2_ITERS,
@@ -630,6 +638,75 @@ const RestaurantsService = {
   },
   isEncryptedPayload(obj) {
     return !!(obj && obj.encrypted === true && obj.ciphertext && obj.salt && obj.iv);
+  },
+
+  // ================= BACKUP DIFF REPORT =================
+  // Compare an incoming backup payload against what's currently stored and
+  // return per-collection counters for Merge vs Replace outcomes.
+  // Shape:
+  //   {
+  //     collections: {
+  //       restaurants: { added, changed, unchanged, removed, total_local, total_incoming },
+  //       ...
+  //     },
+  //     totals: { added, changed, unchanged, removed }
+  //   }
+  //  - added     = ID in incoming, not in local
+  //  - changed   = ID in both but item content differs
+  //  - unchanged = ID in both and item content matches
+  //  - removed   = ID in local, not in incoming (only affects Replace mode)
+  async computeBackupDiff(data) {
+    const map = {
+      restaurants: restaurantsStore,
+      menus: menusStore,
+      favorite_meals: favoriteMealsStore,
+      orders: ordersStore,
+      reviews: reviewsStore,
+      deliveries: deliveriesStore,
+      coupons: couponsStore,
+      staff: staffStore,
+      wishlist: wishlistStore,
+      photos: photosStore,
+      voice_journal: voiceJournalStore,
+      recipes: recipesStore,
+      family: familyStore,
+      chat_history: chatHistoryStore,
+    };
+    const equal = (a, b) => {
+      // shallow but tolerant compare — ignores volatile timestamps.
+      const strip = (o) => { const { updated_at, ...rest } = o || {}; return rest; };
+      try { return JSON.stringify(strip(a || {})) === JSON.stringify(strip(b || {})); }
+      catch { return false; }
+    };
+    const collections = {};
+    const totals = { added: 0, changed: 0, unchanged: 0, removed: 0 };
+    for (const [key, store] of Object.entries(map)) {
+      const incoming = Array.isArray(data?.[key]) ? data[key] : [];
+      const local = await iterAll(store);
+      const localById = new Map(local.map((it) => [it.id, it]));
+      const incomingById = new Map(incoming.filter((it) => it && it.id).map((it) => [it.id, it]));
+      let added = 0, changed = 0, unchanged = 0;
+      for (const [id, item] of incomingById) {
+        const existing = localById.get(id);
+        if (!existing) added += 1;
+        else if (equal(existing, item)) unchanged += 1;
+        else changed += 1;
+      }
+      let removed = 0;
+      for (const id of localById.keys()) {
+        if (!incomingById.has(id)) removed += 1;
+      }
+      collections[key] = {
+        added, changed, unchanged, removed,
+        total_local: local.length,
+        total_incoming: incoming.length,
+      };
+      totals.added += added;
+      totals.changed += changed;
+      totals.unchanged += unchanged;
+      totals.removed += removed;
+    }
+    return { collections, totals };
   },
 
   // ================= IMPORT ALL (restore) =================

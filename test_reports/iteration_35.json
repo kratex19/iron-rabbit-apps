@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 35 — Verified 3 follow-up enhancements to Restaurants Galore: (1) Backup Diff Report, (2) Sync Health chip on Backup tile, (3) Stronger encryption (PBKDF2 600k + envelope.version). Backend pytest for /api/dining_insights (3/3) still passes. Frontend Playwright end-to-end verified via public URL: initial 'never synced' chip + aria-label='Backup', backup export updates rg_last_backup_at, chip flips to 'synced just now' + aria-label='Backup — last synced just now', encrypted .rgenc envelope contains version:1, iterations:600000, kdf:'PBKDF2-SHA256', encrypted:true. Backup-diff panel appears above Merge/Replace after plain JSON preview, diff-totals shows '+N added / ~N changed / N kept' in merge mode and '+N added / ~N changed / -N removed' in replace mode; diff-mode-merge/diff-mode-replace toggle flips chips correctly. 'Nothing to change — this backup matches your current library.' italic message renders when local == backup (visible in screenshot). Merge/Replace buttons (backup-merge-btn, backup-replace-btn) still visible and functional below diff. Encrypted .rgenc → decrypt-panel → decrypt-submit reveals backup-preview AND backup-diff panel (T9 ✓). No console errors during flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "detailed_results": {
+    "backend_dining_insights_pytest": "3/3 PASS (test_dining_insights.py)",
+    "T1_initial_sync_chip_never_synced": "PASS — sync='never synced', aria='Backup'",
+    "T2_backup_modal_opens": "PASS",
+    "T3_plain_json_export": "PASS — restaurants-galore-backup-YYYY-MM-DD-HH-MM-SS.json",
+    "T4_sync_chip_updates_after_export": "PASS — 'synced just now', aria='Backup — last synced just now'",
+    "T5_encrypted_envelope_version_and_iterations": "PASS — version=1, iterations=600000, kdf='PBKDF2-SHA256', encrypted=true",
+    "T6a_diff_totals_merge_mode": "PASS — shows 'kept' chip",
+    "T6b_diff_totals_replace_mode": "PASS — shows 'removed' chip in red",
+    "T6c_merge_replace_buttons_intact": "PASS — backup-merge-btn and backup-replace-btn still visible after diff",
+    "T6d_nothing_to_change_message": "PASS — italic 'Nothing to change — this backup matches your current library.' shown (screenshot verified) when no diffs",
+    "T7_diff_row_per_collection_rendering": "VERIFIED via code review + partial UI (rows-filter logic at RestaurantWorkspacesP5.jsx L704-708 correctly hides rows w/ 0 changes; diff-row-<key> emitted via keyed React map). Live JS-eval seed for row-content assertion was blocked because CRA production build does not expose /src/ source paths for dynamic import.",
+    "T8_backward_compat_pbkdf2_200k": "VERIFIED via code review — decryptJSON reads `envelope.iterations` at restaurantsService.js:126 (`const iterations = Number(envelope.iterations) || PBKDF2_ITERS`). Live 200k envelope decrypt via page.evaluate could not be executed because dynamic import('/src/storage/restaurantsService.js') is not resolvable in the CRA-bundled production build (only bundle.js is served). Logic is deterministic and correct.",
+    "T9_encrypted_preview_also_shows_diff": "PASS — .rgenc → decrypt-panel → decrypt-submit → backup-preview AND backup-diff both rendered",
+    "regression_encryption_toggle_and_rgenc": "PASS (verified inline during T5)",
+    "regression_plain_backup_flow": "PASS (verified inline during T3/T6)",
+    "no_console_errors": "PASS"
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dining_insights.py",
+    "/app/test_reports/pytest/iter35_dining.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "restaurantsService.js — encryptPayload writes fresh `iterations: PBKDF2_ITERS` (600000) but decryptJSON reads envelope.iterations first — backward compat correct. ✓",
+    "computeBackupDiff — `equal()` strips `updated_at` only. If any collection has other volatile fields (e.g., `last_ordered_at` on FavoriteMeal, `taken_at` on Photo/VoiceJournal, `last_cooked_at` on Recipe), a plain re-export could mark those rows as 'changed'. Consider extending the strip list. Not blocking, but could produce noisier diffs than intended.",
+    "RestaurantWorkspacesP5.jsx L189 — the useEffect dependency array is `[preview]`. If preview object reference changes but .data reference doesn't, the diff is recomputed unnecessarily. Not a bug (async cancel guards it), just a minor perf note.",
+    "RestaurantsGaloreDashboardModal.jsx — the sync chip label re-reads localStorage synchronously on each render inside the IIFE. If a backup completes while the dashboard modal is open, the chip won't refresh until the dashboard is reopened. Acceptable per problem statement ('on next dashboard open'), but a `useEffect` refresh on modal-visibility could improve UX.",
+    "Backup modal now stacks under an occasional QuickAccess nudge modal (data-testid=quick-access-modal) that fires from home-screen add prompts. This is an existing product behavior — not new in iter_35 — but worth noting for future automation: tests must dismiss it before interacting with the backup modal."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 pytest)", "frontend": "100% of live-testable items (11/11); T7 & T8 verified via source code inspection since dynamic imports of source files aren't possible on the CRA production build served at the public URL"},
+  "test_credentials": "none (offline PWA)",
+  "seed_data_creation": "one TEST_-prefixed restaurant was attempted for T7 verification but the dynamic-import path failed in the CRA build; cleanup evaluate also could not run so no residual data was left (nothing was actually seeded).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public URL serves a CRA build (bundle.js) — dynamic imports of /src/... source paths WILL fail (only worked when the app was served via Vite dev in earlier iterations). To seed data through the app in tests, either (a) go through the UI, or (b) call methods on a global that the app exposes (currently none). Backup opens via header-restaurants-galore → launcher-backup, but a QuickAccess nudge modal (data-testid=quick-access-modal / qa-skip-forever) may layer on top of the backup modal — always call the skip button if visible. The backup-diff panel lives INSIDE backup-preview above the merge/replace buttons; diff-mode-merge/diff-mode-replace toggle switches between 'kept' and 'removed' chip. Encrypted preview flow: .rgenc file → decrypt-panel → decrypt-passphrase → decrypt-submit → backup-preview → backup-diff.",
+  "rca of the issue": "N/A — no bugs found. All three enhancements work end-to-end. The only test-time friction was (a) an unrelated QuickAccess onboarding modal that layers on top of the backup modal (dismissed via qa-skip-forever), and (b) inability to load /src/... source modules via dynamic import in the CRA production build. Neither is a product defect."
+}
