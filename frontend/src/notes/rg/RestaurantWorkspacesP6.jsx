@@ -633,8 +633,17 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
   // Persist an active cook session whenever step/timer state changes so a
   // reload or app close doesn't lose progress. We DON'T persist alarm state —
   // the alarm is transient and will just refire if the deadline is still
-  // reached after resume.
+  // reached after resume. Safeguard: if the user is just peeking at a
+  // different recipe (clean-start state with no user interaction) don't
+  // clobber the saved session for the OTHER recipe.
   useEffect(() => {
+    const isCleanStart = idx === 0 && endsAt === null && pausedRemaining === null;
+    if (isCleanStart) {
+      const existing = RestaurantsService.loadCookSession();
+      if (existing && existing.recipe_id && existing.recipe_id !== recipe.id) {
+        return; // don't overwrite another recipe's in-progress session
+      }
+    }
     RestaurantsService.saveCookSession({
       recipe_id: recipe.id,
       step_idx: idx,
@@ -643,21 +652,23 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
     });
   }, [recipe.id, idx, endsAt, pausedRemaining]);
 
-  // One-time toast on mount when we resumed from a saved session
+  // One-time toast on mount when we resumed from a saved session. Dedupe by
+  // toast id so StrictMode's double-mount only shows one.
   useEffect(() => {
     if (savedSession && (savedSession.step_idx || savedSession.ends_at || savedSession.paused_remaining !== null)) {
-      toast.success(`Resumed at step ${(savedSession.step_idx || 0) + 1}`);
+      toast.success(`Resumed at step ${(savedSession.step_idx || 0) + 1}`, { id: "rg-cook-resume" });
     }
   }, []);
 
-  // Reset timer whenever step changes (but not for the initial render if we
-  // resumed from a saved session with an active timer for that step).
-  const stepChangeMountRef = useRef(true);
+  // Reset timer whenever step changes. Uses a value-comparison guard rather
+  // than a "first-render only" ref because React.StrictMode double-invokes
+  // effects — a boolean mount ref survives the simulated remount and lets
+  // the second invocation clobber our resumed timer state. Comparing idx to
+  // prevIdxRef makes this effect idempotent under StrictMode.
+  const prevIdxRef = useRef(idx);
   useEffect(() => {
-    if (stepChangeMountRef.current) {
-      stepChangeMountRef.current = false;
-      return; // Preserve resumed state on first render
-    }
+    if (prevIdxRef.current === idx) return; // no-op on mount + StrictMode re-invoke
+    prevIdxRef.current = idx;
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     stopAlarm();
     setEndsAt(null);

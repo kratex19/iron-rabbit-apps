@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 42 — Retest of iter_41 BUG1 (StrictMode timer-state wipe) and BUG2 (peek overwriting saved session) after E1's fixes: idx-value guard (prevIdxRef) replacing boolean mount-guard + clean-start early-return in saveCookSession + toast id 'rg-cook-resume'. All 13 targeted tests PASS live in the real browser (React.StrictMode still enabled). Zero console errors across the full session.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "detailed_results": {
+    "T1_fresh_save": "PASS — start timer on fresh recipe → localStorage.rg_cook_session has all 5 keys {recipe_id:TEST_REC_A, step_idx:1, ends_at:<+15min ISO>, paused_remaining:null, saved_at:<ISO>}.",
+    "T2_bug1_running_resume": "PASS — seeded ends_at +120s → cook-mode-timer-display shows '02:00' (NOT static 15:00), cook-mode-timer-pause visible, cook-mode-timer-start hidden. running===true correctly derived from resumed endsAt.",
+    "T2_bug1_persistence_snapshots": "PASS — localStorage.rg_cook_session at +50ms/+200ms/+500ms/+1500ms all still contain ends_at populated (unchanged from seed). StrictMode double-invoke no longer clobbers state — idx-value guard works.",
+    "T3_bug1_paused_resume": "PASS — seeded paused_remaining=300, ends_at=null → display '05:00', Start button label reads 'Resume'.",
+    "T4_bug1_pause_during_resumed": "PASS — resumed running session, waited ~5s, clicked pause → localStorage.paused_remaining=115 (integer, ~120-5s), ends_at=null. Value correctly persisted.",
+    "BUG2_peek_A_untouched": "PASS — seeded A session with ends_at +300s, opened cook-mode on B → B modal opens fresh at 'Step 1 of 3' with NO timer, and localStorage.rg_cook_session STILL contains A's data (recipe_id=TEST_REC_A, step_idx=1, ends_at unchanged). Clean-start early-return works.",
+    "BUG2_interaction_on_B_overwrites": "PASS — after clicking cook-mode-next on B, localStorage updated to {recipe_id:TEST_REC_B, step_idx:1, ...}. User interaction correctly triggers persistence.",
+    "T5_resume_hint_row_targeting": "PASS — recipe-resume-hint-TEST_REC_A rendered (count=1), recipe-resume-hint-TEST_REC_B absent (count=0).",
+    "T6_finish_clears_session": "PASS — cook-mode-finish → cook-note-skip → localStorage.rg_cook_session === null.",
+    "T7_close_via_X_clears": "PASS — cook-mode-close → localStorage.rg_cook_session === null.",
+    "T8_note_prompt": "PASS — cook-note-input visible after finish, cook-note-save disabled when empty.",
+    "T9_note_save": "PASS — typed note → save enabled → click → rec.cook_notes contains {text:'TEST_NOTE iter42 fix verified', cooked_at:<ISO>}, cook_count incremented, recipe-last-note-TEST_REC_A shows 'Last time: TEST_NOTE iter42 fix verified'.",
+    "REG_console_errors": "PASS — 0 console errors across full test run (multiple modal open/close, seeded IDB, seeded localStorage, timer start/pause/resume, note prompt save, cross-recipe peek).",
+    "REG_toast_dedupe": "Not directly asserted (would require intercepting toast DOM), but 'Resumed at step N' toast fires with id='rg-cook-resume' so StrictMode-driven double-fire is deduped by Sonner — implementation verified in source."
+  },
+  "test_report_links": [
+    "/app/tests/test_ironrabbit_cook_iter42.py",
+    "/app/frontend/src/notes/rg/RestaurantWorkspacesP6.jsx"
+  ],
+  "action_items": [
+    "None — both bugs fully fixed. Iron Rabbit Persistent Cook Session + Recipe Notes After Cook feature is production-ready.",
+    "Optional (non-blocking): RestaurantWorkspacesP6.jsx is now 1140 lines — CookModeModal (~370 lines) is still a natural extraction candidate for maintainability."
+  ],
+  "critical_code_review_comments": [
+    "BUG1 fix (L668-677): prevIdxRef.current === idx short-circuit is correct and idempotent under React.StrictMode. On first mount, prevIdxRef initialized to current idx → no reset. StrictMode's second invocation still sees ref===idx → still no reset. On actual Next click, idx bumps to N+1, prevIdxRef lags at N, reset runs and updates ref to N+1. Clean solution.",
+    "BUG2 fix (L639-653): clean-start early-return properly gated (idx===0 && endsAt===null && pausedRemaining===null && existing.recipe_id !== recipe.id). Does not affect normal persistence — as soon as user interacts (Next click bumps idx, or Start creates endsAt), we exit clean-start and persistence resumes.",
+    "toast id 'rg-cook-resume' correctly dedupes StrictMode double-fire via Sonner's id-based dedupe.",
+    "File size still 1140 lines (>700 threshold) — extraction of CookModeModal remains a good hygiene item.",
+    "All 13 iter_41 failing/partial tests now PASS with fix in place. No regressions in T1/T5-T11 saved-flow."
+  ],
+  "updated_files": ["/app/tests/test_ironrabbit_cook_iter42.py"],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "13/13 (100%) — T1, T2 running-resume, T2 persistence, T3 paused-resume, T4 pause-writes, BUG2 peek, BUG2 interaction, T5, T6, T7, T8, T9, console-clean"},
+  "test_credentials": "none (offline PWA)",
+  "seed_data_creation": "Bootstrapped IronRabbit stores by opening Restaurants Galore → Recipes modal once. Then via raw IndexedDB put(): rg_restaurants['TEST_REST_1']={id,name:'TEST Bistro'}, rg_recipes['TEST_REC_A']={steps:['Boil water','Simmer for 15 minutes','Serve hot'],cook_count:0,cook_notes:[]}, rg_recipes['TEST_REC_B']={steps:['Mix ingredients','Bake for 20 minutes','Cool down']}. Sessions seeded/cleared via localStorage.setItem/removeItem('rg_cook_session',...).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both BUG1 (StrictMode double-invoke wiping timer state — fixed by idx-value guard prevIdxRef.current===idx short-circuit) and BUG2 (peek overwriting other recipe's session — fixed by clean-start early-return in saveCookSession useEffect) are FULLY resolved and verified live. React.StrictMode is still enabled in /app/frontend/src/index.js. The idx-value-guard pattern (const prevIdxRef=useRef(idx); if(prevIdxRef.current===idx) return; prevIdxRef.current=idx; ...) is the recommended replacement for any other useRef(true) boolean mount-guards elsewhere. Seed pattern for future iterations documented in seed_data_creation above. Onboarding tour is settings-based (settings.tour_completed), not localStorage — click Skip buttons or set via StorageService.saveSettings({tour_completed:true}).",
+  "rca of the issue": "Both bugs were fixed at the source. BUG1 fix (L668-677 of RestaurantWorkspacesP6.jsx): replaced boolean mount-guard useRef(true) with idx-value guard useRef(idx). Under StrictMode, second invocation sees prevIdxRef.current === idx and short-circuits — no state clobber. Verified: localStorage.ends_at at +50/+200/+500/+1500ms all preserved. BUG2 fix (L639-653): saveCookSession useEffect early-returns when isCleanStart (idx===0 && endsAt===null && pausedRemaining===null) AND loadCookSession().recipe_id !== current recipe.id. Verified: peeking at B leaves A's session intact; clicking Next on B (bumps idx from 0→1, exits clean-start) correctly overwrites."
+}
