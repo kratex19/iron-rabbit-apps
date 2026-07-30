@@ -463,6 +463,41 @@ const RestaurantsService = {
     await recipesStore.setItem(id, record);
     return record;
   },
+  // Append a post-cook note to a recipe's rolling log. Latest note is shown
+  // as "Last time: ..." on the recipe card so tweaks aren't forgotten.
+  async addRecipeCookNote(id, text) {
+    const clean = String(text || "").trim();
+    if (!clean) return null;
+    const existing = await recipesStore.getItem(id);
+    if (!existing) return null;
+    const entry = { text: clean.slice(0, 400), cooked_at: new Date().toISOString() };
+    const notes = [...(existing.cook_notes || []), entry].slice(-20);
+    const record = { ...existing, cook_notes: notes, updated_at: new Date().toISOString() };
+    await recipesStore.setItem(id, record);
+    return record;
+  },
+
+  // ================= COOK SESSION (single active) =================
+  // Persist one in-progress cook session so the user can close the app or
+  // switch recipes and resume where they left off. Kept in localStorage
+  // (single record, tiny payload). Shape:
+  //   { recipe_id, step_idx, ends_at (ISO|null), paused_remaining (sec|null), saved_at }
+  saveCookSession(session) {
+    if (!session || !session.recipe_id) { this.clearCookSession(); return; }
+    const payload = { ...session, saved_at: new Date().toISOString() };
+    try { localStorage.setItem("rg_cook_session", JSON.stringify(payload)); }
+    catch { /* quota exceeded or storage unavailable */ }
+  },
+  loadCookSession() {
+    try {
+      const raw = localStorage.getItem("rg_cook_session");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  },
+  clearCookSession() {
+    try { localStorage.removeItem("rg_cook_session"); } catch { /* no-op */ }
+  },
 
   // ================= SHOPPING LIST =================
   // Cross-recipe shopping list. Items are keyed by a normalized name so

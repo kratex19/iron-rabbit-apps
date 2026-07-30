@@ -385,6 +385,11 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
     toast.success(parts.length ? `Shopping list: ${parts.join(", ")}` : "Already on your list");
   };
   const [cooking, setCooking] = useState(null);
+  // Track any in-progress cook session so we can surface a "resume" hint on
+  // the matching recipe row without opening cook mode. Re-read whenever the
+  // list reloads or cook mode closes.
+  const [activeSession, setActiveSession] = useState(() => RestaurantsService.loadCookSession());
+  useEffect(() => { setActiveSession(RestaurantsService.loadCookSession()); }, [recipes, cooking]);
 
   return (
     <>
@@ -454,6 +459,20 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                                 <Flame className="w-2.5 h-2.5" /> cooked {rec.cook_count}× · last: {rec.last_cooked_at ? formatDistanceToNow(new Date(rec.last_cooked_at), { addSuffix: true }) : "—"}
                               </div>
                             )}
+                            {rec.cook_notes?.length > 0 && (() => {
+                              const last = rec.cook_notes[rec.cook_notes.length - 1];
+                              return (
+                                <div className={`text-[10px] mt-1 italic flex items-start gap-1 ${isDark ? "text-emerald-300/80" : "text-emerald-800"}`} data-testid={`recipe-last-note-${rec.id}`}>
+                                  <Sparkles className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                                  <span className="min-w-0 truncate">Last time: {last.text}</span>
+                                </div>
+                              );
+                            })()}
+                            {activeSession?.recipe_id === rec.id && (
+                              <div className={`text-[10px] mt-1 inline-flex items-center gap-1 font-semibold ${isDark ? "text-sky-300" : "text-sky-700"}`} data-testid={`recipe-resume-hint-${rec.id}`}>
+                                <PlayCircle className="w-2.5 h-2.5" /> Cook session in progress — tap Cook Mode to resume
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-col gap-0.5 shrink-0">
                             <button type="button" onClick={() => setCooking(rec)} title="Cook mode (step-by-step)" disabled={!rec.steps?.length} className={`w-7 h-7 rounded-full flex items-center justify-center ${!rec.steps?.length ? "opacity-30 cursor-not-allowed" : ""} ${isDark ? "text-sky-400 hover:text-sky-300 hover:bg-sky-500/10" : "text-sky-600 hover:text-sky-700 hover:bg-sky-50"}`} aria-label="Enter cook mode" data-testid={`recipe-cook-mode-${rec.id}`}><PlayCircle className="w-3.5 h-3.5" /></button>
@@ -473,7 +492,19 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
         </DialogContent>
       </Dialog>
       {editing && <RecipeEditor restaurants={restaurants} menuItems={menuItems} item={editing.id ? editing : null} defaultRestaurantId={editing.restaurant_id} isDark={isDark} onClose={() => setEditing(null)} onSave={handleSave} />}
-      {cooking && <CookModeModal recipe={cooking} isDark={isDark} onClose={() => setCooking(null)} onComplete={async () => { await handleCook(cooking.id); setCooking(null); }} />}
+      {cooking && (
+        <CookModeModal
+          recipe={cooking}
+          isDark={isDark}
+          onClose={() => { RestaurantsService.clearCookSession(); setCooking(null); }}
+          onComplete={async () => {
+            await handleCook(cooking.id);
+            RestaurantsService.clearCookSession();
+            reload();
+            setCooking(null);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -498,11 +529,26 @@ function parseStepMinutes(text) {
 
 function CookModeModal({ recipe, isDark, onClose, onComplete }) {
   const steps = recipe.steps || [];
-  const [idx, setIdx] = useState(0);
-  const [endsAt, setEndsAt] = useState(null); // wall-clock target so we don't drift while tab is hidden
-  const [pausedRemaining, setPausedRemaining] = useState(null); // seconds saved when paused
+  // ------ Resume support ------
+  // If there's a saved session for THIS recipe (same id), pick up where the
+  // user left off — step index and (if the timer was running) remaining time.
+  const savedSession = useMemo(() => {
+    const s = RestaurantsService.loadCookSession();
+    return s && s.recipe_id === recipe.id ? s : null;
+  }, [recipe.id]);
+  const [idx, setIdx] = useState(() => savedSession ? Math.min(savedSession.step_idx || 0, Math.max(0, steps.length - 1)) : 0);
+  const initialEndsAt = savedSession?.ends_at ? Date.parse(savedSession.ends_at) : null;
+  const initialPaused = savedSession?.paused_remaining ?? null;
+  const [endsAt, setEndsAt] = useState(initialEndsAt && initialEndsAt > Date.now() ? initialEndsAt : null);
+  const [pausedRemaining, setPausedRemaining] = useState(
+    initialPaused !== null ? initialPaused :
+    (initialEndsAt && initialEndsAt <= Date.now() ? 0 : null),
+  );
   const [now, setNow] = useState(() => Date.now());
   const [alarming, setAlarming] = useState(false); // repeating alarm loop after timer finish
+  // "How did it go?" prompt after the last step
+  const [showNotePrompt, setShowNotePrompt] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
   const intervalRef = useRef(null);
   const alarmIntervalRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -584,8 +630,34 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
     } catch { /* Notification not supported */ }
   };
 
-  // Reset timer whenever step changes
+  // Persist an active cook session whenever step/timer state changes so a
+  // reload or app close doesn't lose progress. We DON'T persist alarm state —
+  // the alarm is transient and will just refire if the deadline is still
+  // reached after resume.
   useEffect(() => {
+    RestaurantsService.saveCookSession({
+      recipe_id: recipe.id,
+      step_idx: idx,
+      ends_at: endsAt ? new Date(endsAt).toISOString() : null,
+      paused_remaining: pausedRemaining,
+    });
+  }, [recipe.id, idx, endsAt, pausedRemaining]);
+
+  // One-time toast on mount when we resumed from a saved session
+  useEffect(() => {
+    if (savedSession && (savedSession.step_idx || savedSession.ends_at || savedSession.paused_remaining !== null)) {
+      toast.success(`Resumed at step ${(savedSession.step_idx || 0) + 1}`);
+    }
+  }, []);
+
+  // Reset timer whenever step changes (but not for the initial render if we
+  // resumed from a saved session with an active timer for that step).
+  const stepChangeMountRef = useRef(true);
+  useEffect(() => {
+    if (stepChangeMountRef.current) {
+      stepChangeMountRef.current = false;
+      return; // Preserve resumed state on first render
+    }
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     stopAlarm();
     setEndsAt(null);
@@ -764,7 +836,12 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
               Next step <SkipForward className="w-4 h-4 ml-1" />
             </Button>
           ) : (
-            <Button type="button" onClick={onComplete} className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="cook-mode-finish">
+            <Button
+              type="button"
+              onClick={() => { stopAlarm(); setShowNotePrompt(true); }}
+              className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 text-white"
+              data-testid="cook-mode-finish"
+            >
               <CheckCircle2 className="w-4 h-4 mr-1" /> Done cooking
             </Button>
           )}
@@ -772,6 +849,51 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
             <XIcon className="w-4 h-4" />
           </Button>
         </div>
+
+        {/* ---------- Post-cook notes prompt ---------- */}
+        {showNotePrompt && (
+          <div className={`rounded-xl border p-3 space-y-2 ${isDark ? "bg-emerald-500/5 border-emerald-500/30" : "bg-emerald-50 border-emerald-300"}`} data-testid="cook-note-prompt">
+            <div className={`text-sm font-semibold flex items-center gap-1.5 ${isDark ? "text-emerald-200" : "text-emerald-900"}`}>
+              <Sparkles className="w-4 h-4" /> How did it go?
+            </div>
+            <div className={`text-[11px] ${isDark ? "text-emerald-300/80" : "text-emerald-800"}`}>
+              Jot any tweaks (temperature, timing, swaps) so Next-You remembers.
+            </div>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="e.g. Doubled the garlic — perfect. Skip the sugar next time."
+              rows={3}
+              className={`w-full rounded-md border p-2 text-sm resize-none ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-slate-500" : "bg-white border-gray-200 text-gray-900 placeholder:text-gray-400"}`}
+              autoFocus
+              data-testid="cook-note-input"
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={async () => {
+                  const clean = noteDraft.trim();
+                  if (clean) await RestaurantsService.addRecipeCookNote(recipe.id, clean);
+                  await onComplete();
+                }}
+                disabled={!noteDraft.trim()}
+                className="flex-1 h-9 bg-emerald-500 hover:bg-emerald-600 text-white"
+                data-testid="cook-note-save"
+              >
+                <Save className="w-3.5 h-3.5 mr-1" /> Save note & finish
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => { await onComplete(); }}
+                variant="outline"
+                className="h-9"
+                data-testid="cook-note-skip"
+              >
+                Skip
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
