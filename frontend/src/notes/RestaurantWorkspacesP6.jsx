@@ -8,13 +8,16 @@ import { toast } from "sonner";
 import axios from "axios";
 import {
   MessageCircle, Send, Loader2, ChefHat, Utensils, Plus, Trash2, Edit3,
-  Baby, Cake, HeartHandshake, AlertTriangle, User, RotateCcw,
+  Baby, Cake, HeartHandshake, AlertTriangle, User, RotateCcw, Flame, Calendar, CheckCircle2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import RestaurantsService from "../storage/restaurantsService";
+import StorageService from "../storage/storageService";
+import { PhotoAttachPanel } from "./rg/PhotoAttachPanel";
+import { format, formatDistanceToNow } from "date-fns";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -188,6 +191,13 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
 
   const handleSave = async (p) => { await RestaurantsService.saveRecipe(p); reload(); toast.success("Saved"); setEditing(null); };
   const handleDelete = async (id) => { await RestaurantsService.deleteRecipe(id); setRecipes(recipes.filter(r => r.id !== id)); toast.success("Removed"); };
+  const handleCook = async (id) => {
+    const updated = await RestaurantsService.logRecipeCook(id);
+    if (updated) {
+      setRecipes(recipes.map(r => r.id === id ? updated : r));
+      toast.success(`Cooked! (${updated.cook_count}× total)`);
+    }
+  };
 
   return (
     <>
@@ -233,7 +243,13 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                               </div>
                             )}
                             {rec.notes && <div className={`text-[11px] mt-1 italic ${isDark ? "text-slate-400" : "text-gray-600"}`}>{rec.notes}</div>}
+                            {rec.cook_count > 0 && (
+                              <div className={`text-[10px] mt-1 inline-flex items-center gap-1 ${isDark ? "text-amber-300" : "text-amber-700"}`}>
+                                <Flame className="w-2.5 h-2.5" /> cooked {rec.cook_count}× · last: {rec.last_cooked_at ? formatDistanceToNow(new Date(rec.last_cooked_at), { addSuffix: true }) : "—"}
+                              </div>
+                            )}
                           </div>
+                          <button type="button" onClick={() => handleCook(rec.id)} title="Cook this again" className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"}`} data-testid={`recipe-cook-${rec.id}`}><Flame className="w-3.5 h-3.5" /></button>
                           <button type="button" onClick={() => setEditing(rec)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}><Edit3 className="w-3.5 h-3.5" /></button>
                           <button type="button" onClick={() => handleDelete(rec.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
@@ -303,6 +319,13 @@ function RecipeEditor({ restaurants, menuItems, item, defaultRestaurantId, isDar
           <Field label="Ingredients (one per line)" isDark={isDark}><Textarea value={f.ingredients_text} onChange={(e) => setF({ ...f, ingredients_text: e.target.value })} rows={4} placeholder="1 lb dry pasta&#10;6 cloves garlic&#10;1/4 cup butter" className={isDark ? "bg-white/5 border-white/10 text-white" : ""} data-testid="recipe-ingredients" /></Field>
           <Field label="Steps (one per line)" isDark={isDark}><Textarea value={f.steps_text} onChange={(e) => setF({ ...f, steps_text: e.target.value })} rows={4} placeholder="Boil water and salt heavily&#10;Toast garlic in butter…" className={isDark ? "bg-white/5 border-white/10 text-white" : ""} data-testid="recipe-steps" /></Field>
           <Field label="Notes" isDark={isDark}><Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} rows={2} className={isDark ? "bg-white/5 border-white/10 text-white" : ""} /></Field>
+          <PhotoAttachPanel
+            isDark={isDark}
+            restaurantId={f.restaurant_id}
+            link={{ recipeId: f.id }}
+            label="Recipe photos"
+            disabled={!f.id}
+          />
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button type="submit" disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" data-testid="recipe-editor-save">{isEdit ? "Save" : "Add recipe"}</Button>
@@ -326,6 +349,37 @@ export function RestaurantFamilyModal({ isOpen, onClose, isDark }) {
 
   const handleSave = async (p) => { await RestaurantsService.saveFamilyMember(p); reload(); toast.success("Saved"); setEditing(null); };
   const handleDelete = async (id) => { await RestaurantsService.deleteFamilyMember(id); setMembers(members.filter(m => m.id !== id)); toast.success("Removed"); };
+  const handleSyncBirthdays = async () => {
+    const withBirthdays = members.filter(m => m.birthday && /^\d{1,2}[-/]\d{1,2}$/.test(m.birthday));
+    if (withBirthdays.length === 0) { toast.error("No family birthdays saved yet"); return; }
+    let created = 0;
+    for (const m of withBirthdays) {
+      const [mm, dd] = m.birthday.split(/[-/]/).map(Number);
+      const now = new Date();
+      let target = new Date(now.getFullYear(), mm - 1, dd);
+      if (target < now) target = new Date(now.getFullYear() + 1, mm - 1, dd);
+      target.setHours(9, 0, 0, 0);
+      const noteId = `rg-bday-${m.id}`;
+      await StorageService.saveNote({
+        id: noteId,
+        title: `🎂 ${m.name}'s birthday`,
+        content: `${m.name}${m.relation ? ` (${m.relation})` : ""}\nBirthday reminder from Restaurants Galore.`,
+        color: "pink", icon: "Cake",
+        background: { type: "gradient", value: ["#F472B6", "#DB2777"] },
+        pinned: false,
+        tags: ["restaurants", "birthday", "family"],
+        attachments: [], events: [], checklist: [],
+        category: "Restaurants", subcategory: "",
+        alarm: { datetime: target.toISOString(), enabled: true },
+        recurring: { enabled: true, frequency: "yearly", days: [] },
+        order: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      created += 1;
+    }
+    toast.success(`Synced ${created} birthday reminder${created === 1 ? "" : "s"} to your notes`);
+  };
 
   return (
     <>
@@ -337,7 +391,10 @@ export function RestaurantFamilyModal({ isOpen, onClose, isDark }) {
           </DialogHeader>
           {loading ? <div className="py-10 text-center text-sm text-slate-400">Loading…</div> : (
             <div className="space-y-3">
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleSyncBirthdays} disabled={members.length === 0} className="h-9" data-testid="family-sync-btn">
+                  <Calendar className="w-4 h-4 mr-1" /> Sync birthdays
+                </Button>
                 <Button className="h-9 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setEditing({})} data-testid="family-add-btn">
                   <Plus className="w-4 h-4 mr-1" /> Add member
                 </Button>

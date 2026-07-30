@@ -1,0 +1,24 @@
+/* Restaurants Galore — Glass workspace theme.
+   Enabled by adding `data-rg-glass="true"` on <body>.
+   Applies frosted-blur backdrop + semi-transparent surface to every
+   Radix Dialog that is nested inside a Restaurants Galore modal tree.
+*/
+
+body[data-rg-glass="true"] [role="dialog"][data-state="open"] {
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  background: rgba(11, 18, 33, 0.72) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Light-mode variant */
+body[data-rg-glass="true"].light [role="dialog"][data-state="open"] {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Preserve backdrop overlay a bit lighter so the blur looks intentional */
+body[data-rg-glass="true"] [data-radix-dialog-overlay] {
+  background: rgba(0, 0, 0, 0.45) !important;
+}

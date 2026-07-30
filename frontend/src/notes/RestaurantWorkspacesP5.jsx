@@ -2,14 +2,16 @@
 //   • RestaurantBackupModal — Export / Import all Restaurants Galore data as JSON
 //   • MapsPickerModal       — Google Maps / Waze / Apple Maps chooser
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Download, Upload, HardDriveDownload, MapPin, ExternalLink } from "lucide-react";
+import { Download, Upload, HardDriveDownload, MapPin, ExternalLink, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import RestaurantsService from "../storage/restaurantsService";
+import "./rg/glass-theme.css";
 
 const APP_VERSION = "iron-rabbit@1.0";
+const GLASS_KEY = "rg_glass_theme";
 
 // =========================================================================
 // BACKUP / RESTORE
@@ -18,6 +20,13 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [glassOn, setGlassOn] = useState(() => localStorage.getItem(GLASS_KEY) === "1");
+
+  // Apply/remove the body attribute so CSS can target every open dialog
+  useEffect(() => {
+    document.body.setAttribute("data-rg-glass", glassOn ? "true" : "false");
+    localStorage.setItem(GLASS_KEY, glassOn ? "1" : "0");
+  }, [glassOn]);
 
   const handleExport = async () => {
     setBusy(true);
@@ -81,6 +90,26 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>Export everything in your dining library to a JSON file — bring it back on any device.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div className={`rounded-lg p-3 border flex items-center justify-between ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid="glass-toggle-row">
+            <div>
+              <div className={`text-xs font-semibold flex items-center gap-1.5 ${isDark ? "text-white" : "text-gray-900"}`}>
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Glass workspace theme
+              </div>
+              <div className={`text-[11px] mt-0.5 ${isDark ? "text-slate-400" : "text-gray-600"}`}>
+                Frosted-blur backdrop for every Restaurants Galore modal.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGlassOn(!glassOn)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${glassOn ? "bg-amber-500" : isDark ? "bg-white/20" : "bg-gray-300"}`}
+              data-testid="glass-toggle"
+              aria-pressed={glassOn}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${glassOn ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+
           <div className={`rounded-lg p-3 border ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`}>
             <div className={`text-xs font-semibold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>Export</div>
             <div className={`text-[11px] mb-2 ${isDark ? "text-slate-400" : "text-gray-600"}`}>Downloads a single .json file — restaurants, menus, orders, reviews, photos, and everything else.</div>

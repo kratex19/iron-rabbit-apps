@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import RestaurantsService from "../storage/restaurantsService";
+import { PhotoAttachPanel } from "./rg/PhotoAttachPanel";
 
 // ------------ shared helpers ------------
 const Field = ({ label, children, isDark }) => (
@@ -184,6 +185,13 @@ function ReviewEditor({ restaurants, item, defaultRestaurantId, isDark, onClose,
           <Field label="Comment" isDark={isDark}>
             <Textarea value={f.comment} onChange={(e) => setF({ ...f, comment: e.target.value })} rows={3} className={isDark ? "bg-white/5 border-white/10 text-white" : ""} data-testid="review-comment" />
           </Field>
+          <PhotoAttachPanel
+            isDark={isDark}
+            restaurantId={f.restaurant_id}
+            link={{ reviewId: f.id }}
+            label="Review photos"
+            disabled={!f.id}
+          />
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button type="submit" disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" data-testid="review-editor-save"><Check className="w-4 h-4 mr-1" /> {isEdit ? "Save" : "Save review"}</Button>
@@ -255,7 +263,15 @@ export function RestaurantDeliveryModal({ isOpen, onClose, isDark }) {
                       <div key={d.id} className={`rounded-lg border p-2.5 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid={`delivery-row-${d.id}`}>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>{r?.name || "Unknown"} <span className={`text-[10px] font-normal ml-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>{d.driver_name ? `· ${d.driver_name}` : ""}</span></div>
+                            <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                              {r?.name || "Unknown"}
+                              {d.driver_name && <span className={`text-[10px] font-normal ml-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}> · {d.driver_name}</span>}
+                              {d.driver_phone && (
+                                <a href={`tel:${d.driver_phone.replace(/\s+/g, "")}`} className={`text-[10px] ml-1 inline-flex items-center gap-0.5 hover:underline ${isDark ? "text-sky-400" : "text-sky-600"}`} data-testid={`delivery-dial-${d.id}`}>
+                                  <Phone className="w-2.5 h-2.5" /> {d.driver_phone}
+                                </a>
+                              )}
+                            </div>
                             <div className={`text-[11px] ${isDark ? "text-slate-400" : "text-gray-600"}`}>
                               {d.minutes ? `${d.minutes} min` : ""} {tempIcon} {d.packaging_quality ? `· pack ${d.packaging_quality}/5` : ""} {d.accuracy ? `· acc ${d.accuracy}/5` : ""}
                             </div>
@@ -288,6 +304,7 @@ function DeliveryEditor({ restaurants, item, defaultRestaurantId, isDark, onClos
   const isEdit = !!item;
   const [f, setF] = useState({
     id: item?.id, restaurant_id: item?.restaurant_id || defaultRestaurantId || "", driver_name: item?.driver_name || "",
+    driver_phone: item?.driver_phone || "",
     order_time: item?.order_time || "", delivery_time: item?.delivery_time || "",
     arrival_time: item?.arrival_time || "", minutes: item?.minutes ?? "",
     food_temp: item?.food_temp || "hot", packaging_quality: item?.packaging_quality ?? 0,
@@ -305,6 +322,9 @@ function DeliveryEditor({ restaurants, item, defaultRestaurantId, isDark, onClos
             </select>
           </Field>
           <Field label="Driver name" isDark={isDark}><Input value={f.driver_name} onChange={(e) => setF({ ...f, driver_name: e.target.value })} className={inputCls(isDark)} data-testid="delivery-driver" /></Field>
+          <Field label="Driver phone (for tap-to-call)" isDark={isDark}>
+            <Input type="tel" value={f.driver_phone} onChange={(e) => setF({ ...f, driver_phone: e.target.value })} placeholder="+1 555 0100" className={inputCls(isDark)} data-testid="delivery-driver-phone" />
+          </Field>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Order time" isDark={isDark}><Input type="time" value={f.order_time} onChange={(e) => setF({ ...f, order_time: e.target.value })} className={inputCls(isDark)} /></Field>
             <Field label="Arrival" isDark={isDark}><Input type="time" value={f.arrival_time} onChange={(e) => setF({ ...f, arrival_time: e.target.value })} className={inputCls(isDark)} /></Field>

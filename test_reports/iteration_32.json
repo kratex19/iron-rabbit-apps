@@ -1,0 +1,43 @@
+{
+  "summary": "Batch A + B + C enhancements validated end-to-end on preview URL. Toast overlay UX fix confirmed (Toaster bottom-right, bb=(1540,1056) in 1920x1080 viewport; header-restaurants-galore remains visible+clickable immediately after 'Saved' toast). All 21 launcher tiles present. Recipe 'Cook this again' works: 1st click → toast 'Cooked! (1× total)', 2nd click → 'Cooked! (2× total)', list card shows 'cooked 2× · last: less than a minute ago'. PhotoAttachPanel (attach-photo-btn + attach-photo-input) renders inside Recipe / Coupon / Review editors after first save. Delivery editor has new data-testid='delivery-driver-phone' input; saved row exposes delivery-dial-<id> anchor with href='tel:555-1234'. Family sync: family-sync-btn present, click fires toast 'Synced 2 birthday reminders to your notes' (Kai 03-14 + Alex 07-21). Glass theme: glass-toggle-row + glass-toggle present in Backup modal; toggle ON writes body[data-rg-glass='true'] and localStorage rg_glass_theme='1', toggle OFF writes 'false', setting persists across full page reload. Pre-visit briefing regression PASS — directory-brief-<id> opens modal with allergy warnings (Kai — avoid peanuts) and live coupons (PHOTO20). Zero React 'unique key' warnings, zero console errors across the full flow.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "batch_results": {
+    "toast_bottom_right_fix": "PASS — Toaster bounding box at (1540, 1056), header-restaurants-galore stays clickable post-save.",
+    "recipe_cook_flow": "PASS — recipe-cook-<id> increments count; toast shows '(N× total)'; recipes-list card renders 'cooked 2× · last: <relative time>'.",
+    "recipe_photo_attach": "PASS — attach-photo-btn visible inside recipe-editor after save.",
+    "coupon_photo_attach": "PASS — attach-photo-btn visible inside coupon-editor after save.",
+    "review_photo_attach": "PASS — attach-photo-btn visible inside review-editor after save.",
+    "delivery_driver_phone": "PASS — delivery-driver-phone input exists; delivery-dial-<id> anchor rendered with href='tel:555-1234'.",
+    "family_birthday_sync": "PASS — family-sync-btn present; toast 'Synced 2 birthday reminders to your notes' fires. Note: direct IndexedDB verification of the two 🎂 notes was not possible in the same-run because Playwright launches a fresh browsing context after reload; the toast + StorageService.saveNote code path (RestaurantWorkspacesP6.jsx L362-378 writes category='Restaurants', title='🎂 <name>'s birthday', tags include 'birthday','family','restaurants') provide sufficient proof.",
+    "glass_theme_toggle": "PASS — body[data-rg-glass] transitions true→false→true; localStorage rg_glass_theme='1'; setting survives full page reload.",
+    "launcher_count": "PASS — 21 launcher-* testids.",
+    "pre_visit_briefing_regression": "PASS — pre-visit-briefing modal renders with allergy warnings and live coupons.",
+    "key_prop_warnings": "PASS — 0 warnings.",
+    "console_errors": "PASS — 0 errors."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Nice-to-have) Family birthday input in RestaurantWorkspacesP6.jsx L480 has no data-testid — currently addressable only by placeholder='07-14'. Consider adding data-testid='family-birthday' for future automated tests.",
+    "(Nice-to-have) Edit/Delete icon-buttons inside recipe-row, coupon-row, review-row, delivery-row still lack per-id data-testid. Automated Edit flows currently rely on positional selectors (button.nth(1) etc.). Add data-testid={`<resource>-edit-<id>`} / `-delete-<id>` for robustness (same gap flagged in iteration_31)."
+  ],
+  "critical_code_review_comments": [
+    "PhotoAttachPanel.jsx is a clean, well-scoped shared component. The disabled hint 'Save first, then attach photos' is defensive but rarely reached because all four callers (Recipe/Coupon/Review + existing Order gate) render the panel only after isEdit=true (id exists). Consider passing an explicit prop to hide the whole panel in un-saved state, so the file input isn't even in the DOM pre-save.",
+    "handleSyncBirthdays uses a deterministic noteId=`rg-bday-${m.id}`, which is idempotent — re-clicking Sync updates the same note instead of duplicating. Good. However, if the user renames or deletes a family member, the orphan birthday note is not cleaned up. Add a cleanup pass (delete rg-bday-* whose family id no longer exists).",
+    "glass-theme.css targets `[role=\"dialog\"][data-state=\"open\"]` globally — this affects EVERY Radix dialog in the app when the toggle is on, not just Restaurants Galore modals. Verified visually the Backup dialog frosted correctly, but any non-RG dialog (e.g. note editor, settings) will also be glassed. If unintended, scope the selector under a container class instead of body attribute.",
+    "delivery-dial-<id> uses `d.driver_phone.replace(/\\s+/g, '')` before writing into tel: — good for spaces but keeps hyphens (tel:555-1234 works, so acceptable). No further sanitization needed.",
+    "Toaster is duplicated in both /app/frontend/src/App.js:31 and /app/frontend/src/NotesApp.jsx:1279 (both position='bottom-right'). Two Toasters render two <ol> lists; sonner deduplicates via portal but this yielded duplicate toast text arrays in test output ('Cooked!','Cooked!','Saved','Saved'). Cosmetic — end-user sees one toast, but consider removing the App.js-level Toaster since NotesApp.jsx already renders one."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only request)", "frontend": "100% (11/11 items covered)"},
+  "test_credentials": "none — local PWA IndexedDB",
+  "seed_data_creation": "Restaurant 'Batch Bistro', family members Kai(03-14, allergies=peanuts) and Alex(07-21), Recipe 'Home Ramen', Coupon 'PHOTO20', 1 Review (food=5★), 1 Delivery (Sam, 555-1234, 25min) — all created in-run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Same as iter_31: IndexedDB is per-Playwright-context, so seed data must be created within the script. Aggressive dismiss loop (tour-skip / tour-skip-inline / qa-close / qa-skip-forever) needed at start + after modal-close. For editing existing rows without per-id edit testids, use `.locator('[data-testid=\"<resource>-row-<id>\"] button').nth(N)` — order per row: coupon [toggleUsed,edit,delete], recipe [cook,edit,delete], review [maps?,edit,delete] (only 2 buttons observed — no maps because rating stars are inside the row body). Family birthday input has no testid — use `input[placeholder=\"07-14\"]`. Two Toasters in DOM (App.js + NotesApp.jsx) cause every toast text to appear twice in Playwright's all_text_contents(); use `any(...)` matchers rather than equality on toast arrays.",
+  "rca of the issue": "N/A — no bugs found. Iteration_32's toast-overlay blocker is fully resolved (Toaster position='bottom-right' in both App.js:31 and NotesApp.jsx:1279)."
+}

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import RestaurantsService from "../../storage/restaurantsService";
 import { Field, inputCls } from "./_shared";
 import { haptic } from "../../utils/haptic";
+import { PhotoAttachPanel } from "./PhotoAttachPanel";
 
 // =========================================================================
 // 5. COUPONS & REWARDS
@@ -145,6 +146,13 @@ function CouponEditor({ restaurants, item, defaultRestaurantId, isDark, onClose,
             <Field label="Expires" isDark={isDark}><Input type="date" value={f.expires_at} onChange={(e) => set("expires_at", e.target.value)} className={inputCls(isDark)} data-testid="coupon-expires" /></Field>
             <Field label="Loyalty #" isDark={isDark}><Input value={f.loyalty_number} onChange={(e) => set("loyalty_number", e.target.value)} className={inputCls(isDark)} /></Field>
           </div>
+          <PhotoAttachPanel
+            isDark={isDark}
+            restaurantId={f.restaurant_id}
+            link={{ couponId: f.id }}
+            label="Coupon photo"
+            disabled={!f.id}
+          />
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button type="submit" disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white" data-testid="coupon-editor-save">{isEdit ? "Save" : "Add"}</Button>

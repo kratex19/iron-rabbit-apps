@@ -311,12 +311,14 @@ const RestaurantsService = {
   },
 
   // ================= PHOTOS =================
-  async listPhotos({ restaurantId, orderId, reviewId } = {}) {
+  async listPhotos({ restaurantId, orderId, reviewId, recipeId, couponId } = {}) {
     const all = await iterAll(photosStore);
     return all
       .filter(p => !restaurantId || p.restaurant_id === restaurantId)
       .filter(p => !orderId || p.order_id === orderId)
       .filter(p => !reviewId || p.review_id === reviewId)
+      .filter(p => !recipeId || p.recipe_id === recipeId)
+      .filter(p => !couponId || p.coupon_id === couponId)
       .sort((a, b) => new Date(b.taken_at || b.created_at) - new Date(a.taken_at || a.created_at));
   },
   async savePhoto(p) {
@@ -381,6 +383,18 @@ const RestaurantsService = {
   async deleteRecipe(id) {
     await recipesStore.removeItem(id);
     return true;
+  },
+  async logRecipeCook(id) {
+    const existing = await recipesStore.getItem(id);
+    if (!existing) return null;
+    const record = {
+      ...existing,
+      cook_count: (existing.cook_count || 0) + 1,
+      last_cooked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await recipesStore.setItem(id, record);
+    return record;
   },
 
   // ================= FAMILY DINING =================
