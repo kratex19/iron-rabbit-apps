@@ -8,6 +8,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import RestaurantsService from "../storage/restaurantsService";
+import { daysSinceLastBackup } from "./rg/RestaurantWorkspacesP5";
 
 /**
  * Restaurants Galore™ — Command Center Dashboard.
@@ -52,12 +53,13 @@ export default function RestaurantsGaloreDashboardModal({
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`p-3 rounded-xl border text-left transition-all ${
+        className={`p-3 rounded-xl border text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
           disabled
             ? isDark ? "border-white/5 bg-white/[0.01] text-slate-600 cursor-not-allowed" : "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
             : isDark ? "border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 text-white" : "border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-900"
         }`}
         data-testid={testid}
+        aria-label={label}
         title={disabled ? "Coming in a future phase" : label}
       >
         <Icon className="w-5 h-5 mb-1.5 text-amber-400" />
@@ -184,7 +186,31 @@ export default function RestaurantsGaloreDashboardModal({
                 {launcher(Search, "Search all", onOpenSearch, false, "launcher-search")}
                 {launcher(Sparkles, "AI insights", onOpenAI, false, "launcher-ai")}
                 {launcher(DollarSign, "Tip calc", onOpenOrders, false, "launcher-tip")}
-                {launcher(HardDriveDownload, "Backup", onOpenBackup, false, "launcher-backup")}
+                {(() => {
+                  const d = daysSinceLastBackup();
+                  const stale = isFinite(d) && d > 30;
+                  const neverBackedUp = !isFinite(d);
+                  return (
+                    <button
+                      type="button"
+                      onClick={onOpenBackup}
+                      className={`relative p-3 rounded-xl border text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${isDark ? "border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 text-white" : "border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-900"}`}
+                      data-testid="launcher-backup"
+                      aria-label={stale ? "Backup — 30+ days overdue" : "Backup"}
+                    >
+                      <HardDriveDownload className="w-5 h-5 mb-1.5 text-amber-400" />
+                      <div className="text-xs font-medium">Backup</div>
+                      {(stale || neverBackedUp) && (
+                        <span
+                          className={`absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${isDark ? "bg-amber-500/25 text-amber-300" : "bg-amber-100 text-amber-800"}`}
+                          data-testid="launcher-backup-nudge"
+                        >
+                          {neverBackedUp ? "!" : `${d}d`}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })()}
                 {launcher(ChefHat, "Recipes", onOpenRecipes, false, "launcher-recipes")}
                 {launcher(HeartHandshake, "Family dining", onOpenFamily, false, "launcher-family")}
               </div>

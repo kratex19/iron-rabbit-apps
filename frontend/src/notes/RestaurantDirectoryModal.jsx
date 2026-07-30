@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import RestaurantsService from "../storage/restaurantsService";
 import { haptic } from "../utils/haptic";
-import { MapsPickerModal } from "./RestaurantWorkspacesP5";
+import { MapsPickerModal } from "./rg/RestaurantWorkspacesP5";
 import { PreVisitBriefingModal } from "./rg/PreVisitBriefing";
 
 const AMENITY_TAGS = [

@@ -35,20 +35,20 @@ import {
   RestaurantStaffModal,
   RestaurantWishlistModal,
   RestaurantPhotosModal,
-} from "./RestaurantWorkspacesP3";
+} from "./rg/RestaurantWorkspacesP3";
 import {
   RestaurantVoiceJournalModal,
   RestaurantSearchModal,
   RestaurantBeveragesModal,
   RestaurantDessertsModal,
   RestaurantAIInsightsModal,
-} from "./RestaurantWorkspacesP4";
-import { RestaurantBackupModal } from "./RestaurantWorkspacesP5";
+} from "./rg/RestaurantWorkspacesP4";
+import { RestaurantBackupModal } from "./rg/RestaurantWorkspacesP5";
 import {
   RestaurantSmartAssistantModal,
   RestaurantRecipesModal,
   RestaurantFamilyModal,
-} from "./RestaurantWorkspacesP6";
+} from "./rg/RestaurantWorkspacesP6";
 import LanguagePicker from "./LanguagePicker";
 import SecurityModal from "./SecurityModal";
 import LockScreen from "../security/LockScreen";

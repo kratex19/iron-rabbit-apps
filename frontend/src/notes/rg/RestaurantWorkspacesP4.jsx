@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import RestaurantsService from "../storage/restaurantsService";
+import RestaurantsService from "../../storage/restaurantsService";
 import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;

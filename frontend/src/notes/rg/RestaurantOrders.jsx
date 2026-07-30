@@ -83,8 +83,8 @@ export function RestaurantOrdersModal({ isOpen, onClose, isDark }) {
                             <div className={`text-base font-mono font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>${Number(o.total || 0).toFixed(2)}</div>
                             {o.tip > 0 && <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>tip ${Number(o.tip).toFixed(2)}</div>}
                           </div>
-                          <button type="button" onClick={() => setEditing(o)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`order-edit-${o.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(o.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`order-delete-${o.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setEditing(o)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit order" data-testid={`order-edit-${o.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => handleDelete(o.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete order" data-testid={`order-delete-${o.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     );

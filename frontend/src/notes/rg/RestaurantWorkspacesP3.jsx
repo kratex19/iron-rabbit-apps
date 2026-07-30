@@ -16,8 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import RestaurantsService from "../storage/restaurantsService";
-import { PhotoAttachPanel } from "./rg/PhotoAttachPanel";
+import RestaurantsService from "../../storage/restaurantsService";
+import { PhotoAttachPanel } from "./PhotoAttachPanel";
 
 // ------------ shared helpers ------------
 const Field = ({ label, children, isDark }) => (
@@ -45,7 +45,7 @@ function StarRow({ label, value, onChange, isDark, testid }) {
       <div className={`w-24 text-xs ${isDark ? "text-slate-300" : "text-gray-700"}`}>{label}</div>
       <div className="flex gap-0.5" data-testid={testid}>
         {[1, 2, 3, 4, 5].map(n => (
-          <button key={n} type="button" onClick={() => onChange(n === value ? 0 : n)} className="p-0.5" data-testid={`${testid}-${n}`}>
+          <button key={n} type="button" onClick={() => onChange(n === value ? 0 : n)} aria-label={`Rate ${n} of 5 for ${label}`} aria-pressed={n <= value} className="p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded" data-testid={`${testid}-${n}`}>
             <Star className={`w-4 h-4 ${n <= value ? "text-amber-400 fill-current" : isDark ? "text-slate-600" : "text-gray-300"}`} />
           </button>
         ))}
@@ -138,8 +138,8 @@ export function RestaurantReviewsModal({ isOpen, onClose, isDark }) {
                             {r.comment && <div className={`text-[11px] mt-1 italic ${isDark ? "text-slate-400" : "text-gray-600"}`}>&ldquo;{r.comment}&rdquo;</div>}
                             <div className={`text-[10px] mt-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>{r.created_at ? format(new Date(r.created_at), "MMM d, yyyy") : ""}</div>
                           </div>
-                          <button type="button" onClick={() => setEditing(r)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`review-edit-${r.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(r.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`review-delete-${r.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setEditing(r)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit review" data-testid={`review-edit-${r.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => handleDelete(r.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete review" data-testid={`review-delete-${r.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     );
@@ -267,7 +267,7 @@ export function RestaurantDeliveryModal({ isOpen, onClose, isDark }) {
                               {r?.name || "Unknown"}
                               {d.driver_name && <span className={`text-[10px] font-normal ml-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}> · {d.driver_name}</span>}
                               {d.driver_phone && (
-                                <a href={`tel:${d.driver_phone.replace(/\s+/g, "")}`} className={`text-[10px] ml-1 inline-flex items-center gap-0.5 hover:underline ${isDark ? "text-sky-400" : "text-sky-600"}`} data-testid={`delivery-dial-${d.id}`}>
+                                <a href={`tel:${d.driver_phone.replace(/\s+/g, "")}`} className={`text-[10px] ml-1 inline-flex items-center gap-0.5 hover:underline ${isDark ? "text-sky-400" : "text-sky-600"}`} aria-label="Call delivery" data-testid={`delivery-dial-${d.id}`}>
                                   <Phone className="w-2.5 h-2.5" /> {d.driver_phone}
                                 </a>
                               )}
@@ -283,8 +283,8 @@ export function RestaurantDeliveryModal({ isOpen, onClose, isDark }) {
                               </div>
                             )}
                           </div>
-                          <button type="button" onClick={() => setEditing(d)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`delivery-edit-${d.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(d.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`delivery-delete-${d.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setEditing(d)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit delivery" data-testid={`delivery-edit-${d.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => handleDelete(d.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete delivery" data-testid={`delivery-delete-${d.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     );
@@ -409,8 +409,8 @@ export function RestaurantStaffModal({ isOpen, onClose, isDark }) {
                               {s.notes && <div className="italic">{s.notes}</div>}
                             </div>
                           </div>
-                          <button type="button" onClick={() => setEditing(s)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`staff-edit-${s.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(s.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`staff-delete-${s.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => setEditing(s)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit staff" data-testid={`staff-edit-${s.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                          <button type="button" onClick={() => handleDelete(s.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete staff" data-testid={`staff-delete-${s.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     );
@@ -511,8 +511,8 @@ export function RestaurantWishlistModal({ isOpen, onClose, isDark }) {
                           <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>{PRIORITY_LABEL[w.priority] || ""}{w.cuisine ? ` · ${w.cuisine}` : ""}{w.location ? ` · ${w.location}` : ""}</div>
                           {w.notes && <div className={`text-[11px] mt-0.5 italic ${isDark ? "text-slate-400" : "text-gray-600"}`}>{w.notes}</div>}
                         </div>
-                        <button type="button" onClick={() => setEditing(w)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} data-testid={`wishlist-edit-${w.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                        <button type="button" onClick={() => handleDelete(w.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} data-testid={`wishlist-delete-${w.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => setEditing(w)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit wishlist" data-testid={`wishlist-edit-${w.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => handleDelete(w.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete wishlist" data-testid={`wishlist-delete-${w.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   ))}
