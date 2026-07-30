@@ -49,6 +49,7 @@ import {
   RestaurantRecipesModal,
   RestaurantFamilyModal,
 } from "./rg/RestaurantWorkspacesP6";
+import { RestaurantShoppingListModal } from "./rg/RestaurantShoppingListModal";
 import LanguagePicker from "./LanguagePicker";
 import SecurityModal from "./SecurityModal";
 import LockScreen from "../security/LockScreen";
@@ -266,6 +267,7 @@ export default function AppModals(p) {
         onOpenSmart={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantSmartOpen(true), 150); }}
         onOpenRecipes={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantRecipesOpen(true), 150); }}
         onOpenFamily={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantFamilyOpen(true), 150); }}
+        onOpenShopping={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantShoppingOpen(true), 150); }}
       />
 
       <RestaurantDirectoryModal
@@ -371,6 +373,11 @@ export default function AppModals(p) {
       <RestaurantFamilyModal
         isOpen={p.restaurantFamilyOpen}
         onClose={() => p.setRestaurantFamilyOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantShoppingListModal
+        isOpen={p.restaurantShoppingOpen}
+        onClose={() => p.setRestaurantShoppingOpen(false)}
         isDark={p.isDark}
       />
 

@@ -1,5 +1,34 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 8) — Live Sync Refresh + Conflict Guard + Drill-down + Recipe Ideas ✅
+
+### Live sync-refresh on Backup
+- `RestaurantWorkspacesP5.jsx` exposes a new `markBackupCompleted()` helper that stores the timestamp AND dispatches a `window` `CustomEvent("rg-backup-updated", { detail: { at } })`.
+- All backup paths (local export, WebDAV push, Google Drive push, auto-scheduled) call it so both manual and automatic backups broadcast the same event.
+- `RestaurantsGaloreDashboardModal.jsx` listens for the event with a `backupTick` state bump, causing the Sync Health chip on the Backup tile to re-read `localStorage` without any modal reopen.
+- `AppModals.jsx` — the Backup launcher no longer closes the RG dashboard before opening the Backup modal. The dashboard stays mounted behind so the chip visibly flips to `synced just now` mid-flow.
+
+### Pull Conflict Guard
+- `RestaurantsService.computeBackupDiff` now flags each `changed` row as `conflict` when `local.updated_at > incoming.updated_at` — i.e., accepting the backup would silently overwrite a fresher local edit.
+- `totals.conflicts` count drives a new amber banner (`data-testid=diff-conflict-banner`) inside the diff panel.
+- Merge button gets a `⚠` suffix + an extra `window.confirm` if conflicts > 0. Replace button's existing confirm now includes an "N item(s) newer than backup will be overwritten" line.
+
+### Diff Drill-down
+- `computeBackupDiff` now returns per-collection sample lists (`items.added`, `items.changed`, `items.removed`), capped at 20 per bucket, each item carrying `{id, name}` via a `labelOf()` best-effort field pick (name → title → meal_name → code → order_number → role/date/id).
+- Diff report rows are now expandable buttons (`data-testid=diff-row-toggle-<key>`, `diff-drilldown-<key>`) with `+ / ~ / −` prefixed item names. Rows with zero changes are disabled. Bucket footer shows `… and N more` when the total exceeds 20.
+
+### Assistant Recipe Ideas
+- New backend endpoint `POST /api/dining_recipe_idea` (Claude Sonnet 4.6) returns strict JSON `{title, cuisine, prep_time_min, servings, ingredients[], steps[], notes}` personalized to the user's stats (top restaurants, recent orders, family allergies/dietary preferences). Accepts an optional `hint`. Robust to markdown-fenced JSON responses.
+- Smart Assistant modal gained a `Suggest a new dish` button (`data-testid=recipe-idea-btn`) and a preview panel (`recipe-idea-panel`) with restaurant-picker + Save + regenerate + dismiss. Save writes directly into `rg_recipes` via `RestaurantsService.saveRecipe`.
+- User hint from the input box (e.g. "vegetarian", "under 30 min") is passed through; input is cleared only on success so failures preserve the hint. Server truncates hint to 256 chars for safety.
+- `RecipeIdeaRequest.stats` is optional (`default_factory=dict`) — empty body still returns 200.
+
+### Testing
+- Iteration 36 → 37: all 4 features shipped, retested to 100% after 2 targeted fixes. Backend 9/9 pytest, frontend all live-scoped flows green. Live sync-refresh visibly flips the chip while the Backup modal is still open on top of the RG dashboard.
+
+---
+
+
 ## 2026-02-08 (session 7) — Diff Report + Sync Health + PBKDF2 600k ✅
 
 ### Backup diff report

@@ -4,6 +4,7 @@ import {
   ChefHat, Menu as MenuIcon, Receipt, Truck, Users, Camera,
   Mic, MessageCircle, ClipboardList, Coffee, Cookie, Search,
   AlertCircle, TrendingUp, Sparkles, HardDriveDownload, HeartHandshake,
+  ShoppingCart,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export default function RestaurantsGaloreDashboardModal({
   onOpenMenus, onOpenMeals, onOpenOrders, onOpenSpending, onOpenCoupons,
   onOpenReviews, onOpenDelivery, onOpenStaff, onOpenWishlist, onOpenPhotos,
   onOpenVoice, onOpenSearch, onOpenBeverages, onOpenDesserts, onOpenAI,
-  onOpenBackup, onOpenSmart, onOpenRecipes, onOpenFamily,
+  onOpenBackup, onOpenSmart, onOpenRecipes, onOpenFamily, onOpenShopping,
 }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -240,6 +241,7 @@ export default function RestaurantsGaloreDashboardModal({
                 })()}
                 {launcher(ChefHat, "Recipes", onOpenRecipes, false, "launcher-recipes")}
                 {launcher(HeartHandshake, "Family dining", onOpenFamily, false, "launcher-family")}
+                {launcher(ShoppingCart, "Shopping list", onOpenShopping, false, "launcher-shopping")}
               </div>
               <div className={`text-[10px] mt-2 ${isDark ? "text-slate-600" : "text-gray-400"}`}>
                 <b>{stats.total_restaurants}</b> restaurants · <b>{stats.total_orders}</b> orders · <b>{stats.total_reviews}</b> reviews stored offline

@@ -70,6 +70,7 @@ const voiceJournalStore = mkStore("voice_journal");
 const recipesStore     = mkStore("recipes");
 const familyStore      = mkStore("family");
 const chatHistoryStore = mkStore("chat_history");
+const shoppingStore    = mkStore("shopping_list");
 
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -453,6 +454,96 @@ const RestaurantsService = {
     await recipesStore.setItem(id, record);
     return record;
   },
+  // Set a 1-5 star rating (or 0 to clear) on a recipe.
+  async rateRecipe(id, rating) {
+    const existing = await recipesStore.getItem(id);
+    if (!existing) return null;
+    const r = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
+    const record = { ...existing, rating: r, updated_at: new Date().toISOString() };
+    await recipesStore.setItem(id, record);
+    return record;
+  },
+
+  // ================= SHOPPING LIST =================
+  // Cross-recipe shopping list. Items are keyed by a normalized name so
+  // adding the same ingredient from two recipes dedupes automatically.
+  async listShoppingItems() {
+    const all = await iterAll(shoppingStore);
+    return all.sort((a, b) => {
+      // Unchecked first, then by created_at ascending
+      if (a.checked !== b.checked) return a.checked ? 1 : -1;
+      return (a.created_at || "").localeCompare(b.created_at || "");
+    });
+  },
+  async addShoppingItems(items, { recipeId = null, recipeTitle = "" } = {}) {
+    const now = new Date().toISOString();
+    const all = await iterAll(shoppingStore);
+    const norm = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+    const existingByKey = new Map(all.map((it) => [norm(it.name), it]));
+    let added = 0, revived = 0;
+    for (const raw of items) {
+      const name = (raw || "").trim();
+      if (!name) continue;
+      const key = norm(name);
+      const existing = existingByKey.get(key);
+      if (existing) {
+        // If already unchecked → skip; if checked → revive (uncheck) so it re-appears in cart
+        if (existing.checked) {
+          const record = {
+            ...existing,
+            checked: false,
+            checked_at: null,
+            updated_at: now,
+            sources: Array.from(new Set([...(existing.sources || []), recipeTitle].filter(Boolean))),
+          };
+          await shoppingStore.setItem(existing.id, record);
+          revived += 1;
+        }
+        continue;
+      }
+      const id = rid("shop");
+      const record = {
+        id, name, checked: false,
+        recipe_id: recipeId,
+        sources: recipeTitle ? [recipeTitle] : [],
+        created_at: now, updated_at: now, checked_at: null,
+      };
+      await shoppingStore.setItem(id, record);
+      existingByKey.set(key, record);
+      added += 1;
+    }
+    return { added, revived };
+  },
+  async toggleShoppingItem(id) {
+    const existing = await shoppingStore.getItem(id);
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    const nextChecked = !existing.checked;
+    const record = {
+      ...existing,
+      checked: nextChecked,
+      checked_at: nextChecked ? now : null,
+      updated_at: now,
+    };
+    await shoppingStore.setItem(id, record);
+    return record;
+  },
+  async deleteShoppingItem(id) {
+    await shoppingStore.removeItem(id);
+    return true;
+  },
+  async clearCheckedShoppingItems() {
+    const all = await iterAll(shoppingStore);
+    let removed = 0;
+    for (const it of all) {
+      if (it.checked) { await shoppingStore.removeItem(it.id); removed += 1; }
+    }
+    return removed;
+  },
+  async clearShoppingList() {
+    await shoppingStore.clear();
+    return true;
+  },
 
   // ================= FAMILY DINING =================
   async listFamily() {
@@ -600,6 +691,7 @@ const RestaurantsService = {
       recipes: await iterAll(recipesStore),
       family: await iterAll(familyStore),
       chat_history: await iterAll(chatHistoryStore),
+      shopping_list: await iterAll(shoppingStore),
     };
   },
 
@@ -679,6 +771,7 @@ const RestaurantsService = {
       recipes: recipesStore,
       family: familyStore,
       chat_history: chatHistoryStore,
+      shopping_list: shoppingStore,
     };
     const equal = (a, b) => {
       // Strip volatile timestamps so a plain re-export doesn't mark every
@@ -780,6 +873,7 @@ const RestaurantsService = {
       recipes: recipesStore,
       family: familyStore,
       chat_history: chatHistoryStore,
+      shopping_list: shoppingStore,
     };
     if (mode === "replace") {
       for (const s of Object.values(map)) await s.clear();

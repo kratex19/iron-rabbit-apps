@@ -9,7 +9,7 @@ import axios from "axios";
 import {
   MessageCircle, Send, Loader2, ChefHat, Utensils, Plus, Trash2, Edit3,
   Baby, Cake, HeartHandshake, AlertTriangle, User, RotateCcw, Flame, Calendar, CheckCircle2,
-  Sparkles, Save,
+  Sparkles, Save, Star, PlayCircle, ShoppingCart, Coins, Pause, Play, SkipForward, SkipBack, X as XIcon,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
         recent_orders: all.orders.slice(-30).map(o => ({ date: o.date, total: o.total, tip: o.tip, restaurant_id: o.restaurant_id })),
         top_restaurants: all.restaurants.filter(r => !r.archived).map(r => ({ id: r.id, name: r.name, cuisine: r.cuisine, favorite: r.favorite })).slice(0, 30),
         family: (all.family || []).map(m => ({ name: m.name, relation: m.relation, allergies: m.allergies, dietary: m.dietary, loved_dishes: m.loved_dishes, hated_dishes: m.hated_dishes })),
+        rated_recipes: (all.recipes || []).filter(r => r.rating > 0).map(r => ({ title: r.title, cuisine: (r.tags || [])[0] || "", rating: r.rating })).slice(0, 20),
       });
       setRestaurants(all.restaurants.filter(r => !r.archived));
       // Restore prior conversation
@@ -99,6 +100,41 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
       setBusy(false);
     }
   };
+
+  // ------ Cost tracking (client-side estimate) ------
+  // Rough heuristic: ~4 characters per token for English. Claude Sonnet 4.5
+  // pricing: $3 / M input tokens, $15 / M output tokens (Feb 2026).
+  // This is an *estimate* — actual usage may vary. The point is to give the
+  // user a signal that the conversation is getting expensive.
+  const cost = useMemo(() => {
+    let inputChars = 0, outputChars = 0;
+    // Every request re-sends the full history + stats context. Stats blob
+    // is roughly the same size each turn; approximate as 4000 chars.
+    const STATS_CHARS_PER_TURN = 4000;
+    // Count each user message once as input (in its own turn) plus once for
+    // every subsequent turn's history.
+    const userTurns = messages.filter(m => m.role === "user").length;
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      if (m.role === "user") {
+        // Sent as input in every turn from this point onward
+        const turnsRemaining = userTurns - messages.slice(0, i).filter(x => x.role === "user").length;
+        inputChars += (m.text || "").length * turnsRemaining;
+      } else {
+        // Assistant message = output in its own turn + input in every subsequent turn
+        outputChars += (m.text || "").length;
+        const turnsAfter = userTurns - messages.slice(0, i).filter(x => x.role === "user").length;
+        inputChars += (m.text || "").length * turnsAfter;
+      }
+    }
+    inputChars += STATS_CHARS_PER_TURN * userTurns; // stats blob per request
+    const inputTokens = Math.ceil(inputChars / 4);
+    const outputTokens = Math.ceil(outputChars / 4);
+    const usd = (inputTokens / 1_000_000) * 3 + (outputTokens / 1_000_000) * 15;
+    return { inputTokens, outputTokens, usd };
+  }, [messages]);
+  // Warn when cost passes 5 cents so the user knows to reset
+  const costWarn = cost.usd >= 0.05;
 
   const reset = async () => {
     setMessages([]);
@@ -158,12 +194,22 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <MessageCircle className="w-5 h-5 text-amber-400" /> Smart Assistant
+            {messages.length > 0 && (
+              <span
+                className={`ml-2 inline-flex items-center gap-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full border ${costWarn ? (isDark ? "bg-amber-500/10 text-amber-300 border-amber-500/30" : "bg-amber-100 text-amber-800 border-amber-300") : (isDark ? "bg-white/5 text-slate-400 border-white/10" : "bg-gray-100 text-gray-600 border-gray-200")}`}
+                title={`Estimate: ~${cost.inputTokens.toLocaleString()} input + ${cost.outputTokens.toLocaleString()} output tokens. Reset to lower cost.`}
+                data-testid="assistant-cost-badge"
+              >
+                <Coins className="w-3 h-3" /> ~${cost.usd.toFixed(cost.usd >= 0.01 ? 3 : 4)}
+              </span>
+            )}
             <button type="button" onClick={reset} className={`ml-auto text-[10px] font-normal flex items-center gap-1 ${isDark ? "text-slate-500 hover:text-white" : "text-gray-500 hover:text-gray-900"}`} data-testid="assistant-reset">
               <RotateCcw className="w-3 h-3" /> Reset
             </button>
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
             Ask anything about your dining. Powered by Claude Sonnet — history is saved locally on this device only.
+            {costWarn && <span className={`block mt-0.5 ${isDark ? "text-amber-300" : "text-amber-700"}`}>Conversation is getting long — Reset to keep future replies snappy and cheap.</span>}
           </DialogDescription>
         </DialogHeader>
 
@@ -326,6 +372,19 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
       toast.success(`Cooked! (${updated.cook_count}× total)`);
     }
   };
+  const handleRate = async (id, rating) => {
+    const updated = await RestaurantsService.rateRecipe(id, rating);
+    if (updated) setRecipes(recipes.map(r => r.id === id ? updated : r));
+  };
+  const handleAddToShoppingList = async (rec) => {
+    if (!rec.ingredients?.length) { toast.error("No ingredients on this recipe"); return; }
+    const res = await RestaurantsService.addShoppingItems(rec.ingredients, { recipeId: rec.id, recipeTitle: rec.title });
+    const parts = [];
+    if (res.added) parts.push(`${res.added} added`);
+    if (res.revived) parts.push(`${res.revived} restored`);
+    toast.success(parts.length ? `Shopping list: ${parts.join(", ")}` : "Already on your list");
+  };
+  const [cooking, setCooking] = useState(null);
 
   return (
     <>
@@ -365,6 +424,25 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                               {rec.prep_time_min && <> · {rec.prep_time_min} min prep</>}
                               {rec.servings && <> · serves {rec.servings}</>}
                             </div>
+                            {/* Star rating */}
+                            <div className="flex items-center gap-0.5 mt-1" data-testid={`recipe-rating-${rec.id}`} role="group" aria-label="Rating">
+                              {[1, 2, 3, 4, 5].map((n) => {
+                                const filled = n <= (rec.rating || 0);
+                                return (
+                                  <button
+                                    key={n}
+                                    type="button"
+                                    onClick={() => handleRate(rec.id, n === (rec.rating || 0) ? 0 : n)}
+                                    className={`p-0.5 rounded transition-colors ${filled ? (isDark ? "text-amber-400" : "text-amber-500") : (isDark ? "text-slate-600 hover:text-amber-400/60" : "text-gray-300 hover:text-amber-400")}`}
+                                    aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                                    data-testid={`recipe-star-${rec.id}-${n}`}
+                                  >
+                                    <Star className="w-3 h-3" fill={filled ? "currentColor" : "none"} />
+                                  </button>
+                                );
+                              })}
+                              {rec.rating > 0 && <span className={`text-[10px] ml-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>({rec.rating}/5)</span>}
+                            </div>
                             {rec.ingredients?.length > 0 && (
                               <div className={`text-[11px] mt-1.5 ${isDark ? "text-slate-400" : "text-gray-600"}`}>
                                 <span className="font-semibold">Ingredients:</span> {rec.ingredients.slice(0, 5).join(", ")}{rec.ingredients.length > 5 ? `, +${rec.ingredients.length - 5} more` : ""}
@@ -377,9 +455,13 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
                               </div>
                             )}
                           </div>
-                          <button type="button" onClick={() => handleCook(rec.id)} title="Cook this again" className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"}`} aria-label="Log cook recipe" data-testid={`recipe-cook-${rec.id}`}><Flame className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => setEditing(rec)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit recipe" data-testid={`recipe-edit-${rec.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
-                          <button type="button" onClick={() => handleDelete(rec.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete recipe" data-testid={`recipe-delete-${rec.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          <div className="flex flex-col gap-0.5 shrink-0">
+                            <button type="button" onClick={() => setCooking(rec)} title="Cook mode (step-by-step)" disabled={!rec.steps?.length} className={`w-7 h-7 rounded-full flex items-center justify-center ${!rec.steps?.length ? "opacity-30 cursor-not-allowed" : ""} ${isDark ? "text-sky-400 hover:text-sky-300 hover:bg-sky-500/10" : "text-sky-600 hover:text-sky-700 hover:bg-sky-50"}`} aria-label="Enter cook mode" data-testid={`recipe-cook-mode-${rec.id}`}><PlayCircle className="w-3.5 h-3.5" /></button>
+                            <button type="button" onClick={() => handleAddToShoppingList(rec)} title="Add ingredients to shopping list" disabled={!rec.ingredients?.length} className={`w-7 h-7 rounded-full flex items-center justify-center ${!rec.ingredients?.length ? "opacity-30 cursor-not-allowed" : ""} ${isDark ? "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}`} aria-label="Add ingredients to shopping list" data-testid={`recipe-add-shopping-${rec.id}`}><ShoppingCart className="w-3.5 h-3.5" /></button>
+                            <button type="button" onClick={() => handleCook(rec.id)} title="Cook this again (quick log)" className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"}`} aria-label="Log cook recipe" data-testid={`recipe-cook-${rec.id}`}><Flame className="w-3.5 h-3.5" /></button>
+                            <button type="button" onClick={() => setEditing(rec)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`} aria-label="Edit recipe" data-testid={`recipe-edit-${rec.id}`}><Edit3 className="w-3.5 h-3.5" /></button>
+                            <button type="button" onClick={() => handleDelete(rec.id)} className={`w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-gray-400 hover:text-red-500 hover:bg-red-50"}`} aria-label="Delete recipe" data-testid={`recipe-delete-${rec.id}`}><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -391,7 +473,144 @@ export function RestaurantRecipesModal({ isOpen, onClose, isDark }) {
         </DialogContent>
       </Dialog>
       {editing && <RecipeEditor restaurants={restaurants} menuItems={menuItems} item={editing.id ? editing : null} defaultRestaurantId={editing.restaurant_id} isDark={isDark} onClose={() => setEditing(null)} onSave={handleSave} />}
+      {cooking && <CookModeModal recipe={cooking} isDark={isDark} onClose={() => setCooking(null)} onComplete={async () => { await handleCook(cooking.id); setCooking(null); }} />}
     </>
+  );
+}
+
+// =========================================================================
+// COOK MODE — step-by-step guided cooking with an auto-detected timer per step
+// =========================================================================
+// Parses "for 15 minutes" / "15 min" / "1 hour" hints from step text and
+// exposes a Start/Pause timer so users can cook hands-free.
+function parseStepMinutes(text) {
+  if (!text) return null;
+  const t = String(text).toLowerCase();
+  // Try "for X min[utes]" first — most reliable
+  let m = t.match(/for\s+(\d+)\s*(?:-\s*\d+\s*)?(min|minute|minutes|hr|hrs|hour|hours)\b/);
+  if (!m) m = t.match(/\b(\d+)\s*(min|minute|minutes|hr|hrs|hour|hours)\b/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (!n || n > 240) return null;
+  const isHour = m[2].startsWith("h");
+  return isHour ? n * 60 : n;
+}
+
+function CookModeModal({ recipe, isDark, onClose, onComplete }) {
+  const steps = recipe.steps || [];
+  const [idx, setIdx] = useState(0);
+  const [seconds, setSeconds] = useState(0); // remaining seconds
+  const [running, setRunning] = useState(false);
+  const intervalRef = useRef(null);
+  const stepMinutes = parseStepMinutes(steps[idx]);
+  const hasTimer = stepMinutes !== null;
+
+  // Reset timer whenever step changes
+  useEffect(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    setRunning(false);
+    setSeconds(stepMinutes ? stepMinutes * 60 : 0);
+  }, [idx, stepMinutes]);
+
+  useEffect(() => {
+    if (!running) return;
+    intervalRef.current = setInterval(() => {
+      setSeconds((s) => {
+        if (s <= 1) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          setRunning(false);
+          try {
+            toast.success(`Step ${idx + 1} timer done`);
+            // Small beep via Web Audio for a gentle nudge
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) {
+              const ctx = new AC();
+              const o = ctx.createOscillator(); const g = ctx.createGain();
+              o.connect(g); g.connect(ctx.destination);
+              o.frequency.value = 880; g.gain.value = 0.08;
+              o.start(); setTimeout(() => { o.stop(); ctx.close(); }, 400);
+            }
+          } catch { /* audio not permitted */ }
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; } };
+  }, [running, idx]);
+
+  const fmt = (s) => `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`;
+  const progress = steps.length ? ((idx + 1) / steps.length) * 100 : 0;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className={`max-w-lg ${isDark ? "bg-[#0B1221] border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="cook-mode-modal">
+        <DialogHeader>
+          <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+            <PlayCircle className="w-5 h-5 text-sky-400" /> Cook mode
+          </DialogTitle>
+          <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>{recipe.title}</DialogDescription>
+        </DialogHeader>
+        {/* Progress bar */}
+        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-gray-200"}`}>
+          <div className="h-full bg-sky-500 transition-all duration-300" style={{ width: `${progress}%` }} data-testid="cook-mode-progress" />
+        </div>
+        <div className={`text-[11px] ${isDark ? "text-slate-500" : "text-gray-500"}`} data-testid="cook-mode-step-counter">
+          Step {idx + 1} of {steps.length}
+        </div>
+
+        <div className={`rounded-xl p-4 border-2 min-h-[120px] ${isDark ? "bg-sky-500/5 border-sky-500/30 text-slate-100" : "bg-sky-50 border-sky-300 text-gray-900"}`} data-testid="cook-mode-step-text">
+          <div className="text-base leading-relaxed">{steps[idx] || "(empty step)"}</div>
+        </div>
+
+        {/* Timer */}
+        {hasTimer && (
+          <div className={`rounded-lg border p-3 flex items-center gap-3 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid="cook-mode-timer">
+            <div className={`text-3xl font-mono tabular-nums ${isDark ? "text-white" : "text-gray-900"}`} data-testid="cook-mode-timer-display">{fmt(seconds)}</div>
+            <div className="flex-1" />
+            {!running ? (
+              <Button
+                type="button"
+                onClick={() => { if (seconds === 0) setSeconds(stepMinutes * 60); setRunning(true); }}
+                className="bg-sky-500 hover:bg-sky-600 text-white h-9"
+                data-testid="cook-mode-timer-start"
+              >
+                <Play className="w-4 h-4 mr-1" /> {seconds === 0 ? "Restart" : "Start"}
+              </Button>
+            ) : (
+              <Button type="button" onClick={() => setRunning(false)} variant="outline" className="h-9" data-testid="cook-mode-timer-pause">
+                <Pause className="w-4 h-4 mr-1" /> Pause
+              </Button>
+            )}
+            <Button type="button" onClick={() => { setSeconds(stepMinutes * 60); setRunning(false); }} variant="outline" className="h-9 px-2" title="Reset" data-testid="cook-mode-timer-reset">
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+        {!hasTimer && (
+          <div className={`text-[11px] italic ${isDark ? "text-slate-500" : "text-gray-500"}`}>No timer needed for this step.</div>
+        )}
+
+        <div className="flex items-center gap-2 pt-1">
+          <Button type="button" onClick={() => setIdx(Math.max(0, idx - 1))} disabled={idx === 0} variant="outline" className="h-10" data-testid="cook-mode-prev">
+            <SkipBack className="w-4 h-4" />
+          </Button>
+          {idx < steps.length - 1 ? (
+            <Button type="button" onClick={() => setIdx(idx + 1)} className="flex-1 h-10 bg-sky-500 hover:bg-sky-600 text-white" data-testid="cook-mode-next">
+              Next step <SkipForward className="w-4 h-4 ml-1" />
+            </Button>
+          ) : (
+            <Button type="button" onClick={onComplete} className="flex-1 h-10 bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="cook-mode-finish">
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Done cooking
+            </Button>
+          )}
+          <Button type="button" onClick={onClose} variant="outline" className="h-10" data-testid="cook-mode-close" aria-label="Close cook mode">
+            <XIcon className="w-4 h-4" />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

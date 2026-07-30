@@ -62,6 +62,22 @@ def test_recipe_idea_hint_only_no_stats():
     _validate_shape(r.json())
 
 
+def test_recipe_idea_with_rated_recipes():
+    # iter_38: stats.rated_recipes should be accepted; LLM should favor 4-5 star cuisines.
+    payload = {
+        "stats": {
+            "rated_recipes": [
+                {"title": "Spicy Kimchi Stew", "cuisine": "Korean", "rating": 5},
+                {"title": "Bland Boiled Pasta", "cuisine": "Italian", "rating": 1},
+            ]
+        },
+        "hint": "dinner",
+    }
+    r = requests.post(URL, json=payload, timeout=90)
+    assert r.status_code == 200, r.text
+    _validate_shape(r.json())
+
+
 def test_recipe_idea_long_hint_truncated_silently():
     # Iter_37: hint capped server-side at 256 chars; a 1000-char hint should not crash.
     long_hint = "spicy " * 200  # 1200 chars

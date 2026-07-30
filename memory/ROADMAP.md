@@ -1,6 +1,6 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08 (session 7)_
+_Last updated: 2026-02-08 (session 8)_
 
 ## Restaurants Galore Backlog
 
@@ -10,12 +10,15 @@ _Last updated: 2026-02-08 (session 7)_
 - [ ] Voice journal transcript polish — auto-detect language.
 - [x] Smart Assistant conversation persistence across sessions. ✅ session 6
 - [ ] History-truncation hint in Smart Assistant when >20 turns are hit.
+- [x] Assistant Recipe Ideas — personalized dish suggestions saved straight into Recipes. ✅ session 8
 
 ### P2 — Cloud sync polish
 - [x] WebDAV: auto-schedule (weekly / monthly push). ✅ session 6
 - [x] Google Drive: auto-schedule (skipped silently — needs interactive OAuth). ✅ session 6
-- [x] "Show last-synced-at" indicator per destination. ✅ session 7 (Backup tile chip)
-- [ ] Conflict resolution when Pull would overwrite newer local data (currently: preview + Merge/Replace prompt covers this).
+- [x] "Show last-synced-at" indicator on Backup tile. ✅ session 7
+- [x] Live sync-refresh — chip updates the moment a backup completes. ✅ session 8
+- [x] Pull conflict guard — warn when a Pull would overwrite items edited more recently locally. ✅ session 8
+- [x] Backup diff drill-down — expand a collection row to see the individual item names. ✅ session 8
 - [x] Encrypted backups (client-side AES-GCM with a passphrase). ✅ session 6
 - [x] Backup diff report — after a Pull, show what will change before committing Merge/Replace. ✅ session 7
 - [x] Bump PBKDF2 to 600k iterations (OWASP 2023 SHA-256 guidance). ✅ session 7
