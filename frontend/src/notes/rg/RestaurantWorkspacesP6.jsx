@@ -9,6 +9,7 @@ import axios from "axios";
 import {
   MessageCircle, Send, Loader2, ChefHat, Utensils, Plus, Trash2, Edit3,
   Baby, Cake, HeartHandshake, AlertTriangle, User, RotateCcw, Flame, Calendar, CheckCircle2,
+  Sparkles, Save,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,11 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
   const [busy, setBusy] = useState(false);
   const [stats, setStats] = useState(null);
   const scrollRef = useRef(null);
+  // Recipe idea flow: {loading, idea, restaurants}
+  const [recipeIdea, setRecipeIdea] = useState(null);
+  const [recipeBusy, setRecipeBusy] = useState(false);
+  const [restaurants, setRestaurants] = useState([]);
+  const [recipeRestaurantId, setRecipeRestaurantId] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -52,7 +58,9 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
         restaurants_count: all.restaurants.length,
         recent_orders: all.orders.slice(-30).map(o => ({ date: o.date, total: o.total, tip: o.tip, restaurant_id: o.restaurant_id })),
         top_restaurants: all.restaurants.filter(r => !r.archived).map(r => ({ id: r.id, name: r.name, cuisine: r.cuisine, favorite: r.favorite })).slice(0, 30),
+        family: (all.family || []).map(m => ({ name: m.name, relation: m.relation, allergies: m.allergies, dietary: m.dietary, loved_dishes: m.loved_dishes, hated_dishes: m.hated_dishes })),
       });
+      setRestaurants(all.restaurants.filter(r => !r.archived));
       // Restore prior conversation
       setMessages((chat || []).map(m => ({ role: m.role, text: m.text })));
     })();
@@ -96,6 +104,45 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
     setMessages([]);
     await RestaurantsService.clearChatHistory();
     toast.success("Chat cleared");
+  };
+
+  const fetchRecipeIdea = async () => {
+    if (!stats || recipeBusy) return;
+    setRecipeBusy(true);
+    try {
+      const hint = draft.trim(); // reuse the input text as an optional steer
+      const res = await axios.post(`${API}/dining_recipe_idea`, { stats, hint }, { timeout: 45000 });
+      setRecipeIdea(res.data);
+      // Default target restaurant: user's favorite if any, else the first
+      const fav = restaurants.find(r => r.favorite);
+      setRecipeRestaurantId((fav || restaurants[0])?.id || "");
+      if (hint) setDraft("");
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || e?.message || "Couldn't generate a recipe idea");
+    } finally {
+      setRecipeBusy(false);
+    }
+  };
+
+  const saveRecipeIdea = async () => {
+    if (!recipeIdea) return;
+    if (!recipeRestaurantId) { toast.error("Pick a restaurant to link this recipe to"); return; }
+    try {
+      await RestaurantsService.saveRecipe({
+        restaurant_id: recipeRestaurantId,
+        title: recipeIdea.title,
+        prep_time_min: recipeIdea.prep_time_min || null,
+        servings: recipeIdea.servings || null,
+        ingredients: recipeIdea.ingredients || [],
+        steps: recipeIdea.steps || [],
+        notes: recipeIdea.notes || "",
+        tags: recipeIdea.cuisine ? [recipeIdea.cuisine] : [],
+      });
+      toast.success(`Saved "${recipeIdea.title}" to your recipes`);
+      setRecipeIdea(null);
+    } catch (e) {
+      toast.error(`Save failed: ${e.message || e}`);
+    }
   };
 
   const suggestions = [
@@ -155,6 +202,58 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
           )}
         </div>
 
+        {/* Recipe idea preview panel */}
+        {recipeIdea && (
+          <div className={`rounded-lg border p-3 space-y-2 ${isDark ? "bg-amber-500/10 border-amber-500/30" : "bg-amber-50 border-amber-300"}`} data-testid="recipe-idea-panel">
+            <div className="flex items-start gap-2">
+              <ChefHat className={`w-4 h-4 mt-0.5 ${isDark ? "text-amber-300" : "text-amber-700"}`} />
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-semibold ${isDark ? "text-amber-100" : "text-amber-900"}`} data-testid="recipe-idea-title">{recipeIdea.title}</div>
+                <div className={`text-[10px] ${isDark ? "text-amber-300/70" : "text-amber-800/70"}`}>
+                  {recipeIdea.cuisine || "Fusion"}
+                  {recipeIdea.prep_time_min && <> · {recipeIdea.prep_time_min} min prep</>}
+                  {recipeIdea.servings && <> · serves {recipeIdea.servings}</>}
+                </div>
+              </div>
+              <button type="button" onClick={() => setRecipeIdea(null)} className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-800 hover:bg-white/60"}`} data-testid="recipe-idea-dismiss">Dismiss</button>
+            </div>
+            {recipeIdea.notes && <div className={`text-[11px] italic ${isDark ? "text-amber-200/90" : "text-amber-800"}`}>{recipeIdea.notes}</div>}
+            {recipeIdea.ingredients?.length > 0 && (
+              <div>
+                <div className={`text-[10px] font-semibold uppercase tracking-wider mb-0.5 ${isDark ? "text-amber-300" : "text-amber-700"}`}>Ingredients</div>
+                <div className={`text-[11px] leading-snug ${isDark ? "text-slate-200" : "text-gray-800"}`} data-testid="recipe-idea-ingredients">
+                  {recipeIdea.ingredients.map((s, i) => <div key={i}>• {s}</div>)}
+                </div>
+              </div>
+            )}
+            {recipeIdea.steps?.length > 0 && (
+              <div>
+                <div className={`text-[10px] font-semibold uppercase tracking-wider mb-0.5 ${isDark ? "text-amber-300" : "text-amber-700"}`}>Steps</div>
+                <div className={`text-[11px] leading-snug ${isDark ? "text-slate-200" : "text-gray-800"}`} data-testid="recipe-idea-steps">
+                  {recipeIdea.steps.map((s, i) => <div key={i}>{i + 1}. {s}</div>)}
+                </div>
+              </div>
+            )}
+            <div className="flex items-center gap-2 pt-1">
+              <select
+                value={recipeRestaurantId}
+                onChange={(e) => setRecipeRestaurantId(e.target.value)}
+                className={`h-8 flex-1 min-w-0 rounded-md border px-2 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}
+                data-testid="recipe-idea-restaurant"
+              >
+                <option value="">Link to restaurant…</option>
+                {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <Button onClick={saveRecipeIdea} disabled={!recipeRestaurantId} className="h-8 bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="recipe-idea-save">
+                <Save className="w-3.5 h-3.5 mr-1" /> Save recipe
+              </Button>
+              <Button onClick={fetchRecipeIdea} disabled={recipeBusy} variant="outline" className="h-8" data-testid="recipe-idea-regenerate" title="Get another idea">
+                {recipeBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 pt-1">
           <Input
             value={draft}
@@ -167,6 +266,24 @@ export function RestaurantSmartAssistantModal({ isOpen, onClose, isDark }) {
           />
           <Button onClick={send} disabled={busy || !stats || !draft.trim()} className="h-10 bg-amber-500 hover:bg-amber-600 text-white" data-testid="assistant-send">
             <Send className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Assistant actions row */}
+        <div className="flex items-center justify-between pt-0.5">
+          <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+            {draft.trim() ? "Enter to ask · or use the button below with any hint" : "Try a hint like \"vegetarian\", \"kid-friendly\", \"under 30 min\""}
+          </div>
+          <Button
+            type="button"
+            onClick={fetchRecipeIdea}
+            disabled={recipeBusy || !stats}
+            variant="outline"
+            className={`h-8 text-xs ${isDark ? "border-amber-500/40 text-amber-300 hover:bg-amber-500/10" : "border-amber-500 text-amber-700 hover:bg-amber-50"}`}
+            data-testid="recipe-idea-btn"
+          >
+            {recipeBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+            Suggest a new dish
           </Button>
         </div>
       </DialogContent>

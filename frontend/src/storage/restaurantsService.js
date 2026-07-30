@@ -641,20 +641,28 @@ const RestaurantsService = {
   },
 
   // ================= BACKUP DIFF REPORT =================
-  // Compare an incoming backup payload against what's currently stored and
-  // return per-collection counters for Merge vs Replace outcomes.
+  // Compare an incoming backup payload against what's currently stored.
+  // Returns per-collection counters + samples + conflict list.
   // Shape:
   //   {
   //     collections: {
-  //       restaurants: { added, changed, unchanged, removed, total_local, total_incoming },
-  //       ...
+  //       restaurants: {
+  //         added: N, changed: N, unchanged: N, removed: N, conflicts: N,
+  //         total_local, total_incoming,
+  //         items: {
+  //           added:    [{ id, name }],
+  //           changed:  [{ id, name, local_updated_at, incoming_updated_at, conflict }],
+  //           removed:  [{ id, name }],
+  //         }
+  //       }, ...
   //     },
-  //     totals: { added, changed, unchanged, removed }
+  //     totals: { added, changed, unchanged, removed, conflicts }
   //   }
-  //  - added     = ID in incoming, not in local
-  //  - changed   = ID in both but item content differs
-  //  - unchanged = ID in both and item content matches
-  //  - removed   = ID in local, not in incoming (only affects Replace mode)
+  //
+  //  - "conflict" = an ID in both stores where local.updated_at is more
+  //    recent than incoming.updated_at (i.e., accepting the backup would
+  //    lose local edits).
+  //  - "items" lists are capped at 20 per bucket to keep payload small.
   async computeBackupDiff(data) {
     const map = {
       restaurants: restaurantsStore,
@@ -685,33 +693,71 @@ const RestaurantsService = {
       try { return JSON.stringify(strip(a || {})) === JSON.stringify(strip(b || {})); }
       catch { return false; }
     };
+    // Best-effort human label for an item — different collections use
+    // different fields, so try a small list.
+    const labelOf = (it) => {
+      if (!it) return "(unknown)";
+      return (
+        it.name || it.title || it.meal_name || it.code || it.order_number ||
+        (it.role ? `${it.role}: ${(it.text || "").slice(0, 40)}` : "") ||
+        (it.date ? `order ${it.date}` : "") ||
+        it.id || "(unnamed)"
+      );
+    };
+    const SAMPLE_CAP = 20;
     const collections = {};
-    const totals = { added: 0, changed: 0, unchanged: 0, removed: 0 };
+    const totals = { added: 0, changed: 0, unchanged: 0, removed: 0, conflicts: 0 };
+
     for (const [key, store] of Object.entries(map)) {
       const incoming = Array.isArray(data?.[key]) ? data[key] : [];
       const local = await iterAll(store);
       const localById = new Map(local.map((it) => [it.id, it]));
       const incomingById = new Map(incoming.filter((it) => it && it.id).map((it) => [it.id, it]));
-      let added = 0, changed = 0, unchanged = 0;
+
+      const items = { added: [], changed: [], removed: [] };
+      let added = 0, changed = 0, unchanged = 0, conflicts = 0;
+
       for (const [id, item] of incomingById) {
         const existing = localById.get(id);
-        if (!existing) added += 1;
-        else if (equal(existing, item)) unchanged += 1;
-        else changed += 1;
+        if (!existing) {
+          added += 1;
+          if (items.added.length < SAMPLE_CAP) items.added.push({ id, name: labelOf(item) });
+        } else if (equal(existing, item)) {
+          unchanged += 1;
+        } else {
+          changed += 1;
+          const localTs = existing.updated_at || existing.created_at || null;
+          const incTs = item.updated_at || item.created_at || null;
+          const isConflict = !!(localTs && incTs && new Date(localTs) > new Date(incTs));
+          if (isConflict) conflicts += 1;
+          if (items.changed.length < SAMPLE_CAP) {
+            items.changed.push({
+              id, name: labelOf(item),
+              local_updated_at: localTs,
+              incoming_updated_at: incTs,
+              conflict: isConflict,
+            });
+          }
+        }
       }
       let removed = 0;
-      for (const id of localById.keys()) {
-        if (!incomingById.has(id)) removed += 1;
+      for (const [id, item] of localById) {
+        if (!incomingById.has(id)) {
+          removed += 1;
+          if (items.removed.length < SAMPLE_CAP) items.removed.push({ id, name: labelOf(item) });
+        }
       }
       collections[key] = {
-        added, changed, unchanged, removed,
+        added, changed, unchanged, removed, conflicts,
         total_local: local.length,
         total_incoming: incoming.length,
+        items,
       };
       totals.added += added;
       totals.changed += changed;
       totals.unchanged += unchanged;
       totals.removed += removed;
+      totals.conflicts += conflicts;
     }
     return { collections, totals };
   },

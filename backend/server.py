@@ -492,6 +492,113 @@ async def dining_insights(payload: DiningInsightsRequest):
     return DiningInsightsResponse(insights=insights)
 
 
+# ================== RECIPE IDEA ENDPOINT ==================
+class RecipeIdeaRequest(BaseModel):
+    stats: Dict[str, Any]  # summary of restaurants/orders/family etc.
+    hint: Optional[str] = None  # optional user steer (e.g. "vegetarian", "kid-friendly", "quick weeknight")
+
+
+class RecipeIdeaResponse(BaseModel):
+    title: str
+    cuisine: Optional[str] = ""
+    prep_time_min: Optional[int] = None
+    servings: Optional[int] = None
+    ingredients: List[str] = Field(default_factory=list)
+    steps: List[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+@api_router.post("/dining_recipe_idea", response_model=RecipeIdeaResponse)
+async def dining_recipe_idea(payload: RecipeIdeaRequest):
+    """Suggest an original at-home recipe personalized to the user's dining
+    history. Returns strict JSON so the frontend can drop it straight into
+    the Recipe Recreation store."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="LLM key not configured on server")
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    import json as _json
+    import re
+
+    stats_json = _json.dumps(payload.stats, default=str)[:8000]
+    hint = (payload.hint or "").strip()
+
+    system_msg = (
+        "You are a creative home-cook recipe designer. Given a JSON summary "
+        "of the user's dining history (favorite cuisines, family allergies, "
+        "recent orders, loved dishes), propose ONE original at-home recipe "
+        "they would love — inspired by their patterns but not a carbon copy. "
+        "Respect any allergies/dietary tags found in family.\n\n"
+        "Return ONLY a JSON object with these keys (no prose, no markdown "
+        "fences, no comments): title (str), cuisine (str), prep_time_min "
+        "(int, 10-90), servings (int, 1-8), ingredients (array of strings, "
+        "one per item with quantity, 5-15 items), steps (array of strings, "
+        "4-10 steps), notes (str, one warm sentence).\n"
+        "Rules: (1) title should be inviting, not generic; (2) ingredients "
+        "must be shopping-list ready with amounts; (3) steps should be "
+        "concise imperatives; (4) no allergen the user has flagged; "
+        "(5) output valid JSON parseable by JSON.parse."
+    )
+
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"recipe-idea-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    parts = [f"STATS:\n{stats_json}"]
+    if hint:
+        parts.append(f"USER HINT:\n{hint}")
+    parts.append("Return the JSON now.")
+    prompt = "\n\n".join(parts)
+
+    try:
+        result = await chat.send_message(UserMessage(text=prompt))
+    except Exception as e:
+        logger.exception("Recipe idea call failed")
+        raise HTTPException(status_code=502, detail=f"Recipe idea failed: {str(e)[:200]}")
+
+    raw = str(result or "").strip()
+    # Strip common markdown fences if the model wraps its output
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+    try:
+        data = _json.loads(raw)
+    except Exception:
+        # Try to find the JSON blob inside surrounding text
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not m:
+            raise HTTPException(status_code=502, detail="Model returned non-JSON output")
+        try:
+            data = _json.loads(m.group(0))
+        except Exception:
+            raise HTTPException(status_code=502, detail="Model returned malformed JSON")
+
+    # Coerce and validate keys
+    def _s(v, d=""):
+        return str(v).strip() if v is not None else d
+    def _i(v):
+        try: return int(v)
+        except Exception: return None
+    def _list(v):
+        if isinstance(v, list): return [str(x).strip() for x in v if str(x).strip()]
+        return []
+
+    title = _s(data.get("title"))
+    if not title:
+        raise HTTPException(status_code=502, detail="Recipe missing title")
+    return RecipeIdeaResponse(
+        title=title,
+        cuisine=_s(data.get("cuisine")),
+        prep_time_min=_i(data.get("prep_time_min")),
+        servings=_i(data.get("servings")),
+        ingredients=_list(data.get("ingredients")),
+        steps=_list(data.get("steps")),
+        notes=_s(data.get("notes")),
+    )
+
+
 # Include the router in the main app
 app.include_router(api_router)
 

@@ -8,7 +8,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import RestaurantsService from "../storage/restaurantsService";
-import { daysSinceLastBackup, lastBackupLabel } from "./rg/RestaurantWorkspacesP5";
+import { daysSinceLastBackup, lastBackupLabel, BACKUP_UPDATED_EVENT } from "./rg/RestaurantWorkspacesP5";
 
 /**
  * Restaurants Galore™ — Command Center Dashboard.
@@ -27,6 +27,9 @@ export default function RestaurantsGaloreDashboardModal({
 }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Bumped whenever a backup completes so the Sync Health chip re-reads
+  // localStorage without needing the dashboard to be re-opened.
+  const [backupTick, setBackupTick] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -36,6 +39,13 @@ export default function RestaurantsGaloreDashboardModal({
       setStats(s);
       setLoading(false);
     })();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = () => setBackupTick((t) => t + 1);
+    window.addEventListener(BACKUP_UPDATED_EVENT, handler);
+    return () => window.removeEventListener(BACKUP_UPDATED_EVENT, handler);
   }, [isOpen]);
 
   const kpiCard = (label, value, sub, color = "text-white") => (
@@ -187,6 +197,10 @@ export default function RestaurantsGaloreDashboardModal({
                 {launcher(Sparkles, "AI insights", onOpenAI, false, "launcher-ai")}
                 {launcher(DollarSign, "Tip calc", onOpenOrders, false, "launcher-tip")}
                 {(() => {
+                  // key on backupTick would help remount; instead we read
+                  // localStorage inside the IIFE on every render (the setBackupTick
+                  // above bumps state to force re-render on backup events).
+                  void backupTick;
                   const d = daysSinceLastBackup();
                   const stale = isFinite(d) && d > 30;
                   const neverBackedUp = !isFinite(d);

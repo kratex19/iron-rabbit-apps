@@ -4,7 +4,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Download, Upload, HardDriveDownload, MapPin, ExternalLink, Sparkles, Cloud, CloudUpload, CloudDownload, AlertCircle, Settings2, Lock, LockOpen, Timer } from "lucide-react";
+import { Download, Upload, HardDriveDownload, MapPin, ExternalLink, Sparkles, Cloud, CloudUpload, CloudDownload, AlertCircle, AlertTriangle, Settings2, Lock, LockOpen, Timer, ChevronRight, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,18 @@ const LAST_BACKUP_KEY = "rg_last_backup_at";
 const WEBDAV_CFG_KEY = "rg_webdav_cfg";
 const GDRIVE_CID_KEY = "rg_gdrive_client_id";
 export const SCHEDULE_CFG_KEY = "rg_backup_schedule";
+export const BACKUP_UPDATED_EVENT = "rg-backup-updated";
 // Schedule shape: { interval: "off"|"weekly"|"monthly", target: "local"|"webdav"|"gdrive", passphrase_hint: "" }
+
+// Persist the "last backup at" timestamp and broadcast to any listening UI
+// (e.g., the dashboard's Sync Health chip) so it can refresh without a reopen.
+function markBackupCompleted() {
+  const now = new Date().toISOString();
+  localStorage.setItem(LAST_BACKUP_KEY, now);
+  try { window.dispatchEvent(new CustomEvent(BACKUP_UPDATED_EVENT, { detail: { at: now } })); }
+  catch { /* CustomEvent unsupported — no-op */ }
+  return now;
+}
 
 // Return days since the last successful backup, or Infinity if never backed up.
 export function daysSinceLastBackup() {
@@ -137,6 +148,8 @@ export async function runScheduledBackupIfDue() {
   const now = new Date().toISOString();
   localStorage.setItem("rg_last_auto_backup_at", now);
   localStorage.setItem("rg_last_backup_at", now);
+  try { window.dispatchEvent(new CustomEvent(BACKUP_UPDATED_EVENT, { detail: { at: now, auto: true } })); }
+  catch { /* CustomEvent unsupported */ }
   return { ran: true, target, encrypted: wantEncrypt };
 }
 
@@ -156,6 +169,7 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
   const [importPass, setImportPass] = useState("");
   const [diff, setDiff] = useState(null);
   const [diffMode, setDiffMode] = useState("merge"); // "merge" | "replace"
+  const [expandedRow, setExpandedRow] = useState(null); // key of the collection whose drill-down is open
 
   // Schedule
   const [schedule, setSchedule] = useState(() => {
@@ -176,6 +190,7 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
   // Compute the diff report whenever a preview is loaded
   useEffect(() => {
     let cancelled = false;
+    setExpandedRow(null);
     (async () => {
       if (!preview?.data) { setDiff(null); return; }
       try {
@@ -214,7 +229,7 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+      markBackupCompleted();
       const suffix = encryptOn ? " (encrypted)" : "";
       toast.success(`Exported ${raw.meta.counts.restaurants || 0} restaurants${suffix}`);
     } catch (e) {
@@ -303,7 +318,7 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
         body: JSON.stringify(payload, null, 2),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+      markBackupCompleted();
       const suffix = encryptOn ? " (encrypted)" : "";
       toast.success(`Pushed backup to ${new URL(webdav.url).hostname}${suffix}`);
     } catch (e) {
@@ -399,7 +414,7 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
         body,
       });
       if (!res.ok) throw new Error(`Drive upload HTTP ${res.status}`);
-      localStorage.setItem(LAST_BACKUP_KEY, new Date().toISOString());
+      markBackupCompleted();
       const suffix = encryptOn ? " (encrypted)" : "";
       toast.success((existingId ? "Updated Drive backup" : "Uploaded to Drive") + suffix);
     } catch (e) {
@@ -692,6 +707,17 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
                       <button type="button" onClick={() => setDiffMode("replace")} className={`px-2 py-0.5 ${diffMode === "replace" ? (isDark ? "bg-red-500/30 text-red-200" : "bg-red-500 text-white") : (isDark ? "text-slate-400" : "text-gray-500")}`} data-testid="diff-mode-replace">If Replace</button>
                     </div>
                   </div>
+
+                  {/* Conflict guard banner */}
+                  {diff.totals.conflicts > 0 && (
+                    <div className={`rounded p-1.5 text-[10px] flex items-start gap-1.5 ${isDark ? "bg-amber-500/10 text-amber-200 border border-amber-500/30" : "bg-amber-50 text-amber-900 border border-amber-300"}`} data-testid="diff-conflict-banner">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                      <div>
+                        <b>{diff.totals.conflicts}</b> item{diff.totals.conflicts === 1 ? "" : "s"} you edited more recently than this backup. Merging will overwrite your local changes for those items.
+                      </div>
+                    </div>
+                  )}
+
                   <div className={`grid grid-cols-3 gap-1 text-[10px] font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`} data-testid="diff-totals">
                     <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-emerald-500/20 text-emerald-300" : "bg-emerald-100 text-emerald-800"}`}>+{diff.totals.added} added</span>
                     <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-sky-500/20 text-sky-300" : "bg-sky-100 text-sky-800"}`}>~{diff.totals.changed} changed</span>
@@ -701,6 +727,7 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
                       <span className={`px-1.5 py-0.5 rounded ${isDark ? "bg-white/5 text-slate-500" : "bg-gray-100 text-gray-500"}`}>{diff.totals.unchanged} kept</span>
                     )}
                   </div>
+
                   {(() => {
                     const rows = Object.entries(diff.collections).filter(([, c]) => {
                       if (diffMode === "replace") return c.added || c.changed || c.removed;
@@ -710,17 +737,60 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
                       return <div className={`text-[10px] italic ${isDark ? "text-slate-500" : "text-gray-500"}`}>Nothing to change — this backup matches your current library.</div>;
                     }
                     return (
-                      <div className="space-y-0.5 max-h-32 overflow-y-auto pr-1" data-testid="diff-collections">
-                        {rows.map(([key, c]) => (
-                          <div key={key} className={`flex justify-between items-center text-[10px] ${isDark ? "text-slate-400" : "text-gray-600"}`} data-testid={`diff-row-${key}`}>
-                            <span className="capitalize">{key.replace(/_/g, " ")}</span>
-                            <span className="tabular-nums space-x-1.5">
-                              {c.added > 0 && <span className={isDark ? "text-emerald-300" : "text-emerald-700"}>+{c.added}</span>}
-                              {c.changed > 0 && <span className={isDark ? "text-sky-300" : "text-sky-700"}>~{c.changed}</span>}
-                              {diffMode === "replace" && c.removed > 0 && <span className={isDark ? "text-red-300" : "text-red-700"}>-{c.removed}</span>}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="space-y-0.5 max-h-56 overflow-y-auto pr-1" data-testid="diff-collections">
+                        {rows.map(([key, c]) => {
+                          const open = expandedRow === key;
+                          const clickable = (c.added + c.changed + (diffMode === "replace" ? c.removed : 0)) > 0;
+                          return (
+                            <div key={key} data-testid={`diff-row-${key}`}>
+                              <button
+                                type="button"
+                                onClick={() => clickable && setExpandedRow(open ? null : key)}
+                                disabled={!clickable}
+                                className={`w-full flex justify-between items-center gap-2 text-[10px] px-1 py-0.5 rounded transition-colors ${clickable ? (isDark ? "hover:bg-white/5" : "hover:bg-gray-100") : ""} ${isDark ? "text-slate-400" : "text-gray-600"}`}
+                                aria-expanded={open}
+                                data-testid={`diff-row-toggle-${key}`}
+                              >
+                                <span className="flex items-center gap-1">
+                                  {clickable && (open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />)}
+                                  <span className="capitalize">{key.replace(/_/g, " ")}</span>
+                                  {c.conflicts > 0 && <AlertTriangle className={`w-2.5 h-2.5 ${isDark ? "text-amber-300" : "text-amber-600"}`} aria-label={`${c.conflicts} conflict${c.conflicts === 1 ? "" : "s"}`} />}
+                                </span>
+                                <span className="tabular-nums space-x-1.5">
+                                  {c.added > 0 && <span className={isDark ? "text-emerald-300" : "text-emerald-700"}>+{c.added}</span>}
+                                  {c.changed > 0 && <span className={isDark ? "text-sky-300" : "text-sky-700"}>~{c.changed}</span>}
+                                  {diffMode === "replace" && c.removed > 0 && <span className={isDark ? "text-red-300" : "text-red-700"}>-{c.removed}</span>}
+                                </span>
+                              </button>
+                              {open && (
+                                <div className={`ml-4 mt-1 mb-1.5 space-y-0.5 text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`} data-testid={`diff-drilldown-${key}`}>
+                                  {c.items.added.map((it) => (
+                                    <div key={"a-" + it.id} className="flex gap-1.5 items-center">
+                                      <span className={`inline-block w-3 text-center ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>+</span>
+                                      <span className="truncate">{it.name}</span>
+                                    </div>
+                                  ))}
+                                  {c.items.changed.map((it) => (
+                                    <div key={"c-" + it.id} className="flex gap-1.5 items-center">
+                                      <span className={`inline-block w-3 text-center ${isDark ? "text-sky-400" : "text-sky-700"}`}>~</span>
+                                      <span className="truncate">{it.name}</span>
+                                      {it.conflict && <AlertTriangle className={`w-2.5 h-2.5 shrink-0 ${isDark ? "text-amber-300" : "text-amber-600"}`} aria-label="local newer than backup" />}
+                                    </div>
+                                  ))}
+                                  {diffMode === "replace" && c.items.removed.map((it) => (
+                                    <div key={"r-" + it.id} className="flex gap-1.5 items-center">
+                                      <span className={`inline-block w-3 text-center ${isDark ? "text-red-400" : "text-red-700"}`}>−</span>
+                                      <span className="truncate">{it.name}</span>
+                                    </div>
+                                  ))}
+                                  {(c.added + c.changed + (diffMode === "replace" ? c.removed : 0)) > 20 && (
+                                    <div className={`italic ${isDark ? "text-slate-600" : "text-gray-400"}`}>… and {(c.added + c.changed + (diffMode === "replace" ? c.removed : 0)) - 20} more</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     );
                   })()}
@@ -728,8 +798,29 @@ export function RestaurantBackupModal({ isOpen, onClose, isDark }) {
               )}
 
               <div className="flex gap-2 pt-1">
-                <Button onClick={() => handleImport("merge")} disabled={busy} className="flex-1 h-9 bg-emerald-500 hover:bg-emerald-600 text-white" data-testid="backup-merge-btn">Merge</Button>
-                <Button onClick={() => { if (window.confirm("Replace ALL Restaurants Galore data? This cannot be undone.")) handleImport("replace"); }} disabled={busy} className="flex-1 h-9 bg-red-500 hover:bg-red-600 text-white" data-testid="backup-replace-btn">Replace all</Button>
+                <Button
+                  onClick={() => {
+                    if (diff?.totals.conflicts > 0 &&
+                        !window.confirm(`Warning: ${diff.totals.conflicts} local item(s) are newer than this backup. Merge will overwrite them. Continue?`)) return;
+                    handleImport("merge");
+                  }}
+                  disabled={busy}
+                  className="flex-1 h-9 bg-emerald-500 hover:bg-emerald-600 text-white"
+                  data-testid="backup-merge-btn"
+                >
+                  Merge{diff?.totals.conflicts > 0 ? " ⚠" : ""}
+                </Button>
+                <Button
+                  onClick={() => {
+                    const extra = diff?.totals.conflicts > 0 ? ` This will overwrite ${diff.totals.conflicts} item(s) you edited more recently.` : "";
+                    if (window.confirm(`Replace ALL Restaurants Galore data?${extra} This cannot be undone.`)) handleImport("replace");
+                  }}
+                  disabled={busy}
+                  className="flex-1 h-9 bg-red-500 hover:bg-red-600 text-white"
+                  data-testid="backup-replace-btn"
+                >
+                  Replace all
+                </Button>
                 <Button onClick={() => setPreview(null)} variant="outline" disabled={busy}>Cancel</Button>
               </div>
               <div className={`text-[10px] italic ${isDark ? "text-slate-500" : "text-gray-500"}`}>
