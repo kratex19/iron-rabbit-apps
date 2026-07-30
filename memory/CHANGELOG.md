@@ -1,5 +1,42 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 9) — Cost Badge + Recipe Rating + Cook Mode + Shopping List ✅
+
+### Chat Cost Tracking (Smart Assistant)
+- New client-side estimator: 4 chars/token heuristic + Claude Sonnet 4.5 pricing ($3/M input, $15/M output). Accounts for full history being resent on every turn plus a ~4000-char stats blob per request.
+- New `data-testid=assistant-cost-badge` in the modal title bar showing `~$0.XXX` with a tooltip listing input/output token estimates. Only appears once the conversation has messages.
+- Amber styling + "Reset to keep replies snappy and cheap" hint when estimated cost passes $0.05.
+- Reset button (existing) wipes the badge and persisted chat store.
+
+### Recipe Rating
+- Recipe schema gains a `rating` field (0–5, 0 = not rated).
+- `RestaurantsService.rateRecipe(id, rating)` clamps + persists + bumps `updated_at`.
+- Recipes modal rows now render a 5-star rating widget (`recipe-rating-<id>`, individual `recipe-star-<id>-N` buttons). Clicking the same star clears the rating.
+- Smart Assistant now enriches `stats.rated_recipes` (title, cuisine, rating) when calling `/api/dining_recipe_idea`.
+- Backend prompt updated: favor 4-5-star recipes' cuisine/technique, avoid 1-2-star patterns, never propose the same title as an existing rated recipe.
+
+### Cook Mode
+- New `CookModeModal` in `RestaurantWorkspacesP6.jsx`: step-by-step view with progress bar, `Prev / Next / Finish` navigation, and a per-step timer.
+- `parseStepMinutes()` regex detects "for 15 minutes", "15 min", "1 hour" etc. and shows a MM:SS countdown when found.
+- Timer has Start / Pause / Reset. On completion: success toast + optional Web Audio 880Hz beep (AudioContext primed on first user gesture to satisfy autoplay policies).
+- Finishing on the last step calls `logRecipeCook()` so cook_count/last_cooked_at update automatically.
+- New `recipe-cook-mode-<id>` button on each recipe row (disabled when the recipe has zero steps).
+
+### Shopping List
+- New `shopping_list` localforage store + full CRUD on `RestaurantsService`: `listShoppingItems`, `addShoppingItems({recipeId, recipeTitle})`, `toggleShoppingItem`, `deleteShoppingItem`, `clearCheckedShoppingItems`, `clearShoppingList`.
+- New `RestaurantShoppingListModal` component: manual add with comma-splitting, per-item toggle/remove, bulk clear-checked and clear-all, source-recipe attribution ("from: Kimchi Stew · Pho Bo").
+- Dedup by lowercased-trimmed-collapsed name key. Re-adding a checked item revives it (uncheck + append source).
+- New `Add to shopping list` button on every recipe row (`recipe-add-shopping-<id>`).
+- New `Shopping list` tile on the RG dashboard (`launcher-shopping`).
+- Included in `exportAll` / `importAll` / `computeBackupDiff` so backups carry the list.
+
+### Testing
+- Iteration 38: 100% pass. Backend 10/10 pytest (new `test_recipe_idea_with_rated_recipes` case added at `/app/backend/tests/test_recipe_idea.py`). Frontend live E2E all four features verified — shopping (add/dedup/toggle/clear), rating (set/clear/persist), cook mode (progress/timer parse/countdown/finish), cost badge (hidden → visible → reset).
+- Post-report polish: AudioContext lifecycle rewritten to prime on Start-click gesture and close on modal unmount (safer autoplay-policy compliance + no reference leaks).
+
+---
+
+
 ## 2026-02-08 (session 8) — Live Sync Refresh + Conflict Guard + Drill-down + Recipe Ideas ✅
 
 ### Live sync-refresh on Backup

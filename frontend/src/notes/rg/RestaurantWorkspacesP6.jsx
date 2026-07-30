@@ -502,8 +502,23 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
   const [seconds, setSeconds] = useState(0); // remaining seconds
   const [running, setRunning] = useState(false);
   const intervalRef = useRef(null);
+  const audioCtxRef = useRef(null);
   const stepMinutes = parseStepMinutes(steps[idx]);
   const hasTimer = stepMinutes !== null;
+
+  // Prime the AudioContext on the first user-gesture click so the timer's
+  // end beep can play. Autoplay policies require a gesture before audio.
+  const primeAudio = () => {
+    try {
+      if (!audioCtxRef.current) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtxRef.current = new AC();
+      }
+      if (audioCtxRef.current?.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+    } catch { /* audio not permitted */ }
+  };
 
   // Reset timer whenever step changes
   useEffect(() => {
@@ -511,6 +526,14 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
     setRunning(false);
     setSeconds(stepMinutes ? stepMinutes * 60 : 0);
   }, [idx, stepMinutes]);
+
+  // Close audio ctx when the modal unmounts
+  useEffect(() => {
+    return () => {
+      try { audioCtxRef.current?.close(); } catch { /* already closed */ }
+      audioCtxRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!running) return;
@@ -522,14 +545,13 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
           setRunning(false);
           try {
             toast.success(`Step ${idx + 1} timer done`);
-            // Small beep via Web Audio for a gentle nudge
-            const AC = window.AudioContext || window.webkitAudioContext;
-            if (AC) {
-              const ctx = new AC();
+            // Small beep via the primed Web Audio context (see primeAudio above)
+            const ctx = audioCtxRef.current;
+            if (ctx && ctx.state !== "closed") {
               const o = ctx.createOscillator(); const g = ctx.createGain();
               o.connect(g); g.connect(ctx.destination);
               o.frequency.value = 880; g.gain.value = 0.08;
-              o.start(); setTimeout(() => { o.stop(); ctx.close(); }, 400);
+              o.start(); setTimeout(() => { try { o.stop(); } catch { /* already stopped */ } }, 400);
             }
           } catch { /* audio not permitted */ }
           return 0;
@@ -572,7 +594,7 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
             {!running ? (
               <Button
                 type="button"
-                onClick={() => { if (seconds === 0) setSeconds(stepMinutes * 60); setRunning(true); }}
+                onClick={() => { primeAudio(); if (seconds === 0) setSeconds(stepMinutes * 60); setRunning(true); }}
                 className="bg-sky-500 hover:bg-sky-600 text-white h-9"
                 data-testid="cook-mode-timer-start"
               >

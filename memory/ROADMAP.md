@@ -1,6 +1,6 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08 (session 8)_
+_Last updated: 2026-02-08 (session 9)_
 
 ## Restaurants Galore Backlog
 
@@ -9,8 +9,12 @@ _Last updated: 2026-02-08 (session 8)_
 - [ ] Attach photo → also link to Review (data model already supports it via `review_id`; needs discoverability in Review editor).
 - [ ] Voice journal transcript polish — auto-detect language.
 - [x] Smart Assistant conversation persistence across sessions. ✅ session 6
+- [x] Smart Assistant chat cost estimate badge. ✅ session 9
 - [ ] History-truncation hint in Smart Assistant when >20 turns are hit.
 - [x] Assistant Recipe Ideas — personalized dish suggestions saved straight into Recipes. ✅ session 8
+- [x] Recipe rating (1-5 stars) fed into future Recipe Idea prompts. ✅ session 9
+- [x] Cook Mode — step-by-step view with a per-step timer. ✅ session 9
+- [x] Shopping List — aggregate recipe ingredients into a checkable dedup'd list. ✅ session 9
 
 ### P2 — Cloud sync polish
 - [x] WebDAV: auto-schedule (weekly / monthly push). ✅ session 6
