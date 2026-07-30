@@ -4,9 +4,10 @@
 // are allowed. Prev/next week navigation.
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, X as XIcon } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Trash2, ShoppingCart, ChefHat, X as XIcon, Save, LayoutTemplate, Heart, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import RestaurantsService from "../../storage/restaurantsService";
 
@@ -23,11 +24,43 @@ function iso(d) { return d.toISOString().slice(0, 10); }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+// Best-effort family-preference classifier: given a recipe, return
+// { loved: boolean, allergen: string|null }.
+// - loved   = any recipe title/tag substring hit against family loved_dishes
+// - allergen = the first family allergy substring that appears in ingredients
+//             or title (so we can show it in the tooltip).
+function classifyRecipeForFamily(recipe, family) {
+  if (!recipe || !Array.isArray(family) || family.length === 0) return { loved: false, allergen: null };
+  const title = (recipe.title || "").toLowerCase();
+  const ings = (recipe.ingredients || []).map((s) => (s || "").toLowerCase()).join(" ");
+  const hay = title + " " + ings;
+  let loved = false;
+  for (const m of family) {
+    for (const l of (m.loved_dishes || [])) {
+      const t = (l || "").toLowerCase().trim();
+      if (t && title.includes(t)) { loved = true; break; }
+    }
+    if (loved) break;
+  }
+  let allergen = null;
+  for (const m of family) {
+    for (const a of (m.allergies || [])) {
+      const t = (a || "").toLowerCase().trim();
+      if (t && hay.includes(t)) { allergen = a; break; }
+    }
+    if (allergen) break;
+  }
+  return { loved, allergen };
+}
+
 export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [entries, setEntries] = useState([]);
   const [recipes, setRecipes] = useState([]);
+  const [family, setFamily] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tplName, setTplName] = useState(""); // draft name for Save-as-template
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const from = iso(days[0]);
@@ -35,12 +68,16 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
 
   const reload = async () => {
     setLoading(true);
-    const [plan, recs] = await Promise.all([
+    const [plan, recs, fam, tpls] = await Promise.all([
       RestaurantsService.listMealPlan({ from, to }),
       RestaurantsService.listRecipes(),
+      RestaurantsService.listFamily().catch(() => []),
+      RestaurantsService.listMealPlanTemplates(),
     ]);
     setEntries(plan);
     setRecipes(recs);
+    setFamily(fam || []);
+    setTemplates(tpls || []);
     setLoading(false);
   };
   useEffect(() => { if (isOpen) reload(); }, [isOpen, from, to]);
@@ -51,6 +88,13 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
     for (const e of entries) (map[e.date] = map[e.date] || []).push(e);
     return map;
   }, [entries]);
+  // Per-recipe family classification (loved / allergen) — memoized so we don't
+  // re-scan every render. Rebuilds when either family or recipe list changes.
+  const familyHitsByRecipe = useMemo(() => {
+    const map = new Map();
+    for (const r of recipes) map.set(r.id, classifyRecipeForFamily(r, family));
+    return map;
+  }, [recipes, family]);
 
   const addEntry = async (date, recipe_id) => {
     const rec = await RestaurantsService.addMealPlanEntry({ date, recipe_id });
@@ -68,6 +112,40 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
     const n = await RestaurantsService.clearMealPlanRange({ from, to });
     reload();
     toast.success(`Cleared ${n} entr${n === 1 ? "y" : "ies"}`);
+  };
+
+  const saveAsTemplate = async () => {
+    const clean = tplName.trim();
+    if (!clean) { toast.error("Give the template a name"); return; }
+    if (entries.length === 0) { toast.error("Nothing to save — pin some recipes first"); return; }
+    // Convert absolute dates → day_offset (0..6) relative to this week's Monday
+    const monISO = iso(weekStart);
+    const monMs = Date.parse(monISO + "T00:00:00Z");
+    const tplEntries = entries.map((e) => {
+      const day_offset = Math.round((Date.parse(e.date + "T00:00:00Z") - monMs) / 86400000);
+      return { day_offset, recipe_id: e.recipe_id, slot: e.slot };
+    });
+    const rec = await RestaurantsService.saveMealPlanTemplate({ name: clean, entries: tplEntries });
+    if (rec) {
+      setTemplates((prev) => [rec, ...prev]);
+      setTplName("");
+      toast.success(`Saved template "${rec.name}"`, { id: `mp-tpl-save-${rec.id}` });
+    }
+  };
+
+  const applyTemplate = async (tplId) => {
+    const created = await RestaurantsService.applyMealPlanTemplate(tplId, iso(weekStart));
+    // Refresh entries for this week without a full reload
+    const plan = await RestaurantsService.listMealPlan({ from, to });
+    setEntries(plan);
+    const tpl = templates.find((t) => t.id === tplId);
+    toast.success(`Applied "${tpl?.name || "template"}" — ${created.length} recipe${created.length === 1 ? "" : "s"} added`, { id: `mp-tpl-apply-${tplId}` });
+  };
+
+  const deleteTemplate = async (tplId) => {
+    if (!window.confirm("Delete this template? Existing meal plans are untouched.")) return;
+    await RestaurantsService.deleteMealPlanTemplate(tplId);
+    setTemplates((prev) => prev.filter((t) => t.id !== tplId));
   };
 
   const buildShoppingList = async () => {
@@ -123,6 +201,62 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
           <Button type="button" variant="outline" size="sm" onClick={() => setWeekStart(mondayOf(new Date()))} data-testid="meal-plan-this-week">
             This week
           </Button>
+        </div>
+
+        {/* Templates panel */}
+        <div className={`rounded-lg border p-2 space-y-2 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"}`} data-testid="meal-plan-templates">
+          <div className={`flex items-center gap-1.5 text-[11px] font-semibold ${isDark ? "text-slate-300" : "text-gray-700"}`}>
+            <LayoutTemplate className="w-3.5 h-3.5 text-purple-400" /> Templates
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              value={tplName}
+              onChange={(e) => setTplName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveAsTemplate(); } }}
+              placeholder='Name this week (e.g. "Comfort week")'
+              className={`h-8 flex-1 min-w-[160px] text-xs ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-slate-500" : ""}`}
+              data-testid="meal-plan-tpl-name"
+            />
+            <Button
+              onClick={saveAsTemplate}
+              disabled={!tplName.trim() || entries.length === 0}
+              size="sm"
+              className="h-8 bg-purple-500 hover:bg-purple-600 text-white"
+              data-testid="meal-plan-tpl-save"
+            >
+              <Save className="w-3.5 h-3.5 mr-1" /> Save this week
+            </Button>
+          </div>
+          {templates.length === 0 ? (
+            <div className={`text-[10px] italic ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+              Save a week you love, then apply it to any future week in one tap.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5" data-testid="meal-plan-tpl-list">
+              {templates.map((t) => (
+                <div key={t.id} className={`group inline-flex items-center gap-1 rounded-full border pl-2 pr-0.5 py-0.5 text-[11px] ${isDark ? "bg-purple-500/10 border-purple-500/30 text-purple-200" : "bg-purple-50 border-purple-300 text-purple-800"}`} data-testid={`meal-plan-tpl-chip-${t.id}`}>
+                  <button
+                    type="button"
+                    onClick={() => applyTemplate(t.id)}
+                    className="font-medium"
+                    title={`Apply ${t.name} to this week (${t.entries?.length || 0} recipe${(t.entries?.length || 0) === 1 ? "" : "s"})`}
+                    data-testid={`meal-plan-tpl-apply-${t.id}`}
+                  >
+                    {t.name} <span className={`font-normal ${isDark ? "text-purple-300/70" : "text-purple-600"}`}>· {t.entries?.length || 0}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTemplate(t.id)}
+                    className={`w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 ${isDark ? "hover:bg-red-500/20 hover:text-red-300" : "hover:bg-red-100 hover:text-red-600"}`}
+                    aria-label="Delete template"
+                    data-testid={`meal-plan-tpl-delete-${t.id}`}
+                  >
+                    <XIcon className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 7-day grid */}
@@ -185,20 +319,30 @@ export function RestaurantMealPlanModal({ isOpen, onClose, isDark }) {
                         <Plus className="w-3 h-3" /> {recipes.length === 0 ? "No recipes" : "Add"}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className={`w-56 p-1 max-h-64 overflow-y-auto ${isDark ? "bg-[#0B1221] border-white/10" : ""}`} align="start" data-testid={`meal-plan-picker-${dateIso}`}>
+                    <PopoverContent className={`w-64 p-1 max-h-64 overflow-y-auto ${isDark ? "bg-[#0B1221] border-white/10" : ""}`} align="start" data-testid={`meal-plan-picker-${dateIso}`}>
                       <div className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>Pick a recipe</div>
-                      {recipes.map((r) => (
-                        <button
-                          key={r.id}
-                          type="button"
-                          onClick={() => addEntry(dateIso, r.id)}
-                          className={`w-full flex items-center gap-2 px-2 py-1 rounded text-xs text-left ${isDark ? "text-slate-300 hover:bg-white/5 hover:text-white" : "text-gray-700 hover:bg-gray-100"}`}
-                          data-testid={`meal-plan-pick-${dateIso}-${r.id}`}
-                        >
-                          <ChefHat className="w-3 h-3 shrink-0 text-purple-400" />
-                          <span className="truncate">{r.title}</span>
-                        </button>
-                      ))}
+                      {recipes.map((r) => {
+                        const hits = familyHitsByRecipe.get(r.id) || { loved: false, allergen: null };
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => addEntry(dateIso, r.id)}
+                            className={`w-full flex items-center gap-2 px-2 py-1 rounded text-xs text-left ${hits.allergen ? (isDark ? "opacity-70 hover:bg-red-500/10 hover:opacity-100" : "opacity-70 hover:bg-red-50 hover:opacity-100") : hits.loved ? (isDark ? "text-emerald-200 hover:bg-emerald-500/10" : "text-emerald-800 hover:bg-emerald-50") : (isDark ? "text-slate-300 hover:bg-white/5 hover:text-white" : "text-gray-700 hover:bg-gray-100")}`}
+                            data-testid={`meal-plan-pick-${dateIso}-${r.id}`}
+                            title={hits.allergen ? `Warning: contains "${hits.allergen}" — a family allergy` : hits.loved ? "A family favorite" : undefined}
+                          >
+                            {hits.allergen ? (
+                              <AlertTriangle className={`w-3 h-3 shrink-0 ${isDark ? "text-red-400" : "text-red-500"}`} data-testid={`meal-plan-pick-allergen-${dateIso}-${r.id}`} />
+                            ) : hits.loved ? (
+                              <Heart className={`w-3 h-3 shrink-0 ${isDark ? "text-emerald-400" : "text-emerald-500"}`} fill="currentColor" data-testid={`meal-plan-pick-loved-${dateIso}-${r.id}`} />
+                            ) : (
+                              <ChefHat className="w-3 h-3 shrink-0 text-purple-400" />
+                            )}
+                            <span className="truncate">{r.title}</span>
+                          </button>
+                        );
+                      })}
                     </PopoverContent>
                   </Popover>
                 </div>

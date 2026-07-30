@@ -72,6 +72,7 @@ const familyStore      = mkStore("family");
 const chatHistoryStore = mkStore("chat_history");
 const shoppingStore    = mkStore("shopping_list");
 const mealPlanStore    = mkStore("meal_plan");
+const mealPlanTplStore = mkStore("meal_plan_tpl");
 
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -624,6 +625,52 @@ const RestaurantsService = {
     return removed;
   },
 
+  // ================= MEAL PLAN TEMPLATES =================
+  // Snapshots of a whole week you can drop onto any future week. Stored as
+  // day_offset (0-6, 0=Monday) instead of ISO date so the template is
+  // week-relative.
+  async listMealPlanTemplates() {
+    const all = await iterAll(mealPlanTplStore);
+    return all.sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+  },
+  async saveMealPlanTemplate({ name, entries }) {
+    const clean = String(name || "").trim().slice(0, 60);
+    if (!clean) return null;
+    const id = rid("tpl");
+    const now = new Date().toISOString();
+    const record = {
+      id, name: clean,
+      entries: (entries || []).map((e) => ({
+        day_offset: Math.max(0, Math.min(6, e.day_offset | 0)),
+        recipe_id: e.recipe_id,
+        slot: e.slot || "",
+      })).filter((e) => e.recipe_id),
+      created_at: now, updated_at: now,
+    };
+    await mealPlanTplStore.setItem(id, record);
+    return record;
+  },
+  async deleteMealPlanTemplate(id) {
+    await mealPlanTplStore.removeItem(id);
+    return true;
+  },
+  // Apply the template's entries onto the week starting at weekStartIso (Monday).
+  // Returns the newly created meal plan entry records.
+  async applyMealPlanTemplate(templateId, weekStartIso) {
+    const tpl = await mealPlanTplStore.getItem(templateId);
+    if (!tpl) return [];
+    const base = new Date(weekStartIso + "T00:00:00");
+    const created = [];
+    for (const e of (tpl.entries || [])) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + (e.day_offset | 0));
+      const dateIso = d.toISOString().slice(0, 10);
+      const rec = await this.addMealPlanEntry({ date: dateIso, recipe_id: e.recipe_id, slot: e.slot });
+      if (rec) created.push(rec);
+    }
+    return created;
+  },
+
   // ================= FAMILY DINING =================
   async listFamily() {
     const all = await iterAll(familyStore);
@@ -772,6 +819,7 @@ const RestaurantsService = {
       chat_history: await iterAll(chatHistoryStore),
       shopping_list: await iterAll(shoppingStore),
       meal_plan: await iterAll(mealPlanStore),
+      meal_plan_tpl: await iterAll(mealPlanTplStore),
     };
   },
 
@@ -853,6 +901,7 @@ const RestaurantsService = {
       chat_history: chatHistoryStore,
       shopping_list: shoppingStore,
       meal_plan: mealPlanStore,
+      meal_plan_tpl: mealPlanTplStore,
     };
     const equal = (a, b) => {
       // Strip volatile timestamps so a plain re-export doesn't mark every
@@ -956,6 +1005,7 @@ const RestaurantsService = {
       chat_history: chatHistoryStore,
       shopping_list: shoppingStore,
       meal_plan: mealPlanStore,
+      meal_plan_tpl: mealPlanTplStore,
     };
     if (mode === "replace") {
       for (const s of Object.values(map)) await s.clear();
