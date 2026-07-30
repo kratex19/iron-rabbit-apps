@@ -1,20 +1,15 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08_
+_Last updated: 2026-02-08 (session 2)_
 
 ## Restaurants Galore Backlog
 
-### P1 — polish / next agent
-- [ ] Silence the residual React "unique key prop" warning in `RestaurantDeliveryModal` (non-blocking; observed in iteration_30 after saving).
-- [ ] Small helper `openNewWith(defaults)` in workspaces to avoid future copy-paste bugs like the `selectedR` ReferenceError.
-- [ ] Split `RestaurantWorkspaces.jsx` (~860 lines) into `RestaurantMenus.jsx`, `RestaurantOrders.jsx`, `RestaurantSpending.jsx`, `RestaurantCoupons.jsx` for maintainability.
-
-### P1 — feature depth
-- [ ] Smart Assistant chat panel (multi-turn conversation over dining data, keep sessions in IndexedDB).
-- [ ] Recipe Recreation — link a menu item to a saved home-recipe note.
-- [ ] Family Dining — guests / dietary restrictions / birthdays view (data already partly exists).
-- [ ] Photos: attach a photo to an order or review directly (currently only per-restaurant).
-- [ ] Calendar integration — surface staff birthdays + upcoming wish-list "someday" nudges into main Iron Rabbit calendar.
+### P2 — Feature depth
+- [ ] History-truncation hint in Smart Assistant when >20 turns are hit.
+- [ ] Recipe photo attachment (per recipe step, offline).
+- [ ] Family calendar integration — surface birthdays into the main Iron Rabbit calendar automatically.
+- [ ] "Cook this again" quick-log inside Recipes.
+- [ ] Attach photo → also link to Review (already partially supported by data model).
 
 ### P2 — Phase 5+ enhancements
 - [ ] Glass workspace theme (frosted-blur backdrop) as an opt-in preference.
@@ -28,12 +23,14 @@ _Last updated: 2026-02-08_
 - Deep-link URL routing to a specific Restaurants Galore workspace (`/restaurants/menus`).
 - Native Android app: expose Restaurants Galore as a home-screen widget.
 - Multi-device conflict resolution when backup imported into a live store.
+- Save tour_completed to localStorage synchronously on first Skip, so re-entrant modal opens can't re-trigger the tour in the same session.
 
 ## Deployment Backlog
 - [ ] SiteGround: verify Restaurants Galore data survives PWA reinstall.
-- [ ] Update `DEPLOY_TO_SITEGROUND.md` with Phase 2–5 asset size expectations.
+- [ ] Update `DEPLOY_TO_SITEGROUND.md` with Phase 2–6 asset size expectations.
 - [ ] Add a new pre-flight check: max IndexedDB size warning if user has 200+ photos.
 
 ## Refactoring backlog
-- `NotesApp.jsx` still 1,443 lines. Extract restaurant state hooks into `useRestaurantsGaloreState()` hook.
+- `NotesApp.jsx` still ~1,450 lines. Extract restaurant state hooks into `useRestaurantsGaloreState()` hook.
 - Move `AppModals.jsx` mount block for Restaurants Galore into its own `<RestaurantsGaloreModals />` component.
+- Move phase-3/4/5/6 workspace files into `/notes/rg/` to match phase-2 structure.
