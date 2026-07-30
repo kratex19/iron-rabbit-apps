@@ -1,6 +1,8 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 ## What's Live
+> **Session 11 (2026-02-08) update:** Shopping List items can now be **manually reassigned to a different aisle** via a tiny emoji-picker on each row (with a "Reset to auto" option). Cook Mode requests a **Screen Wake Lock** so the phone stays unlocked between steps, with a "Screen on" indicator in the modal header.
+
 > **Session 10 (2026-02-08) update:** Cook Mode's timer is now **drift-proof** (wall-clock `endsAt` — accurate even when the tab is hidden) and produces a **loud repeating alarm** on finish (repeated beeps, document-title flash, browser Notification, `⏰ Timer done` styling, 20s auto-terminate). The **Shopping List** gains a **By-aisle grouping** toggle that auto-classifies every ingredient into produce / meat / dairy / bakery / pantry / spices / beverages / frozen / household / other. Preference persists.
 
 > **Session 9 (2026-02-08) update:** Restaurants Galore gained four features: a **Chat Cost Badge** on the Smart Assistant that estimates LLM spend per session, **Recipe Ratings** (1-5 stars) that feed back into future Recipe Idea prompts, **Cook Mode** — a step-by-step guided cooking modal with a per-step timer parsed from step text, and a full **Shopping List** (new tile) that aggregates recipe ingredients into a checkable, dedup'd list. See CHANGELOG.md for details.

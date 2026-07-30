@@ -1,5 +1,27 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 11) — Aisle Overrides + Cook Mode Screen Wake ✅
+
+### Aisle Overrides
+- New optional `aisle_override` field on each shopping-list item, persisted in IndexedDB. Grouping honors override first, keyword classifier second.
+- New `RestaurantsService.setShoppingItemAisle(id, aisleKey|null)` — pass null to clear.
+- `aisleClassifier.js` exports `allAisles()` returning every aisle with `{key,label,emoji}` for the picker UI.
+- Shopping List row now renders an emoji-only aisle-picker button (`shopping-aisle-picker-<id>`) in grouped view. Clicking opens a Popover menu (`shopping-aisle-menu-<id>`) with all 10 aisles as choices; overridden items show a `Reset to auto` action.
+- Picker is intentionally hidden in flat view and for checked items to keep those views minimal.
+- Override applies immediately in state (no reload flicker) and survives full page reload.
+
+### Cook Mode — Screen Wake Lock
+- New wake-lock hook in `CookModeModal`: on mount `navigator.wakeLock.request("screen")` is invoked (wrapped in try/catch so unsupported / permission-denied environments never throw).
+- Small `cook-mode-wake-badge` in the modal title bar (Eye icon + "Screen on") appears when the lock is active.
+- `visibilitychange` listener re-acquires the lock after the tab returns (browsers auto-release on hide).
+- Unmount cleanup releases the lock so the device sleeps normally after cook mode closes.
+
+### Testing
+- Iteration 40: 100% pass. 7/7 aisle-override scenarios green (apply, reset, persist across reload, flat/grouped toggle, checked-hides-picker). Wake Lock verified via structural code paths — Playwright headless rejects `wakeLock.request()` with `NotAllowedError`, which the code handles as a graceful fallback per spec; badge appears on real devices with permission.
+
+---
+
+
 ## 2026-02-08 (session 10) — Cook Timer Alarm + Grocery Aisle Grouping ✅
 
 ### Cook Timer — wall-clock + loud alarm
