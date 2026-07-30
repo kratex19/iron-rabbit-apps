@@ -532,6 +532,15 @@ const RestaurantsService = {
     await shoppingStore.removeItem(id);
     return true;
   },
+  // Manually override the auto-classified aisle for one item. Pass null to
+  // clear the override and revert to keyword classification.
+  async setShoppingItemAisle(id, aisleKey) {
+    const existing = await shoppingStore.getItem(id);
+    if (!existing) return null;
+    const record = { ...existing, aisle_override: aisleKey || null, updated_at: new Date().toISOString() };
+    await shoppingStore.setItem(id, record);
+    return record;
+  },
   async clearCheckedShoppingItems() {
     const all = await iterAll(shoppingStore);
     let removed = 0;

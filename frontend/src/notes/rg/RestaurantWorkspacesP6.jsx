@@ -9,7 +9,7 @@ import axios from "axios";
 import {
   MessageCircle, Send, Loader2, ChefHat, Utensils, Plus, Trash2, Edit3,
   Baby, Cake, HeartHandshake, AlertTriangle, User, RotateCcw, Flame, Calendar, CheckCircle2,
-  Sparkles, Save, Star, PlayCircle, ShoppingCart, Coins, Pause, Play, SkipForward, SkipBack, X as XIcon,
+  Sparkles, Save, Star, PlayCircle, ShoppingCart, Coins, Pause, Play, SkipForward, SkipBack, X as XIcon, Eye,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -507,6 +507,8 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
   const alarmIntervalRef = useRef(null);
   const audioCtxRef = useRef(null);
   const finishedForStepRef = useRef(-1);
+  const wakeLockRef = useRef(null);
+  const [wakeActive, setWakeActive] = useState(false);
   const originalTitleRef = useRef(typeof document !== "undefined" ? document.title : "Iron Rabbit");
   const stepMinutes = parseStepMinutes(steps[idx]);
   const hasTimer = stepMinutes !== null;
@@ -599,6 +601,42 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
       if (typeof document !== "undefined") document.title = originalTitleRef.current;
       try { audioCtxRef.current?.close(); } catch { /* already closed */ }
       audioCtxRef.current = null;
+      // Release the screen wake lock so the phone can dim/sleep normally again
+      try { wakeLockRef.current?.release(); } catch { /* already released */ }
+      wakeLockRef.current = null;
+    };
+  }, []);
+
+  // Screen Wake Lock — keep the device awake while Cook Mode is open so the
+  // user doesn't have to unlock the phone at every step. Browsers auto-release
+  // the lock when the tab becomes hidden; we re-acquire on visibility restore.
+  useEffect(() => {
+    let cancelled = false;
+    const acquire = async () => {
+      try {
+        if (!("wakeLock" in navigator)) return; // API unsupported → silently skip
+        const lock = await navigator.wakeLock.request("screen");
+        if (cancelled) { try { lock.release(); } catch { /* no-op */ } return; }
+        wakeLockRef.current = lock;
+        setWakeActive(true);
+        // The system can revoke silently (e.g. user switched app); listen and re-request.
+        lock.addEventListener("release", () => {
+          wakeLockRef.current = null;
+          setWakeActive(false);
+        });
+      } catch {
+        // Permission denied / battery-saver / API blocked — non-fatal.
+        setWakeActive(false);
+      }
+    };
+    acquire();
+    const onVis = () => {
+      if (document.visibilityState === "visible" && !wakeLockRef.current) acquire();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 
@@ -661,6 +699,15 @@ function CookModeModal({ recipe, isDark, onClose, onComplete }) {
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <PlayCircle className="w-5 h-5 text-sky-400" /> Cook mode
+            {wakeActive && (
+              <span
+                className={`ml-auto inline-flex items-center gap-1 text-[10px] font-normal px-1.5 py-0.5 rounded-full border ${isDark ? "bg-sky-500/10 text-sky-300 border-sky-500/30" : "bg-sky-50 text-sky-700 border-sky-300"}`}
+                title="Screen will stay awake while Cook Mode is open"
+                data-testid="cook-mode-wake-badge"
+              >
+                <Eye className="w-3 h-3" /> Screen on
+              </span>
+            )}
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>{recipe.title}</DialogDescription>
         </DialogHeader>

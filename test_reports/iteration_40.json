@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 40 — Iron Rabbit Restaurants Galore two follow-up features tested end-to-end via live Playwright: (1) Aisle Overrides in Shopping List and (2) Cook Mode Screen Wake Lock. Aisle Overrides work fully (7/7 scenarios PASS including persistence across reload). Cook Mode Wake Lock code path is correct — navigator.wakeLock is supported but the actual request() rejects in headless Playwright with 'NotAllowedError: Wake Lock permission request denied' (documented as expected in the review request). The try/catch wrapping means zero console errors and the badge is correctly absent, matching the spec's 'unsupported → badge absent, no error thrown' fallback. Timer + all cook-mode regression testids present and functional.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "detailed_results": {
+    "T1_aisle_picker_visibility_grouped_unchecked": "PASS — All 7 unchecked items in By-aisle view render shopping-aisle-picker-<id>. Chicken breast correctly auto-classified into shopping-aisle-meat.",
+    "T2_aisle_picker_menu_all_10_choices": "PASS — Clicking picker opens shopping-aisle-menu-<id> Popover; all 10 choices present (produce/meat/dairy/bakery/pantry/spices/beverages/frozen/household/other). Current aisle (meat) visually highlighted with bg-white/10. Reset button correctly absent when no override.",
+    "T3_aisle_override_apply": "PASS — Selecting 'produce' immediately moves chicken breast into shopping-aisle-produce section and removes it from shopping-aisle-meat. Picker button acquires sky-blue accent classes and shows • dot marker.",
+    "T4_aisle_override_reset": "PASS — Reopening picker shows shopping-aisle-reset-<id>; clicking reset restores chicken to auto-classified meat aisle and dot marker disappears.",
+    "T5_aisle_override_persistence_reload": "PASS — Override set to 'bakery', page reloaded, shopping list reopened — chicken breast still in shopping-aisle-bakery section after reload (persisted to IndexedDB rg_shopping_list store via aisle_override field).",
+    "T6_flat_view_no_picker_and_toggle_back_preserves_override": "PASS — Toggling shopping-group-toggle to 'By order' removes all shopping-aisle-picker-* buttons (0 in DOM). Toggling back to 'By aisle' — chicken still in bakery section.",
+    "T7_no_picker_on_checked_items": "PASS — After checking chicken breast toggle, shopping-aisle-picker-<id> no longer rendered for that item.",
+    "REG_shopping_list_flows": "PASS — Add (7 items seeded), toggle, dedup (re-adding 'milk' keeps count at 7), shopping-clear-checked present. Grouping toggle + aisle classification unchanged.",
+    "WL1_wake_badge_visibility": "PASS (graceful fallback path) — navigator.wakeLock IS present (probed true) but navigator.wakeLock.request('screen') rejects in headless Playwright with 'NotAllowedError: Wake Lock permission request denied'. Per spec: 'If unsupported, the badge is absent (no error thrown).' Badge correctly absent, zero console errors, modal renders normally. On a real device with user gesture the badge would appear.",
+    "WL2_visibilitychange_re_acquire": "PASS (structurally) — Dispatched visibilitychange hidden→visible; no errors thrown, cook mode continues to function. Since request() rejects in headless, wakeLockRef stays null and re-acquire attempts also silently fail — expected fallback behavior.",
+    "WL3_close_no_error": "PASS — Escape closes cook-mode-modal cleanly; wakeLockRef?.release() try/catch handles null ref without error. No wake-lock-related console errors captured.",
+    "REG_cook_mode_timer_and_testids": "PASS — cook-mode-timer, cook-mode-timer-start, cook-mode-timer-reset, cook-mode-progress, cook-mode-step-counter, cook-mode-timer-display all present. Timer ticks correctly: 15:00 → 14:58 after 2.5s Start. Wake lock code path does not interfere with wall-clock ticker.",
+    "REG_notesapp_no_console_errors": "PASS — Zero console errors during full multi-phase live session (aisle override + reload + cook mode + visibility cycle)."
+  },
+  "test_report_links": [
+    "/app/frontend/src/notes/rg/RestaurantShoppingListModal.jsx",
+    "/app/frontend/src/notes/rg/aisleClassifier.js",
+    "/app/frontend/src/storage/restaurantsService.js",
+    "/app/frontend/src/notes/rg/RestaurantWorkspacesP6.jsx"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Aisle picker & override storage: setShoppingItemAisle(id, aisleKey|null) cleanly writes aisle_override + updated_at; grouped useMemo honors override before classifyAisle fallback. Simple, correct, persists automatically via localforage store.",
+    "allAisles() exports [...AISLES, OTHER] enabling picker UI to iterate every aisle uniformly with emoji+label. Reset flow simply sets aisle_override to null.",
+    "Wake Lock: acquire() correctly guards with 'wakeLock' in navigator, wraps request in try/catch, listens for lock.release event to update wakeActive, and re-acquires on visibilitychange when ref is null. Cleanup on unmount releases the lock. Design is bulletproof for permission-denied environments (headless CI, insecure contexts, battery-saver).",
+    "Wake badge is aria-labeled via title and conditionally rendered only when wakeActive — good accessibility hygiene.",
+    "RestaurantWorkspacesP6.jsx now 1007 lines (was 959) — still over the 700-line threshold. Prior iterations flagged this; CookModeModal (~250 lines) remains inline. Consider extracting for future maintainability.",
+    "Aisle override applies immediately in state (setItems) without reload — good UX, no flicker."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only iter)", "frontend": "100% (13/13 in-scope live checks; wake-badge visibility passes via graceful-fallback path per spec)"},
+  "test_credentials": "none (offline PWA)",
+  "seed_data_creation": "Seeded 7 shopping items via UI (chicken breast, milk, spinach, olive oil, cumin, sourdough bread, gummy bears). Seeded TEST_R1 restaurant and TEST_WL_REC recipe with steps=['Simmer for 15 minutes','Serve hot'] directly into IndexedDB IronRabbit DB (stores rg_restaurants and rg_recipes) after bootstrapping stores by opening the Recipes modal once. Ephemeral per browser session.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Aisle Override feature is fully verified. Cook Mode Wake Lock code is correct but the badge only renders in browsers that grant the permission — Playwright's headless Chromium rejects wakeLock.request() with NotAllowedError, so the visible-badge assertion cannot be positively tested in this environment. Manual/real-device test can be requested if positive-path verification is required. To seed a recipe with a real timer step in future tests: open Recipes modal once to create localforage stores, then use IDB open('IronRabbit') + store.put(rec, 'TEST_ID') on 'rg_restaurants' and 'rg_recipes' (both use out-of-line keys). aisleClassifier keyword 'chicken' correctly maps to meat aisle for the override test.",
+  "rca of the issue": "N/A — no bugs found. Wake-badge invisibility in Playwright is not a bug: the API rejects with NotAllowedError which the code intentionally handles as an unsupported/blocked environment (spec-compliant graceful fallback)."
+}

@@ -38,3 +38,8 @@ export const AISLE_ORDER = [...AISLES.map((a) => a.key), OTHER.key];
 export function aisleMeta(key) {
   return AISLES.find((a) => a.key === key) || OTHER;
 }
+
+// Return an ordered list of {key,label,emoji} — used by the aisle picker UI.
+export function allAisles() {
+  return [...AISLES, OTHER];
+}
