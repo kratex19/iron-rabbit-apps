@@ -1,0 +1,41 @@
+{
+  "summary": "P1 batch (P1a-P1f) end-to-end validation on preview URL. Backend /api/dining_insights (with and without history) returns 200 with insights string. All 21 launcher tiles present and enabled. P1a refactor transparent — Menus/FavMeals/Orders/Spending/Coupons workspaces open cleanly, menu add flow works. P1b data-loss fix confirmed — Item A + Item B both persist in menus-list (previously only Item B survived). Delivery save no longer emits 'unique key prop' React warning (0 warnings observed vs iteration_30's 1). P1c Smart Assistant multi-turn works end-to-end: user msg → typing indicator → assistant reply → follow-up reply demonstrates context (referenced 'P1 Bistro is your only spot so far') → reset clears. P1d Recipes: recipes-modal opens, editor saves 'Home Version' with ingredient preview visible in list. P1e Family: family-modal opens, Alex saved with 'Allergies: peanuts, shellfish' warning displayed. P1f Order photo: attach-photo section correctly hidden for new orders, visible with data-testid='order-attach-photo' + 'order-photo-input' after saving and re-editing. Zero console errors across all flows.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "regression_results": {
+    "P1a_refactor_transparent": "PASS — 5 workspaces (menus, favmeals, orders, spending, coupons) open via their launcher and expose expected *-modal testids from /notes/rg/. No console errors.",
+    "P1b_menu_id_persistence": "PASS — Item A and Item B both appear in menus-list simultaneously. Previous 'undefined key' bug fixed.",
+    "P1b_delivery_key_warning": "PASS — 0 'unique key prop' warnings emitted after saving delivery (was 1 in iter_30).",
+    "P1c_smart_assistant_multiturn": "PASS — assistant-msg-0/1/3 all render, assistant-typing shown, follow-up references prior context, assistant-reset clears messages.",
+    "P1d_recipes": "PASS — recipes-modal + recipe-editor + recipes-list all work. Ingredient preview 'pasta' visible on list card.",
+    "P1e_family": "PASS — family-modal + family-editor + family-list all work. Allergies string shown on list card.",
+    "P1f_order_attach_photo": "PASS — order-attach-photo & order-photo-input testids present when editing existing order; hidden for new orders (isEdit gate).",
+    "21_launchers_enabled": "PASS — all 21 launcher-* testids visible and enabled including new launcher-recipes and launcher-family.",
+    "backend_dining_insights_history": "PASS — POST /api/dining_insights with history returns 200, insights string non-empty."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dining_insights.py",
+    "/app/test_reports/pytest/dining_insights.xml"
+  ],
+  "action_items": [
+    "(Nice-to-have, non-blocking) The Edit and Delete icon buttons inside order-row (RestaurantOrders.jsx:86-87) have no data-testid. Add e.g. data-testid={`order-edit-${o.id}`} and data-testid={`order-delete-${o.id}`} to make automated Edit-order tests robust — current tests rely on positional nth-child(n-2)."
+  ],
+  "critical_code_review_comments": [
+    "P1b fix in restaurantsService.js is clean: putting `id: X.id || rid('...')` AFTER the spread prevents undefined from overriding freshly generated IDs. Confirmed working for menus (Item A/B) and orders (row appeared after save).",
+    "P1c backend transcript replay at server.py:468-481 is a pragmatic workaround for LlmChat's local session_id — works, but note that beyond 20 turns older history is silently truncated (payload.history[-20:]). Consider surfacing 'context truncated' hint to user in a future iteration.",
+    "Photos gate in RestaurantOrders.jsx:260 (`{isEdit && ...}`) correctly hides section for new orders. The inline hint 'No photos attached yet. Save the order first, then attach.' is redundant since the whole section is hidden pre-save — dead code path.",
+    "Tour + Quick Access popups continue to interfere with test automation whenever tour_completed persists slowly. Consider persisting to localStorage synchronously on first Skip click, not just via backend PATCH, so subsequent modal opens can't retrigger it in the same session."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (3/3 pytest)", "frontend": "100% (9/9 items covered)"},
+  "test_credentials": "none — local PWA IndexedDB",
+  "seed_data_creation": "Restaurant 'P1 Bistro' created in each fresh IndexedDB session via Directory launcher.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "IndexedDB is per-Playwright-context, so restaurants must be seeded within each script run. Tour dismissal doesn't always persist across script boundaries — use aggressive dismiss loop (tour-skip / tour-skip-inline / qa-close / qa-skip-forever) at the top of every script, then optionally repeat once after 1s. Edit button in order-row has no testid; use `row.locator('button').nth(n-2)` to click it (delete is last). Smart Assistant reply times: ~10-15s per turn typical, allow up to 50s.",
+  "rca of the issue": "N/A — no critical bugs found in this batch."
+}

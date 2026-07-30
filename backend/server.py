@@ -423,6 +423,7 @@ async def ocr_image(payload: OCRRequest):
 class DiningInsightsRequest(BaseModel):
     stats: Dict[str, Any]  # arbitrary summary computed on the client
     question: Optional[str] = None  # optional user question
+    history: Optional[List[Dict[str, str]]] = None  # optional prior turns: [{role:'user'|'assistant', text:'...'}]
 
 
 class DiningInsightsResponse(BaseModel):
@@ -445,15 +446,18 @@ async def dining_insights(payload: DiningInsightsRequest):
     question = (payload.question or "Give me 3-5 concise insights about my dining habits, spending patterns, and any smart suggestions to save money or discover something new. Keep it warm, punchy, bullet-formatted.").strip()
 
     system_msg = (
-        "You are a friendly personal dining analyst. You will receive a JSON "
-        "summary of a person's restaurant history (monthly spend, top "
-        "restaurants, favorites, review averages, coupon expirations, etc). "
-        "Answer their question using only the data provided. "
-        "Formatting rules: (1) 3-5 short bullet points max; "
-        "(2) each bullet begins with • ; "
-        "(3) use concrete numbers where possible; "
-        "(4) no fluff, no headers, no disclaimers, no 'as an AI'; "
-        "(5) if data is thin, say so and suggest what to log next."
+        "You are a friendly personal dining analyst and chat assistant. You "
+        "will receive a JSON summary of a person's restaurant history "
+        "(monthly spend, top restaurants, favorites, review averages, "
+        "coupon expirations, etc). Answer their question using only the data "
+        "provided.\n"
+        "Formatting rules for FIRST-TURN or bullet requests: (1) 3-5 short "
+        "bullet points max; (2) each bullet begins with • ; (3) use concrete "
+        "numbers where possible; (4) no fluff, no headers, no disclaimers, "
+        "no 'as an AI'; (5) if data is thin, say so and suggest what to log next.\n"
+        "Formatting rules for FOLLOW-UP CHAT turns (when history is present): "
+        "answer conversationally in 1-3 sentences, but still cite the numbers "
+        "from the stats. Do not repeat the entire bullet list unless asked."
     )
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
@@ -461,7 +465,21 @@ async def dining_insights(payload: DiningInsightsRequest):
         system_message=system_msg,
     ).with_model("anthropic", "claude-sonnet-4-6")
 
-    prompt = f"STATS:\n{stats_json}\n\nQUESTION:\n{question}"
+    parts = [f"STATS:\n{stats_json}"]
+    if payload.history:
+        # Serialize prior turns into a plain-text transcript so we can send a
+        # single message (emergentintegrations LlmChat's session_id is local, so
+        # we replay history verbatim to preserve context).
+        transcript = []
+        for m in payload.history[-20:]:
+            role = "User" if m.get("role") == "user" else "Assistant"
+            text = (m.get("text") or "").strip()
+            if text:
+                transcript.append(f"{role}: {text}")
+        if transcript:
+            parts.append("PRIOR CONVERSATION:\n" + "\n".join(transcript))
+    parts.append(f"QUESTION:\n{question}")
+    prompt = "\n\n".join(parts)
     try:
         result = await chat.send_message(UserMessage(text=prompt))
     except Exception as e:

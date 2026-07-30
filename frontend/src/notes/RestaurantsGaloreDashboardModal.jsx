@@ -3,7 +3,7 @@ import {
   Utensils, Store, Heart, DollarSign, Star, Ticket, Cake, Clock,
   ChefHat, Menu as MenuIcon, Receipt, Truck, Users, Camera,
   Mic, MessageCircle, ClipboardList, Coffee, Cookie, Search,
-  AlertCircle, TrendingUp, Sparkles, HardDriveDownload,
+  AlertCircle, TrendingUp, Sparkles, HardDriveDownload, HeartHandshake,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ export default function RestaurantsGaloreDashboardModal({
   onOpenMenus, onOpenMeals, onOpenOrders, onOpenSpending, onOpenCoupons,
   onOpenReviews, onOpenDelivery, onOpenStaff, onOpenWishlist, onOpenPhotos,
   onOpenVoice, onOpenSearch, onOpenBeverages, onOpenDesserts, onOpenAI,
-  onOpenBackup,
+  onOpenBackup, onOpenSmart, onOpenRecipes, onOpenFamily,
 }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -176,15 +176,17 @@ export default function RestaurantsGaloreDashboardModal({
                 {launcher(Ticket, "Coupons", onOpenCoupons, false, "launcher-coupons")}
                 {launcher(Camera, "Photos", onOpenPhotos, false, "launcher-photos")}
                 {launcher(Mic, "Voice journal", onOpenVoice, false, "launcher-voice")}
-                {launcher(Sparkles, "Smart assistant", onOpenAI, false, "launcher-assistant")}
+                {launcher(MessageCircle, "Smart assistant", onOpenSmart, false, "launcher-assistant")}
                 {launcher(Users, "Favorite staff", onOpenStaff, false, "launcher-staff")}
                 {launcher(ClipboardList, "Wish list", onOpenWishlist, false, "launcher-wishlist")}
                 {launcher(Coffee, "Beverages", onOpenBeverages, false, "launcher-beverages")}
                 {launcher(Cookie, "Desserts", onOpenDesserts, false, "launcher-desserts")}
                 {launcher(Search, "Search all", onOpenSearch, false, "launcher-search")}
-                {launcher(MessageCircle, "AI insights", onOpenAI, false, "launcher-ai")}
+                {launcher(Sparkles, "AI insights", onOpenAI, false, "launcher-ai")}
                 {launcher(DollarSign, "Tip calc", onOpenOrders, false, "launcher-tip")}
                 {launcher(HardDriveDownload, "Backup", onOpenBackup, false, "launcher-backup")}
+                {launcher(ChefHat, "Recipes", onOpenRecipes, false, "launcher-recipes")}
+                {launcher(HeartHandshake, "Family dining", onOpenFamily, false, "launcher-family")}
               </div>
               <div className={`text-[10px] mt-2 ${isDark ? "text-slate-600" : "text-gray-400"}`}>
                 <b>{stats.total_restaurants}</b> restaurants · <b>{stats.total_orders}</b> orders · <b>{stats.total_reviews}</b> reviews stored offline

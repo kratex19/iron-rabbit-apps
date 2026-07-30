@@ -67,6 +67,8 @@ const staffStore       = mkStore("staff");
 const wishlistStore    = mkStore("wishlist");
 const photosStore      = mkStore("photos");
 const voiceJournalStore = mkStore("voice_journal");
+const recipesStore     = mkStore("recipes");
+const familyStore      = mkStore("family");
 
 const rid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -90,9 +92,7 @@ const RestaurantsService = {
   async saveRestaurant(r) {
     const now = new Date().toISOString();
     const record = {
-      id: r.id || rid("rest"),
       created_at: r.created_at || now,
-      updated_at: now,
       // defaults for missing fields
       phones: [],
       tags: {},
@@ -100,6 +100,8 @@ const RestaurantsService = {
       hidden: false,
       archived: false,
       ...r,
+      id: r.id || rid("rest"),
+      updated_at: now,
     };
     await restaurantsStore.setItem(record.id, record);
     return record;
@@ -132,11 +134,11 @@ const RestaurantsService = {
       history.push({ price: Number(existing.price), date: existing.updated_at || now });
     }
     const record = {
-      id: item.id || rid("menu"),
       created_at: existing?.created_at || now,
-      updated_at: now,
       price_history: history,
       ...item,
+      id: item.id || rid("menu"),
+      updated_at: now,
     };
     await menusStore.setItem(record.id, record);
     return record;
@@ -156,11 +158,11 @@ const RestaurantsService = {
   async saveFavoriteMeal(m) {
     const now = new Date().toISOString();
     const record = {
-      id: m.id || rid("fav"),
       created_at: m.created_at || now,
-      updated_at: now,
       order_count: 0,
       ...m,
+      id: m.id || rid("fav"),
+      updated_at: now,
     };
     await favoriteMealsStore.setItem(record.id, record);
     return record;
@@ -181,11 +183,11 @@ const RestaurantsService = {
   },
   async saveOrder(o) {
     const record = {
-      id: o.id || rid("order"),
       created_at: o.created_at || new Date().toISOString(),
       items: [],
       split_bill: [],
       ...o,
+      id: o.id || rid("order"),
     };
     await ordersStore.setItem(record.id, record);
     return record;
@@ -204,11 +206,11 @@ const RestaurantsService = {
   },
   async saveReview(r) {
     const record = {
-      id: r.id || rid("rev"),
       created_at: r.created_at || new Date().toISOString(),
       ratings: {},
       photos: [],
       ...r,
+      id: r.id || rid("rev"),
     };
     await reviewsStore.setItem(record.id, record);
     return record;
@@ -225,9 +227,9 @@ const RestaurantsService = {
   },
   async saveDelivery(d) {
     const record = {
-      id: d.id || rid("del"),
       created_at: d.created_at || new Date().toISOString(),
       ...d,
+      id: d.id || rid("del"),
     };
     await deliveriesStore.setItem(record.id, record);
     return record;
@@ -252,10 +254,10 @@ const RestaurantsService = {
   },
   async saveCoupon(c) {
     const record = {
-      id: c.id || rid("coup"),
       created_at: c.created_at || new Date().toISOString(),
       used: false,
       ...c,
+      id: c.id || rid("coup"),
     };
     await couponsStore.setItem(record.id, record);
     return record;
@@ -275,10 +277,10 @@ const RestaurantsService = {
   async saveStaff(s) {
     const now = new Date().toISOString();
     const record = {
-      id: s.id || rid("staff"),
       created_at: s.created_at || now,
-      updated_at: now,
       ...s,
+      id: s.id || rid("staff"),
+      updated_at: now,
     };
     await staffStore.setItem(record.id, record);
     return record;
@@ -295,10 +297,10 @@ const RestaurantsService = {
   },
   async saveWishlistItem(w) {
     const record = {
-      id: w.id || rid("wish"),
       created_at: w.created_at || new Date().toISOString(),
       visited: false,
       ...w,
+      id: w.id || rid("wish"),
     };
     await wishlistStore.setItem(record.id, record);
     return record;
@@ -319,10 +321,10 @@ const RestaurantsService = {
   },
   async savePhoto(p) {
     const record = {
-      id: p.id || rid("photo"),
       created_at: p.created_at || new Date().toISOString(),
       taken_at: p.taken_at || new Date().toISOString(),
       ...p,
+      id: p.id || rid("photo"),
     };
     await photosStore.setItem(record.id, record);
     return record;
@@ -341,16 +343,68 @@ const RestaurantsService = {
   },
   async saveVoiceJournalEntry(v) {
     const record = {
-      id: v.id || rid("voice"),
       created_at: v.created_at || new Date().toISOString(),
       taken_at: v.taken_at || new Date().toISOString(),
       ...v,
+      id: v.id || rid("voice"),
     };
     await voiceJournalStore.setItem(record.id, record);
     return record;
   },
   async deleteVoiceJournalEntry(id) {
     await voiceJournalStore.removeItem(id);
+    return true;
+  },
+
+  // ================= RECIPE RECREATION =================
+  async listRecipes({ menuItemId, restaurantId } = {}) {
+    const all = await iterAll(recipesStore);
+    return all
+      .filter(r => !menuItemId || r.menu_item_id === menuItemId)
+      .filter(r => !restaurantId || r.restaurant_id === restaurantId)
+      .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+  },
+  async saveRecipe(r) {
+    const now = new Date().toISOString();
+    const record = {
+      created_at: r.created_at || now,
+      ingredients: [],
+      steps: [],
+      tags: [],
+      ...r,
+      id: r.id || rid("recipe"),
+      updated_at: now,
+    };
+    await recipesStore.setItem(record.id, record);
+    return record;
+  },
+  async deleteRecipe(id) {
+    await recipesStore.removeItem(id);
+    return true;
+  },
+
+  // ================= FAMILY DINING =================
+  async listFamily() {
+    const all = await iterAll(familyStore);
+    return all.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  },
+  async saveFamilyMember(m) {
+    const now = new Date().toISOString();
+    const record = {
+      created_at: m.created_at || now,
+      allergies: [],
+      dietary: [],
+      loved_dishes: [],
+      hated_dishes: [],
+      ...m,
+      id: m.id || rid("fam"),
+      updated_at: now,
+    };
+    await familyStore.setItem(record.id, record);
+    return record;
+  },
+  async deleteFamilyMember(id) {
+    await familyStore.removeItem(id);
     return true;
   },
 
@@ -444,6 +498,8 @@ const RestaurantsService = {
       wishlist: await iterAll(wishlistStore),
       photos: await iterAll(photosStore),
       voice_journal: await iterAll(voiceJournalStore),
+      recipes: await iterAll(recipesStore),
+      family: await iterAll(familyStore),
     };
   },
 
@@ -462,6 +518,8 @@ const RestaurantsService = {
       wishlist: wishlistStore,
       photos: photosStore,
       voice_journal: voiceJournalStore,
+      recipes: recipesStore,
+      family: familyStore,
     };
     if (mode === "replace") {
       for (const s of Object.values(map)) await s.clear();

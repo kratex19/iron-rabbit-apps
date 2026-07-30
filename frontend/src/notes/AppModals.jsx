@@ -44,6 +44,11 @@ import {
   RestaurantAIInsightsModal,
 } from "./RestaurantWorkspacesP4";
 import { RestaurantBackupModal } from "./RestaurantWorkspacesP5";
+import {
+  RestaurantSmartAssistantModal,
+  RestaurantRecipesModal,
+  RestaurantFamilyModal,
+} from "./RestaurantWorkspacesP6";
 import LanguagePicker from "./LanguagePicker";
 import SecurityModal from "./SecurityModal";
 import LockScreen from "../security/LockScreen";
@@ -258,6 +263,9 @@ export default function AppModals(p) {
         onOpenDesserts={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantDessertsOpen(true), 150); }}
         onOpenAI={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantAIOpen(true), 150); }}
         onOpenBackup={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantBackupOpen(true), 150); }}
+        onOpenSmart={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantSmartOpen(true), 150); }}
+        onOpenRecipes={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantRecipesOpen(true), 150); }}
+        onOpenFamily={() => { p.setRestaurantsGaloreOpen(false); setTimeout(() => p.setRestaurantFamilyOpen(true), 150); }}
       />
 
       <RestaurantDirectoryModal
@@ -347,6 +355,22 @@ export default function AppModals(p) {
       <RestaurantBackupModal
         isOpen={p.restaurantBackupOpen}
         onClose={() => p.setRestaurantBackupOpen(false)}
+        isDark={p.isDark}
+      />
+
+      <RestaurantSmartAssistantModal
+        isOpen={p.restaurantSmartOpen}
+        onClose={() => p.setRestaurantSmartOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantRecipesModal
+        isOpen={p.restaurantRecipesOpen}
+        onClose={() => p.setRestaurantRecipesOpen(false)}
+        isDark={p.isDark}
+      />
+      <RestaurantFamilyModal
+        isOpen={p.restaurantFamilyOpen}
+        onClose={() => p.setRestaurantFamilyOpen(false)}
         isDark={p.isDark}
       />
 
