@@ -1,6 +1,6 @@
 # Iron Rabbit Roadmap
 
-_Last updated: 2026-02-08 (session 6)_
+_Last updated: 2026-02-08 (session 7)_
 
 ## Restaurants Galore Backlog
 
@@ -14,12 +14,12 @@ _Last updated: 2026-02-08 (session 6)_
 ### P2 — Cloud sync polish
 - [x] WebDAV: auto-schedule (weekly / monthly push). ✅ session 6
 - [x] Google Drive: auto-schedule (skipped silently — needs interactive OAuth). ✅ session 6
-- [ ] "Show last-synced-at" indicator per destination.
+- [x] "Show last-synced-at" indicator per destination. ✅ session 7 (Backup tile chip)
 - [ ] Conflict resolution when Pull would overwrite newer local data (currently: preview + Merge/Replace prompt covers this).
 - [x] Encrypted backups (client-side AES-GCM with a passphrase). ✅ session 6
-- [ ] Backup diff report — after a Pull, show what will change before committing Merge/Replace.
-- [ ] Bump PBKDF2 to 600k iterations (OWASP 2023 SHA-256 guidance).
-- [ ] Add `version` field to encrypted envelope for future format bumps.
+- [x] Backup diff report — after a Pull, show what will change before committing Merge/Replace. ✅ session 7
+- [x] Bump PBKDF2 to 600k iterations (OWASP 2023 SHA-256 guidance). ✅ session 7
+- [x] Add `version` field to encrypted envelope for future format bumps. ✅ session 7
 
 ### P2 — Look & feel
 - [ ] Sound effects for Cook, Backup, Family sync (opt-in).

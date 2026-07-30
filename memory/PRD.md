@@ -1,6 +1,8 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 ## What's Live
+> **Session 7 (2026-02-08) update:** Restaurants Galore Backup modal now shows a **Backup Diff Report** (Merge vs Replace preview of added/changed/removed items per collection) before commit. The dashboard **Backup tile** shows a **sync health chip** (`synced 2h ago` / `never synced`). Encryption strength upgraded to **PBKDF2 600 000 iterations** with a versioned envelope (`version: 1`) — older `.rgenc` files still decrypt transparently. See CHANGELOG.md.
+
 > **Session 6 (2026-02-08) update:** Restaurants Galore now supports client-side AES-256-GCM encrypted backups (`.rgenc`), auto-scheduled weekly/monthly backups (Local / WebDAV / Google Drive) at app boot, and Smart Assistant conversation persistence across sessions. See CHANGELOG.md and ROADMAP.md for details.
 
 

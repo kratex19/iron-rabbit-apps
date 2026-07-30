@@ -1,5 +1,31 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 7) — Diff Report + Sync Health + PBKDF2 600k ✅
+
+### Backup diff report
+- New `RestaurantsService.computeBackupDiff(data)` returns per-collection counters `{added, changed, unchanged, removed, total_local, total_incoming}` plus overall totals.
+- Backup modal now renders a compact **What will change** panel inside the preview with a Merge/Replace toggle (`data-testid=diff-mode-merge` / `diff-mode-replace`) and per-collection rows (`data-testid=diff-row-<key>`).
+- Merge mode shows `+added / ~changed / kept`; Replace mode shows `+added / ~changed / -removed` (red).
+- Identical backup → italic "Nothing to change — this backup matches your current library." message.
+- Diff also renders for encrypted `.rgenc` files after successful decryption.
+- `equal()` strips volatile timestamps (`updated_at`, `last_ordered_at`, `last_cooked_at`, `taken_at`) so re-exports don't show phantom changes.
+
+### Sync Health chip on Backup tile
+- New `lastBackupLabel()` helper returns `just now / Xm ago / Xh ago / Xd ago / Xmo ago`.
+- Backup launcher tile on the Restaurants Galore dashboard shows a `data-testid=launcher-backup-sync` line under the "Backup" label (green when fresh, amber when stale, dim gray when never synced).
+- Aria-label enriched: `"Backup — last synced 2h ago"`, `"Backup — 30+ days overdue"`, or `"Backup"` depending on state.
+
+### Stronger encryption
+- `PBKDF2_ITERS` bumped from 200 000 → **600 000** (OWASP 2023 SHA-256 guidance).
+- Encrypted envelope now carries `version: 1` alongside `iterations` so future format bumps can be detected.
+- `decryptJSON` reads `envelope.iterations` — older `.rgenc` files (produced during iter 34 at 200 k) still open transparently.
+
+### Testing
+- Iteration 35: 100% pass. 3/3 backend pytest. 11/11 live frontend items; T7/T8 verified via code inspection (CRA prod build blocks source-module dynamic import — deterministic logic confirmed correct).
+
+---
+
+
 ## 2026-02-08 (session 6) — Encrypted Backups + Auto-Schedule + Assistant Memory ✅
 
 ### Encrypted backups (client-side AES-256-GCM)

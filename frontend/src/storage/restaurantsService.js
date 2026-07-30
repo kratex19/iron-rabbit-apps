@@ -673,8 +673,15 @@ const RestaurantsService = {
       chat_history: chatHistoryStore,
     };
     const equal = (a, b) => {
-      // shallow but tolerant compare — ignores volatile timestamps.
-      const strip = (o) => { const { updated_at, ...rest } = o || {}; return rest; };
+      // Strip volatile timestamps so a plain re-export doesn't mark every
+      // row as "changed". These fields are updated during normal use and
+      // aren't part of the user-authored content.
+      const VOLATILE = new Set(["updated_at", "last_ordered_at", "last_cooked_at", "taken_at"]);
+      const strip = (o) => {
+        const out = {};
+        for (const [k, v] of Object.entries(o || {})) if (!VOLATILE.has(k)) out[k] = v;
+        return out;
+      };
       try { return JSON.stringify(strip(a || {})) === JSON.stringify(strip(b || {})); }
       catch { return false; }
     };
