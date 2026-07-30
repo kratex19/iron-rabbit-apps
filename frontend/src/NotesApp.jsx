@@ -1276,7 +1276,7 @@ export default function NotesApp() {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`} data-testid="app-container">
-      <Toaster position="top-right" theme={isDark ? "dark" : "light"} />
+      <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} />
 
       {/* Compact Header (extracted) */}
       <AppHeader

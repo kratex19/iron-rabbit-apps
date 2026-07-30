@@ -28,7 +28,7 @@ function NotFound() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      <Toaster position="bottom-right" />
       <Routes>
         {/* Notes App — default landing */}
         <Route path="/" element={<NotesApp />} />

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Store, Plus, Search, Heart, EyeOff, Archive, Phone, Globe, MapPin,
+  Sparkles,
   Mail, Clock, Utensils, Edit3, Trash2, X, Check, ArrowLeft, Car, Truck,
   ShoppingBag, Calendar, Users, Accessibility, Baby, Dog, ExternalLink,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import {
 import RestaurantsService from "../storage/restaurantsService";
 import { haptic } from "../utils/haptic";
 import { MapsPickerModal } from "./RestaurantWorkspacesP5";
+import { PreVisitBriefingModal } from "./rg/PreVisitBriefing";
 
 const AMENITY_TAGS = [
   { key: "drive_thru", label: "Drive-Thru", icon: Car },
@@ -43,6 +45,7 @@ export default function RestaurantDirectoryModal({ isOpen, onClose, isDark }) {
   const [editing, setEditing] = useState(null); // {} for new, item for edit, null closed
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [mapsFor, setMapsFor] = useState(null); // restaurant to open in Maps picker
+  const [briefingFor, setBriefingFor] = useState(null); // restaurant to open in Pre-Visit briefing
 
   const reload = async () => {
     setLoading(true);
@@ -219,6 +222,9 @@ export default function RestaurantDirectoryModal({ isOpen, onClose, isDark }) {
                                   <MapPin className="w-2.5 h-2.5" /> Directions
                                 </button>
                               )}
+                              <button type="button" onClick={() => setBriefingFor(r)} className={`inline-flex items-center gap-1 hover:underline ${isDark ? "text-amber-300" : "text-amber-700"}`} data-testid={`directory-brief-${r.id}`}>
+                                <Sparkles className="w-2.5 h-2.5" /> Brief
+                              </button>
                               {r.email && (
                                 <span className="inline-flex items-center gap-1"><Mail className="w-2.5 h-2.5" /> {r.email}</span>
                               )}
@@ -307,6 +313,15 @@ export default function RestaurantDirectoryModal({ isOpen, onClose, isDark }) {
           isDark={isDark}
           address={mapsFor.address}
           name={mapsFor.name}
+        />
+      )}
+
+      {briefingFor && (
+        <PreVisitBriefingModal
+          isOpen={!!briefingFor}
+          onClose={() => setBriefingFor(null)}
+          isDark={isDark}
+          restaurant={briefingFor}
         />
       )}
     </>
