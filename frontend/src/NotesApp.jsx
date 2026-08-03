@@ -1054,7 +1054,7 @@ export default function NotesApp() {
                             isDark={isDark}
                             dragHandleProps={catDp.dragHandleProps}
                           />
-                          <Droppable droppableId={`notes-in-${cat}`} type="note" direction="horizontal">
+                          <Droppable droppableId={`notes-in-${cat}`} type="note">
                             {(prov, snap) => (
                               <div
                                 ref={prov.innerRef}
@@ -1092,7 +1092,7 @@ export default function NotesApp() {
                 {grouped.length > 0 && (
                   <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
                 )}
-                <Droppable droppableId="notes-in-" type="note" direction="horizontal">
+                <Droppable droppableId="notes-in-" type="note">
                   {(prov, snap) => (
                     <div
                       ref={prov.innerRef}
@@ -1125,7 +1125,7 @@ export default function NotesApp() {
       }
       return (
         <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <Droppable droppableId="notes-grid" type="note" direction="horizontal">
+          <Droppable droppableId="notes-grid" type="note">
             {(prov) => (
               <div ref={prov.innerRef} {...prov.droppableProps} className="notes-grid" data-testid="notes-icon-flat">
                 {processedNotes.map((note, idx) => (
