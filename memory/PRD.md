@@ -1,5 +1,60 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+# 🛑 PROJECT DIRECTIVE — READ FIRST (2026-02-08)
+
+## Current Mode: **LAUNCH MODE** (Google Play readiness)
+
+### 🚨 Restaurants Galore Pack is FROZEN
+
+The **Restaurants Galore Pack** (all files under `/app/frontend/src/notes/rg/*`, related backend endpoints `/api/dining_insights` and `/api/dining_recipe_idea`, and all `restaurantsService.js` stores) is treated as an **archived feature branch**. Sessions 1–13 delivered a comprehensive tile pack; further work is paused indefinitely.
+
+**Do NOT:**
+- Delete any code, assets, database structures, prompts, docs, icons, images, or config files related to the Restaurant Pack.
+- Refactor or remove Restaurant Pack functionality unless the user specifically requests it.
+- Merge unfinished Restaurant Pack changes into unrelated parts of the app.
+- Archive by deleting or compressing files that may be needed later.
+
+**DO:**
+- Preserve all Restaurant Pack work exactly as it exists today.
+- Maintain compatibility with the current app so the pack can be resumed with minimal work.
+
+### 📱 New Priority: Iron Rabbit Google Play Release
+
+Until the user explicitly changes modes, all development effort must focus on:
+1. Fix bugs and glitches (P0).
+2. Improve stability and reliability.
+3. Improve UI/UX where needed.
+4. Verify offline functionality throughout the app.
+5. Verify backup and restore features.
+6. Verify QR code generation and scanning.
+7. Test all existing packs and navigation.
+8. Optimize performance where appropriate.
+9. Complete Google Play readiness requirements.
+10. Assist with testing, debugging, and release preparation.
+
+### 🧭 Development Modes (permanent workflow)
+
+- **Mode 1 — Launch Mode** *(CURRENT)*: bug fixes, testing, optimization, Play readiness.
+- **Mode 2 — Feature Development**: new packs and capabilities. Restaurants Galore resumes here when unfrozen.
+- **Mode 3 — Maintenance**: small fixes and updates post-release.
+- **Mode 4 — Experimental Lab**: trying new ideas without touching production.
+
+### 🛠 Development Guidelines (Launch Mode)
+
+- Make only focused, incremental changes.
+- Avoid unnecessary refactoring of working code.
+- Preserve existing functionality unless a change is required to fix a bug or improve stability.
+- Explain any significant architectural changes before implementing them.
+- Verify fixes do not introduce regressions elsewhere.
+
+### 📋 Pending Restaurant Pack work (archived — do not resume without approval)
+
+- `/app/test_reports/iteration_44.json` — meal plan templates + family preference nudge test results (from before the pause). **Retained for future reference.**
+- ROADMAP.md still lists P2 Restaurant Pack items — those are frozen too.
+
+---
+
+
 ## What's Live
 > **Session 13 (2026-02-08) update:** Restaurants Galore gained a **Weekly Meal Plan** — a 7-day Mon–Sun grid where recipes can be pinned to each day, with a single-tap "Build shopping list from this week" that aggregates ingredients across all pinned recipes. The Recipes modal gained a **Cook Notes Search** input that filters recipes by title, notes, and every cook-note, with a "Match: …" swap so you see the specific note that matched.
 
