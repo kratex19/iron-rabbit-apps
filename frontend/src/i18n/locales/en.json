@@ -43,7 +43,7 @@
     "content_placeholder": "Write...",
     "category": "Category",
     "subcategory": "Subcategory",
-    "color": "Color",
+    "color": "Tile accent color",
     "tile_appearance": "Tile appearance (Icon view)",
     "choose_icon": "Choose icon",
     "choose_background": "Choose background",

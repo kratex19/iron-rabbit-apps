@@ -1,8 +1,8 @@
 // Service Worker for Iron Rabbit — Offline-first PWA
 // v2: network-first for HTML (so users always get the latest bundle),
 //     cache-first for hashed static assets.
-const CACHE_NAME = 'iron-rabbit-v2';
-const RUNTIME = 'iron-rabbit-runtime-v2';
+const CACHE_NAME = 'iron-rabbit-v10';
+const RUNTIME = 'iron-rabbit-runtime-v10';
 
 // App shell — precached on install
 const PRECACHE_URLS = [
