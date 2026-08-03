@@ -1,5 +1,39 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+
+## 📌 Session state (2026-08-03, end-of-day)
+
+### What happened today
+- **Attempted:** Fix a reported CSS regression where an earlier agent applied `bg-white` instead of `color:white` in note editor / toolbars, then a follow-up ask to force the app to look dark in both Sun and Moon states.
+- **Outcome:** ~15 theme-related commits spiraled without resolving the user's device-side visual (turned out the user was testing the DEPLOYED URL `r-task-timer.emergent.host`, not the preview — my fixes never reached them).
+- **User invoked hard-reset recovery.** `git reset --hard 96d8893` executed. All theme work from 2026-08-03 wiped.
+
+### Preserved from the recovery
+- ✅ Chores Tile View drag-drop fix (commit `96d8893`, from earlier in the day — user validated)
+- ✅ `Color` → `Tile accent color` label in `en.json` (reapplied post-reset)
+- ✅ Service worker bumped from v2 → v10 (forces device cache refresh)
+
+### DO NOT REDO next session
+- Do NOT re-implement `const isDark = true` hardcoding in `NotesApp.jsx`.
+- Do NOT add the inline `DARK-ONLY OVERRIDE` block in `frontend/public/index.html`.
+- Do NOT edit `FullScreenNote.jsx` to force dark-only styling.
+- Do NOT remove `.header-compact.light` CSS overrides in `App.css`.
+- These were the exact changes that were reverted. If the user asks about light/dark theming again, get a screenshot FIRST and understand which URL they're testing on before touching code.
+
+### Root cause of the confusion (for next agent)
+- The user's Chrome Android was pointing to the **deployed** URL (`r-task-timer.emergent.host`), not the preview URL. Preview and deployed are separate builds. The user never saw any of the theme fixes because those were only on preview. This wasn't understood until the user shared a screenshot with the URL bar visible.
+- Lesson: whenever a user reports "still not fixed" after CSS changes, ask for the URL they're viewing BEFORE iterating further.
+
+### Next session priorities (in order)
+1. **User verification pending** — user said "Looks good for now" after the restore. Confirm on their next visit that the restored baseline is still acceptable in both Sun and Moon modes.
+2. **Launch Mode queue (unchanged from before today):**
+   - P0: Verify offline functionality (writes survive reload)
+   - P0: Verify Backup & Restore stability
+   - P1: QR sweep (barcode scanner + QR gen)
+   - P1: Google Play readiness audit (Capacitor config, icons, splash, package name, version, privacy manifest)
+3. Restaurants Galore pack remains FROZEN.
+
+
 # 🛑 PROJECT DIRECTIVE — READ FIRST (2026-02-08)
 
 ## Current Mode: **LAUNCH MODE** (Google Play readiness)
