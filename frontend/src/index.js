@@ -35,10 +35,16 @@ if ('serviceWorker' in navigator) {
       });
 
     // Auto-reload the page once the new SW takes control so users see the latest build.
-    let refreshing = false;
+    // Guarded with sessionStorage so a reload cycle (page load → controllerchange → reload
+    // → new SW → controllerchange → reload …) can't loop indefinitely. If a reload has
+    // already happened this session, don't reload again — user can refresh manually.
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
+      try {
+        if (sessionStorage.getItem('sw-reloaded') === '1') return;
+        sessionStorage.setItem('sw-reloaded', '1');
+      } catch { /* sessionStorage disabled — skip auto-reload rather than risk loop */
+        return;
+      }
       window.location.reload();
     });
   });
