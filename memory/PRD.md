@@ -1,6 +1,39 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
+## 📌 Session state (2026-08-04, end-of-day)
+
+### What shipped this session (on preview URL)
+- ✅ **Kid Mode celebration** — when parent approves a chore, kid sees confetti (canvas-confetti 90 particles), sticky gradient banner "Chore approved! You earned $X.XX 🎉" (2.8s), card pop-glow (1.2s bounce), and haptic success buzz. Fires on the first render where a chore ID has transitioned from `!parent_approved` → `parent_approved` (ref-based diff). Respects `prefers-reduced-motion`.
+- ✅ **Shopping Mode modal sizing** — was `max-w-3xl` (768px, way too wide on phone). Now `w-[calc(100vw-2rem)] sm:w-full max-w-md sm:max-w-lg` with `flex flex-col`. Phone-friendly.
+- ✅ **"Tile accent color" localised** to all 25 supported locales (en, ar, bn, de, es, fa, fr, he, hi, id, it, ja, ko, ms, nl, pl, pt, ru, sv, th, tr, uk, ur, vi, zh). Only `note.color` key touched; batch-updated via Python.
+- ℹ️ User asked about "make the review on link linkable" — deferred, needs clarification (which review? Restaurants Galore is FROZEN so may require lifting the freeze). User said they'd check later.
+
+### Files touched (this session)
+- `frontend/package.json` (+ `canvas-confetti@1.9.4`)
+- `frontend/src/notes/KidDashboardModal.jsx` (celebration hook + banner + pop class)
+- `frontend/src/notes/ShoppingModeModal.jsx` (DialogContent classes)
+- `frontend/src/App.css` (`.kid-celebrate-banner`, `.kid-chore-pop` keyframes)
+- All 24 `frontend/src/i18n/locales/*.json` files (note.color value)
+
+### Known/carryover
+- 🎊 Kid Mode celebration NOT yet manually verified by user — automation couldn't reach kid dashboard past the loading gate. User will test on next visit.
+- 🛒 Shopping cart icon only appears when there's an active Grocery note (category="Grocery" OR tag "grocery"). User informed. Not yet verified.
+- 🔗 "Review linkable" ask deferred until user clarifies which screen/review element.
+- 📱 App still on preview URL only. Deployed URL (`r-task-timer.emergent.host`) is STALE — user must redeploy to see any session changes on their prod app.
+
+### Prior session recovery notes (2026-08-03) — still applicable
+- Hard reset was done to commit `96d8893`. Do NOT re-attempt the aggressive dark-mode-only lock (const isDark = true, inline HTML CSS, FullScreenNote hardcoded dark).
+- If user reports theme visual bugs: FIRST ask which URL (preview vs deployed) before touching code.
+
+### Next session priorities (user-prioritized order from 2026-08-03)
+1. 🎉 **Kid Mode Polish** — DONE this session, awaiting user verification
+2. 📱 **Play Readiness Audit** — Capacitor config, icons, splash, package name, version, privacy manifest
+3. 🛡️ **Launch Mode Sweep** — offline persistence, backup/restore, QR flows
+
+Restaurants Galore pack remains FROZEN.
+
+
 ## 📌 Session state (2026-08-03, end-of-day)
 
 ### What happened today
