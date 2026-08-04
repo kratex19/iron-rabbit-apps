@@ -151,7 +151,7 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DialogContent
-        className={`max-w-3xl max-h-[92vh] overflow-y-auto p-0 ${isDark ? "bg-[#0B1221] border-white/10" : "bg-gray-50 border-gray-200"}`}
+        className={`w-[calc(100vw-2rem)] sm:w-full max-w-md sm:max-w-lg max-h-[92vh] overflow-y-auto p-0 flex flex-col ${isDark ? "bg-[#0B1221] border-white/10" : "bg-gray-50 border-gray-200"}`}
         data-testid="shopping-mode-modal"
       >
         <DialogTitle className="sr-only">Shopping Mode</DialogTitle>
