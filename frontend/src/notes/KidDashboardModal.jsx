@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import {
   X, Flame, Wallet, Trophy, Check, Circle, ArrowLeft, User, ChevronRight, PartyPopper, Lock, Unlock, ShieldCheck,
 } from "lucide-react";
@@ -220,6 +221,71 @@ function KidBoard({ note, onSaveNote, isDark }) {
   const total = chores.length;
   const done = chores.filter(c => c.status === "done" && c.parent_approved).length;
 
+  // ---------- Celebration on parent approval ----------
+  // We remember which chore IDs were already approved when the kid last
+  // saw them. When a new one flips to approved (parent tapped elsewhere),
+  // we fire confetti + banner + card pop + haptic.
+  const approvedIdsRef = useRef(new Set(
+    chores.filter(c => c.status === "done" && c.parent_approved).map(c => c.id)
+  ));
+  const [celebration, setCelebration] = useState(null); // { choreId, amount, title }
+  const [poppingIds, setPoppingIds] = useState(new Set());
+  const bannerTimerRef = useRef(null);
+
+  useEffect(() => {
+    // Detect chores that just became approved since last render.
+    const newlyApproved = chores.filter(
+      c => c.status === "done" && c.parent_approved && !approvedIdsRef.current.has(c.id)
+    );
+    if (newlyApproved.length > 0) {
+      const target = newlyApproved[0]; // celebrate the first (usually only one)
+      const amount = Number(target.paid || target.offered || 0);
+
+      // 1. Confetti burst
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 75,
+          startVelocity: 40,
+          origin: { x: 0.5, y: 0.35 },
+          scalar: 1.1,
+          ticks: 220,
+          colors: ["#f59e0b", "#10b981", "#6366f1", "#ec4899", "#f97316", "#facc15"],
+          disableForReducedMotion: true,
+        });
+      } catch { /* confetti is non-fatal */ }
+
+      // 2. Card pop animation — add to popping set for 1.2s
+      setPoppingIds(prev => {
+        const next = new Set(prev);
+        newlyApproved.forEach(c => next.add(c.id));
+        return next;
+      });
+      setTimeout(() => {
+        setPoppingIds(prev => {
+          const next = new Set(prev);
+          newlyApproved.forEach(c => next.delete(c.id));
+          return next;
+        });
+      }, 1200);
+
+      // 3. Banner
+      setCelebration({ choreId: target.id, amount, title: target.title });
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = setTimeout(() => setCelebration(null), 2800);
+
+      // 4. Haptic buzz — success pattern
+      try { haptic("success"); } catch { /* non-fatal */ }
+    }
+    // Update the memo of approved IDs so we don't celebrate the same
+    // chore repeatedly on re-renders.
+    approvedIdsRef.current = new Set(
+      chores.filter(c => c.status === "done" && c.parent_approved).map(c => c.id)
+    );
+  }, [chores]);
+
+  useEffect(() => () => { if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current); }, []);
+
   const updateChore = (id, patch) => {
     const next = chores.map(c => {
       if (c.id !== id) return c;
@@ -248,7 +314,22 @@ function KidBoard({ note, onSaveNote, isDark }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      {/* Celebration banner — floats at top for 2.8s when a chore is approved */}
+      {celebration && (
+        <div
+          className="kid-celebrate-banner"
+          data-testid="kid-celebrate-banner"
+          role="status"
+          aria-live="polite"
+        >
+          <PartyPopper className="w-5 h-5 shrink-0" aria-hidden="true" />
+          <span className="truncate">
+            Chore approved! You earned <b className="font-mono">${celebration.amount.toFixed(2)}</b> 🎉
+          </span>
+        </div>
+      )}
+
       {/* Big stats row */}
       <div className="grid grid-cols-3 gap-2">
         <StatCard label="Streak" value={streak} icon={<Flame className="w-6 h-6" />} accent="text-orange-500" isDark={isDark} testid="kid-stat-streak" />
@@ -270,6 +351,8 @@ function KidBoard({ note, onSaveNote, isDark }) {
             <div
               key={c.id}
               className={`rounded-2xl border-2 overflow-hidden transition-all ${
+                poppingIds.has(c.id) ? "kid-chore-pop" : ""
+              } ${
                 isDone
                   ? isApproved
                     ? isDark ? "bg-emerald-500/10 border-emerald-400/40" : "bg-emerald-50 border-emerald-300"
