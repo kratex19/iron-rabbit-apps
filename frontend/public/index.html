@@ -34,6 +34,48 @@
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
         <title>Iron Rabbit - Offline Notes & Reminders</title>
+        <script>
+          /* Kill-switch: detects reload loops caused by service-worker
+             `controllerchange` cycles. If the page has reloaded more than
+             3 times in the last 15 seconds, unregister ALL service workers
+             and clear their caches so the loop breaks. Inlined here so it
+             ships in every HTML fetch (network-first) regardless of cache. */
+          (function() {
+            try {
+              var KEY = 'ir-reload-monitor';
+              var now = Date.now();
+              var raw = sessionStorage.getItem(KEY);
+              var arr = raw ? JSON.parse(raw) : [];
+              arr = arr.filter(function(t) { return now - t < 15000; });
+              arr.push(now);
+              sessionStorage.setItem(KEY, JSON.stringify(arr));
+              if (arr.length > 3 && navigator.serviceWorker) {
+                console.warn('[IR] Reload loop detected (' + arr.length + ' in 15s) — unregistering SW.');
+                sessionStorage.removeItem(KEY);
+                sessionStorage.setItem('ir-loop-broken', '1');
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  return Promise.all(regs.map(function(r) { return r.unregister(); }));
+                }).then(function() {
+                  if (window.caches) {
+                    return caches.keys().then(function(names) {
+                      return Promise.all(names.map(function(n) { return caches.delete(n); }));
+                    });
+                  }
+                }).then(function() {
+                  // Stop this tick from continuing to render; force fresh load without SW.
+                  window.location.replace(window.location.pathname + '?_recovery=' + now);
+                });
+                // Prevent the rest of the page (including old SW-cached JS) from running.
+                document.write('<!doctype html><html><head><meta name="color-scheme" content="dark"></head><body style="margin:0;background:#020617;color:#f1f5f9;font:16px system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh"><div style="text-align:center;padding:2rem"><div style="font-size:1.25rem;font-weight:600;margin-bottom:.5rem">Recovering&hellip;</div><div style="opacity:.7">Clearing cached bundles to fix reload loop.</div></div></body></html>');
+                document.close();
+                throw new Error('Reload loop guard — halting further script execution.');
+              }
+            } catch (e) {
+              if (e && String(e).indexOf('Reload loop guard') !== -1) throw e;
+              /* sessionStorage disabled or other error — skip monitor */
+            }
+          })();
+        </script>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>
