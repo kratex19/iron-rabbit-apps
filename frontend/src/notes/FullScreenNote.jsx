@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import TextareaAutosize from "react-textarea-autosize";
 import { format } from "date-fns";
 import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages } from "lucide-react";
 import ChoresPanel from "./ChoresPanel";
@@ -110,11 +111,12 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         </div>
         {/* Editable content */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
-          <textarea
+          <TextareaAutosize
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
-            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+            minRows={3}
+            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
