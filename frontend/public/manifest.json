@@ -2,20 +2,27 @@
   "id": "/",
   "short_name": "Iron Rabbit",
   "name": "Iron Rabbit - Offline Notes & Reminders",
-  "description": "Offline-first notes, reminders, calendar, meal planner, pantry, and grocery tracker. All data stored locally on your device.",
+  "description": "Iron Rabbit is a fast, offline-first productivity app. Capture daily / weekly / monthly notes, tick off chores in Kid Mode, plan meals, run a smart shopping list, keep a shared pantry, dictate voice notes, and set reminders — all stored on your device with IndexedDB. Nothing leaves your phone unless you export a backup. Works fully offline, syncs when you want to, and installs as a native-feeling PWA.",
+  "version": "1.0.0",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "/",
+  "start_url": "/?utm_source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
   "orientation": "portrait-primary",
-  "theme_color": "#6366F1",
+  "theme_color": "#4F46E5",
   "background_color": "#020617",
   "categories": ["productivity", "utilities", "lifestyle"],
   "prefer_related_applications": false,
   "icons": [
     {
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "48x48",
+      "purpose": "any"
+    },
+    {
       "src": "icon-192.png",
       "type": "image/png",
       "sizes": "192x192",
@@ -28,16 +35,22 @@
       "purpose": "any"
     },
     {
-      "src": "icon-192.png",
+      "src": "icon-192-maskable.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "icon-512-maskable.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
+    },
+    {
+      "src": "icon-1024.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any"
     }
   ],
   "screenshots": [

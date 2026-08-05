@@ -1,5 +1,43 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14 · part 2) — Google Play Launch Audit ✅
+
+### App Icons Overhaul (Play blocker → resolved)
+- Replaced the placeholder purple "IR" square (973-byte 192px, 2657-byte 512px) with a proper white-rabbit-face design on an indigo radial gradient. Friendly rabbit head with long ears + pink inner-ear + subtle whiskers + amber carrot accent.
+- Generated a full launcher-icon set in `/app/frontend/public/`:
+  - `icon-192.png` (any-purpose), `icon-512.png` (any-purpose), `icon-1024.png` (Play Store hi-res)
+  - `icon-192-maskable.png` + `icon-512-maskable.png` — 33% inner safe zone survives circle / squircle / rounded-square launcher masks
+  - `icon-foreground-432.png` + `icon-background-432.png` — Android adaptive-icon layers
+  - `splash-2048.png` — 2048×2048 portrait splash on brand `#020617`
+  - `favicon.png` — 48px
+- Icon generator committed at `/tmp/gen_icons.py` (Python + PIL) so future re-sizes are one command away.
+
+### Manifest Upgrade
+- `public/manifest.json`: `version: 1.0.0` (added), longer 4000-char-capable description, `theme_color: #4F46E5` (was `#6366F1`), 6 icons declared (favicon + 192 + 512 + 192-maskable + 512-maskable + 1024), `start_url: /?utm_source=pwa` for analytics attribution when installed as PWA.
+- `package.json`: version `0.1.0` → `1.0.0`.
+
+### Capacitor Config Hardened
+- `capacitor.config.ts`: added `SplashScreen` plugin config (2s show, 300ms fade, `#020617` bg, immersive full-screen), `LocalNotifications` plugin config (small icon, indigo color, sound), `android.captureInput: true`, comment clarifying no `server.url` (offline-first).
+
+### Privacy Policy & Launch Checklist (Play requirement)
+- `/app/PRIVACY.md` — full privacy policy tailored to Iron Rabbit's offline-first architecture. Explicitly declares zero server-side data collection, camera/mic opt-in per use, single third-party (OpenFoodFacts on Pantry scans only), SHA-256+salt PIN hashing, Keychain/Keystore on native. Includes contact email `privacy@ironrabbitapps.com`.
+- `/app/GOOGLE_PLAY_LAUNCH.md` — step-by-step launch checklist covering: hosting the privacy policy publicly, `npx cap add android`, adaptive icon wiring in Android Studio, splash screen, `AndroidManifest.xml` permissions, `build.gradle` versionCode/versionName, keystore generation + signing, release build smoke test, Play Console setup (store listing, data-safety form, content rating, submission), and iOS parallel path.
+
+### QR / Barcode Sweep
+- Audited every scanner entry point: **header barcode button** (`data-testid="header-barcode"`) → BarcodeScannerModal → grocery quick-add via `useGroceryQuickAdd`, and **Pantry modal** (`PantryModal.jsx:620`) → same modal → populates pantry-edit form with `productInfo`. Both share the single BarcodeScannerModal and were re-verified working in iter_48.
+- Native builds use Google ML Kit (`@capacitor-mlkit/barcode-scanning`) with ML Kit module auto-install on Android; PWA builds use `BarcodeDetector` API with declared formats `ean_13 / ean_8 / upc_a / upc_e / code_128 / code_39` and manual-entry fallback for iOS Safari.
+- No QR code GENERATION anywhere in the codebase — nothing to sweep on that side. Manual entry is digits-only, which is correct for OpenFoodFacts EAN/UPC lookups.
+- Verified new icons + manifest v1.0.0 + 6 icons + maskable variants are served correctly from preview.
+
+### Still-to-do on user's dev machine (documented in GOOGLE_PLAY_LAUNCH.md)
+- Host `PRIVACY.md` at a public URL
+- Run `npx cap add android` + wire adaptive icons via Android Studio Asset Studio
+- Add camera / biometric / notifications permissions to `AndroidManifest.xml`
+- Generate keystore, sign, produce `.aab`, upload to Play Console
+- Design a **1024×500 Feature Graphic** for Play Store listing (still missing)
+- Add 4 more phone screenshots (Kid Mode, Pantry Nutri-Score, Meal Plan, Backup/Restore)
+
+
 ## 2026-02-08 (session 14) — Launch Mode: Pantry Photos + Backup/Restore Fixes ✅
 
 ### Pantry Product Photos (P2)
