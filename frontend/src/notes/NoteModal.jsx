@@ -10,6 +10,7 @@ import useVoiceInput from "../utils/useVoiceInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import TextareaAutosize from "react-textarea-autosize";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -213,7 +214,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 </div>
               </div>
-              <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} rows={3} className={`resize-none ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`} data-testid="note-content-input" />
+              <TextareaAutosize value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} minRows={3} maxRows={20} className={`w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`} data-testid="note-content-input" />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
