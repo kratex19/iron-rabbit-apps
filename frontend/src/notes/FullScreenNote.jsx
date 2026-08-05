@@ -133,7 +133,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
-            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans min-h-[8rem] overflow-hidden ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans min-h-[3rem] overflow-hidden ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
