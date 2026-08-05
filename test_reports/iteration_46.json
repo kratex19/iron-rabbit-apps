@@ -1,0 +1,47 @@
+{
+  "summary": "Iron Rabbit Pantry barcode + Product Health & Info + product photo E2E tested. Backend proxy /api/product/{barcode} works end-to-end for Nutella (200, Nutri-Score E, NOVA 4, additives, image_url), Coca Cola (200), 0000000000000 (404), 'abc' (400), and in-memory cache returns <1s on repeat. Regression endpoints (/api/notes CRUD, /api/templates, /api/settings) all pass — 8/8 pytest cases green. Frontend flow: Pantry tile opens via header-pantry, Add item → Scan barcode / QR → manual barcode 3017620422003 → OFF direct fetch returns 200 → modal shows Nutella name, Nutri-Score E badge, full nutrition per 100g → Add to list → edit modal shows 'Loaded: Nutella' badge → Save. Resulting row renders product photo thumbnail (img src = images.openfoodfacts.org…front_en.879.100.jpg) with zone overlay, Product Health & Info accordion opens with Nutri-Score E (Very Poor), NOVA Level 4, Ingredients, Allergens (milk/nuts/soybeans), Uses In, Sold In (France), Nutrition macros — all correct. Data persists across page reload (verified). Notes / theme / language persistence flows are seeded with prior data (4 notes visible on reload) — persistence confirmed working via IndexedDB.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PantryModal item row", "issue": "Pantry item id is undefined after save — every rendered row has data-testid='pantry-item-undefined' / 'pantry-item-photo-undefined' / 'pantry-item-wrap-undefined'. Root cause in /app/frontend/src/storage/storageService.js savePantryItem (lines 522-534): `{ id: item.id || generatedId, ...item }` — the trailing `...item` spread re-inserts `id: undefined` from the caller and stomps the generated id. Also triggers React warning: 'Each child in a list should have a unique key prop. Check the render method of PantryModal.'", "selector": "[data-testid='pantry-item-undefined']", "priority": "HIGH"},
+      {"component": "PantryEditModal", "issue": "Expiration date field uses browser's native <input type='date'> (mm/dd/yyyy) instead of shadcn Calendar/Popover — inconsistent with design system and reviewers' guideline.", "selector": "[data-testid='pantry-edit-expires']", "priority": "LOW"},
+      {"component": "PantryModal row", "issue": "'Notable' chip did not appear for Nutella row even though the accordion shows palm oil / lecithins / ultra-processed additives. Verify hasNotableWarning() threshold — may need to include palm oil / lecithins beyond strict E-number list.", "selector": "[data-testid^='pantry-item-']", "priority": "LOW"},
+      {"component": "FirstRunTour", "issue": "Tour reopens on every fresh browser session even when tour_completed was previously saved — because settings is user-scoped in backend but new browser context has fresh IndexedDB. Not a bug per se, but note: tour_completed does not appear to be additionally cached in localStorage as a defensive layer, meaning fresh installs (or clearing site data) always replay the tour.", "selector": "[data-testid='first-run-tour']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Initial app load", "issue": "Multiple duplicate GET /api/settings, /api/templates, /api/notes requests are fired and one of each cancels with net::ERR_ABORTED. Likely React StrictMode double-mount or a race in fetch effects. Non-blocking (successful sibling request wins) but adds noise and may hit backend twice on cold start. Consider guarding effect with AbortController + single call.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "Add to pantry / Edit item modal", "issues": ["Native browser date picker used for Expiration Date — replace with shadcn Calendar component for consistency."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_pantry_barcode.py",
+    "/app/test_reports/pytest/pantry_results.xml"
+  ],
+  "action_items": [
+    "FIX (HIGH): In /app/frontend/src/storage/storageService.js savePantryItem, reorder spread so id is preserved: `const withId = { added_at: ..., ...item, id: item.id || generatedId };` — currently the trailing `...item` clobbers id with undefined, breaking testids and React keys.",
+    "REVIEW: hasNotableWarning threshold — Nutella (palm oil, lecithins, sucrose) currently does NOT trigger the 'Notable' chip in the row even though accordion shows warnings.",
+    "OPTIONAL: Replace native <input type='date'> in PantryEditModal expiration field with shadcn Calendar/Popover.",
+    "OPTIONAL: Cache tour_completed flag in localStorage so a returning user in a fresh IndexedDB doesn't see the tour again after settings failed to seed.",
+    "OPTIONAL: Debounce/AbortController for /api/settings/templates/notes initial fetches to eliminate ERR_ABORTED duplicates."
+  ],
+  "critical_code_review_comments": [
+    "storageService.savePantryItem: spread order bug causes id: undefined for every new pantry item (see action item above).",
+    "server.py /api/product/{barcode}: solid implementation with async.to_thread, cache, and normalized shape. 502 mapping for OFF outage is correct.",
+    "PantryModal.jsx line 249+: `it.productInfo?.additives` is checked — good; but hasNotableWarning may miss non-E-number risks (palm oil, hydrogenated fats)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_pantry_barcode.py (new)"
+  ],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "~90% (core flow works; 1 high-priority UI id bug)"},
+  "test_credentials": "N/A (no auth in flow tested; PIN lock did not appear in fresh session as expected)",
+  "seed_data_creation": "1 Nutella pantry item added during tests. Older seed contained 4 test notes (Test, Test notes, Test Reminder Note, Test Note).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend proxy fully green. Frontend Pantry E2E works BUT pantry item id resolves to `undefined` (see storageService.savePantryItem spread order). After fix, re-verify: data-testid='pantry-item-<real-id>', React key warnings cleared, and multiple pantry items can coexist without collision. First-run tour re-appears on every fresh browser context — script pattern to skip: loop clicking [data-testid='tour-next'] then [data-testid='tour-finish'] up to ~6 times. Backup/Restore flow and offline sweep (theme/language/chores) were NOT deeply tested this iteration due to time — but IndexedDB persistence is proven working (Nutella item survived reload).",
+  "rca_of_the_issue": "storageService.savePantryItem builds `withId = { id: item.id || newId, added_at: ..., ...item }`. Because `...item` is spread LAST, any property in `item` (including `id: undefined` implicitly present when the caller passes an object without an explicit id) overwrites the generated id. Reproduction: 1) Open Pantry → Add item → save. 2) Inspect DOM row's data-testid → 'pantry-item-undefined'. Fix: change to `{ added_at: ..., ...item, id: item.id || newId }` so the generated id wins."
+}

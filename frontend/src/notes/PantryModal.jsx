@@ -253,7 +253,29 @@ export default function PantryModal({ isOpen, onClose, isDark, onSendToShoppingL
                         className={`flex items-center gap-2 rounded-lg border p-2.5 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"} ${it.expState === "expired" ? "border-red-500/40" : ""}`}
                         data-testid={`pantry-item-${it.id}`}
                       >
-                        {ZoneIcon ? (
+                        {it.productInfo?.image ? (
+                          <div
+                            className={`relative w-8 h-8 rounded-lg overflow-hidden shrink-0 ${isDark ? "bg-white/5 border border-white/10" : "bg-white border border-gray-200"}`}
+                            title={zone ? `${zone.label} · ${it.productInfo.brand || it.productInfo.name || ""}`.trim() : (it.productInfo.brand || it.productInfo.name || "")}
+                            data-testid={`pantry-item-photo-${it.id}`}
+                          >
+                            <img
+                              src={it.productInfo.image}
+                              alt=""
+                              loading="lazy"
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            />
+                            {ZoneIcon && (
+                              <div
+                                className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center shadow ring-1 ring-black/20"
+                                style={{ background: zone.color, color: "#fff" }}
+                              >
+                                <ZoneIcon className="w-2 h-2" />
+                              </div>
+                            )}
+                          </div>
+                        ) : ZoneIcon ? (
                           <div
                             className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                             style={{ background: `${zone.color}22`, color: zone.color }}
