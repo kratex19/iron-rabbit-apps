@@ -521,10 +521,11 @@ export const StorageService = {
   },
   async savePantryItem(item) {
     const list = await this.getPantryItems();
+    const generatedId = `pantry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const withId = {
-      id: item.id || `pantry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      added_at: item.added_at || new Date().toISOString(),
+      added_at: new Date().toISOString(),
       ...item,
+      id: item.id || generatedId,
     };
     const idx = list.findIndex(p => p.id === withId.id);
     if (idx >= 0) list[idx] = { ...list[idx], ...withId };
