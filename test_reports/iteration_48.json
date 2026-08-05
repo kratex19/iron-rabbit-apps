@@ -1,0 +1,55 @@
+{
+  "summary": "Retest of iteration_47 CRITICAL+HIGH bugs (frontend-only). All fixes verified GREEN. Backup Export/Import (merge + replace) works with correct counts (no 'undefined', no false 'Export failed' toast, no 'Not an Iron Rabbit backup file' error). Legacy 'IronRabbit' (no space) app tag is accepted. Pantry ID regression still green — real pantry IDs in data-testids, no undefined, no React unique-key warnings. Language persistence (ir_lang=es) works — Buscar... placeholder survives full page reload.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_fixes": [
+    {
+      "bug": "iter_47 HIGH - Backup Export showed misleading 'Export failed' toast",
+      "status": "FIXED",
+      "evidence": "Toast captured: 'Exported 0 notes · 0 files' (success type). No 'Export failed' toast fired. JSON payload contains {version:'1.1', app:'Iron Rabbit', exported_at, data:{notes,settings,templates,files}}."
+    },
+    {
+      "bug": "iter_47 CRITICAL - Every valid backup rejected with 'Not an Iron Rabbit backup file'",
+      "status": "FIXED",
+      "evidence": "After picking freshly-exported .json via backup-import-btn, NO error toast; merge/replace confirmation panel appeared with 'Backup contains 0 notes and 0 attachments' (counts rendered as numbers, not undefined)."
+    },
+    {
+      "bug": "iter_47 HIGH - Import toast showed 'Merged undefined notes'",
+      "status": "FIXED",
+      "evidence": "Merge toast: 'Merged 0 notes · 0 files' (success). Replace toast: 'Restored 0 notes · 0 files' (success). No 'undefined' anywhere. Counts driven by summary.notesRestored / summary.filesRestored per fixed storageService.importAllData."
+    },
+    {
+      "bug": "Legacy 'IronRabbit' backward compatibility",
+      "status": "PASS",
+      "evidence": "Manually crafted a payload with app='IronRabbit' (no space). Picking it in backup-import-btn produced NO error toast and merge/replace panel opened, confirming both 'Iron Rabbit' and 'IronRabbit' are accepted (BackupRestoreModal.jsx line 54)."
+    },
+    {
+      "bug": "iter_46 Pantry ID regression",
+      "status": "STILL GREEN",
+      "evidence": "Added 2 items (TEST_Milk, TEST_Eggs). data-testids observed: pantry-item-pantry_1785972775267_jv1fc & pantry-item-pantry_1785972773719_uyrbz (plus wrap/edit/delete siblings with real IDs). No 'pantry-item-undefined'. 0 React 'unique key' console warnings. Deleted one — the other remained."
+    },
+    {
+      "bug": "iter_47 alleged Language Persistence failure",
+      "status": "NOT A BUG (confirmed manual-check hypothesis)",
+      "evidence": "Selected Español via header-language → lang-option-es. localStorage.ir_lang='es'. Search input placeholder='Buscar...' both before AND after full page reload. Prior tester likely checked wrong key (i18nextLng=null since app uses custom ir_lang key)."
+    }
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Minor: In BackupRestoreModal.handleExport (line 40) the catch block swallows the underlying error message. Consider `toast.error(\"Export failed: \" + (e?.message||\"unknown\"))` for better field diagnostics — non-blocking.",
+    "Minor: Duplicate sonner toast render observed in DOM (2 identical entries per call). Cosmetic only; likely double-mount from a React StrictMode double invoke or Sonner internal — worth a quick look but does not affect UX (only one toast visible on screen)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only retest)", "frontend": "100% (7/7 targeted scenarios passing)"},
+  "test_credentials": "None required. PIN not prompted in this build.",
+  "seed_data_creation": "Set app_settings.tour_completed=true directly via IndexedDB (window.localforage was not globally exposed) to skip the FirstRunTour before opening Settings. Added TEST_Milk and TEST_Eggs pantry items during regression check; TEST_Milk was deleted, TEST_Eggs remains in preview container storage.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview URL is shared and its IndexedDB persists across sessions (found 4 pre-existing notes from earlier iterations). To skip FirstRunTour reliably in Playwright, open IndexedDB('IronRabbit') → objectStore('settings') → put({...existing, tour_completed:true}, 'app_settings') then reload. window.localforage is NOT exposed globally, so use raw IndexedDB. After tour, the Quick-Access modal auto-appears once — dismiss via 'Skip and never remind'. Backup modal is opened via [data-testid='settings-btn'] → [data-testid='settings-backup-btn'] → then [data-testid='backup-export-btn'] / [data-testid='backup-import-btn'] which triggers file picker; use page.expect_file_chooser to inject a file. Toast tracker via MutationObserver on '[data-sonner-toast]' works well.",
+  "rca of the issue": "iter_47 CRITICAL was root-caused to the string literal 'Iron Rabbit' vs 'IronRabbit' mismatch between exportAllData (writes 'Iron Rabbit') and the import guard (was checking 'IronRabbit'). Fix in BackupRestoreModal.jsx line 54 accepts BOTH strings — verified via legacy JSON test. iter_47 HIGH 'undefined counts' was root-caused to storageService.importAllData returning {notesRestored, filesRestored} while the modal was reading summary.counts.notes. Fix now reads summary?.notesRestored ?? summary?.notes ?? 0 (line 74-75 of BackupRestoreModal.jsx) — verified via merge & replace toasts showing '0 notes · 0 files' (numeric, never 'undefined')."
+}

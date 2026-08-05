@@ -324,17 +324,19 @@ export const StorageService = {
     };
   },
 
-  async importAllData(backupData) {
+  async importAllData(backupData, mode = "replace") {
     if (!backupData || !backupData.data) {
       throw new Error('Invalid backup file');
     }
 
     const { notes = [], settings, templates = [], files = {} } = backupData.data;
 
-    // Clear existing data
-    await notesStore.clear();
-    await templatesStore.clear();
-    await filesStore.clear();
+    // Replace mode wipes existing data; merge mode preserves and overwrites by id.
+    if (mode === "replace") {
+      await notesStore.clear();
+      await templatesStore.clear();
+      await filesStore.clear();
+    }
 
     // Restore attachments (base64 → Blob)
     for (const [id, entry] of Object.entries(files)) {
@@ -353,7 +355,7 @@ export const StorageService = {
       }
     }
 
-    // Import notes
+    // Import notes (setItem overwrites by id in both modes)
     for (const note of notes) {
       await notesStore.setItem(note.id, note);
     }
@@ -363,12 +365,23 @@ export const StorageService = {
       await templatesStore.setItem(template.id, template);
     }
 
-    // Import settings (merge with defaults)
+    // Import settings — in merge mode preserve unspecified user keys
     if (settings) {
-      await settingsStore.setItem('app_settings', settings);
+      if (mode === "merge") {
+        const existing = (await settingsStore.getItem('app_settings')) || {};
+        await settingsStore.setItem('app_settings', { ...existing, ...settings });
+      } else {
+        await settingsStore.setItem('app_settings', settings);
+      }
     }
 
-    return { notes: notes.length, templates: templates.length, files: Object.keys(files).length };
+    const summary = {
+      notesRestored: notes.length,
+      templatesRestored: templates.length,
+      filesRestored: Object.keys(files).length,
+    };
+    // Keep legacy keys too for any older callers
+    return { ...summary, notes: summary.notesRestored, templates: summary.templatesRestored, files: summary.filesRestored };
   },
 
   async clearAllData() {

@@ -33,7 +33,9 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success(`Exported ${payload.counts.notes} note${payload.counts.notes === 1 ? "" : "s"} · ${payload.counts.files} file${payload.counts.files === 1 ? "" : "s"}`);
+      const notesCount = payload?.data?.notes?.length || 0;
+      const filesCount = Object.keys(payload?.data?.files || {}).length;
+      toast.success(`Exported ${notesCount} note${notesCount === 1 ? "" : "s"} · ${filesCount} file${filesCount === 1 ? "" : "s"}`);
     } catch (e) {
       toast.error("Export failed");
     } finally {
@@ -47,7 +49,9 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
     try {
       const text = await file.text();
       const payload = JSON.parse(text);
-      if (payload?.app !== "IronRabbit") {
+      // Accept both "Iron Rabbit" (current export) and legacy "IronRabbit"
+      const appTag = payload?.app;
+      if (appTag !== "Iron Rabbit" && appTag !== "IronRabbit") {
         toast.error("Not an Iron Rabbit backup file");
         return;
       }
@@ -67,8 +71,10 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
       const summary = await StorageService.importAllData(pendingPayload, mode);
       setPendingPayload(null);
       onDataChanged && onDataChanged();
+      const nCount = summary?.notesRestored ?? summary?.notes ?? 0;
+      const fCount = summary?.filesRestored ?? summary?.files ?? 0;
       toast.success(
-        `${mode === "replace" ? "Restored" : "Merged"} ${summary.notesRestored} note${summary.notesRestored === 1 ? "" : "s"} · ${summary.filesRestored} file${summary.filesRestored === 1 ? "" : "s"}`
+        `${mode === "replace" ? "Restored" : "Merged"} ${nCount} note${nCount === 1 ? "" : "s"} · ${fCount} file${fCount === 1 ? "" : "s"}`
       );
       onClose();
     } catch (e) {
@@ -151,7 +157,7 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
             <div className={`flex items-start gap-2 text-xs mb-3 ${isDark ? "text-slate-300" : "text-gray-700"}`}>
               <FileWarning className="w-4 h-4 mt-0.5 text-amber-400 flex-shrink-0" />
               <div>
-                Backup contains <strong>{pendingPayload.counts?.notes ?? (pendingPayload.notes?.length || 0)}</strong> notes and <strong>{pendingPayload.counts?.files ?? Object.keys(pendingPayload.files || {}).length}</strong> attachments.
+                Backup contains <strong>{pendingPayload.counts?.notes ?? pendingPayload.data?.notes?.length ?? pendingPayload.notes?.length ?? 0}</strong> notes and <strong>{pendingPayload.counts?.files ?? Object.keys(pendingPayload.data?.files || pendingPayload.files || {}).length}</strong> attachments.
                 Choose how to restore:
               </div>
             </div>
