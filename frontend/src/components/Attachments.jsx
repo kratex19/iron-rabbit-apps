@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Paperclip, X, Image as ImageIcon, FileText, Download, ScanText, Loader2 } from "lucide-react";
+import { Paperclip, X, Image as ImageIcon, FileText, Download, ScanText, Loader2, Camera, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import StorageService from "../storage/storageService";
 import { toast } from "sonner";
 
@@ -32,7 +32,12 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
   const [urls, setUrls] = useState({}); // id → object URL
   const [uploading, setUploading] = useState(false);
   const [ocrBusyId, setOcrBusyId] = useState(null);
+  const [lightboxIdx, setLightboxIdx] = useState(null); // index in imageAttachments
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  const isImage = (type) => type?.startsWith("image/");
+  const imageAttachments = attachments.filter(a => isImage(a.type));
 
   // Resolve object URLs for each attachment
   useEffect(() => {
@@ -54,6 +59,18 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
       toRevoke.forEach(u => URL.revokeObjectURL(u));
     };
   }, [attachments]);
+
+  // Lightbox keyboard navigation
+  useEffect(() => {
+    if (lightboxIdx === null) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setLightboxIdx(null);
+      else if (e.key === "ArrowRight") setLightboxIdx(i => Math.min(imageAttachments.length - 1, (i ?? 0) + 1));
+      else if (e.key === "ArrowLeft") setLightboxIdx(i => Math.max(0, (i ?? 0) - 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxIdx, imageAttachments.length]);
 
   const handleExtractText = async (att) => {
     if (!onExtractText) return;
@@ -86,13 +103,12 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
     }
   };
 
-  const handleUpload = async (e) => {    const files = Array.from(e.target.files || []);
+  const performUpload = async (files) => {
     if (files.length === 0) return;
     const cap = StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10;
     const remaining = Math.max(0, cap - (attachments?.length || 0));
     if (remaining === 0) {
       toast.error(`Max ${cap} files per note. Remove one to add another.`);
-      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     const toUpload = files.slice(0, remaining);
@@ -112,12 +128,18 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
       }
       if (newRefs.length > 0) {
         onChange([...(attachments || []), ...newRefs]);
-        toast.success(`Attached ${newRefs.length} file${newRefs.length === 1 ? '' : 's'}`);
+        toast.success(`Attached ${newRefs.length} file${newRefs.length === 1 ? "" : "s"}`);
       }
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleFileInput = async (e) => {
+    const files = Array.from(e.target.files || []);
+    await performUpload(files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
   const handleRemove = async (att) => {
@@ -125,38 +147,62 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
       await StorageService.deleteAttachment(att.id);
       onChange((attachments || []).filter(a => a.id !== att.id));
     } catch (err) {
-      toast.error('Failed to remove attachment');
+      toast.error("Failed to remove attachment");
     }
   };
 
-  const isImage = (type) => type?.startsWith('image/');
+  const openLightbox = (att) => {
+    const idx = imageAttachments.findIndex(a => a.id === att.id);
+    if (idx >= 0) setLightboxIdx(idx);
+  };
+
+  const currentLightboxAtt = lightboxIdx !== null ? imageAttachments[lightboxIdx] : null;
+  const cap = StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10;
+  const atCap = (attachments?.length || 0) >= cap;
 
   return (
-    <div className={`attachments ${isDark ? 'dark' : ''} ${compact ? 'compact' : ''}`} data-testid="attachments">
+    <div className={`attachments ${isDark ? "dark" : ""} ${compact ? "compact" : ""}`} data-testid="attachments">
+      {/* Hidden inputs */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
         multiple
-        onChange={handleUpload}
+        onChange={handleFileInput}
         className="hidden"
         data-testid="attachment-input"
       />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileInput}
+        className="hidden"
+        data-testid="attachment-camera-input"
+      />
 
+      {/* 2-column thumbnail grid */}
       {attachments.length > 0 && (
-        <div className="attachments-grid" data-testid="attachments-grid">
+        <div className="attachments-grid attachments-grid-2col" data-testid="attachments-grid">
           {attachments.map(att => (
             <div key={att.id} className="attachment-item" data-testid={`attachment-${att.id}`}>
               {isImage(att.type) ? (
                 urls[att.id] ? (
-                  <a href={urls[att.id]} target="_blank" rel="noopener noreferrer" className="attachment-preview">
+                  <button
+                    type="button"
+                    onClick={() => openLightbox(att)}
+                    className="attachment-preview"
+                    aria-label={`Open ${att.name}`}
+                    data-testid={`attachment-open-${att.id}`}
+                  >
                     <img src={urls[att.id]} alt={att.name} loading="lazy" />
-                  </a>
+                  </button>
                 ) : (
                   <div className="attachment-preview attachment-loading"><ImageIcon className="w-6 h-6 opacity-40" /></div>
                 )
               ) : (
-                <a href={urls[att.id] || '#'} download={att.name} target="_blank" rel="noopener noreferrer" className="attachment-preview attachment-doc">
+                <a href={urls[att.id] || "#"} download={att.name} target="_blank" rel="noopener noreferrer" className="attachment-preview attachment-doc">
                   <FileText className="w-8 h-8" />
                   <Download className="w-3 h-3 attachment-download-hint" />
                 </a>
@@ -165,6 +211,20 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
                 <span className="attachment-name" title={att.name}>{att.name}</span>
                 <span className="attachment-size">{fmtSize(att.size)}</span>
               </div>
+              {att.sourceUrl && (
+                <a
+                  href={att.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="attachment-source"
+                  aria-label={`Open source: ${att.sourceUrl}`}
+                  title={`Source: ${att.sourceUrl}`}
+                  data-testid={`attachment-source-${att.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
               {onExtractText && isImage(att.type) && (
                 <button
                   type="button"
@@ -194,20 +254,112 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading || (attachments?.length || 0) >= (StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10)}
-        className="attachment-add"
-        data-testid="attachment-add-btn"
-      >
-        <Paperclip className="w-4 h-4" />
-        {uploading
-          ? 'Uploading…'
-          : (attachments?.length || 0) >= (StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10)
-            ? `Max ${StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10} reached`
-            : `${attachments.length > 0 ? 'Add more' : 'Attach photos'} · ${attachments?.length || 0}/${StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10}`}
-      </button>
+      {/* Action buttons — Take photo + Attach files, side by side */}
+      <div className="attachment-actions">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={uploading || atCap}
+          className="attachment-add attachment-camera"
+          data-testid="attachment-camera-btn"
+          aria-label="Take a photo"
+        >
+          <Camera className="w-4 h-4" />
+          <span>{uploading ? "Uploading…" : "Take photo"}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || atCap}
+          className="attachment-add"
+          data-testid="attachment-add-btn"
+          aria-label="Attach files from device"
+        >
+          <Paperclip className="w-4 h-4" />
+          <span>
+            {uploading
+              ? "Uploading…"
+              : atCap
+                ? `Max ${cap} reached`
+                : `Attach · ${attachments?.length || 0}/${cap}`}
+          </span>
+        </button>
+      </div>
+
+      {/* Dark lightbox modal */}
+      {currentLightboxAtt && urls[currentLightboxAtt.id] && (
+        <div
+          className="attachment-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={currentLightboxAtt.name}
+          onClick={() => setLightboxIdx(null)}
+          data-testid="attachment-lightbox"
+        >
+          <button
+            type="button"
+            className="attachment-lightbox-close"
+            onClick={(e) => { e.stopPropagation(); setLightboxIdx(null); }}
+            aria-label="Close preview"
+            data-testid="attachment-lightbox-close"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          {imageAttachments.length > 1 && lightboxIdx > 0 && (
+            <button
+              type="button"
+              className="attachment-lightbox-nav attachment-lightbox-prev"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => Math.max(0, (i ?? 0) - 1)); }}
+              aria-label="Previous image"
+              data-testid="attachment-lightbox-prev"
+            >
+              <ChevronLeft className="w-7 h-7" />
+            </button>
+          )}
+          {imageAttachments.length > 1 && lightboxIdx < imageAttachments.length - 1 && (
+            <button
+              type="button"
+              className="attachment-lightbox-nav attachment-lightbox-next"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(i => Math.min(imageAttachments.length - 1, (i ?? 0) + 1)); }}
+              aria-label="Next image"
+              data-testid="attachment-lightbox-next"
+            >
+              <ChevronRight className="w-7 h-7" />
+            </button>
+          )}
+
+          <img
+            src={urls[currentLightboxAtt.id]}
+            alt={currentLightboxAtt.name}
+            className="attachment-lightbox-image"
+            onClick={(e) => e.stopPropagation()}
+            data-testid="attachment-lightbox-image"
+          />
+
+          <div className="attachment-lightbox-meta" onClick={(e) => e.stopPropagation()}>
+            <div className="attachment-lightbox-name">{currentLightboxAtt.name}</div>
+            <div className="attachment-lightbox-info">
+              {fmtSize(currentLightboxAtt.size)}
+              {imageAttachments.length > 1 && (
+                <span> · {lightboxIdx + 1} of {imageAttachments.length}</span>
+              )}
+            </div>
+            {currentLightboxAtt.sourceUrl && (
+              <a
+                href={currentLightboxAtt.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="attachment-lightbox-source"
+                data-testid="attachment-lightbox-source"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open source
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

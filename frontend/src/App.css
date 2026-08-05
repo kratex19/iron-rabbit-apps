@@ -211,6 +211,167 @@
     gap: 0.75rem;
 }
 
+/* Phase 1: fixed 2-column thumbnail layout for inline note editor. */
+.attachments-grid-2col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    max-width: 100%;
+}
+
+/* Buttons row (Take photo + Attach) */
+.attachment-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.attachment-actions > .attachment-add {
+    flex: 1 1 0;
+    min-width: 8rem;
+}
+
+/* Source URL link badge on an attachment thumbnail. */
+.attachment-source {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    text-decoration: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0.9;
+    transition: opacity 0.15s, background-color 0.15s;
+    z-index: 3;
+}
+.attachment-source:hover { opacity: 1; background: rgba(99, 102, 241, 0.85); }
+
+/* Dark lightbox modal — replaces browser native image preview. */
+.attachment-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem 6rem;
+    animation: attachment-lightbox-in 0.18s ease-out;
+}
+
+@keyframes attachment-lightbox-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.attachment-lightbox-image {
+    max-width: 100%;
+    max-height: calc(100vh - 9rem);
+    object-fit: contain;
+    border-radius: 0.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    cursor: default;
+    background: #0B1221;
+}
+
+.attachment-lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
+}
+.attachment-lightbox-close:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+.attachment-lightbox-close:active { transform: scale(0.95); }
+
+.attachment-lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s;
+}
+.attachment-lightbox-nav:hover { background: rgba(255, 255, 255, 0.2); }
+.attachment-lightbox-prev { left: 1rem; }
+.attachment-lightbox-next { right: 1rem; }
+
+.attachment-lightbox-meta {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100% - 2rem);
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-align: center;
+    cursor: default;
+}
+.attachment-lightbox-name {
+    font-weight: 600;
+    font-size: 0.925rem;
+    line-height: 1.2;
+    word-break: break-word;
+}
+.attachment-lightbox-info {
+    font-size: 0.775rem;
+    opacity: 0.72;
+    margin-top: 0.15rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.attachment-lightbox-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.85);
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: background-color 0.15s;
+}
+.attachment-lightbox-source:hover { background: rgba(79, 70, 229, 0.95); }
+
+/* On small phones, tighten the lightbox chrome. */
+@media (max-width: 480px) {
+    .attachment-lightbox { padding: 3rem 0.5rem 5rem; }
+    .attachment-lightbox-nav { width: 40px; height: 40px; }
+    .attachment-lightbox-prev { left: 0.5rem; }
+    .attachment-lightbox-next { right: 0.5rem; }
+}
+
 .attachment-item {
     position: relative;
     border-radius: 0.5rem;
