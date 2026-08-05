@@ -1,6 +1,62 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
+## 📌 Session state (2026-08-05, mid-session)
+
+### 🎯 Pantry Product Info feature — Phase A backend DONE, frontend PENDING
+
+**Backend endpoint shipped and tested:** `GET /api/product/{barcode}` in `backend/server.py`
+
+- Proxies Open Food Facts (`https://world.openfoodfacts.org/api/v2/product/{barcode}.json`)
+- In-memory cache per barcode (process lifetime)
+- Returns normalized JSON: `name`, `brand`, `image_url`, `ingredients_text`, `ingredients_list`, `additives` (E-numbers), `allergens`, `countries_sold`, `nutriscore_grade` (A-E), `nova_group` (1-4), `ecoscore_grade`, `categories`, `labels`
+- Tested with barcode `5000112637922` → returns Coca Cola with brand, NOVA=4, additives=[e150a, e150d, e338]
+- 400 for invalid format, 404 for not-found, 502 for OFF service down
+
+**Frontend still to do (next session):**
+
+#### Phase A — Wire barcode scan to Pantry Add
+- `PantryModal.jsx` add-item form → add a "📷 Scan barcode" button
+- Reuse existing `BarcodeScannerModal.jsx` (already in the app, used elsewhere) with `onCapture` callback
+- On scan: call `${BACKEND_URL}/api/product/{barcode}`, fill name field
+- Also store the full product object on the pantry item as `item.productInfo = {...}` for Phase B/C to consume
+- Loading spinner + graceful error toast (offline / not found)
+
+#### Phase B — Product Health & Info accordion
+- On each pantry item card (`PantryModal.jsx` render loop), if `item.productInfo` present, add a collapsible section titled "Product Health & Info"
+- Content: Ingredients list, Nutri-Score badge (color-coded A-E green→red), NOVA badge (1-4 with meaning: 1 = whole, 4 = ultra-processed), allergens list, additives list with hover tooltip explanations for common ones
+- Use `<Collapsible>` or shadcn `<Accordion>` component
+
+#### Phase C — Advanced enrichment
+- Additive warning database (small static JSON) — mark E-numbers that are:
+  - **Banned in EU/US** (e.g., E110, E129, potassium bromate)
+  - **Health concerns** (e.g., aspartame, high-fructose corn syrup)
+  - **Ultra-processed markers** (NOVA 4 signal)
+- Show "⚠️ Notable" chip on items with any flagged additive
+- "Uses in" — pull `categories` from OFF response for context ("Used in: sodas, colas")
+- Store product info offline once fetched (already cached backend-side; add localforage cache client-side for full offline use)
+
+### Files touched THIS session
+- `backend/server.py` — added `/api/product/{barcode}` endpoint (Open Food Facts proxy)
+- `frontend/src/data/noteIcons.js` — icon library expanded to **313 icons across 23 categories**
+- `frontend/src/notes/FullScreenNote.jsx` — TextareaAutosize (may need Phase 2 rich editor later to satisfy user's "images inline" ask)
+- `frontend/src/notes/NoteModal.jsx` — TextareaAutosize
+- `frontend/src/notes/ShoppingModeModal.jsx` — resized DialogContent
+- `frontend/src/notes/KidDashboardModal.jsx` — celebration hook
+- `frontend/src/components/Attachments.jsx` — Phase 1 gallery + lightbox + camera
+- `frontend/src/App.css` — Phase 1 attachment CSS + Kid celebration CSS
+- `frontend/public/index.html` — kill-switch for SW reload loop
+- `frontend/src/index.js` — sessionStorage-guarded SW auto-reload
+- `frontend/src/i18n/locales/*.json` — "Tile accent color" in 25 languages
+- `frontend/package.json` — added canvas-confetti, react-textarea-autosize
+
+### User pending items
+- Deploy the current preview to `color-task-timer.emergent.host` when ready (user last saw the Shopping List note attachments outside the fullscreen editor bounds — Phase 1 architectural limit)
+- Pantry Product Info Phase A frontend + Phase B accordion + Phase C additive warnings
+- Answer whether Shopping Mode should get an add-item FAB (user said no earlier — deferred)
+- Phase 2 for note editor: inline image tokens at cursor position (deferred; requires markdown or contentEditable rewrite)
+
+
 ## 📌 Session state (2026-08-04, end-of-day)
 
 ### What shipped this session (on preview URL)

@@ -606,6 +606,76 @@ async def dining_recipe_idea(payload: RecipeIdeaRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
+
+# ========== Open Food Facts proxy — barcode → product info ==========
+# Backend proxy: normalized shape, caches in memory for the process lifetime,
+# and shields the client from OFF's rate-limits.
+_OFF_CACHE: Dict[str, Any] = {}
+
+
+@app.get("/api/product/{barcode}")
+async def get_product_info(barcode: str):
+    """Look up a product by barcode/UPC via Open Food Facts.
+    Returns a normalized shape used by the Pantry item's Product Health & Info accordion.
+    Returns 404 if not found. Caches successful hits in-process.
+    """
+    import asyncio
+    import requests as _requests
+
+    key = barcode.strip()
+    if not key or not key.isdigit() or len(key) < 6 or len(key) > 20:
+        raise HTTPException(status_code=400, detail="Invalid barcode format")
+
+    if key in _OFF_CACHE:
+        return _OFF_CACHE[key]
+
+    def _fetch():
+        url = f"https://world.openfoodfacts.org/api/v2/product/{key}.json"
+        headers = {"User-Agent": "IronRabbit/1.0 (offline-first PWA)"}
+        r = _requests.get(url, headers=headers, timeout=8)
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        return r.json()
+
+    try:
+        data = await asyncio.to_thread(_fetch)
+    except Exception as e:
+        logger.warning(f"OFF lookup failed for {key}: {e}")
+        raise HTTPException(status_code=502, detail="Product lookup service unavailable")
+
+    if not data or data.get("status") != 1 or "product" not in data:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    p = data["product"]
+    ingredients_list = [i.get("text", "") for i in (p.get("ingredients") or []) if i.get("text")]
+    additives = [t.replace("en:", "") for t in (p.get("additives_tags") or [])]
+    allergens = [t.replace("en:", "") for t in (p.get("allergens_tags") or [])]
+    countries = [t.replace("en:", "") for t in (p.get("countries_tags") or [])]
+
+    result = {
+        "barcode": key,
+        "name": p.get("product_name") or p.get("generic_name") or "",
+        "brand": (p.get("brands") or "").split(",")[0].strip(),
+        "quantity_label": p.get("quantity") or "",
+        "image_url": p.get("image_front_url") or p.get("image_url"),
+        "ingredients_text": p.get("ingredients_text") or "",
+        "ingredients_list": ingredients_list,
+        "additives": additives,
+        "allergens": allergens,
+        "countries_sold": countries,
+        "nutriscore_grade": (p.get("nutriscore_grade") or "").upper() or None,
+        "nova_group": p.get("nova_group"),
+        "ecoscore_grade": (p.get("ecoscore_grade") or "").upper() or None,
+        "categories": [t.replace("en:", "") for t in (p.get("categories_tags") or [])][:8],
+        "labels": [t.replace("en:", "") for t in (p.get("labels_tags") or [])][:8],
+        "source": "openfoodfacts",
+    }
+
+    _OFF_CACHE[key] = result
+    return result
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
