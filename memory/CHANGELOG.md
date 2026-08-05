@@ -1,5 +1,25 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14) — Launch Mode: Pantry Photos + Backup/Restore Fixes ✅
+
+### Pantry Product Photos (P2)
+- `PantryModal.jsx` item row now renders the OpenFoodFacts product image as an 8×8 thumbnail with the zone icon overlaid as a small badge (bottom-right). Falls back to the plain zone icon when no `productInfo.image` is stored, preserving backward compatibility. Testid `pantry-item-photo-<id>`.
+
+### Critical Backup/Restore Fixes (Google Play launch blockers)
+- **Import validator**: `BackupRestoreModal.handleFilePick` was rejecting every valid backup with "Not an Iron Rabbit backup file" because it checked `'IronRabbit'` (no space) while `exportAllData` writes `'Iron Rabbit'` (with space). Now accepts BOTH strings for backward-compat.
+- **Export success toast**: `handleExport` was crashing on `payload.counts.notes` (never returned by service) → caught → showed misleading "Export failed" toast even though the .json file DID download. Now reads `data.notes.length` / `data.files` directly.
+- **Import summary shape**: `StorageService.importAllData` now accepts a `mode` parameter (`'replace'` default, `'merge'`) — replace wipes stores first, merge preserves and overwrites by id. Settings are merged (not clobbered) in merge mode. Returns `{notesRestored, templatesRestored, filesRestored}` matching the modal's expected shape.
+
+### Regression fix (iter_46 → iter_47)
+- **Pantry ID bug**: `savePantryItem` spread order was overwriting the generated id with `undefined` from the payload. Fixed by placing `id: item.id || generatedId` AFTER `...item`. Verified: two items get distinct real ids, delete-one keeps the other, no React unique-key warnings.
+
+### Verification
+- `testing_agent_v3_fork` iteration_48: 7/7 targeted scenarios passing (backup export, import merge, import replace, legacy 'IronRabbit' compat, pantry-id regression, language persistence, offline sweep). No critical or high issues remain.
+
+### Service Worker
+- Cache version bumped `iron-rabbit-v10` → `iron-rabbit-v11` so PWA users pick up the new pantry row + backup fixes on next open.
+
+
 ## 2026-02-08 (session 13) — Weekly Meal Plan + Cook Notes Search ✅
 
 ### Weekly Meal Plan
