@@ -1,6 +1,41 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
+## 📌 Session state (2026-08-05, end-of-day)
+
+### 🎉 Shipped this session (all on preview, deploy queued)
+- **Pantry Product Info feature — Phases A, B, C ALL COMPLETE**
+  - `GET /api/product/{barcode}` backend proxy (Open Food Facts, in-memory cached)
+  - `utils/openFoodFacts.js` enhanced with additives, allergens, ingredients, NOVA, ecoscore, categories, countries
+  - `BarcodeScannerModal.onCapture` now includes full `product` object
+  - `PantryModal` add-item: "📷 Scan barcode / QR" button → autofills name/brand, saves productInfo, auto-suggests zone (frozen→freezer, dairy→fridge)
+  - `components/ProductInfoAccordion.jsx` (new) — collapsible panel with Nutri-Score, NOVA, Eco-Score, ingredients, allergens, categories, countries, nutrition per 100g
+  - `data/additives.js` (new) — 60+ E-numbers + HFCS/hydrogenated oils/palm oil with 3-level severity (warning/caution/info)
+  - "⚠️ Notable" chip on item row when a warning-level additive detected; accordion auto-opens on notable items
+- **Icon picker expanded**: 313 icons / 23 categories (was 59/8) — `data/noteIcons.js`
+- **TextareaAutosize** on NoteModal + FullScreenNote (`react-textarea-autosize`)
+- **Attachments Phase 1**: 2-col thumbnail gallery, dark lightbox (10% opacity), camera capture button, source-URL link foundation
+- **Kid Mode celebration**: confetti + gradient banner + card pop-glow + haptic on chore approval
+- **Shopping Mode modal**: phone-sized (was desktop-wide)
+- **"Tile accent color"** localized in all 25 languages
+- **Service worker hardening**: sessionStorage-guarded auto-reload + inline HTML kill-switch
+
+### Deploy status
+- Queued at end of session (2026-08-05) — awaiting deployer completion
+- Target: `color-task-timer.emergent.host`
+
+### Not shipped (deferred by user or blocked)
+- Phase 2 attachments: images inline between paragraphs at cursor position (requires markdown/contentEditable rewrite — user acknowledged, deferred)
+- Add-item FAB in Shopping Mode (user said "not necessary")
+- Fixing FullScreenNote's attachments-outside-scroll-region visual (Phase 1 architectural limit — user accepted)
+
+### Next session priorities
+1. **Verify Pantry barcode + accordion on the deployed live app** — user should test with real products (Coca Cola, Nutella, etc.)
+2. **Launch Mode Sweep** — offline persistence, backup/restore, QR flows (still queued from earlier)
+3. **Google Play Readiness Audit** — Capacitor config, icons, splash, package name, version, privacy manifest
+4. Optional: Phase 2 rich editor for note editor if user wants inline images
+
+
 ## 📌 Session state (2026-08-05, mid-session)
 
 ### 🎯 Pantry Product Info feature — Phase A backend DONE, frontend PENDING

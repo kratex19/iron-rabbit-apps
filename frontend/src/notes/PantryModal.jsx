@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Package, Plus, X, Trash2, Search, Calendar, ShoppingCart, AlertTriangle,
-  CheckCircle2, Clock, Filter, Edit3, Refrigerator, Snowflake, Wheat,
+  CheckCircle2, Clock, Filter, Edit3, Refrigerator, Snowflake, Wheat, ScanBarcode,
 } from "lucide-react";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import StorageService from "../storage/storageService";
 import { haptic } from "../utils/haptic";
+import BarcodeScannerModal from "./BarcodeScannerModal";
+import ProductInfoAccordion from "../components/ProductInfoAccordion";
+import { hasNotableWarning } from "../data/additives";
 
 const STORAGE_ZONES = [
   { key: "fridge",  label: "Fridge",  icon: Refrigerator, color: "#38bdf8" }, // sky
@@ -243,9 +246,10 @@ export default function PantryModal({ isOpen, onClose, isDark, onSendToShoppingL
                     const badge = expBadge(it.expState, it.daysLeft);
                     const zone = STORAGE_ZONES.find(z => z.key === it.zone);
                     const ZoneIcon = zone?.icon;
+                    const notable = it.productInfo && hasNotableWarning(it.productInfo.additives || [], it.productInfo.ingredients_text || "");
                     return (
+                      <div key={it.id} className="space-y-0" data-testid={`pantry-item-wrap-${it.id}`}>
                       <div
-                        key={it.id}
                         className={`flex items-center gap-2 rounded-lg border p-2.5 ${isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-gray-200"} ${it.expState === "expired" ? "border-red-500/40" : ""}`}
                         data-testid={`pantry-item-${it.id}`}
                       >
@@ -265,13 +269,20 @@ export default function PantryModal({ isOpen, onClose, isDark, onSendToShoppingL
                         <div className="flex-1 min-w-0">
                           <div className={`text-sm font-medium truncate ${isDark ? "text-white" : "text-gray-900"}`}>
                             {it.name}
+                            {it.productInfo?.brand && <span className={`ml-2 text-[10px] font-normal ${isDark ? "text-slate-500" : "text-gray-500"}`}>· {it.productInfo.brand}</span>}
                             {it.dept && <span className={`ml-2 text-[10px] font-normal ${isDark ? "text-slate-500" : "text-gray-500"}`}>· {it.dept}</span>}
                           </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             {badge && (
                               <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${badge.cls}`}>
                                 <badge.icon className="w-2.5 h-2.5" />
                                 {badge.text}
+                              </span>
+                            )}
+                            {notable && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-500/15 text-red-500" title="Notable ingredients — tap Product Info below">
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                Notable
                               </span>
                             )}
                             {it.notes && (
@@ -321,6 +332,10 @@ export default function PantryModal({ isOpen, onClose, isDark, onSendToShoppingL
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
+                      </div>
+                      {it.productInfo && (
+                        <ProductInfoAccordion product={it.productInfo} isDark={isDark} defaultOpen={notable} />
+                      )}
                       </div>
                     );
                   })}
@@ -386,6 +401,7 @@ function ZoneChip({ active, onClick, label, icon: Icon, color, isDark, testid })
 
 function PantryEditModal({ item, isDark, onClose, onSave }) {
   const isEdit = !!item;
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [form, setForm] = useState({
     id: item?.id,
     name: item?.name || "",
@@ -395,9 +411,30 @@ function PantryEditModal({ item, isDark, onClose, onSave }) {
     dept: item?.dept || "",
     expires_at: item?.expires_at ? item.expires_at.slice(0, 10) : "",
     notes: item?.notes || "",
+    barcode: item?.barcode || "",
+    productInfo: item?.productInfo || null,
   });
 
-  const set = (k, v) => setForm({ ...form, [k]: v });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleScanCapture = ({ code, name, brand, product }) => {
+    setForm(f => ({
+      ...f,
+      barcode: code,
+      name: name || f.name,
+      productInfo: product || null,
+      // Auto-suggest zone from categories (dairy/meat → fridge, frozen → freezer)
+      zone: (() => {
+        const cats = (product?.categories || []).join(" ").toLowerCase();
+        if (cats.includes("frozen")) return "freezer";
+        if (cats.includes("dairy") || cats.includes("meat") || cats.includes("cheese") || cats.includes("yogurt")) return "fridge";
+        return f.zone;
+      })(),
+    }));
+    setScannerOpen(false);
+    if (product) toast.success(`Loaded ${product.name || code}`);
+    else toast.info(`Scanned ${code} — no product info found`);
+  };
 
   const canSave = form.name.trim() && Number(form.qty) >= 0;
 
@@ -426,6 +463,35 @@ function PantryEditModal({ item, isDark, onClose, onSave }) {
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-2">
+          {/* Scan barcode CTA — top of form so users can populate everything at once */}
+          {!isEdit && (
+            <Button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className={`w-full h-10 gap-2 font-semibold ${isDark ? "bg-indigo-500 hover:bg-indigo-400 text-white" : "bg-indigo-600 hover:bg-indigo-500 text-white"}`}
+              data-testid="pantry-edit-scan-btn"
+            >
+              <ScanBarcode className="w-4 h-4" />
+              Scan barcode / QR
+            </Button>
+          )}
+          {form.productInfo && (
+            <div className={`flex items-center gap-2 rounded-md p-2 ${isDark ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-200" : "bg-emerald-50 border border-emerald-200 text-emerald-800"} text-xs`} data-testid="pantry-edit-product-loaded">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1 min-w-0 truncate">
+                Loaded: <b>{form.productInfo.name || "Unknown"}</b>
+                {form.productInfo.brand && ` · ${form.productInfo.brand}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => set("productInfo", null)}
+                className="opacity-60 hover:opacity-100"
+                aria-label="Clear product info"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           <Field label="Name" isDark={isDark}>
             <Input
               value={form.name}
@@ -529,6 +595,12 @@ function PantryEditModal({ item, isDark, onClose, onSave }) {
           </div>
         </form>
       </DialogContent>
+      <BarcodeScannerModal
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onCapture={handleScanCapture}
+        isDark={isDark}
+      />
     </Dialog>
   );
 }

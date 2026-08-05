@@ -40,10 +40,13 @@ export async function lookupBarcode(code) {
     if (json.status === 1 && json.product) {
       const p = json.product;
       const nutriments = p.nutriments || {};
+      const stripPrefix = (t) => (t || "").replace(/^en:/, "").replace(/-/g, " ");
       const product = {
+        code,
         name: p.product_name || p.product_name_en || "",
-        brand: p.brands || "",
-        image: p.image_thumb_url || p.image_front_thumb_url || "",
+        brand: (p.brands || "").split(",")[0].trim(),
+        image: p.image_thumb_url || p.image_front_thumb_url || p.image_url || "",
+        quantity_label: p.quantity || "",
         nutrition: {
           energy_kcal_100g: nutriments["energy-kcal_100g"] ?? nutriments["energy-kcal"] ?? null,
           fat_100g: nutriments["fat_100g"] ?? null,
@@ -54,7 +57,17 @@ export async function lookupBarcode(code) {
           salt_100g: nutriments["salt_100g"] ?? null,
           serving_size: p.serving_size || null,
         },
-        nutriscore: p.nutriscore_grade || p.nutrition_grade_fr || null,
+        nutriscore: (p.nutriscore_grade || p.nutrition_grade_fr || "").toUpperCase() || null,
+        nova_group: p.nova_group || null,
+        ecoscore: (p.ecoscore_grade || "").toUpperCase() || null,
+        ingredients_text: p.ingredients_text || p.ingredients_text_en || "",
+        ingredients_list: (p.ingredients || []).map(i => i.text).filter(Boolean),
+        additives: (p.additives_tags || []).map(stripPrefix),
+        allergens: (p.allergens_tags || []).map(stripPrefix),
+        traces: (p.traces_tags || []).map(stripPrefix),
+        countries: (p.countries_tags || []).map(stripPrefix).slice(0, 6),
+        categories: (p.categories_tags || []).map(stripPrefix).slice(0, 6),
+        labels: (p.labels_tags || []).map(stripPrefix).slice(0, 8),
       };
       const payload = { state: "ok", product };
       try { await cache.setItem(code, { data: payload, expires_at: Date.now() + OK_TTL }); } catch { /* ignore */ }

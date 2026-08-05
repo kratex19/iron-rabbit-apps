@@ -217,6 +217,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
       brand: lookup?.brand || "",
       nutrition: lookup?.nutrition || null,
       nutriscore: lookup?.nutriscore || null,
+      product: lookup || null,
     });
     onClose();
   };
