@@ -20,6 +20,24 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const [savedAt, setSavedAt] = useState(null);
   const [translateOpen, setTranslateOpen] = useState(false);
   const noteIdRef = useRef(note?.id);
+  const textareaRef = useRef(null);
+
+  // Auto-grow the content textarea so attachments below it sit directly
+  // beneath the last line of text (and scroll together with the text as
+  // more content is added). Runs on every content change plus on mount.
+  const resizeTextarea = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useEffect(() => { resizeTextarea(); }, [content]);
+  useEffect(() => {
+    // Also resize on mount and when the note switches
+    const t = setTimeout(resizeTextarea, 0);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id]);
 
   // When note changes (new note opened, or synced from parent after edit), reset local state
   useEffect(() => {
@@ -111,10 +129,11 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         {/* Editable content */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
           <textarea
+            ref={textareaRef}
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
-            className={`fs-content-input w-full flex-1 bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans min-h-[8rem] overflow-hidden ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
