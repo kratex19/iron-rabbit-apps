@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
-import { Upload, X, Palette, Sparkles, Image as ImageIcon, Clock } from "lucide-react";
+import { Upload, X, Palette, Sparkles, Image as ImageIcon, Clock, Star } from "lucide-react";
 import { toast } from "sonner";
 
 const MAX_IMAGE_BYTES = 800_000; // ~800KB — keep IndexedDB happy
@@ -11,16 +11,19 @@ const MAX_RECENTS = 8;
 
 // Load recents from localStorage (safe — cosmetic data, OK if it's not synced)
 function loadRecents() {
+  const empty = { colors: [], gradients: [], pinnedColors: [], pinnedGradients: [] };
   try {
     const raw = localStorage.getItem(RECENTS_STORAGE_KEY);
-    if (!raw) return { colors: [], gradients: [] };
+    if (!raw) return empty;
     const parsed = JSON.parse(raw);
     return {
       colors: Array.isArray(parsed.colors) ? parsed.colors.filter(c => typeof c === "string") : [],
       gradients: Array.isArray(parsed.gradients) ? parsed.gradients.filter(g => typeof g === "string") : [],
+      pinnedColors: Array.isArray(parsed.pinnedColors) ? parsed.pinnedColors.filter(c => typeof c === "string") : [],
+      pinnedGradients: Array.isArray(parsed.pinnedGradients) ? parsed.pinnedGradients.filter(g => typeof g === "string") : [],
     };
   } catch {
-    return { colors: [], gradients: [] };
+    return empty;
   }
 }
 
@@ -55,6 +58,11 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
 
   const pushRecent = (kind, value) => {
     setRecents(prev => {
+      // Don't add to recents if it's already pinned — no need to duplicate.
+      const pinnedKey = kind === "colors" ? "pinnedColors" : "pinnedGradients";
+      if ((prev[pinnedKey] || []).includes(value)) {
+        return prev;
+      }
       const list = (prev[kind] || []).filter(v => v !== value);
       list.unshift(value);
       const next = { ...prev, [kind]: list.slice(0, MAX_RECENTS) };
@@ -66,6 +74,34 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
   const removeRecent = (kind, value) => {
     setRecents(prev => {
       const next = { ...prev, [kind]: (prev[kind] || []).filter(v => v !== value) };
+      saveRecents(next);
+      return next;
+    });
+  };
+
+  // Toggle pin: recent → pinned removes it from recents and adds to pinned;
+  // pinned → recent removes from pinned and re-adds to top of recents.
+  const togglePin = (kind, value) => {
+    setRecents(prev => {
+      const pinnedKey = kind === "colors" ? "pinnedColors" : "pinnedGradients";
+      const isPinned = (prev[pinnedKey] || []).includes(value);
+      let next;
+      if (isPinned) {
+        // Unpin: remove from pinned, prepend to recents (capped)
+        const rec = [value, ...(prev[kind] || []).filter(v => v !== value)].slice(0, MAX_RECENTS);
+        next = {
+          ...prev,
+          [pinnedKey]: (prev[pinnedKey] || []).filter(v => v !== value),
+          [kind]: rec,
+        };
+      } else {
+        // Pin: add to pinned, remove from recents
+        next = {
+          ...prev,
+          [pinnedKey]: [value, ...(prev[pinnedKey] || []).filter(v => v !== value)],
+          [kind]: (prev[kind] || []).filter(v => v !== value),
+        };
+      }
       saveRecents(next);
       return next;
     });
@@ -176,38 +212,53 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
                 })}
               </div>
 
-              {/* Recent custom colors */}
-              {recents.colors.length > 0 && (
+              {/* Pinned + Recent custom colors */}
+              {(recents.pinnedColors.length > 0 || recents.colors.length > 0) && (
                 <div data-testid="bg-color-recents">
-                  <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
-                    <Clock className="w-3 h-3" /> Recent
-                  </div>
-                  <div className="grid grid-cols-8 gap-2">
-                    {recents.colors.map(hex => {
-                      const active = value?.type === "color" && value?.value === hex;
-                      return (
-                        <div key={hex} className="relative group">
-                          <button
-                            type="button"
-                            onClick={() => pick({ type: "color", value: hex })}
-                            className={`w-full aspect-square rounded-lg border-2 transition ${active ? "border-white ring-2 ring-indigo-500" : "border-transparent hover:border-white/40"}`}
-                            style={{ background: hex }}
-                            title={hex}
-                            data-testid={`bg-color-recent-${hex}`}
+                  {recents.pinnedColors.length > 0 && (
+                    <>
+                      <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-amber-300" : "text-amber-600"}`}>
+                        <Star className="w-3 h-3 fill-current" /> Pinned
+                      </div>
+                      <div className="grid grid-cols-8 gap-2 mb-3">
+                        {recents.pinnedColors.map(hex => (
+                          <SwatchButton
+                            key={`p-${hex}`}
+                            value={hex}
+                            active={value?.type === "color" && value?.value === hex}
+                            pinned
+                            shape="color"
+                            onPick={() => pick({ type: "color", value: hex })}
+                            onTogglePin={() => togglePin("colors", hex)}
+                            onRemove={() => togglePin("colors", hex)}
+                            testidPrefix={`bg-color-pinned-${hex}`}
                           />
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); removeRecent("colors", hex); }}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label={`Remove ${hex} from recents`}
-                            data-testid={`bg-color-recent-remove-${hex}`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {recents.colors.length > 0 && (
+                    <>
+                      <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                        <Clock className="w-3 h-3" /> Recent
+                      </div>
+                      <div className="grid grid-cols-8 gap-2">
+                        {recents.colors.map(hex => (
+                          <SwatchButton
+                            key={`r-${hex}`}
+                            value={hex}
+                            active={value?.type === "color" && value?.value === hex}
+                            pinned={false}
+                            shape="color"
+                            onPick={() => pick({ type: "color", value: hex })}
+                            onTogglePin={() => togglePin("colors", hex)}
+                            onRemove={() => removeRecent("colors", hex)}
+                            testidPrefix={`bg-color-recent-${hex}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -274,38 +325,53 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
                 })}
               </div>
 
-              {/* Recent custom gradients */}
-              {recents.gradients.length > 0 && (
+              {/* Pinned + Recent custom gradients */}
+              {(recents.pinnedGradients.length > 0 || recents.gradients.length > 0) && (
                 <div data-testid="bg-gradient-recents">
-                  <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
-                    <Clock className="w-3 h-3" /> Recent
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {recents.gradients.map((g, idx) => {
-                      const active = value?.type === "gradient" && value?.value === g;
-                      return (
-                        <div key={`${g}-${idx}`} className="relative group">
-                          <button
-                            type="button"
-                            onClick={() => pick({ type: "gradient", value: g })}
-                            className={`w-full h-10 rounded-lg border-2 transition ${active ? "border-white ring-2 ring-indigo-500" : "border-transparent hover:border-white/40"}`}
-                            style={{ background: g }}
-                            title="Recent gradient"
-                            data-testid={`bg-gradient-recent-${idx}`}
+                  {recents.pinnedGradients.length > 0 && (
+                    <>
+                      <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-amber-300" : "text-amber-600"}`}>
+                        <Star className="w-3 h-3 fill-current" /> Pinned
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {recents.pinnedGradients.map((g, idx) => (
+                          <SwatchButton
+                            key={`p-${idx}-${g}`}
+                            value={g}
+                            active={value?.type === "gradient" && value?.value === g}
+                            pinned
+                            shape="gradient"
+                            onPick={() => pick({ type: "gradient", value: g })}
+                            onTogglePin={() => togglePin("gradients", g)}
+                            onRemove={() => togglePin("gradients", g)}
+                            testidPrefix={`bg-gradient-pinned-${idx}`}
                           />
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); removeRecent("gradients", g); }}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label="Remove from recents"
-                            data-testid={`bg-gradient-recent-remove-${idx}`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {recents.gradients.length > 0 && (
+                    <>
+                      <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                        <Clock className="w-3 h-3" /> Recent
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {recents.gradients.map((g, idx) => (
+                          <SwatchButton
+                            key={`r-${idx}-${g}`}
+                            value={g}
+                            active={value?.type === "gradient" && value?.value === g}
+                            pinned={false}
+                            shape="gradient"
+                            onPick={() => pick({ type: "gradient", value: g })}
+                            onTogglePin={() => togglePin("gradients", g)}
+                            onRemove={() => removeRecent("gradients", g)}
+                            testidPrefix={`bg-gradient-recent-${idx}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -398,9 +464,55 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
   );
 }
 
+// Reusable swatch cell for pinned + recent color/gradient rows.
+// `shape` controls aspect ratio: "color" → square, "gradient" → wide rectangle.
+function SwatchButton({ value, active, pinned, shape, onPick, onTogglePin, onRemove, testidPrefix }) {
+  const swatchCls = shape === "color"
+    ? "w-full aspect-square rounded-lg border-2 transition"
+    : "w-full h-10 rounded-lg border-2 transition";
+  const activeCls = active ? "border-white ring-2 ring-indigo-500" : "border-transparent hover:border-white/40";
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={onPick}
+        className={`${swatchCls} ${activeCls}`}
+        style={{ background: value }}
+        title={value}
+        data-testid={testidPrefix}
+      />
+      {/* Star pin toggle (top-left) */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+        className={`absolute -top-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center transition-opacity ${
+          pinned
+            ? "bg-amber-400 text-black opacity-100"
+            : "bg-black/70 text-white opacity-0 group-hover:opacity-100"
+        }`}
+        aria-label={pinned ? "Unpin swatch" : "Pin swatch"}
+        title={pinned ? "Unpin" : "Pin to keep after new customs"}
+        data-testid={`${testidPrefix}-pin`}
+      >
+        <Star className={`w-2.5 h-2.5 ${pinned ? "fill-current" : ""}`} />
+      </button>
+      {/* Remove/unpin (top-right) */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label={pinned ? "Unpin swatch" : "Remove swatch"}
+        title={pinned ? "Unpin" : "Remove"}
+        data-testid={`${testidPrefix}-remove`}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 // Convert a background object into a CSS background style
-export function getBackgroundStyle(bg) {
-  if (!bg) {
+export function getBackgroundStyle(bg) {  if (!bg) {
     return { background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" };
   }
   if (bg.type === "image") {

@@ -1,6 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, StickyNote, Pin, CalendarDays, CheckSquare, Trophy, Flame } from "lucide-react";
+import { Bell, Repeat, Pin, CalendarDays, CheckSquare, Trophy, Flame } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
 import { computeNoteStreak } from "../notes/streakUtils";
 import { haptic } from "../utils/haptic";
@@ -13,7 +13,9 @@ import { haptic } from "../utils/haptic";
  * - Click: open full-screen editor; edit btn on hover
  */
 export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMode = false, selected = false, onToggleSelect }) {
-  const IconComp = note.icon && LucideIcons[note.icon] ? LucideIcons[note.icon] : StickyNote;
+  // When the user explicitly picks "No icon", `note.icon` is null → render
+  // no icon at all (keeps the tile clean instead of showing a placeholder).
+  const IconComp = note.icon && LucideIcons[note.icon] ? LucideIcons[note.icon] : null;
   const bgStyle = getBackgroundStyle(note.background);
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
   const hasRecurring = note.recurring?.enabled;
@@ -93,7 +95,7 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
 
       {/* Icon + title (front + center) */}
       <span className="note-tile-body">
-        <IconComp className="note-tile-icon" strokeWidth={1.6} />
+        {IconComp && <IconComp className="note-tile-icon" strokeWidth={1.6} />}
         <span className="note-tile-title" title={note.title}>
           {note.title || "Untitled"}
         </span>

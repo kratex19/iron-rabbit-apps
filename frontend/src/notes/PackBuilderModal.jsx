@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import * as LucideIcons from "lucide-react";
-import { Plus, X, Sparkles, Save, Trash2, StickyNote } from "lucide-react";
+import { Plus, X, Sparkles, Save, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -124,11 +124,12 @@ export default function PackBuilderModal({ isOpen, onClose, onSave, existingPack
                 <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Tiles in this pack ({tiles.length})</label>
                 <div className="grid grid-cols-4 gap-2">
                   {tiles.map((t, i) => {
-                    const Ico = t.icon && LucideIcons[t.icon] ? LucideIcons[t.icon] : StickyNote;
+                    // "No icon" → render nothing (matches actual tile).
+                    const Ico = t.icon && LucideIcons[t.icon] ? LucideIcons[t.icon] : null;
                     return (
                       <div key={i} className="aspect-square rounded-md relative overflow-hidden flex items-center justify-center" style={getBackgroundStyle(t.background)}>
                         <span className="absolute inset-0 bg-black/40" />
-                        <Ico className="w-5 h-5 text-white relative z-10" strokeWidth={1.6} />
+                        {Ico && <Ico className="w-5 h-5 text-white relative z-10" strokeWidth={1.6} />}
                         <span className="absolute bottom-0.5 left-1 right-1 text-[9px] text-white text-center leading-tight truncate z-10">{t.title}</span>
                         <button type="button" onClick={() => removeTile(i)}
                           className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white z-20 flex items-center justify-center"
@@ -153,7 +154,9 @@ export default function PackBuilderModal({ isOpen, onClose, onSave, existingPack
                   onClick={() => setBgPickerOpen(true)} data-testid="pack-tile-bg-btn">
                   <span className="preview-overlay" />
                   {(() => {
-                    const Ico = tileIcon && LucideIcons[tileIcon] ? LucideIcons[tileIcon] : StickyNote;
+                    // "No icon" → render nothing so preview matches the tile.
+                    if (!tileIcon || !LucideIcons[tileIcon]) return null;
+                    const Ico = LucideIcons[tileIcon];
                     return <Ico className="w-5 h-5 relative z-10" strokeWidth={1.6} />;
                   })()}
                 </button>

@@ -265,7 +265,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 >
                   <span className="preview-overlay" />
                   {(() => {
-                    const Ico = icon && LucideIcons[icon] ? LucideIcons[icon] : StickyNoteIcon;
+                    // No icon selected → render nothing so the picker preview
+                    // matches the actual tile appearance (no placeholder).
+                    if (!icon || !LucideIcons[icon]) return null;
+                    const Ico = LucideIcons[icon];
                     return <Ico className="w-8 h-8 relative z-10" strokeWidth={1.6} />;
                   })()}
                 </button>

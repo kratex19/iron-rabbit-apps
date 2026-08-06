@@ -11,8 +11,8 @@
  *   • Swipe (touch), chevrons (mouse), and keyboard ← → arrows all navigate
  */
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import QuickGuideCard from "./QuickGuideCard";
 import ResourceIdChip from "./ResourceIdChip";
@@ -20,16 +20,20 @@ import MoreHelpButton from "./MoreHelpButton";
 import GuideFeedback from "./GuideFeedback";
 import CloseConfirmDialog from "./CloseConfirmDialog";
 import { QG_TOKENS } from "./tokens";
+import { searchArticles } from "./search";
 
 const SWIPE_THRESHOLD_PX = 60;
 
 export default function QuickGuideModal({ isDark = true }) {
-  const { openId, close, getArticle } = useQuickGuideContext();
+  const { openId, close, getArticle, getAllArticles, open } = useQuickGuideContext();
   const article = openId ? getArticle(openId) : null;
 
   const [index, setIndex] = useState(0);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef(null);
   const touchStartX = useRef(null);
 
   // Reset to first card whenever a new guide opens
@@ -38,8 +42,23 @@ export default function QuickGuideModal({ isDark = true }) {
       setIndex(0);
       setConfirmingClose(false);
       setShowHint(false);
+      setSearchOpen(false);
+      setSearchQuery("");
     }
   }, [openId]);
+
+  // Focus the search input when the search bar opens
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
+  // Ranked results — excludes the currently open guide from suggestions
+  const searchResults = useMemo(
+    () => searchArticles(getAllArticles(), searchQuery, 6, { excludeId: openId }),
+    [searchQuery, getAllArticles, openId]
+  );
 
   const total = article?.cards?.length || 0;
   const isLast = total > 0 && index === total - 1;
@@ -111,18 +130,101 @@ export default function QuickGuideModal({ isDark = true }) {
             >
               Quick Guide
             </h2>
-            <button
-              type="button"
-              onClick={askClose}
-              aria-label="Close Quick Guide"
-              data-testid="quickguide-close-btn"
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
-                isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(v => !v)}
+                aria-label={searchOpen ? "Close search" : "Search Quick Guides"}
+                aria-expanded={searchOpen}
+                data-testid="quickguide-search-toggle"
+                title="Search all guides"
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
+                  searchOpen
+                    ? isDark ? "bg-indigo-500/20 text-indigo-200" : "bg-indigo-100 text-indigo-700"
+                    : isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <Search className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={askClose}
+                aria-label="Close Quick Guide"
+                data-testid="quickguide-close-btn"
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
+                  isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
+          {/* Inline search panel — jumps between guides without leaving the modal */}
+          {searchOpen && (
+            <div className="mb-4" data-testid="quickguide-modal-search">
+              <div className={`relative flex items-center rounded-lg border ${isDark ? "border-white/10 bg-black/20" : "border-gray-200 bg-gray-50"}`}>
+                <Search className={`w-3.5 h-3.5 ml-2.5 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search all guides…"
+                  className={`flex-1 h-9 px-2 bg-transparent outline-none text-sm ${
+                    isDark ? "text-white placeholder:text-slate-500" : "text-gray-900 placeholder:text-gray-400"
+                  }`}
+                  data-testid="quickguide-modal-search-input"
+                  aria-label="Search all Quick Guides"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className={`w-7 h-7 mr-1 flex items-center justify-center rounded-full ${isDark ? "hover:bg-white/10 text-slate-400" : "hover:bg-gray-200 text-gray-500"}`}
+                    aria-label="Clear search"
+                    data-testid="quickguide-modal-search-clear"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchQuery.trim() && (
+                <div className={`mt-2 rounded-lg border ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-white"}`}>
+                  {searchResults.length === 0 ? (
+                    <div className={`px-3 py-3 text-xs text-center ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                      No other guides match &ldquo;{searchQuery.trim()}&rdquo;.
+                    </div>
+                  ) : (
+                    <ul className="max-h-48 overflow-y-auto py-1">
+                      {searchResults.map(({ article: r }) => (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            onClick={() => { open(r.id, { origin: "modal-search" }); }}
+                            className={`w-full text-left px-3 py-2 flex flex-col gap-0.5 transition-colors ${
+                              isDark ? "hover:bg-white/5" : "hover:bg-gray-50"
+                            }`}
+                            data-testid={`quickguide-modal-search-result-${r.id}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>{r.title}</span>
+                              <span className={`text-[10px] font-mono ${isDark ? "text-slate-500" : "text-gray-400"}`}>{r.id}</span>
+                            </div>
+                            {r.summary && (
+                              <span className={`text-[11px] leading-snug line-clamp-1 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                                {r.summary}
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Progress dots */}
           <div className="flex gap-1.5 mb-5" aria-hidden="true">

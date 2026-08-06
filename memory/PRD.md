@@ -12,6 +12,12 @@
 - **Confirmed Quick Guide content is production-ready** — all 11 articles (IRR-1000 → IRR-1900 + IRR-9000) already contain real, polished editorial copy matching `QUICK_GUIDE_AUTHORING.md`. No rewrite needed.
 - **Recent custom backgrounds strip** — `BackgroundPicker.jsx` now remembers the last 8 custom colors and 8 custom gradients under `localStorage['iron_rabbit_bg_recents_v1']`. Shown as a "Recent" strip above the custom builder in each tab, with hover-to-remove `×` per swatch. Purely cosmetic → localStorage is sufficient.
 - **Guide search in Settings** — `QuickGuideSettingsSection.jsx` gained a search bar (title×5, id×4, summary×3, keywords/synonyms×2, card body×1 scoring). Top 8 ranked results with title + `IRR-xxxx` chip + summary snippet. Empty state, clear button, click-to-open. Exposed via `getAllArticles()` on the context.
+- **Auto-Show First Time** — `QG_DEFAULT_STATE.auto_show` flipped to `true`. Provider now distinguishes truly-new installs from existing users during hydration (only seeds `seen_ids` for existing users). `QuickGuideButton` auto-opens its guide on mount after 900ms if `enabled && auto_show && !isSeen`. Marks seen up-front so it never fires twice.
+- **Guide Search inside the Modal** — `QuickGuideModal.jsx` gained a search icon in the header that opens an inline search panel (uses shared `search.js` util). Excludes the currently-open guide from suggestions. Auto-focus on input, clear button, click-to-jump.
+- **Shared search util** — `frontend/src/quickguide/search.js` powers both the Settings search and Modal search with identical scoring.
+- **Pinned Backgrounds** — Star icon on every recent swatch. Pinned items live in `pinnedColors` / `pinnedGradients` arrays (unlimited); shown above the "Recent" strip with a "★ Pinned" heading. Star toggle moves between pinned/recent. Reusable `SwatchButton` component keeps the render DRY.
+- **"No icon" placeholder fix** — `NoteTile`, `NoteModal` editor preview, and `PackBuilder` (both the tile gallery and the current-tile preview) now render nothing when `icon` is null, instead of falling back to `StickyNote`. Matches the user's explicit "No icon" choice.
+- **FullScreenNote accordion moved to bottom** — Attachments accordion now sits at the very bottom of the editor scroll area (after chores + checklist) with `mt-auto`, so the writing area gets max vertical breathing room.
 
 ### Files touched
 - `frontend/src/data/noteIcons.js` — palette expansion
