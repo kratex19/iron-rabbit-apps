@@ -1,5 +1,28 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14 · part 5) — Asset Kit + Play Store Copy 📦
+
+### Extended Asset Kit
+- Consolidated `/tmp/gen_icons.py` + `/tmp/gen_feature_graphic.py` into a single canonical script at `/app/scripts/generate_play_assets.py`.
+- One command rebuilds every static asset needed for the Play release: 8 launcher icons (any-purpose + maskable + adaptive layers + hi-res + favicon), splash, and the 1024×500 feature graphic.
+- CLI flags: `--only {icons|splash|feature-graphic|all}`, `--dry-run`, `--out-dir`. Zero side effects on app code.
+- Verified end-to-end: `python3 /app/scripts/generate_play_assets.py` regenerates 10 assets deterministically.
+
+### Play Store Listing Copy
+- `/app/PLAY_STORE_LISTING.md` — copy-paste-ready store listing:
+  - App title (2 options, both ≤ 30 chars)
+  - 3 short-description candidates (all ≤ 80 chars, verified with a length check)
+  - Full description (**3,505 / 4,000 chars** — comfortable margin), sectioned around Notes, Kid Mode, Shopping & Pantry, Meal Planner, Backup, Privacy, Who it's for
+  - What's New / promo text template
+  - Data Safety form answers (all "not collected" — matches offline-first architecture)
+  - Contact & privacy URL placeholders
+  - Pre-submission checklist
+- Every claim in the copy is aligned with `/app/PRIVACY.md` and the `Notes that live on your phone.` feature graphic tagline.
+
+### Quick Guide — still parked (per Option A+)
+Design remains locked in `/app/memory/QUICK_GUIDE_DESIGN.md` and `/app/memory/QUICK_GUIDE_AUTHORING.md`. Zero application code touched. Awaiting explicit "build Quick Guide Phase 1" signal from the user, which per Option A+ arrives only after the Play launch has shipped and initial user feedback is in.
+
+
 ## 2026-02-08 (session 14 · part 4) — Play Store Assets Complete 🎨
 
 ### Feature Graphic (1024×500) — Play Store listing blocker resolved
