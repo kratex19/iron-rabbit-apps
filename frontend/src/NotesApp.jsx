@@ -288,6 +288,23 @@ export default function NotesApp() {
   }, [notes]);
   useEffect(() => { notificationService.requestPermission(); }, []);
 
+  // Auto-backup — silently exports a weekly JSON when opted-in.
+  // Delayed ~5s so it never competes with cold-boot rendering.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        const { maybeRunAutoBackup } = await import("./storage/autoBackup");
+        const result = await maybeRunAutoBackup();
+        if (result.ran) {
+          toast.success("Weekly backup saved to Downloads", { duration: 6000 });
+        }
+      } catch (e) {
+        // Silent — auto-backup should never surface an error toast
+      }
+    }, 5000);
+    return () => clearTimeout(t);
+  }, []);
+
   // ---------- Handlers ----------
 
   const handleInstallPWA = async () => {

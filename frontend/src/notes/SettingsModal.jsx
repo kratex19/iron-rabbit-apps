@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import StorageService from "../storage/storageService";
 import notificationService from "../notifications/notificationService";
@@ -222,6 +223,23 @@ export default function SettingsModal({
               </div>
               <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
             </button>
+            {/* Auto-backup toggle — opt-in weekly export to Downloads */}
+            <div
+              className={`mt-2 rounded-md border px-3 py-2 flex items-center gap-3 ${isDark ? "bg-black/20 border-white/10" : "bg-gray-50 border-gray-200"}`}
+              data-testid="settings-auto-backup-row"
+            >
+              <div className="flex-1">
+                <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-800"}`}>Automatic weekly backup</div>
+                <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  Silently saves a backup file to Downloads every 7 days
+                </div>
+              </div>
+              <Switch
+                checked={!!settings.auto_backup_enabled}
+                onCheckedChange={(v) => onSave({ ...settings, auto_backup_enabled: v })}
+                data-testid="settings-auto-backup-toggle"
+              />
+            </div>
           </div>
 
           {/* Notifications row */}

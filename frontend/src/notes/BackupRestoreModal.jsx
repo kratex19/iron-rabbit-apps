@@ -154,13 +154,56 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
             />
           </div>
         ) : (
-          /* Import confirmation — pick Merge vs Replace */
+          /* Import confirmation — richer summary card + Merge/Replace picker */
           <div className={`p-3 rounded-md border ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`}>
             <div className={`flex items-start gap-2 text-xs mb-3 ${isDark ? "text-slate-300" : "text-gray-700"}`}>
               <FileWarning className="w-4 h-4 mt-0.5 text-amber-400 flex-shrink-0" />
-              <div>
-                Backup contains <strong>{pendingPayload.counts?.notes ?? pendingPayload.data?.notes?.length ?? pendingPayload.notes?.length ?? 0}</strong> notes and <strong>{pendingPayload.counts?.files ?? Object.keys(pendingPayload.data?.files || pendingPayload.files || {}).length}</strong> attachments.
-                Choose how to restore:
+              <div className="flex-1">
+                <div className={`text-[10px] uppercase tracking-wide mb-1 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                  Backup contents
+                </div>
+                {(() => {
+                  const data = pendingPayload.data || pendingPayload;
+                  const notes = pendingPayload.counts?.notes ?? data.notes?.length ?? 0;
+                  const files = pendingPayload.counts?.files ?? Object.keys(data.files || {}).length;
+                  const templates = data.templates?.length ?? 0;
+                  const settings = data.settings || {};
+                  const pinsC = settings.bg_pins?.colors?.length ?? 0;
+                  const pinsG = settings.bg_pins?.gradients?.length ?? 0;
+                  const iconPins = Array.isArray(settings.icon_pins) ? settings.icon_pins.length : 0;
+                  const exported = pendingPayload.exported_at;
+                  const version = pendingPayload.version || "—";
+                  const rows = [
+                    { label: "Notes",              value: notes },
+                    { label: "Attachments",        value: files },
+                    { label: "Templates",          value: templates },
+                    { label: "Pinned backgrounds", value: pinsC + pinsG },
+                    { label: "Pinned icons",       value: iconPins },
+                  ];
+                  return (
+                    <>
+                      <ul className="space-y-0.5 mb-2" data-testid="backup-summary-list">
+                        {rows.map(r => (
+                          <li key={r.label} className="flex items-baseline justify-between gap-2">
+                            <span>{r.label}</span>
+                            <span className={`font-mono text-[11px] ${isDark ? "text-white" : "text-gray-900"}`} data-testid={`backup-summary-${r.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                              {r.value}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className={`flex items-center justify-between pt-2 border-t text-[10px] ${isDark ? "border-white/10 text-slate-500" : "border-gray-200 text-gray-500"}`}>
+                        <span>File v{version}</span>
+                        {exported && (
+                          <span title={exported}>
+                            {format(new Date(exported), "MMM d, yyyy HH:mm")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2">Choose how to restore:</div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
             <button
