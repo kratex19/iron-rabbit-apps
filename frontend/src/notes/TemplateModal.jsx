@@ -50,7 +50,51 @@ export default function TemplateModal({ isOpen, onClose, templates, onSelect, is
     return 0;
   });
 
+  // Split into pinned + rest for a clearer "favourites shelf" layout.
+  const pinnedList = ordered.filter(t => pinned.includes(t.name));
+  const unpinnedList = ordered.filter(t => !pinned.includes(t.name));
+  const showSplit = pinnedList.length > 0 && unpinnedList.length > 0;
+
   if (!isOpen) return null;
+
+  const renderRow = (t, i) => {
+    const isPinned = pinned.includes(t.name);
+    return (
+      <div
+        key={t.id || `${t.name}-${i}`}
+        className={`w-full p-2.5 rounded-lg flex items-center gap-2 transition-all ${
+          isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+        } ${isPinned ? 'ring-1 ring-amber-400/40' : ''}`}
+        data-testid={`template-row-${t.name}`}
+      >
+        <button
+          type="button"
+          onClick={() => togglePin(t.name)}
+          className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+            isPinned
+              ? "bg-amber-400 text-black"
+              : isDark ? "text-slate-500 hover:text-amber-300 hover:bg-white/5" : "text-gray-400 hover:text-amber-500 hover:bg-gray-200"
+          }`}
+          aria-label={isPinned ? `Unpin ${t.name}` : `Pin ${t.name}`}
+          title={isPinned ? "Unpin template" : "Pin to top"}
+          data-testid={`template-pin-${t.name}`}
+        >
+          <Star className={`w-3.5 h-3.5 ${isPinned ? "fill-current" : ""}`} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect(t)}
+          className="flex-1 flex items-center gap-2 text-left"
+          data-testid={`template-select-${t.name}`}
+        >
+          <div className="w-3 h-3 rounded-full" style={{ background: NOTE_COLORS.find(c => c.name === t.color)?.gradient || NOTE_COLORS.find(c => c.name === t.color)?.accent || '#a855f7' }} />
+          <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.name}</span>
+          {t.category && <Badge variant="outline" className={`text-xs ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{t.category}</Badge>}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`max-w-md ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
@@ -61,43 +105,26 @@ export default function TemplateModal({ isOpen, onClose, templates, onSelect, is
           <DialogDescription className="sr-only">Choose a template to pre-fill your new note.</DialogDescription>
         </DialogHeader>
         <div className="space-y-2 max-h-60 overflow-y-auto">
-          {ordered.map((t, i) => {
-            const isPinned = pinned.includes(t.name);
-            return (
-              <div
-                key={t.id || `${t.name}-${i}`}
-                className={`w-full p-2.5 rounded-lg flex items-center gap-2 transition-all ${
-                  isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
-                }`}
-                data-testid={`template-row-${t.name}`}
-              >
-                <button
-                  type="button"
-                  onClick={() => togglePin(t.name)}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                    isPinned
-                      ? "bg-amber-400 text-black"
-                      : isDark ? "text-slate-500 hover:text-amber-300 hover:bg-white/5" : "text-gray-400 hover:text-amber-500 hover:bg-gray-200"
-                  }`}
-                  aria-label={isPinned ? `Unpin ${t.name}` : `Pin ${t.name}`}
-                  title={isPinned ? "Unpin template" : "Pin to top"}
-                  data-testid={`template-pin-${t.name}`}
-                >
-                  <Star className={`w-3.5 h-3.5 ${isPinned ? "fill-current" : ""}`} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSelect(t)}
-                  className="flex-1 flex items-center gap-2 text-left"
-                  data-testid={`template-select-${t.name}`}
-                >
-                  <div className="w-3 h-3 rounded-full" style={{ background: NOTE_COLORS.find(c => c.name === t.color)?.gradient || NOTE_COLORS.find(c => c.name === t.color)?.accent || '#a855f7' }} />
-                  <span className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{t.name}</span>
-                  {t.category && <Badge variant="outline" className={`text-xs ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{t.category}</Badge>}
-                </button>
+          {showSplit ? (
+            <>
+              <h4 className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wider mt-1 ${isDark ? "text-amber-300" : "text-amber-600"}`}
+                  data-testid="template-pinned-header">
+                <Star className="w-3 h-3 fill-current" /> Pinned
+              </h4>
+              <div className="space-y-2">
+                {pinnedList.map(renderRow)}
               </div>
-            );
-          })}
+              <h4 className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wider mt-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}
+                  data-testid="template-all-header">
+                All templates
+              </h4>
+              <div className="space-y-2">
+                {unpinnedList.map(renderRow)}
+              </div>
+            </>
+          ) : (
+            ordered.map(renderRow)
+          )}
         </div>
       </DialogContent>
     </Dialog>

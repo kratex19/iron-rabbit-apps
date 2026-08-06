@@ -112,8 +112,13 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
         </div>
 
         <div className="overflow-y-auto flex-1 -mx-6 px-6 pb-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {sorted.map(pack => {
+          {/* Split into "Pinned" + "All" sections when both exist */}
+          {(() => {
+            const pinnedList   = sorted.filter(p => pinnedPackIds.includes(p.id));
+            const unpinnedList = sorted.filter(p => !pinnedPackIds.includes(p.id));
+            const showSplit = pinnedList.length > 0 && unpinnedList.length > 0;
+
+            const renderCard = (pack) => {
               const isPinned = pinnedPackIds.includes(pack.id);
               return (
               <div
@@ -121,7 +126,6 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                 className={`relative rounded-xl border p-4 flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'} ${isPinned ? 'ring-1 ring-amber-400/50' : ''}`}
                 data-testid={`tile-pack-${pack.id}`}
               >
-                {/* Star pin toggle — top-right of the card */}
                 <button
                   type="button"
                   onClick={() => togglePin(pack.id)}
@@ -151,8 +155,6 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                   </div>
                 </div>
                 <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{pack.tagline}</p>
-
-                {/* Preview strip */}
                 <div className="grid grid-cols-5 gap-1.5">
                   {pack.notes.slice(0, 5).map((n, i) => {
                     const Ico = n.icon && LucideIcons[n.icon] ? LucideIcons[n.icon] : LucideIcons.StickyNote;
@@ -165,7 +167,6 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                     );
                   })}
                 </div>
-
                 <Button
                   onClick={() => onApply(pack)}
                   size="sm"
@@ -186,22 +187,53 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                   </Button>
                 )}
               </div>
-            );})}
+              );
+            };
 
-            {/* "+ Build your own" card */}
-            <button
-              type="button"
-              onClick={() => { setEditingPack(null); setBuilderOpen(true); }}
-              className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 p-4 min-h-[180px] transition-all ${isDark ? 'border-white/20 hover:border-indigo-400 hover:bg-indigo-500/5 text-slate-400 hover:text-indigo-300' : 'border-gray-300 hover:border-indigo-500 hover:bg-indigo-50 text-gray-500 hover:text-indigo-600'}`}
-              data-testid="build-your-own-pack"
-            >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)" }}>
-                <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
-              <div className="text-sm font-semibold">Build Your Own Pack</div>
-              <div className="text-[11px] text-center leading-tight px-2">Create a reusable bundle of tiles</div>
-            </button>
-          </div>
+            const buildYourOwnCard = (
+              <button
+                key="build-your-own"
+                type="button"
+                onClick={() => { setEditingPack(null); setBuilderOpen(true); }}
+                className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 p-4 min-h-[180px] transition-all ${isDark ? 'border-white/20 hover:border-indigo-400 hover:bg-indigo-500/5 text-slate-400 hover:text-indigo-300' : 'border-gray-300 hover:border-indigo-500 hover:bg-indigo-50 text-gray-500 hover:text-indigo-600'}`}
+                data-testid="build-your-own-pack"
+              >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1 0%, #ec4899 100%)" }}>
+                  <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+                </div>
+                <div className="text-sm font-semibold">Build Your Own Pack</div>
+                <div className="text-[11px] text-center leading-tight px-2">Create a reusable bundle of tiles</div>
+              </button>
+            );
+
+            if (!showSplit) {
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {sorted.map(renderCard)}
+                  {buildYourOwnCard}
+                </div>
+              );
+            }
+            return (
+              <>
+                <h4 className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wider mb-2 ${isDark ? "text-amber-300" : "text-amber-600"}`}
+                    data-testid="tile-packs-pinned-header">
+                  <Star className="w-3 h-3 fill-current" /> Pinned
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  {pinnedList.map(renderCard)}
+                </div>
+                <h4 className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wider mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}
+                    data-testid="tile-packs-all-header">
+                  All packs
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {unpinnedList.map(renderCard)}
+                  {buildYourOwnCard}
+                </div>
+              </>
+            );
+          })()}
           {sorted.length === 0 && (
             <div className={`text-center py-10 text-sm ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
               No packs match &quot;{query}&quot;
