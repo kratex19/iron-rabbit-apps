@@ -10,6 +10,7 @@ export default function CloseConfirmDialog({ open, onYes, onNo, isDark = true })
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+      style={{ pointerEvents: "auto" }}
       role="alertdialog"
       aria-modal="true"
       data-testid="quickguide-close-confirm"

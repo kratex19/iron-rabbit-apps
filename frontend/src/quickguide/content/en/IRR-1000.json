@@ -6,7 +6,7 @@
   "summary": "How the main Iron Rabbit screen works and where to start.",
   "cards": [
     {
-      "heading": "What this screen does",
+      "heading": "What Home does",
       "body": "This is the heart of Iron Rabbit. Every note, chore, list, and reminder lives here. Notes live on your phone — nothing is uploaded.",
       "icon": "layout-dashboard",
       "media": null
@@ -30,9 +30,9 @@
       "media": null
     },
     {
-      "heading": "Related features",
-      "body": "Tap the shopping cart for Shopping Mode. Tap the chef hat for Meal Planner. Tap the settings gear for Quick Guides and backups.",
-      "icon": "link",
+      "heading": "Common mistake",
+      "body": "Deleting a note is instant. If you might want it back, archive it instead — Iron Rabbit keeps archived notes until you empty the trash.",
+      "icon": "alert-triangle",
       "media": null
     }
   ],

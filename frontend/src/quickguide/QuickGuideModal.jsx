@@ -87,6 +87,7 @@ export default function QuickGuideModal({ isDark = true }) {
     <>
       <div
         className="fixed inset-0 z-[85] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+        style={{ pointerEvents: "auto" }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="quickguide-title"
