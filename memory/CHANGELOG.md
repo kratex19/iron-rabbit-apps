@@ -1,5 +1,29 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14 · part 3) — Quick Guide System DESIGN LOCKED (post-launch) 🔒
+
+### Decision
+Iron Rabbit will ship a universal **Quick Guide** system as its first major post-Play-launch enhancement (v1.1). Design v1.1 is APPROVED and LOCKED. **No application code has been written or modified.** Everything below is documentation only.
+
+### Documents produced
+- `/app/memory/QUICK_GUIDE_DESIGN.md` — full architecture, component diagram, storage schema, article schema, ID namespace (17 reserved prefixes including new `FH-` for Feature Highlights), 8-phase roadmap, risks, all 10 user-requested changes folded in
+- `/app/memory/QUICK_GUIDE_AUTHORING.md` — writing guidelines: one topic per card, ≤5 cards, ≤250 char bodies, active voice, no jargon, no idioms, localization-ready patterns, review checklist
+
+### Sequencing (locked as Option A+)
+1. Ship Google Play release FIRST (feature graphic, extra screenshots, native build, keystore, Play Console submission)
+2. Publish app · gather real user feedback
+3. Build Quick Guide Phase 1 as the first v1.1 enhancement · guided by actual user friction, not speculation
+
+### Boundary rules for future agents
+- **Do not begin any part of the Quick Guide implementation until the user explicitly says "build Quick Guide Phase 1"** (or equivalent).
+- When implementation begins, start from `QUICK_GUIDE_DESIGN.md` verbatim — no re-analysis, no scope expansion.
+- Vocabulary is final: "Quick Guide" everywhere, `?` icon everywhere, "Knowledge Distribution" for future website sync.
+
+### Estimated effort when green-lit
+- Phase 1 (framework + 3-screen pilot): ~2.0 sessions / ~170 ECU
+- Total 8-phase roadmap: ~19 sessions / ~1,900 ECU spread across many months
+
+
 ## 2026-02-08 (session 14 · part 2) — Google Play Launch Audit ✅
 
 ### App Icons Overhaul (Play blocker → resolved)
