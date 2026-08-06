@@ -12,16 +12,18 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Search, Pencil, Plus, Trash2, Check } from "lucide-react";
+import { X, Search, Pencil, Plus, Trash2, Check, GripVertical, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import ResourceIdChip from "./ResourceIdChip";
 import MoreHelpButton from "./MoreHelpButton";
 import GuideFeedback from "./GuideFeedback";
 import CloseConfirmDialog from "./CloseConfirmDialog";
 import { searchArticles } from "./search";
+import { shareCardAsImage } from "./shareCard";
 
 export default function QuickGuideModal({ isDark = true }) {
-  const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard } = useQuickGuideContext();
+  const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard, reorderUserCards } = useQuickGuideContext();
   const article = openId ? getArticle(openId) : null;
 
   const [confirmingClose, setConfirmingClose] = useState(false);
@@ -31,6 +33,9 @@ export default function QuickGuideModal({ isDark = true }) {
   const [editingCardId, setEditingCardId] = useState(null); // "new" or a user card id
   const [editHeading, setEditHeading] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [dragCardId, setDragCardId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+  const [sharingId, setSharingId] = useState(null);
   const searchInputRef = useRef(null);
   const scrollerRef = useRef(null);
 
@@ -115,6 +120,55 @@ export default function QuickGuideModal({ isDark = true }) {
     deleteUserCard(openId, id);
     if (editingCardId === id) setEditingCardId(null);
   };
+
+  const shareCard = async (card) => {
+    if (sharingId) return;
+    setSharingId(card.__id);
+    try {
+      const result = await shareCardAsImage({
+        heading: card.heading,
+        body: card.body,
+        resourceId: article?.id,
+        guideTitle: article?.title,
+      });
+      if (result.kind === "downloaded") toast.success("Tip saved to Downloads");
+      else if (result.kind === "shared") toast.success("Tip shared");
+    } catch (e) {
+      console.error("[QuickGuide] share failed:", e);
+      toast.error("Couldn't share — try again");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  // HTML5 drag-and-drop reorder for user cards. We ignore drags that start
+  // from shipped cards or land on shipped cards — reorder only affects the
+  // user_cards[resourceId] array.
+  const onDragStart = (e, cardId, isUser) => {
+    if (!isUser) return;
+    setDragCardId(cardId);
+    e.dataTransfer.effectAllowed = "move";
+    try { e.dataTransfer.setData("text/plain", cardId); } catch { /* Safari quirks */ }
+  };
+  const onDragOver = (e, cardId, isUser) => {
+    if (!isUser || !dragCardId || dragCardId === cardId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverId !== cardId) setDragOverId(cardId);
+  };
+  const onDragLeave = (cardId) => {
+    if (dragOverId === cardId) setDragOverId(null);
+  };
+  const onDrop = (e, cardId, isUser) => {
+    if (!isUser) return;
+    e.preventDefault();
+    if (dragCardId && dragCardId !== cardId) {
+      reorderUserCards(openId, dragCardId, cardId);
+    }
+    setDragCardId(null);
+    setDragOverId(null);
+  };
+  const onDragEnd = () => { setDragCardId(null); setDragOverId(null); };
 
   if (!openId || !article) return null;
 
@@ -279,14 +333,25 @@ export default function QuickGuideModal({ isDark = true }) {
             {allCards.map((c) => {
               const isUser = c.__kind === "user";
               const isEditing = editingCardId === c.__id;
+              const isDragging = dragCardId === c.__id;
+              const isDropTarget = dragOverId === c.__id;
+              const isSharing = sharingId === c.__id;
               return (
                 <div
                   key={c.__id}
-                  className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border relative ${
+                  draggable={isUser && !isEditing}
+                  onDragStart={(e) => onDragStart(e, c.__id, isUser)}
+                  onDragOver={(e) => onDragOver(e, c.__id, isUser)}
+                  onDragLeave={() => onDragLeave(c.__id)}
+                  onDrop={(e) => onDrop(e, c.__id, isUser)}
+                  onDragEnd={onDragEnd}
+                  className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border relative transition-transform ${
                     isDark
                       ? isUser ? "bg-amber-500/5 border-amber-400/20" : "bg-white/5 border-white/10"
                       : isUser ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"
-                  }`}
+                  } ${isDragging ? "opacity-40 scale-95 cursor-grabbing" : ""} ${
+                    isDropTarget ? "ring-2 ring-indigo-400 ring-offset-2 ring-offset-transparent" : ""
+                  } ${isUser && !isEditing ? "cursor-grab" : ""}`}
                   data-testid={`quickguide-card-${c.__id}`}
                 >
                   {isEditing ? (
@@ -330,11 +395,25 @@ export default function QuickGuideModal({ isDark = true }) {
                     <>
                       {c.heading && (
                         <div className="flex items-start gap-1.5 mb-2">
+                          {isUser && (
+                            <GripVertical className={`w-3 h-3 mt-0.5 flex-shrink-0 ${isDark ? "text-amber-300/60" : "text-amber-500"}`} aria-hidden="true" />
+                          )}
                           <h3 className={`flex-1 text-sm font-semibold leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>
                             {c.heading}
                           </h3>
                           {isUser && (
                             <div className="flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => shareCard(c)}
+                                disabled={isSharing}
+                                className={`w-5 h-5 rounded-md flex items-center justify-center ${isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"} disabled:opacity-50`}
+                                aria-label="Share as image"
+                                title="Share as image"
+                                data-testid={`quickguide-card-share-${c.__id}`}
+                              >
+                                <Share2 className="w-3 h-3" />
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => beginEditCard(c)}

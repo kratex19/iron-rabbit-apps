@@ -188,6 +188,22 @@ export function QuickGuideProvider({ children }) {
     });
   }, [persist]);
 
+  // Reorder user-authored cards for a guide. `fromId` is dragged over `toId`.
+  // Cards land immediately BEFORE the drop target (list-style behavior).
+  const reorderUserCards = useCallback((resourceId, fromId, toId) => {
+    if (!fromId || !toId || fromId === toId) return;
+    persist(prev => {
+      const list = Array.isArray(prev.user_cards?.[resourceId]) ? [...prev.user_cards[resourceId]] : [];
+      const fromIdx = list.findIndex(c => c.id === fromId);
+      if (fromIdx === -1) return {};
+      const [moved] = list.splice(fromIdx, 1);
+      const toIdx = list.findIndex(c => c.id === toId);
+      const insertAt = toIdx === -1 ? list.length : toIdx;
+      list.splice(insertAt, 0, moved);
+      return { user_cards: { ...(prev.user_cards || {}), [resourceId]: list } };
+    });
+  }, [persist]);
+
   const resetTour = useCallback(() => {
     // Clears Quick Guide seen_ids only. Does NOT re-arm FirstRunTour or QuickAccess.
     persist({ seen_ids: [] });
@@ -235,10 +251,11 @@ export function QuickGuideProvider({ children }) {
     dismissNudge,
     upsertUserCard,
     deleteUserCard,
+    reorderUserCards,
     history,
     articleCount: BUNDLED_ARTICLES.length,
     contentVersion: manifest.content_version,
-  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, upsertUserCard, deleteUserCard, history]);
+  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, upsertUserCard, deleteUserCard, reorderUserCards, history]);
 
   return (
     <QuickGuideContext.Provider value={value}>
