@@ -1,5 +1,59 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14 · part 6) — Quick Guide Phase 1 SHIPPED ✅
+
+### Framework
+- New folder `/app/frontend/src/quickguide/` — 11 files, ~750 LOC, nothing over 210 lines.
+- Public API surface: `<QuickGuideProvider>` at root, `<QuickGuideModal>` at root, `<QuickGuideButton resourceId="…" origin="…" />` per screen, `<QuickGuideSettingsSection>` in Settings, plus `useQuickGuide(id)` for programmatic use.
+- **Independent from FirstRunTour and QuickAccess** — matches their visual style via shared `/quickguide/tokens.js` constants but does NOT import them. Zero refactor of existing modals.
+- **Locked defaults**: `enabled=true, auto_show=false` — discovery-based, not push. `seen_ids` seeded with every current article ID on first boot to prevent auto-show flood.
+- **Storage**: extends `app_settings.quickguide.*` in existing IndexedDB. No new stores.
+
+### 3-Screen Pilot + Meta Article
+- `?` icon wired in `AppHeader.jsx` → **IRR-1000 Your Home Screen**
+- `?` icon wired in `ShoppingModeModal.jsx` header → **IRR-1100 Shopping Mode**
+- `?` icon wired in `SettingsModal.jsx` title → **IRR-1200 Settings**
+- Meta article **IRR-9000 About Quick Guides** — opens from the Settings section "About Quick Guides" row.
+
+### Modal features (all working)
+- 5-card horizontal swipe carousel (touch, chevrons, ← → arrow keys)
+- Progress dots + "N of 5" counter
+- ResourceIdChip bottom-left — subtle mono ID + copy button with navigator.clipboard + execCommand fallback
+- MoreHelpButton bottom-right — visible but DISABLED "SOON" pill (reserves layout for Phase 3+)
+- GuideFeedback (👍 / 👎) on LAST card only — records to `app_settings.quickguide.feedback`, last-vote-wins, derived from context so state syncs across reload/reopen
+- Close [X] → confirm dialog → transient hint toast "You can reopen Quick Guides anytime…"
+- Escape opens confirm, does not bypass it
+
+### Settings section (6 rows, collapsible)
+- Enable Quick Guides · Automatically show · Reset Tour · Content version · Knowledge Distribution status (reserved) · About Quick Guides
+
+### Triple-tap peek
+- When globally disabled, tapping `?` 3 times within 800ms opens the guide **temporarily** without re-enabling.
+
+### Content bundle & lint
+- 4 English articles in `/quickguide/content/en/*.json`
+- Manifest at `/quickguide/content/manifest.json` (content_version 1.0.0, article_ids array)
+- Build-time lint at `/quickguide/scripts/lint.js` — ID uniqueness, prefix-in-range, ≤5 cards, ≤500 char bodies (soft 250), related_ids resolve, deprecated warnings. Runs in 4/4 clean.
+
+### Bug fixed during this session
+- **HIGH (iter_49)**: `recordFeedback` had a stale-closure race with `_bufferEvent` — the second write clobbered the first, silently dropping every vote. **Fix**: refactored `persist()` to functional updater (`setState(prev => …)`) so all sequential writes rebuild from the current snapshot. `recordFeedback` and `close()` now batch feedback + analytics into a single functional update. `GuideFeedback` derives `voted` via `useMemo` from context — no more useState drift. **Verified in iter_50 (5/5 pass)**.
+
+### Verification
+- `testing_agent_v3_fork` iteration_50 — **100% (5/5) pass**, zero bugs, all 15 flows across the framework working. Prior iter_49 13/14 flows also confirmed still green.
+
+### Service Worker
+- Cache bumped `v11 → v12` so PWA users pick up the new framework on next open.
+
+### Files touched
+- New: `/app/frontend/src/quickguide/{tokens.js, QuickGuideProvider.jsx, QuickGuideButton.jsx, QuickGuideModal.jsx, QuickGuideCard.jsx, ResourceIdChip.jsx, MoreHelpButton.jsx, GuideFeedback.jsx, CloseConfirmDialog.jsx, QuickGuideSettingsSection.jsx, useQuickGuide.js, index.js}`
+- New: `/app/frontend/src/quickguide/content/{manifest.json, en/IRR-1000.json, en/IRR-1100.json, en/IRR-1200.json, en/IRR-9000.json}`
+- New: `/app/frontend/src/quickguide/scripts/lint.js`
+- Modified (light-touch): `/app/frontend/src/NotesApp.jsx` (Provider + Modal mount), `/app/frontend/src/notes/AppHeader.jsx` (`?` button), `/app/frontend/src/notes/ShoppingModeModal.jsx` (`?` button), `/app/frontend/src/notes/SettingsModal.jsx` (`?` button + Settings section)
+
+### Locked design status
+`/app/memory/QUICK_GUIDE_DESIGN.md` and `/app/memory/QUICK_GUIDE_AUTHORING.md` remain the source of truth. Phase 1 is complete per that spec. Phase 1.5 (wire remaining 7 screens with placeholder content) is the next batch — awaits explicit user go-ahead. Phases 2-8 (editorial, KB, search, Rabbit Tips, Knowledge Distribution, forums, AI, cross-app extraction) remain queued.
+
+
 ## 2026-02-08 (session 14 · part 5) — Asset Kit + Play Store Copy 📦
 
 ### Extended Asset Kit
