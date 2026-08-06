@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import * as LucideIcons from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -6,17 +6,46 @@ import { Button } from "@/components/ui/button";
 import { ICON_CATEGORIES } from "../data/noteIcons";
 import { Search, X } from "lucide-react";
 
+// Weighted icon-search scoring, matching the pattern used for Quick Guides.
+//   label × 5   (exact label match e.g. "gym" → "Gym")
+//   name  × 3   (component name e.g. "dumbbell" → "Dumbbell")
+//   category × 2 (e.g. "shopping" surfaces every icon in Shopping)
+function scoreIcon(icon, categoryLabel, q) {
+  if (!q) return 0;
+  const label = (icon.label || "").toLowerCase();
+  const name = (icon.name || "").toLowerCase();
+  const cat = (categoryLabel || "").toLowerCase();
+  let s = 0;
+  if (label.includes(q)) s += 5;
+  if (name.includes(q)) s += 3;
+  if (cat.includes(q)) s += 2;
+  return s;
+}
+
 export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = true, mode = "select", onQuickAdd }) {
   const [query, setQuery] = useState("");
 
-  const filtered = ICON_CATEGORIES.map(cat => ({
-    ...cat,
-    icons: cat.icons.filter(i =>
-      !query ||
-      i.label.toLowerCase().includes(query.toLowerCase()) ||
-      i.name.toLowerCase().includes(query.toLowerCase())
-    ),
-  })).filter(cat => cat.icons.length > 0);
+  const trimmed = query.trim().toLowerCase();
+
+  // Categorized view when no query — same visual grouping as before.
+  const categorized = useMemo(() => {
+    if (trimmed) return [];
+    return ICON_CATEGORIES;
+  }, [trimmed]);
+
+  // Flat, ranked list when a query is active — top 60 by score.
+  const flatResults = useMemo(() => {
+    if (!trimmed) return [];
+    const all = [];
+    for (const cat of ICON_CATEGORIES) {
+      for (const icon of cat.icons) {
+        const s = scoreIcon(icon, cat.label, trimmed);
+        if (s > 0) all.push({ icon, category: cat.label, score: s });
+      }
+    }
+    all.sort((a, b) => b.score - a.score);
+    return all.slice(0, 60);
+  }, [trimmed]);
 
   const pick = (icon) => {
     if (mode === "quick-add" && onQuickAdd) {
@@ -59,14 +88,68 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search icons..."
+            placeholder="Search icons — e.g. gym, meds, coffee…"
             className={`pl-8 h-9 ${isDark ? "bg-white/5 border-white/10 text-white placeholder:text-slate-500" : "bg-white border-gray-200"}`}
             data-testid="icon-picker-search"
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center ${isDark ? "hover:bg-white/10 text-slate-400" : "hover:bg-gray-100 text-gray-500"}`}
+              aria-label="Clear icon search"
+              data-testid="icon-picker-search-clear"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="overflow-y-auto flex-1 pr-1">
-          {filtered.map(cat => (
+          {/* Flat ranked results when searching */}
+          {trimmed && flatResults.length > 0 && (
+            <div className="mb-4">
+              <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                {flatResults.length} match{flatResults.length === 1 ? "" : "es"}
+              </h3>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {flatResults.map(({ icon, category }) => {
+                  const Ico = LucideIcons[icon.name];
+                  if (!Ico) return null;
+                  const active = value === icon.name;
+                  return (
+                    <button
+                      key={`${category}-${icon.name}`}
+                      type="button"
+                      onClick={() => pick(icon)}
+                      className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-1 p-1.5 transition-all border ${
+                        active
+                          ? "border-indigo-500 bg-indigo-500/20"
+                          : isDark
+                          ? "border-white/10 bg-white/5 hover:border-white/30 hover:bg-white/10"
+                          : "border-gray-200 bg-gray-50 hover:border-gray-400 hover:bg-gray-100"
+                      }`}
+                      title={`${icon.label} — ${category}`}
+                      data-testid={`icon-option-${icon.name}`}
+                    >
+                      <Ico className={`w-5 h-5 ${isDark ? "text-white" : "text-gray-800"}`} />
+                      <span className={`text-[10px] leading-tight ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                        {icon.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {trimmed && flatResults.length === 0 && (
+            <div className={`text-center py-8 text-sm ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+              No icons match &quot;{query}&quot;
+            </div>
+          )}
+
+          {/* Categorized view when idle */}
+          {!trimmed && categorized.map(cat => (
             <div key={cat.label} className="mb-4">
               <h3 className={`text-xs font-semibold uppercase tracking-wider mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                 {cat.label}
@@ -101,11 +184,6 @@ export default function IconPicker({ isOpen, onClose, value, onSelect, isDark = 
               </div>
             </div>
           ))}
-          {filtered.length === 0 && (
-            <div className={`text-center py-8 text-sm ${isDark ? "text-slate-500" : "text-gray-400"}`}>
-              No icons match &quot;{query}&quot;
-            </div>
-          )}
         </div>
 
         <div className="flex gap-2 pt-2">

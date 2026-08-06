@@ -47,6 +47,9 @@ export function QuickGuideProvider({ children }) {
   const [openId, setOpenId] = useState(null);   // resource ID of the currently displayed guide
   const [origin, setOrigin] = useState(null);    // where the user opened it from (analytics-reserved)
   const [temporary, setTemporary] = useState(false); // triple-tap-when-disabled → one-shot
+  // Session-only history of guides opened this session (most recent first).
+  // Not persisted — keeps the modal search feeling live and lightweight.
+  const [history, setHistory] = useState([]);
 
   // Hydrate from settings on mount
   useEffect(() => {
@@ -124,6 +127,8 @@ export function QuickGuideProvider({ children }) {
     setOrigin(opts.origin || null);
     setTemporary(!!opts.temporary);
     setOpenId(resourceId);
+    // Track session history (most recent first, dedupe, cap at 10)
+    setHistory(prev => [resourceId, ...prev.filter(id => id !== resourceId)].slice(0, 10));
     bufferEvent("guide_opened", { id: resourceId, origin: opts.origin || null, temporary: !!opts.temporary });
     // Opening any guide also dismisses the first-launch nudge.
     persist(prev => (prev.nudge_seen ? {} : { nudge_seen: true }));
@@ -204,9 +209,10 @@ export function QuickGuideProvider({ children }) {
     getArticle,
     getAllArticles,
     dismissNudge,
+    history,
     articleCount: BUNDLED_ARTICLES.length,
     contentVersion: manifest.content_version,
-  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge]);
+  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, history]);
 
   return (
     <QuickGuideContext.Provider value={value}>

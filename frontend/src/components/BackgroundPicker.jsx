@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
 import { Upload, X, Palette, Sparkles, Image as ImageIcon, Clock, Star } from "lucide-react";
 import { toast } from "sonner";
+import StorageService from "../storage/storageService";
 
 const MAX_IMAGE_BYTES = 800_000; // ~800KB — keep IndexedDB happy
 const RECENTS_STORAGE_KEY = "iron_rabbit_bg_recents_v1";
 const MAX_RECENTS = 8;
 
-// Load recents from localStorage (safe — cosmetic data, OK if it's not synced)
+// Load recents from localStorage (session-cosmetic — recents don't need to
+// sync across devices). Pinned items live in IndexedDB (see hydratePins) so
+// Backup/Restore captures them.
 function loadRecents() {
   const empty = { colors: [], gradients: [], pinnedColors: [], pinnedGradients: [] };
   try {
@@ -35,6 +38,14 @@ function saveRecents(recents) {
   }
 }
 
+// Persist pinned lists to IndexedDB so Backup/Restore captures them.
+// Fire-and-forget — cosmetic data, retry not needed.
+function savePinsToDB(pinnedColors, pinnedGradients) {
+  StorageService.saveSettings({
+    bg_pins: { colors: pinnedColors, gradients: pinnedGradients },
+  }).catch(err => console.error("[BackgroundPicker] persist pins failed:", err));
+}
+
 export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isDark = true }) {
   const [tab, setTab] = useState("color");
   const fileInputRef = useRef(null);
@@ -51,9 +62,36 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
   const [gradAngle, setGradAngle] = useState(initialGrad.angle);
   const customGradientCss = `linear-gradient(${gradAngle}deg, ${gradFrom} 0%, ${gradTo} 100%)`;
 
-  // Keep recents in sync if another instance of the picker updated them
+  // Keep recents in sync if another instance of the picker updated them.
+  // Also hydrate pinned lists from IndexedDB so they survive backups + restore
+  // across devices (recents remain localStorage-only).
   useEffect(() => {
-    if (isOpen) setRecents(loadRecents());
+    if (!isOpen) return;
+    const local = loadRecents();
+    setRecents(local);
+    (async () => {
+      try {
+        const settings = await StorageService.getSettings();
+        const dbPins = settings?.bg_pins;
+        if (!dbPins) {
+          // First open with no DB pins — migrate any localStorage pins into DB.
+          if (local.pinnedColors.length || local.pinnedGradients.length) {
+            savePinsToDB(local.pinnedColors, local.pinnedGradients);
+          }
+          return;
+        }
+        // DB pins take precedence — they may have arrived from Restore.
+        const merged = {
+          ...local,
+          pinnedColors: Array.isArray(dbPins.colors) ? dbPins.colors.filter(c => typeof c === "string") : [],
+          pinnedGradients: Array.isArray(dbPins.gradients) ? dbPins.gradients.filter(g => typeof g === "string") : [],
+        };
+        setRecents(merged);
+        saveRecents(merged);
+      } catch (e) {
+        console.error("[BackgroundPicker] hydrate pins failed:", e);
+      }
+    })();
   }, [isOpen]);
 
   const pushRecent = (kind, value) => {
@@ -81,6 +119,7 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
 
   // Toggle pin: recent → pinned removes it from recents and adds to pinned;
   // pinned → recent removes from pinned and re-adds to top of recents.
+  // Pinned changes also persist to IndexedDB so Backup/Restore captures them.
   const togglePin = (kind, value) => {
     setRecents(prev => {
       const pinnedKey = kind === "colors" ? "pinnedColors" : "pinnedGradients";
@@ -103,6 +142,7 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
         };
       }
       saveRecents(next);
+      savePinsToDB(next.pinnedColors, next.pinnedGradients);
       return next;
     });
   };

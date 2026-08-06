@@ -202,9 +202,9 @@ npx cap open ios
 
 ## 🔴 Known gaps still worth doing before public launch
 
-- [ ] **Feature graphic (1024×500)** — Play Store listing REQUIRES this. Currently missing.
-- [ ] **Additional screenshots** — highly recommend adding Kid Mode celebration, Pantry with Nutri-Score/NOVA badges, Meal Plan grid, Backup/Restore modal.
-- [ ] **Privacy policy live URL** — the `PRIVACY.md` file must be hosted publicly.
+- [x] ~~**Feature graphic (1024×500)**~~ — Generated: `frontend/public/feature-graphic-1024x500.png`
+- [x] ~~**Additional screenshots**~~ — 8 screenshots ready in `frontend/public/screenshots/` (Kid Mode, Pantry Nutri-Score, Meal Plan, Backup, Notes list/create/expanded/fullscreen)
+- [ ] **Privacy policy live URL** — the `PRIVACY.md` file must be hosted publicly (GitHub raw URL or `ironrabbitapps.com/privacy`)
 - [ ] **Real device smoke test** — every claim above assumes the release build boots and works on a physical Android device. Test before submission.
 - [ ] **Terms of Service** — Not strictly required by Play for a $0 productivity app with no accounts, but you should draft one.
 

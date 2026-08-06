@@ -18,6 +18,10 @@
 - **Pinned Backgrounds** — Star icon on every recent swatch. Pinned items live in `pinnedColors` / `pinnedGradients` arrays (unlimited); shown above the "Recent" strip with a "★ Pinned" heading. Star toggle moves between pinned/recent. Reusable `SwatchButton` component keeps the render DRY.
 - **"No icon" placeholder fix** — `NoteTile`, `NoteModal` editor preview, and `PackBuilder` (both the tile gallery and the current-tile preview) now render nothing when `icon` is null, instead of falling back to `StickyNote`. Matches the user's explicit "No icon" choice.
 - **FullScreenNote accordion moved to bottom** — Attachments accordion now sits at the very bottom of the editor scroll area (after chores + checklist) with `mt-auto`, so the writing area gets max vertical breathing room.
+- **Weighted Icon Search** — `IconPicker.jsx` now uses weighted scoring (label×5, name×3, category×2). When the query is active it shows a flat, ranked top-60 grid; when idle it keeps the categorized view. New `×` clear button in the search box.
+- **Guide History (Recently Viewed)** — `QuickGuideProvider` tracks the last 10 guides opened this session (in-memory only). Modal search panel surfaces them as a "RECENTLY VIEWED" list when the query is empty. Verified live.
+- **Pin Sync to IndexedDB** — `BackgroundPicker` now hydrates pinned lists from `StorageService.getSettings().bg_pins` on open, migrates any pre-existing localStorage pins into IndexedDB the first time, and writes pins to both stores on toggle. Because Backup exports the full `app_settings` object, pins now travel with backup files.
+- **Play Submission playbook** — New `PLAY_SUBMISSION_TODAY.md` at `/app/` — a one-page, ~90-minute walkthrough from `yarn build` → signed AAB → Play Console upload. References the existing detailed `GOOGLE_PLAY_LAUNCH.md` for deep dives. Updated the launch doc to reflect that feature graphic + 8 screenshots are already generated.
 
 ### Files touched
 - `frontend/src/data/noteIcons.js` — palette expansion

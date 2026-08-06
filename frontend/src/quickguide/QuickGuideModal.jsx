@@ -25,7 +25,7 @@ import { searchArticles } from "./search";
 const SWIPE_THRESHOLD_PX = 60;
 
 export default function QuickGuideModal({ isDark = true }) {
-  const { openId, close, getArticle, getAllArticles, open } = useQuickGuideContext();
+  const { openId, close, getArticle, getAllArticles, open, history } = useQuickGuideContext();
   const article = openId ? getArticle(openId) : null;
 
   const [index, setIndex] = useState(0);
@@ -59,6 +59,16 @@ export default function QuickGuideModal({ isDark = true }) {
     () => searchArticles(getAllArticles(), searchQuery, 6, { excludeId: openId }),
     [searchQuery, getAllArticles, openId]
   );
+
+  // "Recently viewed" fallback shown in the search panel when no query is entered.
+  // Excludes the currently-open guide and dedupes by id.
+  const historyArticles = useMemo(() => {
+    return (history || [])
+      .filter(id => id !== openId)
+      .map(id => getArticle(id))
+      .filter(Boolean)
+      .slice(0, 6);
+  }, [history, openId, getArticle]);
 
   const total = article?.cards?.length || 0;
   const isLast = total > 0 && index === total - 1;
@@ -221,6 +231,38 @@ export default function QuickGuideModal({ isDark = true }) {
                       ))}
                     </ul>
                   )}
+                </div>
+              )}
+              {!searchQuery.trim() && historyArticles.length > 0 && (
+                <div className={`mt-2 rounded-lg border ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-white"}`}
+                     data-testid="quickguide-modal-history">
+                  <div className={`px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                    Recently viewed
+                  </div>
+                  <ul className="max-h-48 overflow-y-auto pb-1">
+                    {historyArticles.map(r => (
+                      <li key={`h-${r.id}`}>
+                        <button
+                          type="button"
+                          onClick={() => { open(r.id, { origin: "modal-history" }); }}
+                          className={`w-full text-left px-3 py-2 flex flex-col gap-0.5 transition-colors ${
+                            isDark ? "hover:bg-white/5" : "hover:bg-gray-50"
+                          }`}
+                          data-testid={`quickguide-modal-history-${r.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>{r.title}</span>
+                            <span className={`text-[10px] font-mono ${isDark ? "text-slate-500" : "text-gray-400"}`}>{r.id}</span>
+                          </div>
+                          {r.summary && (
+                            <span className={`text-[11px] leading-snug line-clamp-1 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                              {r.summary}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
