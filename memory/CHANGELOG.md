@@ -1,5 +1,32 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14 · part 4) — Play Store Assets Complete 🎨
+
+### Feature Graphic (1024×500) — Play Store listing blocker resolved
+- Generated `/app/frontend/public/feature-graphic-1024x500.png` via `/tmp/gen_feature_graphic.py` (Python + PIL, reuses the icon-generator rabbit routine).
+- Left side: brand mark "IRON RABBIT" · tagline "**Notes that live on your phone.**" (carrot-orange "phone.") · sub-tagline "Offline-first · No account · No ads · No tracking".
+- Right side: the same rabbit-face icon in a rounded-square badge with drop shadow — matches the launcher icon so Play Store users see brand consistency at a glance.
+- Fixed the rabbit's mouth arc across all generated assets (icons + splash + feature graphic) so he's smiling, not frowning.
+
+### 4 Extra Play Store Screenshots
+- `screenshots/pantry-nutriscore.png` — Nutella with NOVA 4 badge, "Ultra-processed" processing panel, Palm Oil warning, allergen chips (milk/nuts/soybeans), full nutrition per 100g, sourced from Open Food Facts.
+- `screenshots/meal-plan.png` — populated 7-day grid (Mon–Sun) with real recipes across breakfast/lunch/dinner slots, "Generate shopping list" CTA, "15 recipes" footer.
+- `screenshots/kid-mode.png` — Emma's Daily Chores dashboard, streak 1, 2/5 approved, $2 earned this week, individual chores with Approved!/Waiting-for-grown-up badges.
+- `screenshots/backup-restore.png` — clean Backup & Restore modal, Export Backup + Import Backup CTAs, "Nothing leaves your device" reassurance.
+- All 4 shot at 540×960 (Play's narrow form-factor); registered in `manifest.json` `screenshots` array with descriptive labels for the store listing.
+
+### `manifest.json` update
+- Screenshots array grew from 4 → 8 entries. Every new screenshot has a Play-listing-quality label.
+
+### Handoff — what user must still do on their Mac before submission
+- Host `/app/PRIVACY.md` at a public URL (GitHub raw is fastest)
+- `cd frontend && yarn build && npx cap add android && npx cap sync`
+- Wire adaptive icons in Android Studio Asset Studio (foreground + background PNGs already in `/app/frontend/public/`)
+- Generate keystore, produce signed `.aab`, upload to Play Console
+- In Play Console: paste privacy URL, fill Data Safety form (data collected = none), upload feature graphic + screenshots, submit for review
+- Full step-by-step in `/app/GOOGLE_PLAY_LAUNCH.md`
+
+
 ## 2026-02-08 (session 14 · part 3) — Quick Guide System DESIGN LOCKED (post-launch) 🔒
 
 ### Decision

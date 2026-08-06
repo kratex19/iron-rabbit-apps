@@ -81,6 +81,34 @@
       "sizes": "1170x2532",
       "form_factor": "narrow",
       "label": "Full-screen editor for distraction-free writing"
+    },
+    {
+      "src": "screenshots/pantry-nutriscore.png",
+      "type": "image/png",
+      "sizes": "540x960",
+      "form_factor": "narrow",
+      "label": "Pantry scanner — Nutri-Score, NOVA processing, allergens, additive warnings"
+    },
+    {
+      "src": "screenshots/meal-plan.png",
+      "type": "image/png",
+      "sizes": "540x960",
+      "form_factor": "narrow",
+      "label": "Meal Planner — 7-day grid, drag between slots, one-tap shopping list"
+    },
+    {
+      "src": "screenshots/kid-mode.png",
+      "type": "image/png",
+      "sizes": "540x960",
+      "form_factor": "narrow",
+      "label": "Kid Mode — kid-friendly chores dashboard with streaks and rewards"
+    },
+    {
+      "src": "screenshots/backup-restore.png",
+      "type": "image/png",
+      "sizes": "540x960",
+      "form_factor": "narrow",
+      "label": "Backup & Restore — export everything to a single offline .json"
     }
   ],
   "shortcuts": [
