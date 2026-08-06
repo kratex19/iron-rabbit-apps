@@ -14,6 +14,7 @@ import ContactPage from "./site/pages/ContactPage";
 import BlogPage from "./site/pages/BlogPage";
 import BlogPostPage from "./site/pages/BlogPostPage";
 import NotesApp from "./NotesApp";
+import CommunityDashboard from "./admin/CommunityDashboard";
 
 function NotFound() {
   return (
@@ -34,6 +35,9 @@ export default function App() {
         <Route path="/" element={<NotesApp />} />
         {/* Legacy alias so existing links keep working */}
         <Route path="/apps/iron-rabbit-notes/launch" element={<NotesApp />} />
+
+        {/* Community Dashboard — admin-only, gated by ADMIN_TOKEN */}
+        <Route path="/admin/community" element={<CommunityDashboard />} />
 
         {/* Company Website — nested under /site (will move to ironrabbitapps.com) */}
         <Route path="/site" element={<HomePage />} />

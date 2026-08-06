@@ -50,6 +50,13 @@ export function QuickGuideProvider({ children }) {
   // Session-only history of guides opened this session (most recent first).
   // Not persisted — keeps the modal search feeling live and lightweight.
   const [history, setHistory] = useState([]);
+  // A card decoded from a scanned Iron Rabbit QR that's awaiting user confirmation.
+  // Shape: { heading, body, resourceId, guideTitle } | null
+  const [pendingImport, setPendingImport] = useState(null);
+  // Promoted community tips fetched from the backend on mount. Read-only,
+  // shown as extra cards inside the modal — never touches shipped content.
+  // Shape: [{ id, heading, body, resource_id, promoted_at }]
+  const [communityTips, setCommunityTips] = useState([]);
 
   // Hydrate from settings on mount
   useEffect(() => {
@@ -149,7 +156,50 @@ export function QuickGuideProvider({ children }) {
     setOpenId(null);
     setOrigin(null);
     setTemporary(false);
+    setPendingImport(null);
   }, [openId, persist]);
+
+  // Fetch promoted community tips once — surfaced as read-only cards.
+  // Silent-fail: offline / server down should never break the guide.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const base = process.env.REACT_APP_BACKEND_URL;
+        if (!base) return;
+        const res = await fetch(`${base}/api/community/promoted`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data)) setCommunityTips(data);
+      } catch (e) {
+        // Silent — feature degrades gracefully when offline.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  /**
+   * Stage a card decoded from a scanned QR. Opens the corresponding guide
+   * (or a fallback article) and shows a "Import this tip?" preview inside
+   * QuickGuideModal. Caller: BarcodeScannerModal → AppModals.
+   */
+  const stagePendingImport = useCallback((tip) => {
+    if (!tip || !tip.heading && !tip.body) return;
+    const targetId = tip.resourceId && ARTICLE_INDEX[tip.resourceId]
+      ? tip.resourceId
+      : BUNDLED_ARTICLES[0].id; // fallback — first guide
+    setPendingImport({
+      heading: (tip.heading || "").slice(0, 120),
+      body: (tip.body || "").slice(0, 800),
+      resourceId: targetId,
+      guideTitle: (tip.guideTitle || "").slice(0, 120),
+    });
+    setOpenId(targetId);
+    setOrigin("qr-scan");
+    setTemporary(false);
+  }, []);
+
+  const clearPendingImport = useCallback(() => setPendingImport(null), []);
 
   const isSeen = useCallback((id) => state.seen_ids.includes(id), [state.seen_ids]);
 
@@ -253,9 +303,13 @@ export function QuickGuideProvider({ children }) {
     deleteUserCard,
     reorderUserCards,
     history,
+    pendingImport,
+    stagePendingImport,
+    clearPendingImport,
+    communityTips,
     articleCount: BUNDLED_ARTICLES.length,
     contentVersion: manifest.content_version,
-  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, upsertUserCard, deleteUserCard, reorderUserCards, history]);
+  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, upsertUserCard, deleteUserCard, reorderUserCards, history, pendingImport, stagePendingImport, clearPendingImport, communityTips]);
 
   return (
     <QuickGuideContext.Provider value={value}>

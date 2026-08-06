@@ -36,7 +36,7 @@ const CARD_THEME_GRADIENTS = [
 ];
 
 export default function QuickGuideModal({ isDark = true }) {
-  const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard, reorderUserCards } = useQuickGuideContext();
+  const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard, reorderUserCards, pendingImport, clearPendingImport, communityTips } = useQuickGuideContext();
   const article = openId ? getArticle(openId) : null;
 
   const [confirmingClose, setConfirmingClose] = useState(false);
@@ -318,10 +318,31 @@ export default function QuickGuideModal({ isDark = true }) {
   if (!openId || !article) return null;
 
   const userCards = Array.isArray(state.user_cards?.[openId]) ? state.user_cards[openId] : [];
+  const communityCardsForGuide = (communityTips || []).filter(t => t.resource_id === openId);
   const allCards = [
     ...article.cards.map((c, i) => ({ ...c, __kind: "shipped", __id: `s-${i}` })),
+    ...communityCardsForGuide.map(c => ({
+      heading: c.heading,
+      body: c.body,
+      __kind: "community",
+      __id: `c-${c.id}`,
+    })),
     ...userCards.map(c => ({ ...c, __kind: "user", __id: c.id })),
   ];
+
+  const acceptPendingImport = () => {
+    if (!pendingImport) return;
+    upsertUserCard(openId, {
+      heading: pendingImport.heading || "Imported tip",
+      body: pendingImport.body || "",
+    });
+    clearPendingImport();
+    toast.success("Tip saved to your cards");
+    // Scroll to the end so the new card is visible
+    requestAnimationFrame(() => {
+      if (scrollerRef.current) scrollerRef.current.scrollLeft = scrollerRef.current.scrollWidth;
+    });
+  };
 
   return (
     <>
@@ -479,6 +500,51 @@ export default function QuickGuideModal({ isDark = true }) {
             </div>
           )}
 
+          {/* Pending QR-import preview — user scanned a tip and needs to confirm before it lands on their cards */}
+          {pendingImport && (
+            <div
+              className={`mb-3 rounded-xl border p-3 flex flex-col gap-2 ${
+                isDark ? "bg-indigo-500/10 border-indigo-400/30" : "bg-indigo-50 border-indigo-200"
+              }`}
+              data-testid="quickguide-import-preview"
+            >
+              <div className="flex items-center gap-2">
+                <QrCode className={`w-4 h-4 ${isDark ? "text-indigo-300" : "text-indigo-600"}`} />
+                <div className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>
+                  Import this tip?
+                </div>
+              </div>
+              <div>
+                <div className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
+                  {pendingImport.heading || "Imported tip"}
+                </div>
+                {pendingImport.body && (
+                  <div className={`text-xs mt-1 whitespace-pre-wrap ${isDark ? "text-slate-300" : "text-gray-600"}`}>
+                    {pendingImport.body}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={acceptPendingImport}
+                  className="flex-1 h-8 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium inline-flex items-center justify-center gap-1"
+                  data-testid="quickguide-import-accept"
+                >
+                  <Check className="w-3.5 h-3.5" /> Save to my cards
+                </button>
+                <button
+                  type="button"
+                  onClick={clearPendingImport}
+                  className={`h-8 px-3 rounded-md text-xs ${isDark ? "text-slate-300 hover:bg-white/10" : "text-gray-600 hover:bg-gray-100"}`}
+                  data-testid="quickguide-import-cancel"
+                >
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Horizontal scroll strip of help cards + "+ Add" card at the end */}
           <div className={`text-[11px] mb-2 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
             Swipe or scroll → {allCards.length} card{allCards.length === 1 ? "" : "s"}
@@ -490,6 +556,7 @@ export default function QuickGuideModal({ isDark = true }) {
           >
             {allCards.map((c) => {
               const isUser = c.__kind === "user";
+              const isCommunity = c.__kind === "community";
               const isEditing = editingCardId === c.__id;
               const isDragging = dragCardId === c.__id;
               const isDropTarget = dragOverId === c.__id;
@@ -507,9 +574,11 @@ export default function QuickGuideModal({ isDark = true }) {
                   className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border relative transition-transform overflow-hidden ${
                     isUser && !isEditing && c.theme
                       ? "border-white/20 text-white"
-                      : isDark
-                        ? isUser ? "bg-amber-500/5 border-amber-400/20" : "bg-white/5 border-white/10"
-                        : isUser ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"
+                      : isCommunity
+                        ? isDark ? "bg-emerald-500/5 border-emerald-400/20" : "bg-emerald-50 border-emerald-200"
+                        : isDark
+                          ? isUser ? "bg-amber-500/5 border-amber-400/20" : "bg-white/5 border-white/10"
+                          : isUser ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"
                   } ${isDragging ? "opacity-40 scale-95 cursor-grabbing" : ""} ${
                     isDropTarget ? "ring-2 ring-indigo-400 ring-offset-2 ring-offset-transparent" : ""
                   } ${isUser && !isEditing ? "cursor-grab" : ""}`}
@@ -677,6 +746,13 @@ export default function QuickGuideModal({ isDark = true }) {
                           c.theme ? "text-white/70" : isDark ? "text-amber-300/70" : "text-amber-600"
                         }`}>
                           Yours
+                        </div>
+                      )}
+                      {isCommunity && (
+                        <div className={`absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wide ${
+                          isDark ? "text-emerald-300/80" : "text-emerald-600"
+                        }`} data-testid={`quickguide-community-badge-${c.__id}`}>
+                          Community
                         </div>
                       )}
                     </div>

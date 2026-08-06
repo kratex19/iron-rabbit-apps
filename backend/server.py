@@ -420,6 +420,18 @@ async def ocr_image(payload: OCRRequest):
 
 
 # ================== COMMUNITY TIPS ENDPOINT ==================
+from fastapi import Header
+
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
+
+
+def _require_admin(token: Optional[str]) -> None:
+    """Validate the admin bearer token. Rejects when the env token is unset
+    (safer default: no admin access rather than an empty match)."""
+    if not ADMIN_TOKEN or not token or token.strip() != ADMIN_TOKEN:
+        raise HTTPException(status_code=401, detail="Admin token required")
+
+
 class CommunityTipRequest(BaseModel):
     heading: str
     body: str
@@ -430,6 +442,22 @@ class CommunityTipRequest(BaseModel):
 class CommunityTipResponse(BaseModel):
     ok: bool
     id: str
+
+
+class CommunityTip(BaseModel):
+    id: str
+    heading: str
+    body: str
+    resource_id: str = ""
+    theme: str = ""
+    status: str = "pending"  # pending | promoted | rejected
+    created_at: str
+    promoted_at: Optional[str] = None
+
+
+class CommunityTipList(BaseModel):
+    tips: List[CommunityTip]
+    counts: Dict[str, int]
 
 
 @api_router.post("/community/tip", response_model=CommunityTipResponse)
@@ -448,7 +476,9 @@ async def submit_community_tip(payload: CommunityTipRequest):
         "body": body,
         "resource_id": (payload.resource_id or "")[:20],
         "theme": (payload.theme or "")[:200],
+        "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "promoted_at": None,
     }
     try:
         await db.community_tips.insert_one(doc)
@@ -456,6 +486,116 @@ async def submit_community_tip(payload: CommunityTipRequest):
         logger.exception("Failed to store community tip: %s", e)
         raise HTTPException(status_code=500, detail="Storage error")
     return CommunityTipResponse(ok=True, id=doc["id"])
+
+
+@api_router.get("/community/tips", response_model=CommunityTipList)
+async def list_community_tips(
+    status_filter: Optional[str] = None,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: list submitted tips. Optional `status_filter=pending|promoted|rejected`."""
+    _require_admin(x_admin_token)
+    query: Dict[str, Any] = {}
+    if status_filter in ("pending", "promoted", "rejected"):
+        query["status"] = status_filter
+    else:
+        # Legacy rows created before the status field exist as `pending`.
+        query = {}
+    docs = await db.community_tips.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    # Normalize legacy rows without a status field.
+    for d in docs:
+        d.setdefault("status", "pending")
+        d.setdefault("promoted_at", None)
+        d.setdefault("resource_id", "")
+        d.setdefault("theme", "")
+    counts_pipeline = [{"$group": {"_id": "$status", "n": {"$sum": 1}}}]
+    counts = {"pending": 0, "promoted": 0, "rejected": 0}
+    async for row in db.community_tips.aggregate(counts_pipeline):
+        # Missing `status` (legacy rows) shows up here as _id=None → treat as pending.
+        key = row["_id"] or "pending"
+        counts[key] = counts.get(key, 0) + int(row["n"])
+    return CommunityTipList(tips=[CommunityTip(**d) for d in docs], counts=counts)
+
+
+@api_router.post("/community/tips/{tip_id}/promote", response_model=CommunityTip)
+async def promote_community_tip(
+    tip_id: str,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: mark a submitted tip as promoted. Promoted tips are
+    surfaced by the public /api/community/promoted endpoint and shown as
+    read-only community cards inside the Quick Guide modal."""
+    _require_admin(x_admin_token)
+    now = datetime.now(timezone.utc).isoformat()
+    result = await db.community_tips.update_one(
+        {"id": tip_id}, {"$set": {"status": "promoted", "promoted_at": now}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Tip not found")
+    doc = await db.community_tips.find_one({"id": tip_id}, {"_id": 0})
+    doc.setdefault("resource_id", "")
+    doc.setdefault("theme", "")
+    return CommunityTip(**doc)
+
+
+@api_router.post("/community/tips/{tip_id}/reject", response_model=CommunityTip)
+async def reject_community_tip(
+    tip_id: str,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: reject a tip (soft-delete so it can be restored later)."""
+    _require_admin(x_admin_token)
+    result = await db.community_tips.update_one(
+        {"id": tip_id}, {"$set": {"status": "rejected", "promoted_at": None}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Tip not found")
+    doc = await db.community_tips.find_one({"id": tip_id}, {"_id": 0})
+    doc.setdefault("resource_id", "")
+    doc.setdefault("theme", "")
+    return CommunityTip(**doc)
+
+
+@api_router.delete("/community/tips/{tip_id}")
+async def delete_community_tip(
+    tip_id: str,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: hard-delete a tip permanently."""
+    _require_admin(x_admin_token)
+    result = await db.community_tips.delete_one({"id": tip_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Tip not found")
+    return {"ok": True}
+
+
+class PromotedTip(BaseModel):
+    id: str
+    heading: str
+    body: str
+    resource_id: str = ""
+    promoted_at: Optional[str] = None
+
+
+@api_router.get("/community/promoted", response_model=List[PromotedTip])
+async def list_promoted_tips():
+    """Public: promoted tips, surfaced inside the Quick Guide modal as
+    read-only community cards. No admin token required."""
+    docs = await db.community_tips.find(
+        {"status": "promoted"},
+        {"_id": 0, "id": 1, "heading": 1, "body": 1, "resource_id": 1, "promoted_at": 1},
+    ).sort("promoted_at", -1).to_list(500)
+    for d in docs:
+        d.setdefault("resource_id", "")
+        d.setdefault("promoted_at", None)
+    return [PromotedTip(**d) for d in docs]
+
+
+@api_router.post("/admin/verify")
+async def admin_verify(x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token")):
+    """Simple ping for the admin gate — returns 200 with the token match, 401 otherwise."""
+    _require_admin(x_admin_token)
+    return {"ok": True}
 
 
 # ================== DINING INSIGHTS ENDPOINT ==================

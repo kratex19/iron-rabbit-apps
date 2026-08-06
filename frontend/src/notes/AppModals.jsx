@@ -67,6 +67,7 @@ import BackupRestoreModal from "./BackupRestoreModal";
 
 import StorageService from "../storage/storageService";
 import { useGroceryQuickAdd } from "../hooks/useGroceryQuickAdd";
+import { useQuickGuideContext } from "../quickguide/QuickGuideProvider";
 
 /**
  * AppModals — a single mount point for every modal / dialog / sheet /
@@ -82,6 +83,7 @@ export default function AppModals(p) {
     onSavedInline: p.handleSaveInline,
     onRefresh: p.fetchData,
   });
+  const { stagePendingImport } = useQuickGuideContext();
 
   return (
     <>
@@ -227,6 +229,13 @@ export default function AppModals(p) {
           nutrition: captured.nutrition,
           nutriscore: captured.nutriscore,
         })}
+        onTipDetected={(tip) => {
+          // Scan-back: user pointed the scanner at an Iron Rabbit tip QR.
+          // Route into the Quick Guide with a preview instead of the
+          // grocery flow. toast informs them of the redirect.
+          stagePendingImport(tip);
+          toast.success("Tip detected — review + save inside Quick Guide");
+        }}
       />
       <MealPlannerModal
         isOpen={p.mealPlannerOpen}

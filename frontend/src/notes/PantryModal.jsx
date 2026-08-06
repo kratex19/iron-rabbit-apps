@@ -8,6 +8,7 @@ import { format, parseISO, differenceInCalendarDays } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
+import { useQuickGuideContext } from "../quickguide/QuickGuideProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -426,6 +427,7 @@ function ZoneChip({ active, onClick, label, icon: Icon, color, isDark, testid })
 function PantryEditModal({ item, isDark, onClose, onSave }) {
   const isEdit = !!item;
   const [scannerOpen, setScannerOpen] = useState(false);
+  const { stagePendingImport } = useQuickGuideContext();
   const [form, setForm] = useState({
     id: item?.id,
     name: item?.name || "",
@@ -623,6 +625,10 @@ function PantryEditModal({ item, isDark, onClose, onSave }) {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onCapture={handleScanCapture}
+        onTipDetected={(tip) => {
+          stagePendingImport(tip);
+          toast.success("Tip detected — review + save inside Quick Guide");
+        }}
         isDark={isDark}
       />
     </Dialog>

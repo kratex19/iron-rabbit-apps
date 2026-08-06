@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { haptic } from "../utils/haptic";
 import { lookupBarcode } from "../utils/openFoodFacts";
+import { decodeTipPayload } from "../quickguide/shareCard";
 
 /**
  * Barcode Scanner + OpenFoodFacts lookup.
@@ -25,7 +26,7 @@ import { lookupBarcode } from "../utils/openFoodFacts";
  * `onCapture({ code, name, nutrition })` is called when the user
  * accepts a scanned/looked-up product.
  */
-export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark }) {
+export default function BarcodeScannerModal({ isOpen, onClose, onCapture, onTipDetected, isDark }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const detectorRef = useRef(null);
@@ -92,6 +93,14 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
         if (barcodes && barcodes.length > 0) {
           const raw = String(barcodes[0].rawValue || "").trim();
           if (raw) {
+            // Iron Rabbit tip QR? Short-circuit and hand off to the guide importer.
+            const tip = decodeTipPayload(raw);
+            if (tip && onTipDetected) {
+              haptic("success");
+              onTipDetected(tip);
+              onClose();
+              return;
+            }
             haptic("success");
             setScanned({ code: raw });
             setStatus("idle");
@@ -114,7 +123,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
     }
     try {
       const formats = await window.BarcodeDetector.getSupportedFormats?.().catch(() => null);
-      const supported = formats && formats.length ? formats : ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
+      const supported = formats && formats.length ? formats : ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
       detectorRef.current = new window.BarcodeDetector({ formats: supported });
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -142,6 +151,16 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
       if (codes && codes.length > 0) {
         const raw = String(codes[0].rawValue || "").trim();
         if (raw) {
+          // Iron Rabbit tip QR? Short-circuit and hand off to the guide importer.
+          const tip = decodeTipPayload(raw);
+          if (tip && onTipDetected) {
+            haptic("success");
+            stopCamera();
+            setStatus("idle");
+            onTipDetected(tip);
+            onClose();
+            return;
+          }
           haptic("tap");
           setScanned({ code: raw });
           stopCamera();

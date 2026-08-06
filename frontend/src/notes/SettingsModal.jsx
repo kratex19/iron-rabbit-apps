@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
-  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell,
+  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, MessageSquareQuote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,6 +253,34 @@ export default function SettingsModal({
               <Bell className="w-3.5 h-3.5" /> Notifications
             </label>
             <NotificationsPanel isDark={isDark} />
+          </div>
+
+          {/* Community Dashboard row — hidden admin surface. Present in Settings
+              so the maintainer can moderate submitted tips from any device.  */}
+          <div>
+            <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <MessageSquareQuote className="w-3.5 h-3.5" /> Community
+            </label>
+            <a
+              href="/admin/community"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`w-full flex items-center gap-3 rounded-md h-11 px-3 transition-colors ${
+                isDark
+                  ? "bg-black/20 border border-white/10 hover:bg-white/5 text-white"
+                  : "bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800"
+              }`}
+              data-testid="settings-community-dashboard"
+            >
+              <MessageSquareQuote className="w-4 h-4 text-emerald-400" />
+              <div className="flex-1 text-left">
+                <div className="text-sm font-medium">Community Dashboard</div>
+                <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  Admin-only · review + promote submitted tips
+                </div>
+              </div>
+              <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+            </a>
           </div>
 
           {/* Sync pack colors row */}

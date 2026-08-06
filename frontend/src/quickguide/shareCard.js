@@ -16,13 +16,69 @@ const MARGIN = 80;
 // Compact "iron-rabbit tip" payload the QR carries. Kept intentionally tiny —
 // heading (max 60) + body (max 400) + resource id keeps QR density readable
 // even by cheap camera scanners.
+//
+// The payload is DUAL-FORMAT: a human-readable block first (so a generic
+// phone-camera scanner shows something intelligible), followed by a
+// machine-readable marker `[IRTIP1:<url-safe-b64-json>]` that the in-app
+// scanner detects to reconstruct the card fields exactly (heading/body/
+// resource id/guide title).
+const IRTIP_MARKER_RE = /\[IRTIP1:([A-Za-z0-9\-_]+=*)\]/;
+
+function _b64UrlEncode(str) {
+  // btoa handles latin-1 only — encode UTF-8 first so unicode headings survive.
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function _b64UrlDecode(s) {
+  let b64 = String(s).replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
 export function encodeTipPayload({ heading, body, resourceId, guideTitle }) {
   const parts = [];
   if (guideTitle) parts.push(`Iron Rabbit · ${guideTitle}`);
   if (heading) parts.push(heading);
   if (body) parts.push(body);
   if (resourceId) parts.push(`(${resourceId})`);
-  return parts.join("\n\n");
+  const human = parts.join("\n\n");
+  // Encode the same fields into the marker so an app-side scan can
+  // reconstruct them without regex-guessing the human block.
+  const marker = "[IRTIP1:" + _b64UrlEncode(JSON.stringify({
+    h: heading || "",
+    b: body || "",
+    r: resourceId || "",
+    g: guideTitle || "",
+  })) + "]";
+  return human ? `${human}\n\n${marker}` : marker;
+}
+
+/**
+ * Detect an Iron Rabbit tip QR payload. Returns the decoded fields when
+ * the machine marker is present, otherwise null (caller should fall back
+ * to their existing barcode handling).
+ */
+export function decodeTipPayload(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  const m = raw.match(IRTIP_MARKER_RE);
+  if (!m) return null;
+  try {
+    const obj = JSON.parse(_b64UrlDecode(m[1]));
+    return {
+      heading: String(obj.h || "").slice(0, 120),
+      body: String(obj.b || "").slice(0, 800),
+      resourceId: String(obj.r || "").slice(0, 20),
+      guideTitle: String(obj.g || "").slice(0, 120),
+    };
+  } catch (e) {
+    console.warn("[shareCard] failed to decode IRTIP payload:", e);
+    return null;
+  }
 }
 
 // Word-wrap `text` to fit inside `maxWidth`, returning an array of lines.
