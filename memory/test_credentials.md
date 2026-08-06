@@ -18,4 +18,11 @@ Set in `/app/backend/.env` as `ADMIN_TOKEN`. Required to review, promote, or rej
 - `POST /api/community/tips/{id}/reject`
 - `DELETE /api/community/tips/{id}`
 - `POST /api/admin/verify` (used by the AdminGate UI)
+- `POST /api/community/tips/parse` — public LLM parser for "Import from Text" (Emergent LLM key)
+- `POST /api/community/digest/send` — admin-only Resend email dispatch. Currently returns `{ok:false, reason:"RESEND_API_KEY not configured on server"}` until the user provides a Resend API key. Supports `?dry_run=1` to preview without sending.
+
+## Resend (pending user)
+- `RESEND_API_KEY` — empty in .env; user to provide (starts with `re_...`)
+- `SENDER_EMAIL=digest@ironrabbitapps.com` (requires DNS records on ironrabbitapps.com — user acknowledged)
+- `ADMIN_DIGEST_EMAIL=help@ironrabbitapps.com`
 

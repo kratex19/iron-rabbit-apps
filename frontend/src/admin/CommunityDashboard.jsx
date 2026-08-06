@@ -14,10 +14,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  ShieldCheck, RefreshCcw, ThumbsUp, ThumbsDown, Trash2, Loader2, MessageSquareQuote, Rocket, Filter, X,
+  ShieldCheck, RefreshCcw, ThumbsUp, ThumbsDown, Trash2, Loader2, MessageSquareQuote, Rocket, Filter, X, ClipboardPaste, Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGate";
+import PasteTipsDialog from "./PasteTipsDialog";
 
 const STATUS_TABS = [
   { key: "pending", label: "Pending" },
@@ -56,6 +57,8 @@ export default function CommunityDashboard() {
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [query, setQuery] = useState("");
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [digestBusy, setDigestBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -131,6 +134,33 @@ export default function CommunityDashboard() {
     setCounts({ pending: 0, promoted: 0, rejected: 0 });
   };
 
+  const sendDigest = async (dryRun = false) => {
+    setDigestBusy(true);
+    try {
+      const url = `/api/community/digest/send${dryRun ? "?dry_run=1" : ""}`;
+      const data = await apiFetch(url, token, { method: "POST" });
+      if (data?.ok) {
+        if (dryRun) {
+          toast.success(`Digest preview OK · ${data.counts.pending} pending, ${data.counts.promoted} promoted`);
+        } else if (data.sent_to) {
+          toast.success(`Digest sent to ${data.sent_to}`);
+        } else {
+          toast.info(data.reason || "Digest processed");
+        }
+      } else {
+        toast.error(data?.reason || "Digest failed");
+      }
+    } catch (e) {
+      if (String(e.message) === "unauthorized") {
+        toast.error("Admin token rejected");
+        clearStoredAdminToken();
+        setToken(null);
+      } else {
+        toast.error("Digest send failed");
+      }
+    } finally { setDigestBusy(false); }
+  };
+
   if (!token) {
     return <AdminGate onAuthenticated={(t) => setToken(t)} />;
   }
@@ -197,6 +227,26 @@ export default function CommunityDashboard() {
           </div>
           <Button size="sm" variant="outline" onClick={load} className="text-slate-300 border-white/10 hover:bg-white/5" data-testid="admin-refresh">
             <RefreshCcw className={`w-3.5 h-3.5 mr-1 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setPasteOpen(true)}
+            className="bg-indigo-500 hover:bg-indigo-600 text-white"
+            data-testid="admin-bulk-paste"
+          >
+            <ClipboardPaste className="w-3.5 h-3.5 mr-1" /> Bulk paste
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => sendDigest(false)}
+            disabled={digestBusy}
+            className="text-slate-300 border-white/10 hover:bg-white/5"
+            title="Send the current pending list as an email digest"
+            data-testid="admin-send-digest"
+          >
+            {digestBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
+            Send digest
           </Button>
         </div>
 
@@ -306,6 +356,14 @@ export default function CommunityDashboard() {
           </ul>
         )}
       </div>
+
+      <PasteTipsDialog
+        isOpen={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        mode="admin"
+        adminToken={token}
+        onFinished={load}
+      />
     </div>
   );
 }

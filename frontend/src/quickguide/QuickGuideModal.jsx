@@ -23,6 +23,8 @@ import { searchArticles } from "./search";
 import { shareCardAsImage, shareCardAsQr } from "./shareCard";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
 import StorageService from "../storage/storageService";
+import PasteTipsDialog from "../admin/PasteTipsDialog";
+import { ClipboardPaste } from "lucide-react";
 
 // Compact theme palette — 4 solids + 4 gradients. Enough to feel personal
 // without ballooning the card edit UI. Users still get the full picker
@@ -50,6 +52,7 @@ export default function QuickGuideModal({ isDark = true }) {
   const [dragCardId, setDragCardId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [sharingId, setSharingId] = useState(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const searchInputRef = useRef(null);
   const scrollerRef = useRef(null);
 
@@ -797,6 +800,22 @@ export default function QuickGuideModal({ isDark = true }) {
               <div className="text-xs font-semibold">Import from image</div>
               <div className="text-[10px] text-center px-2">Drop or tap to bring a shared card back to text</div>
             </label>
+            {/* Paste multiple tips — LLM structures them into cards in bulk */}
+            <button
+              type="button"
+              onClick={() => setPasteOpen(true)}
+              className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-colors ${
+                isDark ? "border-white/15 text-slate-400 hover:border-fuchsia-400 hover:text-fuchsia-300 hover:bg-fuchsia-500/5" : "border-gray-300 text-gray-500 hover:border-fuchsia-500 hover:text-fuchsia-600 hover:bg-fuchsia-50"
+              }`}
+              data-testid="quickguide-card-paste"
+              aria-label="Paste multiple tips"
+            >
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#a855f7 0%,#ec4899 100%)" }}>
+                <ClipboardPaste className="w-4 h-4 text-white" strokeWidth={2.5} />
+              </div>
+              <div className="text-xs font-semibold">Paste multiple tips</div>
+              <div className="text-[10px] text-center px-2">AI splits a chunk of text into clean cards</div>
+            </button>
           </div>
 
           {/* Feedback — always visible for horizontal layout */}
@@ -825,6 +844,22 @@ export default function QuickGuideModal({ isDark = true }) {
           You can reopen Quick Guides anytime by tapping ? or enable automatic Quick Guides in Settings.
         </div>
       )}
+
+      <PasteTipsDialog
+        isOpen={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        mode="quickguide"
+        resourceId={openId}
+        onSaveAsUserCards={(cards) => {
+          // Add each parsed card to this guide via provider. upsertUserCard
+          // generates its own id when we omit it, so we just spread heading/body.
+          cards.forEach(c => upsertUserCard(openId, { heading: c.heading, body: c.body }));
+          // Auto-scroll to the newly-added end of the strip.
+          requestAnimationFrame(() => {
+            if (scrollerRef.current) scrollerRef.current.scrollLeft = scrollerRef.current.scrollWidth;
+          });
+        }}
+      />
     </>
   );
 }

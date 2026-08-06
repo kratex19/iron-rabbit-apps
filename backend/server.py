@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
@@ -599,6 +600,233 @@ async def admin_verify(x_admin_token: Optional[str] = Header(default=None, alias
     """Simple ping for the admin gate — returns 200 with the token match, 401 otherwise."""
     _require_admin(x_admin_token)
     return {"ok": True}
+
+
+# ================== IMPORT-FROM-TEXT (LLM CARD PARSER) ==================
+class ParseTipsRequest(BaseModel):
+    text: str
+
+
+class ParsedCard(BaseModel):
+    heading: str
+    body: str
+
+
+class ParseTipsResponse(BaseModel):
+    cards: List[ParsedCard]
+
+
+@api_router.post("/community/tips/parse", response_model=ParseTipsResponse)
+async def parse_tips_from_text(payload: ParseTipsRequest):
+    """Split a pasted chunk of text into clean {heading, body} cards using the
+    Emergent LLM. Used from both the admin bulk-import flow AND the Quick Guide
+    "Paste multiple tips" flow — same endpoint, same output shape."""
+    text = (payload.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    if len(text) > 8000:
+        raise HTTPException(status_code=400, detail="text is too long (max 8000 chars)")
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=503, detail="LLM key not configured on server")
+
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    import json as _json
+
+    system_msg = (
+        "You are a tip-formatter for the Iron Rabbit app. You will receive raw, "
+        "possibly-messy text containing one or more short productivity/organization "
+        "tips. Split it into individual cards. For each card provide:\n"
+        "  - heading: max 60 chars, imperative or descriptive title.\n"
+        "  - body: max 300 chars, clear one- or two-sentence explanation.\n"
+        "Rules: no emojis, no markdown, plain UTF-8 only. Never invent tips that "
+        "aren't in the source. If the text is truly a single tip, return one card. "
+        "If it's clearly not tip-like, return an empty array.\n"
+        "Return ONLY valid minified JSON matching exactly this shape:\n"
+        '{"cards":[{"heading":"...","body":"..."}]}'
+    )
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"parse-tips-{uuid.uuid4()}",
+        system_message=system_msg,
+    ).with_model("anthropic", "claude-sonnet-4-6")
+
+    try:
+        result = await chat.send_message(UserMessage(text=f"TEXT:\n{text}"))
+    except Exception as e:
+        logger.exception("parse_tips_from_text LLM call failed")
+        raise HTTPException(status_code=502, detail=f"Parse failed: {str(e)[:200]}")
+
+    raw = str(result or "").strip()
+    # Strip common wrappers (```json ... ```)
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:].strip()
+    # Isolate the JSON object if the model added prose
+    first_brace = raw.find("{")
+    last_brace = raw.rfind("}")
+    if first_brace >= 0 and last_brace > first_brace:
+        raw = raw[first_brace:last_brace + 1]
+
+    try:
+        parsed = _json.loads(raw)
+    except Exception:
+        logger.warning("parse_tips_from_text: model did not return JSON: %s", raw[:200])
+        raise HTTPException(status_code=502, detail="Could not parse model output")
+
+    raw_cards = parsed.get("cards") if isinstance(parsed, dict) else None
+    if not isinstance(raw_cards, list):
+        raise HTTPException(status_code=502, detail="Model output missing `cards` array")
+
+    cards: List[ParsedCard] = []
+    for c in raw_cards[:20]:  # hard cap: never accept more than 20 cards per paste
+        if not isinstance(c, dict):
+            continue
+        heading = str(c.get("heading") or "").strip()[:120]
+        body = str(c.get("body") or "").strip()[:800]
+        if not heading and not body:
+            continue
+        cards.append(ParsedCard(heading=heading or "Untitled tip", body=body))
+    return ParseTipsResponse(cards=cards)
+
+
+# ================== COMMUNITY DIGEST EMAIL ==================
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "")
+ADMIN_DIGEST_EMAIL = os.environ.get("ADMIN_DIGEST_EMAIL", "")
+
+
+class DigestSendResponse(BaseModel):
+    ok: bool
+    sent_to: Optional[str] = None
+    counts: Dict[str, int]
+    email_id: Optional[str] = None
+    dry_run: bool = False
+    reason: Optional[str] = None
+
+
+def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dict[str, Any]], generated_at: str) -> str:
+    """Render a table-based HTML digest email. Inline styles only — the
+    playbook rules for email HTML strictly forbid external CSS/fonts."""
+    def esc(s: str) -> str:
+        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    def row(t: Dict[str, Any]) -> str:
+        return (
+            '<tr><td style="padding:12px 16px;border-bottom:1px solid #E5E7EB;'
+            'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;'
+            'font-size:14px;color:#0F172A;">'
+            f'<div style="font-weight:600;color:#0F172A;">{esc(t.get("heading",""))}</div>'
+            f'<div style="margin-top:4px;color:#475569;font-size:13px;">{esc(t.get("body",""))}</div>'
+            f'<div style="margin-top:6px;font-size:11px;color:#94A3B8;">'
+            f'{esc(t.get("resource_id") or "—")} · {esc(t.get("created_at","")[:10])}'
+            '</div></td></tr>'
+        )
+
+    pending_rows = "".join(row(t) for t in pending) or (
+        '<tr><td style="padding:24px 16px;text-align:center;color:#94A3B8;'
+        'font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;">'
+        'No new pending tips this week.</td></tr>'
+    )
+    promoted_rows = "".join(row(t) for t in promoted_recent) or ""
+
+    return (
+        '<!DOCTYPE html><html><body style="margin:0;padding:24px;'
+        'background:#0B1221;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="max-width:640px;margin:0 auto;background:#FFFFFF;border-radius:16px;'
+        'overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);">'
+        '<tr><td style="padding:24px 24px 16px;background:linear-gradient(135deg,#6366F1,#EC4899);'
+        'color:#FFFFFF;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">'
+        '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;opacity:0.9;">'
+        'Iron Rabbit</div>'
+        '<div style="font-size:22px;font-weight:700;margin-top:4px;">Community Digest</div>'
+        f'<div style="font-size:12px;opacity:0.85;margin-top:4px;">Generated {esc(generated_at)}</div>'
+        '</td></tr>'
+        '<tr><td style="padding:20px 24px 8px;font-family:-apple-system,sans-serif;'
+        'font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#64748B;'
+        'font-weight:600;">Pending review</td></tr>'
+        f'<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{pending_rows}</table></td></tr>'
+        + (
+            '<tr><td style="padding:20px 24px 8px;font-family:-apple-system,sans-serif;'
+            'font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#64748B;'
+            'font-weight:600;">Recently promoted</td></tr>'
+            f'<tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{promoted_rows}</table></td></tr>'
+            if promoted_recent else ''
+        ) +
+        '<tr><td style="padding:20px 24px 24px;font-family:-apple-system,sans-serif;'
+        'font-size:12px;color:#94A3B8;text-align:center;">'
+        'Open the Community Dashboard to moderate.'
+        '</td></tr>'
+        '</table></body></html>'
+    )
+
+
+@api_router.post("/community/digest/send", response_model=DigestSendResponse)
+async def send_community_digest(
+    dry_run: bool = False,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: compose + send a summary of pending tips + recently
+    promoted tips to ADMIN_DIGEST_EMAIL via Resend. Supports `?dry_run=1`
+    to preview the HTML without dispatching (useful for tests and for
+    running the endpoint before the Resend key is populated)."""
+    _require_admin(x_admin_token)
+
+    # Fetch pending (incl. legacy null-status) + last-7-day promoted
+    pending_cursor = db.community_tips.find(
+        {"$or": [{"status": "pending"}, {"status": {"$exists": False}}]},
+        {"_id": 0},
+    ).sort("created_at", -1)
+    pending = await pending_cursor.to_list(50)
+
+    promoted_cursor = db.community_tips.find(
+        {"status": "promoted"},
+        {"_id": 0},
+    ).sort("promoted_at", -1)
+    promoted_recent = await promoted_cursor.to_list(10)
+
+    counts = {"pending": len(pending), "promoted": len(promoted_recent)}
+    generated_at = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
+    html = _render_digest_html(pending, promoted_recent, generated_at)
+
+    if dry_run:
+        return DigestSendResponse(
+            ok=True, counts=counts, dry_run=True,
+            sent_to=ADMIN_DIGEST_EMAIL or None,
+            reason=f"dry_run · {len(html)} chars",
+        )
+
+    if not RESEND_API_KEY:
+        return DigestSendResponse(
+            ok=False, counts=counts, dry_run=False,
+            reason="RESEND_API_KEY not configured on server",
+        )
+    if not ADMIN_DIGEST_EMAIL or not SENDER_EMAIL:
+        return DigestSendResponse(
+            ok=False, counts=counts, dry_run=False,
+            reason="ADMIN_DIGEST_EMAIL or SENDER_EMAIL not configured on server",
+        )
+
+    import resend as _resend
+    _resend.api_key = RESEND_API_KEY
+    params = {
+        "from": f"Iron Rabbit <{SENDER_EMAIL}>",
+        "to": [ADMIN_DIGEST_EMAIL],
+        "subject": f"Iron Rabbit — Community Digest ({counts['pending']} pending)",
+        "html": html,
+    }
+    try:
+        email = await asyncio.to_thread(_resend.Emails.send, params)
+    except Exception as e:
+        logger.exception("Resend send failed")
+        raise HTTPException(status_code=502, detail=f"Email failed: {str(e)[:200]}")
+
+    return DigestSendResponse(
+        ok=True, counts=counts, dry_run=False,
+        sent_to=ADMIN_DIGEST_EMAIL,
+        email_id=(email or {}).get("id") if isinstance(email, dict) else None,
+    )
 
 
 # ================== DINING INSIGHTS ENDPOINT ==================
