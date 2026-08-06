@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import * as LucideIcons from "lucide-react";
-import { Package, Sparkles, Pin, Search, Plus, Pencil } from "lucide-react";
+import { Package, Sparkles, Pin, Search, Plus, Pencil, Star } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import StorageService from "../storage/storageService";
 export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
   const [query, setQuery] = useState("");
   const [customPacks, setCustomPacks] = useState([]);
+  const [pinnedPackIds, setPinnedPackIds] = useState([]);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingPack, setEditingPack] = useState(null);
 
@@ -24,6 +25,7 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
     try {
       const s = await StorageService.getSettings();
       setCustomPacks(Array.isArray(s?.custom_packs) ? s.custom_packs : []);
+      setPinnedPackIds(Array.isArray(s?.pack_pins) ? s.pack_pins : []);
     } catch { /* ignore */ }
   }, []);
 
@@ -39,6 +41,27 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
     const next = customPacks.filter(p => p.id !== id);
     setCustomPacks(next);
     await StorageService.saveSettings({ custom_packs: next });
+    // Also drop it from pins if pinned
+    if (pinnedPackIds.includes(id)) {
+      const nextPins = pinnedPackIds.filter(pid => pid !== id);
+      setPinnedPackIds(nextPins);
+      await StorageService.saveSettings({ pack_pins: nextPins });
+    }
+  };
+
+  // Toggle pin state for a pack — persisted in app_settings.pack_pins so
+  // Backup/Restore captures favourites just like the other pins.
+  const togglePin = async (id) => {
+    const isPinned = pinnedPackIds.includes(id);
+    const next = isPinned
+      ? pinnedPackIds.filter(pid => pid !== id)
+      : [id, ...pinnedPackIds.filter(pid => pid !== id)];
+    setPinnedPackIds(next);
+    try {
+      await StorageService.saveSettings({ pack_pins: next });
+    } catch (e) {
+      console.error("[TilePacksModal] persist pins failed:", e);
+    }
   };
 
   const allPacks = [...TILE_PACKS, ...customPacks];
@@ -50,6 +73,15 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
       pack.tagline.toLowerCase().includes(q) ||
       pack.notes.some(n => n.title.toLowerCase().includes(q))
     );
+  });
+  // Sort pinned first (in pin-order), keeping the incoming order otherwise.
+  const sorted = [...filtered].sort((a, b) => {
+    const ai = pinnedPackIds.indexOf(a.id);
+    const bi = pinnedPackIds.indexOf(b.id);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return 0;
   });
 
   return (
@@ -81,13 +113,30 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
 
         <div className="overflow-y-auto flex-1 -mx-6 px-6 pb-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filtered.map(pack => (
+            {sorted.map(pack => {
+              const isPinned = pinnedPackIds.includes(pack.id);
+              return (
               <div
                 key={pack.id}
-                className={`rounded-xl border p-4 flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}
+                className={`relative rounded-xl border p-4 flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'} ${isPinned ? 'ring-1 ring-amber-400/50' : ''}`}
                 data-testid={`tile-pack-${pack.id}`}
               >
-                <div className="flex items-center gap-2">
+                {/* Star pin toggle — top-right of the card */}
+                <button
+                  type="button"
+                  onClick={() => togglePin(pack.id)}
+                  className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                    isPinned
+                      ? "bg-amber-400 text-black"
+                      : isDark ? "text-slate-500 hover:text-amber-300 hover:bg-white/10" : "text-gray-400 hover:text-amber-500 hover:bg-gray-100"
+                  }`}
+                  aria-label={isPinned ? `Unpin ${pack.name}` : `Pin ${pack.name}`}
+                  title={isPinned ? "Unpin pack" : "Pin to top"}
+                  data-testid={`pack-pin-${pack.id}`}
+                >
+                  <Star className={`w-4 h-4 ${isPinned ? "fill-current" : ""}`} />
+                </button>
+                <div className="flex items-center gap-2 pr-8">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: pack.accent }}>
                     <Sparkles className="w-4 h-4 text-white" />
                   </div>
@@ -137,7 +186,7 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                   </Button>
                 )}
               </div>
-            ))}
+            );})}
 
             {/* "+ Build your own" card */}
             <button
@@ -153,7 +202,7 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
               <div className="text-[11px] text-center leading-tight px-2">Create a reusable bundle of tiles</div>
             </button>
           </div>
-          {filtered.length === 0 && (
+          {sorted.length === 0 && (
             <div className={`text-center py-10 text-sm ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
               No packs match &quot;{query}&quot;
             </div>

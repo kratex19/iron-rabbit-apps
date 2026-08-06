@@ -26,6 +26,7 @@
 - **Restore Preview** — `BackupRestoreModal` now shows a full summary card before restore: notes, attachments, templates, pinned backgrounds, pinned icons counts + file version + exported-at timestamp. Merge/Replace pickers unchanged.
 - **Local Auto-Backup (option B)** — New `frontend/src/storage/autoBackup.js`. Opt-in via Settings → "Automatic weekly backup". Silently exports a full JSON to Downloads once every 7 days on cold boot (5s delayed). Stamps `last_auto_backup_at` so it never runs twice. Toast confirms on success; silent on failure.
 - **Template Pins** — `TemplateModal` gained a star toggle per row. Pinned templates float to the top, persisted in `app_settings.template_pins`. Same architecture as icon/background pins.
+- **Pack Pins** — `TilePacksModal` gained a star toggle on every pack card (both curated and Custom). Pinned packs float to the top with a subtle amber ring, persisted in `app_settings.pack_pins`. Deleting a custom pack also strips it from pins to keep the list consistent.
 - **Google Drive Sync foundation (option A)** — Called `integration_playbook_expert_v2`. Full playbook requires: Google Cloud project + OAuth Client ID + 30-min consent screen setup + minor Play data-safety update. Not shipped in code (would be half-built without user credentials). Created `/app/GOOGLE_DRIVE_SETUP.md` with the complete step-by-step for user to complete, then paste `GOOGLE_DRIVE_CLIENT_ID` back to us. Client-only flow using `drive.appdata` scope + Google Identity Services JS SDK — no backend needed.
 
 ### Files touched
