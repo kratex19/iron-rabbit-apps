@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import PinnedHub from "./PinnedHub";
 import StorageService from "../storage/storageService";
 import notificationService from "../notifications/notificationService";
 import { SUPPORTED_LANGUAGES } from "../i18n";
@@ -239,6 +240,10 @@ export default function SettingsModal({
                 onCheckedChange={(v) => onSave({ ...settings, auto_backup_enabled: v })}
                 data-testid="settings-auto-backup-toggle"
               />
+            </div>
+            {/* Pinned favourites hub — counts across all pin sources + clear-all + weekly suggestions */}
+            <div className="mt-2">
+              <PinnedHub isDark={isDark} />
             </div>
           </div>
 
