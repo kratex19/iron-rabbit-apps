@@ -6,22 +6,22 @@
  * (Phase 5) this data becomes the editorial priority signal.
  */
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { ThumbsUp, ThumbsDown, Check } from "lucide-react";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import { toast } from "sonner";
 
 export default function GuideFeedback({ resourceId, isDark = true }) {
   const { state, recordFeedback } = useQuickGuideContext();
-  const [voted, setVoted] = useState(() => {
+  // Derive vote from context state so a reload/re-open always reflects latest truth.
+  const voted = useMemo(() => {
     if (state.feedback.helpful_ids.includes(resourceId)) return "yes";
     if (state.feedback.not_helpful_ids.includes(resourceId)) return "no";
     return null;
-  });
+  }, [state.feedback.helpful_ids, state.feedback.not_helpful_ids, resourceId]);
 
-  const vote = useCallback(async (v) => {
-    setVoted(v);
-    await recordFeedback(resourceId, v);
+  const vote = useCallback((v) => {
+    recordFeedback(resourceId, v);
     toast.success("Thanks — noted.", { duration: 1500 });
   }, [recordFeedback, resourceId]);
 

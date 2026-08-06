@@ -67,15 +67,40 @@ export function QuickGuideProvider({ children }) {
     return () => { cancelled = true; };
   }, []);
 
-  const persist = useCallback(async (patch) => {
-    const next = { ...state, ...patch };
-    setState(next);
-    try {
-      await StorageService.saveSettings({ [QG_STORAGE_KEY]: next });
-    } catch (e) {
-      console.error("[QuickGuide] persist failed:", e);
+  // Functional-updater persist: computes next from LATEST state, avoiding
+  // stale-closure races when multiple writes happen in one action (e.g.
+  // recordFeedback needs to write feedback AND buffer an analytics event —
+  // both must start from the freshest snapshot).
+  const persist = useCallback((patchOrFn) => {
+    let nextSnapshot = null;
+    setState(prev => {
+      const patch = typeof patchOrFn === "function" ? patchOrFn(prev) : patchOrFn;
+      nextSnapshot = { ...prev, ...patch };
+      return nextSnapshot;
+    });
+    // Persist after React commits the new state. Fire-and-forget — retry not needed for Phase 1.
+    if (nextSnapshot) {
+      const toSave = nextSnapshot;
+      Promise.resolve().then(async () => {
+        try {
+          await StorageService.saveSettings({ [QG_STORAGE_KEY]: toSave });
+        } catch (e) {
+          console.error("[QuickGuide] persist failed:", e);
+        }
+      });
     }
-  }, [state]);
+  }, []);
+
+  // Dormant analytics buffer — capped at 100 events. Never uploaded in Phase 1.
+  // Uses functional updater so it composes safely with other writes in the same action.
+  const bufferEvent = useCallback((type, payload) => {
+    persist(prev => ({
+      analytics_buffer: [
+        ...(prev.analytics_buffer || []),
+        { t: type, at: new Date().toISOString(), ...payload },
+      ].slice(-100),
+    }));
+  }, [persist]);
 
   const open = useCallback((resourceId, opts = {}) => {
     if (!ARTICLE_INDEX[resourceId]) {
@@ -85,54 +110,59 @@ export function QuickGuideProvider({ children }) {
     setOrigin(opts.origin || null);
     setTemporary(!!opts.temporary);
     setOpenId(resourceId);
-    // Emit dormant analytics event (buffered, never uploaded in Phase 1)
-    _bufferEvent(state, persist, "guide_opened", { id: resourceId, origin: opts.origin || null, temporary: !!opts.temporary });
-  }, [state, persist]);
+    bufferEvent("guide_opened", { id: resourceId, origin: opts.origin || null, temporary: !!opts.temporary });
+  }, [bufferEvent]);
 
   const close = useCallback(() => {
     if (openId) {
-      _bufferEvent(state, persist, "guide_closed", { id: openId });
-      // Mark as seen (both permanent and temporary opens count)
-      if (!state.seen_ids.includes(openId)) {
-        persist({ seen_ids: [...state.seen_ids, openId] });
-      }
+      // Single functional update — merges seen_ids AND buffers 'guide_closed' in one snapshot.
+      persist(prev => {
+        const seen = prev.seen_ids.includes(openId) ? prev.seen_ids : [...prev.seen_ids, openId];
+        const buf = [
+          ...(prev.analytics_buffer || []),
+          { t: "guide_closed", at: new Date().toISOString(), id: openId },
+        ].slice(-100);
+        return { seen_ids: seen, analytics_buffer: buf };
+      });
     }
     setOpenId(null);
     setOrigin(null);
     setTemporary(false);
-  }, [openId, state, persist]);
+  }, [openId, persist]);
 
   const isSeen = useCallback((id) => state.seen_ids.includes(id), [state.seen_ids]);
 
   const markSeen = useCallback((id) => {
-    if (!state.seen_ids.includes(id)) {
-      persist({ seen_ids: [...state.seen_ids, id] });
-    }
-  }, [state, persist]);
+    persist(prev => prev.seen_ids.includes(id) ? {} : { seen_ids: [...prev.seen_ids, id] });
+  }, [persist]);
 
   const setEnabled = useCallback((enabled) => persist({ enabled }), [persist]);
   const setAutoShow = useCallback((auto_show) => persist({ auto_show }), [persist]);
 
-  const resetTour = useCallback(async () => {
+  const resetTour = useCallback(() => {
     // Clears Quick Guide seen_ids only. Does NOT re-arm FirstRunTour or QuickAccess.
-    await persist({ seen_ids: [] });
+    persist({ seen_ids: [] });
   }, [persist]);
 
-  const recordFeedback = useCallback(async (id, vote) => {
-    const helpful = new Set(state.feedback.helpful_ids);
-    const notHelpful = new Set(state.feedback.not_helpful_ids);
-    // Remove from opposite set — last vote wins
-    if (vote === "yes") { helpful.add(id); notHelpful.delete(id); }
-    else { notHelpful.add(id); helpful.delete(id); }
-    await persist({
-      feedback: {
-        ...state.feedback,
+  const recordFeedback = useCallback((id, vote) => {
+    // Single functional update — writes feedback AND buffers analytics event in one snapshot.
+    persist(prev => {
+      const helpful = new Set(prev.feedback.helpful_ids);
+      const notHelpful = new Set(prev.feedback.not_helpful_ids);
+      if (vote === "yes") { helpful.add(id); notHelpful.delete(id); }
+      else { notHelpful.add(id); helpful.delete(id); }
+      const feedback = {
+        ...prev.feedback,
         helpful_ids: Array.from(helpful),
         not_helpful_ids: Array.from(notHelpful),
-      },
+      };
+      const buf = [
+        ...(prev.analytics_buffer || []),
+        { t: "guide_feedback", at: new Date().toISOString(), id, vote },
+      ].slice(-100);
+      return { feedback, analytics_buffer: buf };
     });
-    _bufferEvent(state, persist, "guide_feedback", { id, vote });
-  }, [state, persist]);
+  }, [persist]);
 
   const getArticle = useCallback((id) => ARTICLE_INDEX[id] || null, []);
 
@@ -160,15 +190,6 @@ export function QuickGuideProvider({ children }) {
       {children}
     </QuickGuideContext.Provider>
   );
-}
-
-// Dormant analytics buffer — capped at 100. Never uploaded. Phase 7 will
-// activate a sink adapter that drains the buffer. In Phase 1 events pile up
-// silently and get dropped on rollover.
-function _bufferEvent(state, persist, type, payload) {
-  const buf = state.analytics_buffer || [];
-  const next = [...buf, { t: type, at: new Date().toISOString(), ...payload }].slice(-100);
-  persist({ analytics_buffer: next });
 }
 
 export function useQuickGuideContext() {
