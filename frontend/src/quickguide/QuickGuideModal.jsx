@@ -12,7 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Search, Pencil, Plus, Trash2, Check, GripVertical, Share2, Palette, Sparkles, Upload } from "lucide-react";
+import { X, Search, Pencil, Plus, Trash2, Check, GripVertical, Share2, Palette, Sparkles, Upload, QrCode, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import ResourceIdChip from "./ResourceIdChip";
@@ -20,8 +20,9 @@ import MoreHelpButton from "./MoreHelpButton";
 import GuideFeedback from "./GuideFeedback";
 import CloseConfirmDialog from "./CloseConfirmDialog";
 import { searchArticles } from "./search";
-import { shareCardAsImage } from "./shareCard";
+import { shareCardAsImage, shareCardAsQr } from "./shareCard";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
+import StorageService from "../storage/storageService";
 
 // Compact theme palette — 4 solids + 4 gradients. Enough to feel personal
 // without ballooning the card edit UI. Users still get the full picker
@@ -229,6 +230,59 @@ export default function QuickGuideModal({ isDark = true }) {
       toast.error("Couldn't share — try again");
     } finally {
       setSharingId(null);
+    }
+  };
+
+  const shareCardQr = async (card) => {
+    if (sharingId) return;
+    setSharingId(`qr-${card.__id}`);
+    try {
+      const result = await shareCardAsQr({
+        heading: card.heading,
+        body: card.body,
+        theme: card.theme,
+        resourceId: article?.id,
+        guideTitle: article?.title,
+      });
+      if (result.kind === "downloaded") toast.success("QR card saved to Downloads");
+      else if (result.kind === "shared") toast.success("QR shared");
+    } catch (e) {
+      console.error("[QuickGuide] QR share failed:", e);
+      toast.error("Couldn't build QR — try again");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  // Submit a user tip to the community backlog. Requires one-time consent
+  // stored in `app_settings.community_consent`. Anonymous — we send only the
+  // heading + body + resource id, never PII.
+  const submitToCommunity = async (card) => {
+    try {
+      const settings = await StorageService.getSettings();
+      if (!settings?.community_consent) {
+        const ok = window.confirm(
+          "Share this tip anonymously with the Iron Rabbit team? The best tips are baked into future updates for everyone. Nothing that identifies you is sent."
+        );
+        if (!ok) return;
+        await StorageService.saveSettings({ community_consent: true });
+      }
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${base}/api/community/tip`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          heading: card.heading || "",
+          body: card.body || "",
+          resource_id: article?.id || "",
+          theme: card.theme?.value || null,
+        }),
+      });
+      if (!res.ok) throw new Error(`submit ${res.status}`);
+      toast.success("Thanks — tip submitted");
+    } catch (e) {
+      console.error("[QuickGuide] community submit failed:", e);
+      toast.error("Couldn't submit — try again");
     }
   };
 
@@ -569,6 +623,27 @@ export default function QuickGuideModal({ isDark = true }) {
                                 data-testid={`quickguide-card-share-${c.__id}`}
                               >
                                 <Share2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => shareCardQr(c)}
+                                disabled={!!sharingId}
+                                className={`w-5 h-5 rounded-md flex items-center justify-center ${c.theme ? "text-white/80 hover:bg-white/20" : isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"} disabled:opacity-50`}
+                                aria-label="Share as QR"
+                                title="Share as QR — scannable by any camera"
+                                data-testid={`quickguide-card-share-qr-${c.__id}`}
+                              >
+                                <QrCode className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => submitToCommunity(c)}
+                                className={`w-5 h-5 rounded-md flex items-center justify-center ${c.theme ? "text-white/80 hover:bg-white/20" : isDark ? "text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10" : "text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"}`}
+                                aria-label="Submit to community"
+                                title="Submit anonymously to help other users"
+                                data-testid={`quickguide-card-submit-${c.__id}`}
+                              >
+                                <Send className="w-3 h-3" />
                               </button>
                               <button
                                 type="button"

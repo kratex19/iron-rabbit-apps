@@ -419,6 +419,45 @@ async def ocr_image(payload: OCRRequest):
     return OCRResponse(extracted_text=text)
 
 
+# ================== COMMUNITY TIPS ENDPOINT ==================
+class CommunityTipRequest(BaseModel):
+    heading: str
+    body: str
+    resource_id: Optional[str] = ""
+    theme: Optional[str] = None
+
+
+class CommunityTipResponse(BaseModel):
+    ok: bool
+    id: str
+
+
+@api_router.post("/community/tip", response_model=CommunityTipResponse)
+async def submit_community_tip(payload: CommunityTipRequest):
+    """Anonymously receive a user-authored Quick Guide tip. Nothing that
+    identifies the sender is stored — only what the user typed and the
+    guide it belongs to. Used to seed the shipped article backlog with
+    real-world tips over time."""
+    heading = (payload.heading or "").strip()[:120]
+    body = (payload.body or "").strip()[:800]
+    if not heading and not body:
+        raise HTTPException(status_code=400, detail="heading or body required")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "heading": heading,
+        "body": body,
+        "resource_id": (payload.resource_id or "")[:20],
+        "theme": (payload.theme or "")[:200],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        await db.community_tips.insert_one(doc)
+    except Exception as e:
+        logger.exception("Failed to store community tip: %s", e)
+        raise HTTPException(status_code=500, detail="Storage error")
+    return CommunityTipResponse(ok=True, id=doc["id"])
+
+
 # ================== DINING INSIGHTS ENDPOINT ==================
 class DiningInsightsRequest(BaseModel):
     stats: Dict[str, Any]  # arbitrary summary computed on the client
