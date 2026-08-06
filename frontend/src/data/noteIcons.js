@@ -511,32 +511,98 @@ export const ICON_CATEGORIES = [
 ];
 
 // Curated background presets — solid colors + gradients
+// Expanded palette covering vibrant, pastel, earthy, and moody tones so users
+// can pick from a wide random spectrum for their tile backgrounds.
 export const BACKGROUND_COLORS = [
-  { name: "Slate",     value: "#334155" },
-  { name: "Rose",      value: "#e11d48" },
-  { name: "Orange",    value: "#ea580c" },
-  { name: "Amber",     value: "#d97706" },
-  { name: "Emerald",   value: "#059669" },
-  { name: "Teal",      value: "#0d9488" },
-  { name: "Sky",       value: "#0284c7" },
-  { name: "Indigo",    value: "#4f46e5" },
-  { name: "Violet",    value: "#7c3aed" },
-  { name: "Fuchsia",   value: "#c026d3" },
-  { name: "Charcoal",  value: "#1c1917" },
-  { name: "Bone",      value: "#f5f5f4" },
+  // --- Original 12 (kept for backwards compatibility) ---
+  { name: "Slate",         value: "#334155" },
+  { name: "Rose",          value: "#e11d48" },
+  { name: "Orange",        value: "#ea580c" },
+  { name: "Amber",         value: "#d97706" },
+  { name: "Emerald",       value: "#059669" },
+  { name: "Teal",          value: "#0d9488" },
+  { name: "Sky",           value: "#0284c7" },
+  { name: "Indigo",        value: "#4f46e5" },
+  { name: "Violet",        value: "#7c3aed" },
+  { name: "Fuchsia",       value: "#c026d3" },
+  { name: "Charcoal",      value: "#1c1917" },
+  { name: "Bone",          value: "#f5f5f4" },
+
+  // --- +30 varied colors (neon, vibrant, pastel, earthy, moody) ---
+  // Vibrant / neon
+  { name: "Neon Pink",     value: "#ff006e" },
+  { name: "Electric Blue", value: "#3a86ff" },
+  { name: "Chartreuse",    value: "#ccff00" },
+  { name: "Magenta",       value: "#ff00ff" },
+  { name: "Cyan Pop",      value: "#00e5ff" },
+  { name: "Vivid Yellow",  value: "#ffd60a" },
+  { name: "Deep Purple",   value: "#4a148c" },
+  { name: "Blood Red",     value: "#8b0000" },
+  { name: "Hot Coral",     value: "#ff5a5f" },
+  { name: "Neon Green",    value: "#39ff14" },
+
+  // Pastel / soft
+  { name: "Baby Blue",     value: "#a2d2ff" },
+  { name: "Blush",         value: "#ffb3ba" },
+  { name: "Butter",        value: "#fff2a8" },
+  { name: "Sage",          value: "#b8d8be" },
+  { name: "Lilac",         value: "#c7b8ea" },
+  { name: "Peach Cream",   value: "#ffdab9" },
+  { name: "Powder",        value: "#cfe8ff" },
+  { name: "Mint Cream",    value: "#c7f9cc" },
+  { name: "Cotton Candy",  value: "#ffbcd9" },
+  { name: "Seafoam",       value: "#9be3c0" },
+
+  // Earthy / muted
+  { name: "Rust",          value: "#b7410e" },
+  { name: "Olive",         value: "#556b2f" },
+  { name: "Terracotta",    value: "#cc6b49" },
+  { name: "Mustard",       value: "#d4a017" },
+  { name: "Sand",          value: "#d2b48c" },
+  { name: "Mocha",         value: "#6f4e37" },
+  { name: "Wine",          value: "#722f37" },
+  { name: "Copper",        value: "#b87333" },
+
+  // Moody / deep
+  { name: "Midnight",      value: "#191970" },
+  { name: "Ink",           value: "#0d1b2a" },
+  { name: "Espresso",      value: "#3e2723" },
 ];
 
 export const BACKGROUND_GRADIENTS = [
-  { name: "Sunset",    value: "linear-gradient(135deg, #f97316 0%, #db2777 100%)" },
-  { name: "Ocean",     value: "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)" },
-  { name: "Forest",    value: "linear-gradient(135deg, #10b981 0%, #064e3b 100%)" },
-  { name: "Aurora",    value: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)" },
-  { name: "Peach",     value: "linear-gradient(135deg, #fde68a 0%, #fb7185 100%)" },
-  { name: "Nightfall", value: "linear-gradient(135deg, #1e293b 0%, #7c3aed 100%)" },
-  { name: "Ember",     value: "linear-gradient(135deg, #7f1d1d 0%, #f59e0b 100%)" },
-  { name: "Mint",      value: "linear-gradient(135deg, #86efac 0%, #059669 100%)" },
-  { name: "Rose Gold", value: "linear-gradient(135deg, #fbcfe8 0%, #be123c 100%)" },
-  { name: "Cosmic",    value: "linear-gradient(135deg, #0f172a 0%, #ec4899 100%)" },
+  // --- Original 10 (kept for backwards compatibility) ---
+  { name: "Sunset",         value: "linear-gradient(135deg, #f97316 0%, #db2777 100%)" },
+  { name: "Ocean",          value: "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)" },
+  { name: "Forest",         value: "linear-gradient(135deg, #10b981 0%, #064e3b 100%)" },
+  { name: "Aurora",         value: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)" },
+  { name: "Peach",          value: "linear-gradient(135deg, #fde68a 0%, #fb7185 100%)" },
+  { name: "Nightfall",      value: "linear-gradient(135deg, #1e293b 0%, #7c3aed 100%)" },
+  { name: "Ember",          value: "linear-gradient(135deg, #7f1d1d 0%, #f59e0b 100%)" },
+  { name: "Mint",           value: "linear-gradient(135deg, #86efac 0%, #059669 100%)" },
+  { name: "Rose Gold",      value: "linear-gradient(135deg, #fbcfe8 0%, #be123c 100%)" },
+  { name: "Cosmic",          value: "linear-gradient(135deg, #0f172a 0%, #ec4899 100%)" },
+
+  // --- +20 richer gradients ---
+  { name: "Golden Hour",    value: "linear-gradient(135deg, #ff9a56 0%, #ff5e62 100%)" },
+  { name: "Cotton Candy",   value: "linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)" },
+  { name: "Deep Sea",       value: "linear-gradient(135deg, #2b32b2 0%, #1488cc 100%)" },
+  { name: "Mango Tango",    value: "linear-gradient(135deg, #ffa751 0%, #ffe259 100%)" },
+  { name: "Blueberry",      value: "linear-gradient(135deg, #4568dc 0%, #b06ab3 100%)" },
+  { name: "Cherry Blossom", value: "linear-gradient(135deg, #f78ca0 0%, #f9748f 100%)" },
+  { name: "Northern Lights", value: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)" },
+  { name: "Purple Rain",    value: "linear-gradient(135deg, #4facfe 0%, #9333ea 100%)" },
+  { name: "Firestorm",      value: "linear-gradient(135deg, #ee0979 0%, #ff6a00 100%)" },
+  { name: "Emerald Dream",  value: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" },
+  { name: "Twilight Sky",   value: "linear-gradient(135deg, #141e30 0%, #243b55 100%)" },
+  { name: "Neon Grid",      value: "linear-gradient(135deg, #ff00cc 0%, #333399 100%)" },
+  { name: "Autumn Leaves",  value: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)" },
+  { name: "Berry Wine",     value: "linear-gradient(135deg, #654ea3 0%, #eaafc8 100%)" },
+  { name: "Tropic",         value: "linear-gradient(135deg, #00c9ff 0%, #92fe9d 100%)" },
+  { name: "Lavender Dust",  value: "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)" },
+  { name: "Volcanic",       value: "linear-gradient(135deg, #ff512f 0%, #dd2476 100%)" },
+  { name: "Deep Space",     value: "linear-gradient(135deg, #000428 0%, #004e92 100%)" },
+  { name: "Rainforest",     value: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)" },
+  { name: "Watermelon",     value: "linear-gradient(135deg, #ff6b6b 0%, #ffe66d 100%)" },
 ];
 
 // Default background when none set (dark, subtle)

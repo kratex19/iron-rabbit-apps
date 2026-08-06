@@ -81,7 +81,7 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
         </div>
 
         {/* Panels */}
-        <div className="min-h-[160px]">
+        <div className="min-h-[160px] max-h-[46vh] overflow-y-auto pr-1 -mr-1">
           {tab === "color" && (
             <div className="grid grid-cols-6 gap-2">
               {BACKGROUND_COLORS.map(c => {
