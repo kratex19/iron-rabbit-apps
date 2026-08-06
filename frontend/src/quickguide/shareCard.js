@@ -31,18 +31,44 @@ function wrapLines(ctx, text, maxWidth) {
 }
 
 /** Draw the card image to an off-screen canvas and return a Blob. */
-export async function renderCardToBlob({ heading, body, resourceId, guideTitle, appName = "Iron Rabbit" }) {
+export async function renderCardToBlob({ heading, body, resourceId, guideTitle, theme, appName = "Iron Rabbit" }) {
   const canvas = document.createElement("canvas");
   canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext("2d");
 
-  // Gradient background — brand indigo → fuchsia
-  const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
-  grad.addColorStop(0, "#4338ca");
-  grad.addColorStop(1, "#a21caf");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, SIZE, SIZE);
+  // Background: user-chosen theme (solid or 2-stop gradient) or the default brand gradient.
+  if (theme && theme.value) {
+    if (theme.type === "color") {
+      ctx.fillStyle = theme.value;
+      ctx.fillRect(0, 0, SIZE, SIZE);
+    } else {
+      // Parse "linear-gradient(<angle>deg, <c1> 0%, <c2> 100%)" back to a canvas gradient.
+      const m = String(theme.value).match(/linear-gradient\(\s*(-?\d+)deg\s*,\s*(#[0-9a-f]{3,6})[^,]*,\s*(#[0-9a-f]{3,6})/i);
+      if (m) {
+        const angle = ((parseInt(m[1], 10) % 360) + 360) % 360;
+        const rad = (angle - 90) * Math.PI / 180;
+        const cx = SIZE / 2, cy = SIZE / 2;
+        const half = SIZE / 2;
+        const x1 = cx - Math.cos(rad) * half, y1 = cy - Math.sin(rad) * half;
+        const x2 = cx + Math.cos(rad) * half, y2 = cy + Math.sin(rad) * half;
+        const g = ctx.createLinearGradient(x1, y1, x2, y2);
+        g.addColorStop(0, m[2]); g.addColorStop(1, m[3]);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, SIZE, SIZE);
+      } else {
+        ctx.fillStyle = "#4338ca";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+      }
+    }
+  } else {
+    // Default brand indigo → fuchsia
+    const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
+    grad.addColorStop(0, "#4338ca");
+    grad.addColorStop(1, "#a21caf");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, SIZE, SIZE);
+  }
 
   // Subtle grain — tiny random dots
   ctx.globalAlpha = 0.06;
@@ -98,8 +124,8 @@ export async function renderCardToBlob({ heading, body, resourceId, guideTitle, 
  * Share the rendered card, preferring native share where available.
  * Returns a description of what happened for toast copy.
  */
-export async function shareCardAsImage({ heading, body, resourceId, guideTitle }) {
-  const blob = await renderCardToBlob({ heading, body, resourceId, guideTitle });
+export async function shareCardAsImage({ heading, body, resourceId, guideTitle, theme }) {
+  const blob = await renderCardToBlob({ heading, body, resourceId, guideTitle, theme });
   if (!blob) throw new Error("Failed to render card image");
 
   const filename = `iron-rabbit-${(resourceId || "guide").toLowerCase()}-tip.png`;

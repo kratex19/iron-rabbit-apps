@@ -12,7 +12,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Search, Pencil, Plus, Trash2, Check, GripVertical, Share2 } from "lucide-react";
+import { X, Search, Pencil, Plus, Trash2, Check, GripVertical, Share2, Palette, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import ResourceIdChip from "./ResourceIdChip";
@@ -21,6 +21,18 @@ import GuideFeedback from "./GuideFeedback";
 import CloseConfirmDialog from "./CloseConfirmDialog";
 import { searchArticles } from "./search";
 import { shareCardAsImage } from "./shareCard";
+import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
+
+// Compact theme palette — 4 solids + 4 gradients. Enough to feel personal
+// without ballooning the card edit UI. Users still get the full picker
+// experience when styling note tiles.
+const CARD_THEME_COLORS = ["#4338ca", "#0284c7", "#0d9488", "#e11d48"];
+const CARD_THEME_GRADIENTS = [
+  BACKGROUND_GRADIENTS[0].value, // Sunset
+  BACKGROUND_GRADIENTS[1].value, // Ocean
+  BACKGROUND_GRADIENTS[3].value, // Aurora
+  BACKGROUND_GRADIENTS[10].value || BACKGROUND_GRADIENTS[0].value, // Golden Hour
+];
 
 export default function QuickGuideModal({ isDark = true }) {
   const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard, reorderUserCards } = useQuickGuideContext();
@@ -33,6 +45,7 @@ export default function QuickGuideModal({ isDark = true }) {
   const [editingCardId, setEditingCardId] = useState(null); // "new" or a user card id
   const [editHeading, setEditHeading] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [editTheme, setEditTheme] = useState(null); // { type: "color"|"gradient", value: "..." } | null
   const [dragCardId, setDragCardId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [sharingId, setSharingId] = useState(null);
@@ -92,12 +105,14 @@ export default function QuickGuideModal({ isDark = true }) {
     setEditingCardId("new");
     setEditHeading("");
     setEditBody("");
+    setEditTheme(null);
   };
 
   const beginEditCard = (userCard) => {
     setEditingCardId(userCard.id);
     setEditHeading(userCard.heading || "");
     setEditBody(userCard.body || "");
+    setEditTheme(userCard.theme || null);
   };
 
   const saveEdit = () => {
@@ -108,6 +123,7 @@ export default function QuickGuideModal({ isDark = true }) {
     const payload = {
       heading: editHeading.trim() || "My note",
       body: editBody.trim(),
+      theme: editTheme,
     };
     if (editingCardId && editingCardId !== "new") payload.id = editingCardId;
     upsertUserCard(openId, payload);
@@ -115,6 +131,80 @@ export default function QuickGuideModal({ isDark = true }) {
   };
 
   const cancelEdit = () => setEditingCardId(null);
+
+  // Card Import — accept a shared card PNG dropped anywhere on the modal.
+  // Calls the /api/ocr backend (Claude Sonnet vision) to extract text, then
+  // opens the edit form pre-filled with the OCR'd heading + body.
+  const [importing, setImporting] = useState(false);
+  const [dropHover, setDropHover] = useState(false);
+
+  const importCardFromFile = useCallback(async (file) => {
+    if (!file || !file.type?.startsWith("image/")) {
+      toast.error("Drop a PNG or JPG card image");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image too big — under 5 MB please");
+      return;
+    }
+    setImporting(true);
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${base}/api/ocr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_base64: b64, mime_type: file.type }),
+      });
+      if (!res.ok) throw new Error(`OCR ${res.status}`);
+      const { extracted_text: text } = await res.json();
+      if (!text?.trim()) {
+        toast.error("No text found on that image");
+        return;
+      }
+      // Split OCR output → first non-empty line becomes heading, rest becomes body.
+      const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      // Strip our own header/footer boilerplate if present.
+      const filtered = lines.filter(l =>
+        !/IRON RABBIT.*QUICK GUIDE/i.test(l) &&
+        !/^IRR-\d+$/i.test(l) &&
+        !/ironrabbitapps\.com/i.test(l)
+      );
+      const heading = filtered.shift() || "Imported tip";
+      const body = filtered.join("\n").trim();
+      // Open the edit form pre-filled — user confirms + saves.
+      setEditingCardId("new");
+      setEditHeading(heading.slice(0, 60));
+      setEditBody(body.slice(0, 400));
+      setEditTheme(null);
+      toast.success("Text extracted — review + save");
+    } catch (e) {
+      console.error("[QuickGuide] OCR import failed:", e);
+      toast.error("Import failed — try a clearer image");
+    } finally {
+      setImporting(false);
+      setDropHover(false);
+    }
+  }, []);
+
+  const onModalDragOver = (e) => {
+    if (e.dataTransfer?.types?.includes("Files")) {
+      e.preventDefault();
+      setDropHover(true);
+    }
+  };
+  const onModalDragLeave = () => setDropHover(false);
+  const onModalDrop = (e) => {
+    if (!e.dataTransfer?.files?.length) return;
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    importCardFromFile(file);
+  };
 
   const removeCard = (id) => {
     deleteUserCard(openId, id);
@@ -128,6 +218,7 @@ export default function QuickGuideModal({ isDark = true }) {
       const result = await shareCardAsImage({
         heading: card.heading,
         body: card.body,
+        theme: card.theme,
         resourceId: article?.id,
         guideTitle: article?.title,
       });
@@ -187,13 +278,26 @@ export default function QuickGuideModal({ isDark = true }) {
         aria-modal="true"
         aria-labelledby="quickguide-title"
         data-testid="quickguide-modal"
+        onDragOver={onModalDragOver}
+        onDragLeave={onModalDragLeave}
+        onDrop={onModalDrop}
       >
         <div
           className={`relative w-full max-w-2xl rounded-2xl p-5 pb-4 shadow-2xl ${
             isDark ? "bg-[#0B1221] border border-white/10 text-white" : "bg-white border border-gray-200 text-gray-900"
-          }`}
+          } ${dropHover ? "ring-4 ring-indigo-400/70" : ""}`}
           onClick={(e) => e.stopPropagation()}
         >
+          {(dropHover || importing) && (
+            <div className="absolute inset-0 z-40 rounded-2xl bg-indigo-900/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 pointer-events-none"
+                 data-testid="quickguide-import-overlay">
+              <Upload className="w-8 h-8 text-white" />
+              <div className="text-white text-sm font-semibold">
+                {importing ? "Reading your card…" : "Drop to import as a card"}
+              </div>
+              <div className="text-white/70 text-[11px]">PNG or JPG, under 5 MB</div>
+            </div>
+          )}
           {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <h2
@@ -345,17 +449,23 @@ export default function QuickGuideModal({ isDark = true }) {
                   onDragLeave={() => onDragLeave(c.__id)}
                   onDrop={(e) => onDrop(e, c.__id, isUser)}
                   onDragEnd={onDragEnd}
-                  className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border relative transition-transform ${
-                    isDark
-                      ? isUser ? "bg-amber-500/5 border-amber-400/20" : "bg-white/5 border-white/10"
-                      : isUser ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"
+                  style={isUser && !isEditing && c.theme ? { background: c.theme.value } : undefined}
+                  className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border relative transition-transform overflow-hidden ${
+                    isUser && !isEditing && c.theme
+                      ? "border-white/20 text-white"
+                      : isDark
+                        ? isUser ? "bg-amber-500/5 border-amber-400/20" : "bg-white/5 border-white/10"
+                        : isUser ? "bg-amber-50 border-amber-200" : "bg-gray-50 border-gray-200"
                   } ${isDragging ? "opacity-40 scale-95 cursor-grabbing" : ""} ${
                     isDropTarget ? "ring-2 ring-indigo-400 ring-offset-2 ring-offset-transparent" : ""
                   } ${isUser && !isEditing ? "cursor-grab" : ""}`}
                   data-testid={`quickguide-card-${c.__id}`}
                 >
-                  {isEditing ? (
-                    <div className="flex flex-col gap-2 h-full">
+                  {/* Dim overlay when the card has a themed background — makes text readable */}
+                  {isUser && !isEditing && c.theme && (
+                    <span className="absolute inset-0 bg-black/25 pointer-events-none" aria-hidden="true" />
+                  )}                  {isEditing ? (
+                    <div className="flex flex-col gap-2 h-full relative z-10">
                       <input
                         value={editHeading}
                         onChange={(e) => setEditHeading(e.target.value)}
@@ -368,10 +478,54 @@ export default function QuickGuideModal({ isDark = true }) {
                         value={editBody}
                         onChange={(e) => setEditBody(e.target.value)}
                         placeholder="Add a tip, reminder, or shortcut you want to remember…"
-                        className={`flex-1 min-h-[100px] px-2 py-1.5 rounded border text-xs resize-none ${isDark ? "bg-black/20 border-white/10 text-white placeholder:text-slate-500" : "bg-white border-gray-200 text-gray-900"}`}
+                        className={`flex-1 min-h-[80px] px-2 py-1.5 rounded border text-xs resize-none ${isDark ? "bg-black/20 border-white/10 text-white placeholder:text-slate-500" : "bg-white border-gray-200 text-gray-900"}`}
                         maxLength={400}
                         data-testid="quickguide-card-edit-body"
                       />
+                      {/* Theme picker — solid + gradient row */}
+                      <div className="flex items-center gap-1.5 flex-wrap" data-testid="quickguide-card-theme-picker">
+                        <Palette className={`w-3 h-3 flex-shrink-0 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+                        <button
+                          type="button"
+                          onClick={() => setEditTheme(null)}
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center text-[8px] ${
+                            !editTheme ? "border-white ring-2 ring-indigo-500" : "border-white/20"
+                          } ${isDark ? "bg-black/30 text-slate-400" : "bg-white text-gray-400"}`}
+                          aria-label="No theme"
+                          title="No theme"
+                          data-testid="quickguide-card-theme-none"
+                        >
+                          ∅
+                        </button>
+                        {CARD_THEME_COLORS.map(hex => (
+                          <button
+                            key={hex}
+                            type="button"
+                            onClick={() => setEditTheme({ type: "color", value: hex })}
+                            className={`w-5 h-5 rounded-full border ${
+                              editTheme?.value === hex ? "border-white ring-2 ring-indigo-500" : "border-white/20"
+                            }`}
+                            style={{ background: hex }}
+                            aria-label={`Theme ${hex}`}
+                            title={hex}
+                            data-testid={`quickguide-card-theme-color-${hex}`}
+                          />
+                        ))}
+                        {CARD_THEME_GRADIENTS.map((g, i) => (
+                          <button
+                            key={`g-${i}`}
+                            type="button"
+                            onClick={() => setEditTheme({ type: "gradient", value: g })}
+                            className={`w-5 h-5 rounded-full border ${
+                              editTheme?.value === g ? "border-white ring-2 ring-indigo-500" : "border-white/20"
+                            }`}
+                            style={{ background: g }}
+                            aria-label={`Gradient theme ${i + 1}`}
+                            title="Gradient"
+                            data-testid={`quickguide-card-theme-gradient-${i}`}
+                          />
+                        ))}
+                      </div>
                       <div className="flex gap-1.5">
                         <button
                           type="button"
@@ -392,13 +546,15 @@ export default function QuickGuideModal({ isDark = true }) {
                       </div>
                     </div>
                   ) : (
-                    <>
+                    <div className="relative z-10">
                       {c.heading && (
                         <div className="flex items-start gap-1.5 mb-2">
                           {isUser && (
-                            <GripVertical className={`w-3 h-3 mt-0.5 flex-shrink-0 ${isDark ? "text-amber-300/60" : "text-amber-500"}`} aria-hidden="true" />
+                            <GripVertical className={`w-3 h-3 mt-0.5 flex-shrink-0 ${c.theme ? "text-white/70" : isDark ? "text-amber-300/60" : "text-amber-500"}`} aria-hidden="true" />
                           )}
-                          <h3 className={`flex-1 text-sm font-semibold leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+                          <h3 className={`flex-1 text-sm font-semibold leading-tight ${
+                            c.theme ? "text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.5)]" : isDark ? "text-white" : "text-gray-900"
+                          }`}>
                             {c.heading}
                           </h3>
                           {isUser && (
@@ -407,7 +563,7 @@ export default function QuickGuideModal({ isDark = true }) {
                                 type="button"
                                 onClick={() => shareCard(c)}
                                 disabled={isSharing}
-                                className={`w-5 h-5 rounded-md flex items-center justify-center ${isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"} disabled:opacity-50`}
+                                className={`w-5 h-5 rounded-md flex items-center justify-center ${c.theme ? "text-white/80 hover:bg-white/20" : isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"} disabled:opacity-50`}
                                 aria-label="Share as image"
                                 title="Share as image"
                                 data-testid={`quickguide-card-share-${c.__id}`}
@@ -417,7 +573,7 @@ export default function QuickGuideModal({ isDark = true }) {
                               <button
                                 type="button"
                                 onClick={() => beginEditCard(c)}
-                                className={`w-5 h-5 rounded-md flex items-center justify-center ${isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}
+                                className={`w-5 h-5 rounded-md flex items-center justify-center ${c.theme ? "text-white/80 hover:bg-white/20" : isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"}`}
                                 aria-label="Edit card"
                                 data-testid={`quickguide-card-edit-${c.__id}`}
                               >
@@ -426,7 +582,7 @@ export default function QuickGuideModal({ isDark = true }) {
                               <button
                                 type="button"
                                 onClick={() => removeCard(c.__id)}
-                                className={`w-5 h-5 rounded-md flex items-center justify-center ${isDark ? "text-slate-400 hover:text-red-300 hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 hover:bg-red-50"}`}
+                                className={`w-5 h-5 rounded-md flex items-center justify-center ${c.theme ? "text-white/80 hover:bg-red-500/30" : isDark ? "text-slate-400 hover:text-red-300 hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 hover:bg-red-50"}`}
                                 aria-label="Delete card"
                                 data-testid={`quickguide-card-delete-${c.__id}`}
                               >
@@ -436,15 +592,19 @@ export default function QuickGuideModal({ isDark = true }) {
                           )}
                         </div>
                       )}
-                      <p className={`text-xs leading-relaxed whitespace-pre-wrap ${isDark ? "text-slate-300" : "text-gray-600"}`}>
+                      <p className={`text-xs leading-relaxed whitespace-pre-wrap ${
+                        c.theme ? "text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]" : isDark ? "text-slate-300" : "text-gray-600"
+                      }`}>
                         {c.body || "—"}
                       </p>
                       {isUser && (
-                        <div className={`absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wide ${isDark ? "text-amber-300/70" : "text-amber-600"}`}>
+                        <div className={`absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wide ${
+                          c.theme ? "text-white/70" : isDark ? "text-amber-300/70" : "text-amber-600"
+                        }`}>
                           Yours
                         </div>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               );
@@ -465,6 +625,27 @@ export default function QuickGuideModal({ isDark = true }) {
               <div className="text-xs font-semibold">Add your own tip</div>
               <div className="text-[10px] text-center px-2">Save a shortcut, phrase, or reminder for this screen</div>
             </button>
+            {/* Import from image — drop a shared card PNG or tap to browse */}
+            <label
+              className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-colors cursor-pointer ${
+                isDark ? "border-white/15 text-slate-400 hover:border-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/5" : "border-gray-300 text-gray-500 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+              }`}
+              data-testid="quickguide-card-import"
+              aria-label="Import card from image"
+            >
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={(e) => e.target.files?.[0] && importCardFromFile(e.target.files[0])}
+                className="hidden"
+                data-testid="quickguide-card-import-input"
+              />
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#10b981 0%,#0284c7 100%)" }}>
+                <Upload className="w-4 h-4 text-white" strokeWidth={2.5} />
+              </div>
+              <div className="text-xs font-semibold">Import from image</div>
+              <div className="text-[10px] text-center px-2">Drop or tap to bring a shared card back to text</div>
+            </label>
           </div>
 
           {/* Feedback — always visible for horizontal layout */}
