@@ -1,5 +1,50 @@
 # Iron Rabbit Changelog
 
+## 2026-02-08 (session 14 · part 7) — Quick Guide Phase 1.5 SHIPPED ✅
+
+### Screen expansion (per user request)
+Wired the `?` icon into **7 additional screens** — every major surface now has a Quick Guide:
+
+| Screen | Article ID | Wired at |
+| --- | --- | --- |
+| Pantry | IRR-1300 | `PantryModal.jsx` title bar |
+| Kid Mode | IRR-1400 | `KidDashboardModal.jsx` next to Exit button |
+| Meal Planner | IRR-1500 | `MealPlannerModal.jsx` title bar |
+| Barcode Scanner | IRR-1600 | `BarcodeScannerModal.jsx` title bar |
+| Calendar | IRR-1700 | `FloatingCalendarModal.jsx` title bar |
+| Backup & Restore | IRR-1800 | `BackupRestoreModal.jsx` title bar |
+| Note Editor | IRR-1900 | `NoteModal.jsx` title, next to Templates button |
+
+### Content
+- 7 new placeholder articles in `/quickguide/content/en/IRR-1300.json` → `IRR-1900.json`
+- Each follows the locked authoring guide: 5 cards, "What / Creating / Editing / Tips / Common mistakes" pattern, ≤250 char bodies, active voice, no jargon
+- Manifest bumped `1.0.0 → 1.1.0`; 11 total articles shipping
+- Provider imports all 11 JSONs (~1KB per bundle after gzip)
+- Content lint passes 11/11 clean
+
+### CRITICAL bug fixed mid-session
+- **Pointer-events cascade**: Radix Dialog primitive sets `document.body { pointer-events: none }` while open. QuickGuideModal rendered as a sibling React child inherited the `none`, making Next / feedback / More Help un-clickable in all 7 new modal contexts + Backup. **Fix**: added `style={{ pointerEvents: 'auto' }}` to the outer overlay div of `QuickGuideModal.jsx` and `CloseConfirmDialog.jsx` — clean, localized, ~2 lines total. Verified in iter_52 across all 7 contexts including the harshest nested-dialog case (Settings → Backup → QuickGuide).
+
+### LOW consistency fix
+- Harmonized IRR-1000 (Home) so card 1 = "What Home does" and card 5 = "Common mistake", matching the pattern across all other 10 articles. Now uniform vocabulary across the entire catalogue.
+
+### Verification
+- `testing_agent_v3_fork` iteration_52 — **100% pass** with REAL mouse clicks (no JS-dispatched shortcuts). Zero bugs, zero warnings.
+
+### Service Worker
+- Cache bumped `v12 → v13` so PWA users pick up all 7 new guides on next open.
+
+### Files touched
+- New: `/app/frontend/src/quickguide/content/en/{IRR-1300,IRR-1400,IRR-1500,IRR-1600,IRR-1700,IRR-1800,IRR-1900}.json`
+- Modified: `/app/frontend/src/quickguide/content/manifest.json` (v1.0.0 → v1.1.0), `/app/frontend/src/quickguide/QuickGuideProvider.jsx` (added 7 imports), `/app/frontend/src/quickguide/QuickGuideModal.jsx` + `CloseConfirmDialog.jsx` (pointer-events fix), `/app/frontend/src/quickguide/content/en/IRR-1000.json` (heading harmonization)
+- Modified (button wiring, all light-touch): `PantryModal.jsx`, `KidDashboardModal.jsx`, `MealPlannerModal.jsx`, `BarcodeScannerModal.jsx`, `FloatingCalendarModal.jsx`, `BackupRestoreModal.jsx`, `NoteModal.jsx`
+
+### Phase status
+- Phase 1 ✅ + Phase 1.5 ✅ complete. Every major screen has a `?` icon with a working guide.
+- Phase 2 (real editorial content pass) — **queued per user's own request** — starts after the user has used the app for a few days and knows which cards need real answers rather than placeholders.
+- Phases 3–8 (KB / Search / Rabbit Tips / Knowledge Distribution / Forums / AI / cross-app extraction) — still queued per locked roadmap.
+
+
 ## 2026-02-08 (session 14 · part 6) — Quick Guide Phase 1 SHIPPED ✅
 
 ### Framework
