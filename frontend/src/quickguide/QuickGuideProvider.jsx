@@ -54,12 +54,15 @@ export function QuickGuideProvider({ children }) {
     (async () => {
       try {
         const settings = await StorageService.getSettings();
-        const loaded = mergeState(settings?.[QG_STORAGE_KEY]);
+        const rawQg = settings?.[QG_STORAGE_KEY];
+        const loaded = mergeState(rawQg);
 
-        // FIRST-LAUNCH SEED: if seen_ids is empty on first read, seed with every
-        // current article ID so auto-show only fires for genuinely new articles
-        // in future releases (prevents flood on upgrade).
-        if (!loaded.seen_ids || loaded.seen_ids.length === 0) {
+        // Distinguish TRULY-NEW installs (never had `quickguide` in settings)
+        // from EXISTING users on upgrade (already had settings but never opened
+        // any guide). New users → skip seed so auto-show can greet them on
+        // every screen. Existing users → keep seed so they don't get flooded.
+        const isBrandNew = !rawQg;
+        if (!isBrandNew && (!loaded.seen_ids || loaded.seen_ids.length === 0)) {
           loaded.seen_ids = BUNDLED_ARTICLES.map(a => a.id);
         }
         loaded.content_version = manifest.content_version;
@@ -67,7 +70,7 @@ export function QuickGuideProvider({ children }) {
         if (!cancelled) {
           setState(loaded);
           setHydrated(true);
-          // Persist the seeded seen_ids so we only do this once
+          // Persist so we only make the new-user decision once
           await StorageService.saveSettings({ [QG_STORAGE_KEY]: loaded });
         }
       } catch (e) {

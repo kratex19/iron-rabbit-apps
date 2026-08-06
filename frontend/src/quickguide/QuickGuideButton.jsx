@@ -32,12 +32,32 @@ export default function QuickGuideButton({
   size = "md", // "sm" | "md"
   ariaLabel,
 }) {
-  const { state, open, getArticle, dismissNudge } = useQuickGuideContext();
+  const { state, open, getArticle, dismissNudge, isSeen, markSeen, hydrated } = useQuickGuideContext();
   const tapTimestampsRef = useRef([]);
 
   const article = getArticle(resourceId);
   const disabled = !article; // no article registered → render nothing rather than a dead button
   const showNudge = !disabled && state.enabled && !state.nudge_seen;
+
+  // AUTO-SHOW on first visit: when the screen mounts, if the user is new to
+  // this specific guide and auto-show is on, open the guide once after a
+  // short delay (so the screen has time to paint). Marks the guide as seen
+  // whether or not the user actually taps through — this respects "one time
+  // only" even if they immediately close it.
+  useEffect(() => {
+    if (disabled || !hydrated) return;
+    if (!state.enabled || !state.auto_show) return;
+    if (isSeen(resourceId)) return;
+    const t = setTimeout(() => {
+      // Re-check inside the timeout — user may have opened it manually meanwhile
+      if (!isSeen(resourceId)) {
+        markSeen(resourceId);
+        open(resourceId, { origin: origin ? `${origin}:auto` : "auto" });
+      }
+    }, 900);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, resourceId]);
 
   // Auto-dismiss the nudge after the button has been visible for a while,
   // so it never nags forever even if the user is exploring other screens.

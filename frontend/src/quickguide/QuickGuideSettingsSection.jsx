@@ -17,28 +17,7 @@ import { HelpCircle, ChevronDown, ChevronRight, RotateCcw, Info, Cloud, Search, 
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuickGuideContext } from "./QuickGuideProvider";
-
-// Score a single article against a lowercased query. Higher = better match.
-// Title is worth 5x, summary 3x, keywords/synonyms 2x, card content 1x.
-function scoreArticle(article, q) {
-  if (!q) return 0;
-  const hay = {
-    title: (article.title || "").toLowerCase(),
-    summary: (article.summary || "").toLowerCase(),
-    keywords: (article.keywords || []).join(" ").toLowerCase(),
-    synonyms: (article.synonyms || []).join(" ").toLowerCase(),
-    cards: (article.cards || []).map(c => `${c.heading || ""} ${c.body || ""}`).join(" ").toLowerCase(),
-    id: (article.id || "").toLowerCase(),
-  };
-  let score = 0;
-  if (hay.title.includes(q)) score += 5;
-  if (hay.summary.includes(q)) score += 3;
-  if (hay.keywords.includes(q)) score += 2;
-  if (hay.synonyms.includes(q)) score += 2;
-  if (hay.cards.includes(q)) score += 1;
-  if (hay.id.includes(q)) score += 4; // direct ID hits jump to top
-  return score;
-}
+import { searchArticles } from "./search";
 
 export default function QuickGuideSettingsSection({ isDark = true }) {
   const { state, hydrated, setEnabled, setAutoShow, resetTour, contentVersion, articleCount, open, getAllArticles } = useQuickGuideContext();
@@ -53,15 +32,10 @@ export default function QuickGuideSettingsSection({ isDark = true }) {
   }, [resetTour]);
 
   // Ranked search results (top 8). Empty query → no results shown.
-  const searchResults = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return getAllArticles()
-      .map(a => ({ article: a, score: scoreArticle(a, q) }))
-      .filter(r => r.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
-  }, [query, getAllArticles]);
+  const searchResults = useMemo(
+    () => searchArticles(getAllArticles(), query, 8),
+    [query, getAllArticles]
+  );
 
   if (!hydrated) return null;
 

@@ -128,9 +128,52 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
-          {/* Collapsible Images & files accordion — keeps the text area airy */}
+          {Array.isArray(note.chores) && (
+            <ChoresPanel
+              chores={note.chores}
+              onChange={(updated) => onSaveInline(note.id, { chores: updated })}
+              isDark={isDark}
+            />
+          )}
+          {Array.isArray(note.checklist) && note.checklist.length > 0 && (
+            <div className={`rounded-lg p-3 space-y-1 border ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="fullscreen-checklist">
+              <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-700"}`}>
+                <CheckSquare className="w-3.5 h-3.5" /> Checklist
+                <span className={`ml-auto font-mono font-normal ${isDark ? "text-slate-400" : "text-gray-400"}`}>
+                  {note.checklist.filter((c) => c.done).length}/{note.checklist.length}
+                </span>
+              </div>
+              {note.checklist.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    const updated = note.checklist.map((c) => c.id === item.id ? { ...c, done: !c.done } : c);
+                    onSaveInline(note.id, { checklist: updated });
+                  }}
+                  className={`w-full flex items-center gap-2 rounded px-1 py-1 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-white"}`}
+                  data-testid={`fs-checklist-toggle-${item.id}`}
+                >
+                  <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-400" : "border-gray-300"}`}>
+                    {item.done && (
+                      <svg viewBox="0 0 12 12" className="w-3 h-3 text-white">
+                        <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-900")}`}>
+                    {item.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Collapsible Images & files accordion — pushed to the bottom of the
+              scroll area (mt-auto) so the writing area gets maximum vertical
+              breathing room. When the note has no attachments, it still sits at
+              the bottom of the visible viewport as a subtle CTA. */}
           <div
-            className={`rounded-lg border ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
+            className={`rounded-lg border mt-auto ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
             data-testid="fs-attachments-accordion"
           >
             <button
@@ -175,46 +218,6 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               </div>
             )}
           </div>
-          {Array.isArray(note.chores) && (
-            <ChoresPanel
-              chores={note.chores}
-              onChange={(updated) => onSaveInline(note.id, { chores: updated })}
-              isDark={isDark}
-            />
-          )}
-          {Array.isArray(note.checklist) && note.checklist.length > 0 && (
-            <div className={`rounded-lg p-3 space-y-1 border ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="fullscreen-checklist">
-              <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-700"}`}>
-                <CheckSquare className="w-3.5 h-3.5" /> Checklist
-                <span className={`ml-auto font-mono font-normal ${isDark ? "text-slate-400" : "text-gray-400"}`}>
-                  {note.checklist.filter((c) => c.done).length}/{note.checklist.length}
-                </span>
-              </div>
-              {note.checklist.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    const updated = note.checklist.map((c) => c.id === item.id ? { ...c, done: !c.done } : c);
-                    onSaveInline(note.id, { checklist: updated });
-                  }}
-                  className={`w-full flex items-center gap-2 rounded px-1 py-1 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-white"}`}
-                  data-testid={`fs-checklist-toggle-${item.id}`}
-                >
-                  <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-400" : "border-gray-300"}`}>
-                    {item.done && (
-                      <svg viewBox="0 0 12 12" className="w-3 h-3 text-white">
-                        <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-900")}`}>
-                    {item.text}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
         {/* Footer */}
         <div className={`flex items-center justify-between p-4 border-t text-xs font-mono ${isDark ? 'border-white/10 text-slate-300' : 'border-gray-200 text-gray-400'}`}>

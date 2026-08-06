@@ -30,7 +30,7 @@ export const QG_STORAGE_KEY = "quickguide"; // lives inside app_settings[QG_STOR
 export const QG_DEFAULT_STATE = {
   schema_version: 1,
   enabled: true,
-  auto_show: false, // LOCKED DEFAULT — discovery, not push
+  auto_show: true, // Default ON — greet each screen the first time a new user lands on it
   seen_ids: [],
   content_version: "1.0.0",
   sync_status: "local-only", // reserved for Phase 5 Knowledge Distribution
