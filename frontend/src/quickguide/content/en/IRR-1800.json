@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1800",
+  "schema_version": 1,
+  "scope": "backup",
+  "title": "Backup and Restore",
+  "summary": "Export everything to a single file — take it anywhere, restore anytime.",
+  "cards": [
+    {
+      "heading": "What Backup does",
+      "body": "Backup packs every note, template, setting, and attachment into one .json file. Nothing leaves your device unless you share the file yourself.",
+      "icon": "database-backup",
+      "media": null
+    },
+    {
+      "heading": "Exporting a backup",
+      "body": "Tap **Export Backup**. Iron Rabbit builds the file and hands it to your device's share sheet — save to Files, email it, or drop it into your cloud.",
+      "icon": "download",
+      "media": null
+    },
+    {
+      "heading": "Restoring from a backup",
+      "body": "Tap **Import Backup** and pick the .json file. Choose **Merge** to add on top of what you have, or **Replace** to wipe and reload.",
+      "icon": "upload",
+      "media": null
+    },
+    {
+      "heading": "Tip: Back up before big changes",
+      "body": "**Tip:** Export a backup before enabling PIN lock, changing themes drastically, or clearing data. Two seconds now saves an hour of regret later.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Replace wipes everything currently on the device. If you're unsure, use Merge — it will overwrite by ID but keep anything the backup doesn't mention.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1200"],
+  "keywords": ["backup", "restore", "export", "import", "data", "merge", "replace"],
+  "synonyms": ["export data", "save my data"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

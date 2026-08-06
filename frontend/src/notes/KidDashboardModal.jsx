@@ -5,6 +5,7 @@ import {
   X, Flame, Wallet, Trophy, Check, Circle, ArrowLeft, User, ChevronRight, PartyPopper, Lock, Unlock, ShieldCheck,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 import { Button } from "@/components/ui/button";
 import { NOTE_COLORS } from "./constants";
 import { computeChoreStreak, computeNoteStreak, buildLedger } from "./streakUtils";
@@ -76,15 +77,18 @@ export default function KidDashboardModal({ isOpen, onClose, notes, onSaveNote, 
               {selected ? "Tap a chore to check it off. Grown-up must approve to earn!" : "Choose whose chores to open."}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-white hover:bg-gray-100 text-gray-800 shadow-sm"}`}
-            aria-label="Exit kid mode"
-            data-testid="kid-exit-btn"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            <QuickGuideButton resourceId="IRR-1400" origin="kid-mode" isDark={isDark} />
+            <button
+              type="button"
+              onClick={handleClose}
+              className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-white hover:bg-gray-100 text-gray-800 shadow-sm"}`}
+              aria-label="Exit kid mode"
+              data-testid="kid-exit-btn"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}

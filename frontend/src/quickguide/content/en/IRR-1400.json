@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1400",
+  "schema_version": 1,
+  "scope": "kid_mode",
+  "title": "Kid Mode",
+  "summary": "A friendly chore dashboard for kids with streaks, stars, and parent approval.",
+  "cards": [
+    {
+      "heading": "What Kid Mode does",
+      "body": "Kid Mode turns any note tagged **chores** into a bright, kid-friendly dashboard with streaks, approvals, and gentle celebrations when tasks get done.",
+      "icon": "baby",
+      "media": null
+    },
+    {
+      "heading": "Setting up your first kid",
+      "body": "Tap **Add kid**, pick a name and colour. Then create a note with the category **chores** and add checklist items — those become the tappable chores.",
+      "icon": "plus",
+      "media": null
+    },
+    {
+      "heading": "Approving completed chores",
+      "body": "When your kid taps a chore done, it appears as **Waiting for grown-up**. Tap the checkmark to approve. Rewards only unlock after your approval.",
+      "icon": "check-circle-2",
+      "media": null
+    },
+    {
+      "heading": "Tip: Celebrate the streak",
+      "body": "**Tip:** Approving a chore triggers confetti and a small haptic buzz. Kids remember the moment, not the reward — the celebration is the point.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Kid Mode does not create separate accounts. Every kid's dashboard reads the same phone. Set a PIN in Settings if you want privacy for grown-up notes.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1200"],
+  "keywords": ["kid", "child", "chores", "family", "streak", "reward", "approval"],
+  "synonyms": ["family mode", "kids", "chore chart"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

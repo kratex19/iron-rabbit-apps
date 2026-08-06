@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1700",
+  "schema_version": 1,
+  "scope": "calendar",
+  "title": "Calendar",
+  "summary": "See every note and reminder in one month-view — offline.",
+  "cards": [
+    {
+      "heading": "What Calendar does",
+      "body": "Calendar shows every note with a date or reminder on a single month grid. Tap any day to see the notes attached to it.",
+      "icon": "calendar-days",
+      "media": null
+    },
+    {
+      "heading": "Adding a note to a day",
+      "body": "Open any note and tap the bell icon. Pick a date and time — Iron Rabbit places it on the calendar and sends a local reminder when it's due.",
+      "icon": "bell",
+      "media": null
+    },
+    {
+      "heading": "Editing a scheduled note",
+      "body": "Tap a day in the calendar to see its notes. Tap a note to open the editor. Change the date or clear the reminder to remove it from the grid.",
+      "icon": "edit-3",
+      "media": null
+    },
+    {
+      "heading": "Tip: Swipe between months",
+      "body": "**Tip:** Swipe left or right on the grid to jump months. Tap the month name at the top to jump directly to any month or year.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Reminders need OS permission. If nothing pops up when a note is due, open Android Settings → Iron Rabbit → Notifications and turn them on.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1000", "IRR-1900"],
+  "keywords": ["calendar", "reminder", "date", "schedule", "month"],
+  "synonyms": ["schedule", "reminders"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

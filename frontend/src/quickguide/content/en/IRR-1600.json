@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1600",
+  "schema_version": 1,
+  "scope": "scanner",
+  "title": "Barcode Scanner",
+  "summary": "How to scan food barcodes and pull ingredient data offline.",
+  "cards": [
+    {
+      "heading": "What the scanner does",
+      "body": "The scanner reads standard supermarket barcodes (EAN, UPC) and looks them up in the free Open Food Facts database. Only the barcode is sent — nothing else.",
+      "icon": "barcode",
+      "media": null
+    },
+    {
+      "heading": "Scanning your first item",
+      "body": "Point your phone's camera at a barcode. Iron Rabbit reads it instantly. Give it permission the first time — the permission never expires.",
+      "icon": "camera",
+      "media": null
+    },
+    {
+      "heading": "Typing a barcode by hand",
+      "body": "If the light is bad, tap **Enter manually** and type the digits from the barcode. Same lookup, same product info.",
+      "icon": "keyboard",
+      "media": null
+    },
+    {
+      "heading": "Tip: Cached lookups work offline",
+      "body": "**Tip:** Once a product is scanned, Iron Rabbit caches its info for 90 days. Re-scanning the same item works even in airplane mode.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Very small or worn barcodes can fail. Hold your phone flat, add light, and move about 6 inches (15 cm) away for the sharpest read.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1300"],
+  "keywords": ["barcode", "scanner", "scan", "camera", "upc", "ean", "open food facts"],
+  "synonyms": ["scan barcode", "product scanner"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

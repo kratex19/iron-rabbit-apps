@@ -1,5 +1,5 @@
 {
-  "content_version": "1.0.0",
+  "content_version": "1.1.0",
   "generated_at": "2026-02-08",
   "locales": ["en"],
   "id_ranges": {
@@ -8,5 +8,17 @@
     "IRR-3xxx": "Cross-app shared (reserved)",
     "IRR-9xxx": "Meta articles"
   },
-  "article_ids": ["IRR-1000", "IRR-1100", "IRR-1200", "IRR-9000"]
+  "article_ids": [
+    "IRR-1000",
+    "IRR-1100",
+    "IRR-1200",
+    "IRR-1300",
+    "IRR-1400",
+    "IRR-1500",
+    "IRR-1600",
+    "IRR-1700",
+    "IRR-1800",
+    "IRR-1900",
+    "IRR-9000"
+  ]
 }

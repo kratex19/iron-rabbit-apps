@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { haptic } from "../utils/haptic";
@@ -239,6 +240,7 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, isDark
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <Barcode className="w-5 h-5 text-emerald-400" /> Barcode Scanner
+            <span className="ml-auto"><QuickGuideButton resourceId="IRR-1600" origin="scanner" isDark={isDark} size="sm" /></span>
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
             Point at a barcode or enter it manually — product info via Open Food Facts (free, offline-friendly).

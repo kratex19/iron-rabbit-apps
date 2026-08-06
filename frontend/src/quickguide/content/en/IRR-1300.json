@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1300",
+  "schema_version": 1,
+  "scope": "pantry",
+  "title": "Pantry",
+  "summary": "Track what's in your fridge, freezer, and cupboards — with barcode scanning.",
+  "cards": [
+    {
+      "heading": "What Pantry does",
+      "body": "Pantry keeps a running inventory of what you have at home, split by zone: fridge, freezer, and cupboard. Nothing leaves your device.",
+      "icon": "package-open",
+      "media": null
+    },
+    {
+      "heading": "Adding items by scan",
+      "body": "Tap **+ Add item** then **Scan barcode**. Iron Rabbit reads the code offline and fetches product name, brand, and health info from Open Food Facts.",
+      "icon": "barcode",
+      "media": null
+    },
+    {
+      "heading": "Adding items manually",
+      "body": "Tap **+ Add item** and type the name. Pick a zone and a quantity. Skip the scan entirely if you don't have a barcode handy.",
+      "icon": "plus",
+      "media": null
+    },
+    {
+      "heading": "Tip: Check Nutri-Score",
+      "body": "**Tip:** For any scanned item, tap **Product Info** to see Nutri-Score, NOVA processing, allergens, and additive warnings. Great for spotting palm oil.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Deleted items leave no trail. If you might restock later, move the item to a different zone instead of deleting it.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1600", "IRR-1100"],
+  "keywords": ["pantry", "inventory", "fridge", "freezer", "cupboard", "barcode", "food"],
+  "synonyms": ["food inventory", "kitchen inventory"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

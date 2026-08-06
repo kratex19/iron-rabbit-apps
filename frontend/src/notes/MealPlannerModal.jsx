@@ -8,6 +8,7 @@ import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { v4 as uuidv4 } from "uuid";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BUILTIN_RECIPES } from "../data/recipes";
@@ -204,6 +205,7 @@ export default function MealPlannerModal({ isOpen, onClose, isDark, onGeneratedG
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <ChefHat className="w-5 h-5 text-amber-400" /> Meal Planner
+            <span className="ml-auto"><QuickGuideButton resourceId="IRR-1500" origin="meal-planner" isDark={isDark} size="sm" /></span>
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
             Plan the week, then generate a shopping list with one tap.

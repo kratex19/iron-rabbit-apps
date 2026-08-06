@@ -11,6 +11,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 
 /**
  * Floating calendar overview. Aggregates every event across all notes,
@@ -115,6 +116,7 @@ export default function FloatingCalendarModal({
             }`}
           >
             <CalendarDays className="w-5 h-5 text-indigo-500" /> Calendar
+            <span className="ml-auto"><QuickGuideButton resourceId="IRR-1700" origin="calendar" isDark={isDark} size="sm" /></span>
           </DialogTitle>
           <DialogDescription
             className={isDark ? "text-slate-400" : "text-gray-500"}

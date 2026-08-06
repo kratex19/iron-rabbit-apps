@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1500",
+  "schema_version": 1,
+  "scope": "meal_planner",
+  "title": "Meal Planner",
+  "summary": "Drag recipes into a weekly grid and turn the whole week into one shopping list.",
+  "cards": [
+    {
+      "heading": "What Meal Planner does",
+      "body": "Meal Planner is a 7-day grid across breakfast, lunch, and dinner. Assign any recipe to any slot and Iron Rabbit does the shopping math for you.",
+      "icon": "utensils",
+      "media": null
+    },
+    {
+      "heading": "Adding a recipe to a day",
+      "body": "Tap an empty slot in the grid. Pick from 15 built-in recipes or tap **Add custom recipe**. The slot fills with the recipe's name and cover.",
+      "icon": "chef-hat",
+      "media": null
+    },
+    {
+      "heading": "Turning the week into a shopping list",
+      "body": "Tap **Generate shopping list** at the bottom. Iron Rabbit collects every recipe's ingredients into one new note, grouped by supermarket department.",
+      "icon": "shopping-cart",
+      "media": null
+    },
+    {
+      "heading": "Tip: Reuse a favourite week",
+      "body": "**Tip:** Long-press any day and pick **Copy day** to duplicate it. Great for kids who insist on the same Monday breakfast forever.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Custom recipes with no ingredients skip the shopping list. Always add at least one ingredient — even just \"chef's choice\" — so nothing gets missed.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1100", "IRR-1300"],
+  "keywords": ["meal", "recipe", "week", "planner", "shopping list", "cook"],
+  "synonyms": ["weekly meals", "meal plan"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

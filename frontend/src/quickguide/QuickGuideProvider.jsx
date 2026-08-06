@@ -19,9 +19,20 @@ import manifest from "./content/manifest.json";
 import IRR_1000 from "./content/en/IRR-1000.json";
 import IRR_1100 from "./content/en/IRR-1100.json";
 import IRR_1200 from "./content/en/IRR-1200.json";
+import IRR_1300 from "./content/en/IRR-1300.json";
+import IRR_1400 from "./content/en/IRR-1400.json";
+import IRR_1500 from "./content/en/IRR-1500.json";
+import IRR_1600 from "./content/en/IRR-1600.json";
+import IRR_1700 from "./content/en/IRR-1700.json";
+import IRR_1800 from "./content/en/IRR-1800.json";
+import IRR_1900 from "./content/en/IRR-1900.json";
 import IRR_9000 from "./content/en/IRR-9000.json";
 
-const BUNDLED_ARTICLES = [IRR_1000, IRR_1100, IRR_1200, IRR_9000];
+const BUNDLED_ARTICLES = [
+  IRR_1000, IRR_1100, IRR_1200,
+  IRR_1300, IRR_1400, IRR_1500, IRR_1600, IRR_1700, IRR_1800, IRR_1900,
+  IRR_9000,
+];
 const ARTICLE_INDEX = Object.fromEntries(BUNDLED_ARTICLES.map(a => [a.id, a]));
 
 const QuickGuideContext = createContext(null);

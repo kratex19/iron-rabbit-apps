@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
 import Attachments from "../components/Attachments";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 import StorageService from "../storage/storageService";
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
 import TemplateModal from "./TemplateModal";
@@ -165,11 +166,14 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
           <DialogHeader>
             <DialogTitle className={`font-semibold flex items-center justify-between ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <span>{note ? t("note.edit") : t("note.new")}</span>
-              {!note && (
-                <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} className="text-indigo-500 h-7">
-                  <FileText className="w-4 h-4 mr-1" /> Templates
-                </Button>
-              )}
+              <div className="flex items-center gap-1">
+                {!note && (
+                  <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} className="text-indigo-500 h-7">
+                    <FileText className="w-4 h-4 mr-1" /> Templates
+                  </Button>
+                )}
+                <QuickGuideButton resourceId="IRR-1900" origin="note-editor" isDark={isDark} size="sm" />
+              </div>
             </DialogTitle>
             <DialogDescription className="sr-only">
               {note ? "Edit this note's title, content, color, category, alarm, and recurring settings." : "Create a new note with title, content, color, category, alarm, and recurring settings."}

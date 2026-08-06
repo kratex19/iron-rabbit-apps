@@ -9,6 +9,7 @@ import {
   Download, Upload, DatabaseBackup, FileWarning, ArrowUpFromLine, Merge, Replace,
 } from "lucide-react";
 import StorageService from "../storage/storageService";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 
 /**
  * Offline JSON backup / restore modal. Everything stays on-device:
@@ -93,6 +94,7 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
         <DialogHeader>
           <DialogTitle className={`flex items-center gap-2 ${isDark ? "text-white" : "text-gray-900"}`}>
             <DatabaseBackup className="w-5 h-5 text-indigo-400" /> Backup &amp; Restore
+            <span className="ml-auto"><QuickGuideButton resourceId="IRR-1800" origin="backup" isDark={isDark} size="sm" /></span>
           </DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
             Export every note, attachment, template, and setting to a single offline JSON file.

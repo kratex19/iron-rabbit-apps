@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1900",
+  "schema_version": 1,
+  "scope": "note_editor",
+  "title": "Note Editor",
+  "summary": "Everything you can do inside a single note.",
+  "cards": [
+    {
+      "heading": "What the editor does",
+      "body": "This is where you write, check things off, add photos, set reminders, and pick a colour. Every change saves to your device instantly — no save button needed.",
+      "icon": "edit-3",
+      "media": null
+    },
+    {
+      "heading": "Adding a checklist",
+      "body": "Tap **Add checklist item** to grow a to-do list inside any note. Tap the round box to tick items off. Long-press an item to reorder it.",
+      "icon": "list-checks",
+      "media": null
+    },
+    {
+      "heading": "Adding photos",
+      "body": "Tap the camera icon to snap a photo, or the paperclip to pick from your gallery. Photos live inside the note on your device — never uploaded.",
+      "icon": "camera",
+      "media": null
+    },
+    {
+      "heading": "Tip: Full-screen focus",
+      "body": "**Tip:** Tap the expand icon in the top-right to enter full-screen mode. Great for long writing sessions — every distraction disappears.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Closing the note saves automatically. If you meant to delete instead, use the trash icon — closing doesn't discard your changes.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1000", "IRR-1700"],
+  "keywords": ["note", "editor", "write", "checklist", "photo", "attachment"],
+  "synonyms": ["edit note", "note details"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}
