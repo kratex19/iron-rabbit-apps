@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { haptic } from "../utils/haptic";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 
 /**
  * Top app header — logo/title on the left, action-button strip on the right.
@@ -107,6 +108,7 @@ export default function AppHeader({
           <Button variant="ghost" size="icon" onClick={tap(onTripJournal)} className={iconBtnCls} title="Trip Journal" data-testid="header-trip-journal"><Receipt className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onRestaurantsGalore)} className={iconBtnCls} title="Restaurants Galore" data-testid="header-restaurants-galore"><Utensils className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={onArchiveTrash} className={iconBtnCls} title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
+          <QuickGuideButton resourceId="IRR-1000" origin="home" isDark={isDark} className={iconBtnCls} />
           <Button variant="ghost" size="icon" onClick={onSettings} className={iconBtnCls} title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
         </div>
       </div>

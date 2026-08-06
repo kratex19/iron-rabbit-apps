@@ -10,6 +10,7 @@ import { NOTE_COLORS } from "./constants";
 import { haptic } from "../utils/haptic";
 import StorageService from "../storage/storageService";
 import { buildPriceHistory, priceSignal, clearPriceHistoryCache } from "../utils/priceHistory";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
 
 /**
  * Phase-2 Shopping Mode.
@@ -167,6 +168,7 @@ export default function ShoppingModeModal({ isOpen, onClose, notes, onSaveNote, 
               {totalRemaining > 0 && <span> · <b>${totalRemaining.toFixed(2)}</b> remaining</span>}
             </div>
           </div>
+          <QuickGuideButton resourceId="IRR-1100" origin="shopping-mode" isDark={isDark} />
           <button
             type="button"
             onClick={handleClose}

@@ -1,0 +1,12 @@
+{
+  "content_version": "1.0.0",
+  "generated_at": "2026-02-08",
+  "locales": ["en"],
+  "id_ranges": {
+    "IRR-1xxx": "Screen guides",
+    "IRR-2xxx": "Flow guides (reserved)",
+    "IRR-3xxx": "Cross-app shared (reserved)",
+    "IRR-9xxx": "Meta articles"
+  },
+  "article_ids": ["IRR-1000", "IRR-1100", "IRR-1200", "IRR-9000"]
+}

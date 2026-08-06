@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only E2E for Quick Guide Phase 1 framework (Iron Rabbit). Covered 14 of 15 requested flows on the deployed preview URL. 13 flows pass cleanly; 1 flow (Shopping Mode QG button, IRR-1100) verified by code inspection only because seeding a Grocery-category note through the UI was not reliably automatable in the available time — the header-shopping-mode button only renders when a Grocery note exists. One HIGH-priority runtime bug found: 👍/👎 feedback votes are NOT persisted to app_settings.quickguide.feedback due to a stale-closure race between recordFeedback and _bufferEvent.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "QuickGuideProvider.jsx :: recordFeedback + _bufferEvent",
+        "issue": "Vote (👍/👎) is not persisted. After clicking quickguide-feedback-yes on IRR-1000's last card, IndexedDB app_settings.quickguide.feedback.helpful_ids remains []. The 'guide_feedback' analytics event IS written to analytics_buffer, but the feedback map itself is overwritten by a stale-state write immediately afterwards. On reload, the last-card 👍 button therefore does NOT show as voted (no green ring, no check icon).",
+        "selector": "[data-testid='quickguide-feedback-yes']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix feedback persistence bug in /app/frontend/src/quickguide/QuickGuideProvider.jsx. In recordFeedback, do NOT call _bufferEvent(state, persist, ...) after persist({feedback:...}) because _bufferEvent's persist() call rebuilds next from the stale `state` closure and clobbers the just-written feedback. Options: (a) merge the analytics_buffer update INTO the same persist() call in recordFeedback (single write), or (b) refactor persist to use a functional updater (setState(prev => ...)) and read-modify-write from the latest state, e.g. `setState(prev => { const next = {...prev, ...patch}; StorageService.saveSettings({[QG_STORAGE_KEY]: next}); return next; })`, and change _bufferEvent to do the same. The same stale-closure pattern also affects close() (buffer 'guide_closed' followed by persist(seen_ids) — the second write drops the first buffer entry) and open() → persist() sequences; a single functional-updater refactor fixes all of them.",
+    "Consider adding a unit/integration test that reads back app_settings.quickguide.feedback after voting, to prevent regressions."
+  ],
+  "critical_code_review_comments": [
+    "QuickGuideProvider persist() uses a `state` closure captured by useCallback([state]) — combined with two sequential calls (persist + _bufferEvent) inside recordFeedback/close, this creates a last-write-wins race that silently drops the earlier write. Refactor to a single functional setState update per action.",
+    "GuideFeedback initializes `voted` via useState lazy init from context state at mount time. If the modal opens before hydration completes, or the parent re-renders after context feedback changes, voted state will not sync. Not a bug today because modal only mounts after openId is set (post-hydration), but making voted a derived value (useMemo from state.feedback) is safer.",
+    "Modal always shows the label 'Quick Guide' regardless of which article is open. Spec (task list items 1, 7, 11) implied the header should read 'QUICK GUIDE' / 'Shopping Mode' / 'About Quick Guides' for the different articles. Current design uses 'Quick Guide' as a fixed section label with the article title only shown as the first card heading. This is consistent across all four articles and may be intentional per the locked design v1.1, but does not literally match the review-request wording — flagging for main agent confirmation."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "93% (13/14 exercised flows pass; 1 HIGH bug found; Shopping Mode flow verified by code inspection only)"},
+  "test_credentials": "None required (no PIN gate encountered on preview URL)",
+  "seed_data_creation": "Feedback/reset/toggle state written to IndexedDB app_settings.quickguide during testing. Ran quickguide-reset before final vote-persistence probe. No production data touched. Could not reliably seed a Grocery note through UI (Templates panel intercepts and category picker was not discoverable via role=combobox).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Home ?, Settings ?, Meta guide IRR-9000, Close-confirm + hint, Keyboard nav (←/→/Esc), ID chip + copy toast, More Help disabled, feedback footer only on last card, Enable/Auto-show toggles persist across reload, Reset clears seen_ids, storage schema with all 7 required keys, global-disable + triple-tap peek, and default auto_show=false all VERIFIED. The single unresolved bug is the feedback persistence race — after fix, re-run the 'vote persists across reload' scenario: click quickguide-feedback-yes on IRR-1000 card 5, reload, reopen IRR-1000, navigate to card 5, and confirm the 👍 button has class containing 'emerald' and a svg.lucide-check inside. Also confirm IndexedDB app_settings.quickguide.feedback.helpful_ids contains 'IRR-1000'. For Shopping Mode IRR-1100 flow, the QuickGuideButton is wired in ShoppingModeModal.jsx line 171 with resourceId='IRR-1100' — testing agent should seed a Grocery note (e.g. via createNote({category:'Grocery'}) API or by picking Grocery in the New-Note category dropdown after closing the auto-opened Templates panel) then click [data-testid='header-shopping-mode'] and verify [data-testid='quickguide-btn-IRR-1100'] opens the modal.",
+  "rca_of_the_issue": "In QuickGuideProvider.jsx, recordFeedback() executes two sequential writes: (1) await persist({feedback:{helpful_ids:[id],...}}) — this correctly writes feedback to state and IndexedDB — and then (2) _bufferEvent(state, persist, 'guide_feedback', {id, vote}). _bufferEvent computes `next = [...state.analytics_buffer, event].slice(-100)` and calls persist({analytics_buffer: next}). Because persist is a useCallback closure over `state`, and `state` here refers to the pre-vote state, the merge `next = {...state, ...patch}` inside persist reconstructs the entire settings object with the OLD feedback plus the NEW buffer, then writes that to setState AND to StorageService.saveSettings. Result: the feedback update from step (1) is silently overwritten. Repro: open IRR-1000, next×4, click 👍, wait 1s, inspect indexedDB IronRabbit→settings→app_settings.quickguide → helpful_ids is []. Fix as described in action_items. Same class of bug also silently drops the 'guide_closed' analytics event on close (persist(seen_ids) overwrites the buffer write) but that has no user-visible impact today."
+}

@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1100",
+  "schema_version": 1,
+  "scope": "shopping",
+  "title": "Shopping Mode",
+  "summary": "Turn any note into a distraction-free shopping trip.",
+  "cards": [
+    {
+      "heading": "What Shopping Mode does",
+      "body": "Shopping Mode strips away everything except your list. Items are grouped by supermarket department so you shop the store in order.",
+      "icon": "shopping-cart",
+      "media": null
+    },
+    {
+      "heading": "Starting a trip",
+      "body": "Open any note with a checklist and tap the shopping cart. Iron Rabbit sorts the items into Produce, Dairy, Bakery, and more.",
+      "icon": "list-checks",
+      "media": null
+    },
+    {
+      "heading": "Ticking items off",
+      "body": "Tap an item to strike it through. Missed one? Tap again to bring it back. Your list stays saved even if you close the app mid-trip.",
+      "icon": "check-circle-2",
+      "media": null
+    },
+    {
+      "heading": "Tip: Combine multiple lists",
+      "body": "Tip: Building one big trip? Merge several notes into one in the note editor first, then open Shopping Mode. One list, one trip, no phone juggling.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Deleted items are gone for good. If you're not sure, keep them ticked off instead — you can copy the note to reuse next week.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1000", "IRR-1200"],
+  "keywords": ["shopping", "grocery", "list", "supermarket", "aisle", "departments"],
+  "synonyms": ["grocery run", "shopping list", "store mode"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

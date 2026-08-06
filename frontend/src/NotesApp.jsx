@@ -22,6 +22,7 @@ import { presetForIcon } from "./data/quickAddTemplates";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
 import CategoryHeader from "./notes/CategoryHeader";
 import AppHeader from "./notes/AppHeader";
+import { QuickGuideProvider, QuickGuideModal } from "./quickguide";
 import AppSearchBar from "./notes/AppSearchBar";
 import AppModals from "./notes/AppModals";
 import { TILE_PACKS } from "./data/tilePacks";
@@ -1291,8 +1292,10 @@ export default function NotesApp() {
   };
 
   return (
+    <QuickGuideProvider>
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`} data-testid="app-container">
       <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} />
+      <QuickGuideModal isDark={isDark} />
 
       {/* Compact Header (extracted) */}
       <AppHeader
@@ -1462,5 +1465,6 @@ export default function NotesApp() {
         undoRecentAction={undoRecentAction}
       />
     </div>
+    </QuickGuideProvider>
   );
 }

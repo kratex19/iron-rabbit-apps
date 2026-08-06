@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1000",
+  "schema_version": 1,
+  "scope": "home",
+  "title": "Your Home Screen",
+  "summary": "How the main Iron Rabbit screen works and where to start.",
+  "cards": [
+    {
+      "heading": "What this screen does",
+      "body": "This is the heart of Iron Rabbit. Every note, chore, list, and reminder lives here. Notes live on your phone — nothing is uploaded.",
+      "icon": "layout-dashboard",
+      "media": null
+    },
+    {
+      "heading": "Creating your first note",
+      "body": "Tap the lightning icon at the top to open Quick Add. Pick any icon and Iron Rabbit builds a matching note for you — no typing needed.",
+      "icon": "zap",
+      "media": null
+    },
+    {
+      "heading": "Switching how notes look",
+      "body": "Tap the layout toggle to the right of the search bar. Choose compact rows for scanning fast, or icon tiles when you want colour and delight.",
+      "icon": "layout-grid",
+      "media": null
+    },
+    {
+      "heading": "Tip: Long-press to reorder",
+      "body": "Tip: Long-press any note and drag it. Your notes stay in the order that makes sense to you — not the app.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Related features",
+      "body": "Tap the shopping cart for Shopping Mode. Tap the chef hat for Meal Planner. Tap the settings gear for Quick Guides and backups.",
+      "icon": "link",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1100", "IRR-1200", "IRR-9000"],
+  "keywords": ["home", "dashboard", "tiles", "notes", "start"],
+  "synonyms": ["main screen", "start", "front page"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

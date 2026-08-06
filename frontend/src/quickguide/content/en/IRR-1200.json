@@ -1,0 +1,48 @@
+{
+  "id": "IRR-1200",
+  "schema_version": 1,
+  "scope": "settings",
+  "title": "Settings",
+  "summary": "Where to change themes, languages, backups, and Quick Guide behaviour.",
+  "cards": [
+    {
+      "heading": "What Settings does",
+      "body": "Settings controls how Iron Rabbit looks, sounds, and safeguards your data. Every change is saved on your device instantly.",
+      "icon": "settings-2",
+      "media": null
+    },
+    {
+      "heading": "Themes",
+      "body": "Choose Light for daytime, Moon for evenings, or Star for a night-sky feel. Every screen — even Kid Mode — respects your choice.",
+      "icon": "moon",
+      "media": null
+    },
+    {
+      "heading": "Backup and Restore",
+      "body": "Tap Backup & Restore to export everything as a single .json file. Nothing leaves your device unless you share the file yourself.",
+      "icon": "database-backup",
+      "media": null
+    },
+    {
+      "heading": "Tip: Enable Quick Guides on new screens",
+      "body": "Tip: Turn on 'Automatically show Quick Guides' below. The next time you open a screen for the first time, a friendly guide will greet you.",
+      "icon": "sparkles",
+      "media": null
+    },
+    {
+      "heading": "Common mistake",
+      "body": "Changing your PIN resets biometric unlock. Set a new fingerprint or face after any PIN change so quick unlock keeps working.",
+      "icon": "alert-triangle",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1000", "IRR-9000"],
+  "keywords": ["settings", "theme", "backup", "restore", "language", "pin", "biometric"],
+  "synonyms": ["preferences", "options", "config"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "grocery",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}

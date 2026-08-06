@@ -12,6 +12,8 @@ import StorageService from "../storage/storageService";
 import notificationService from "../notifications/notificationService";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import LanguagePicker from "./LanguagePicker";
+import QuickGuideButton from "../quickguide/QuickGuideButton";
+import QuickGuideSettingsSection from "../quickguide/QuickGuideSettingsSection";
 
 /**
  * App-level settings — brand (name/logo/header), backup/restore,
@@ -83,12 +85,16 @@ export default function SettingsModal({
         <DialogHeader>
           <DialogTitle className={`font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <Settings className="w-5 h-5 text-indigo-500" /> {t("settings.title")}
+            <span className="ml-auto">
+              <QuickGuideButton resourceId="IRR-1200" origin="settings" isDark={isDark} size="sm" />
+            </span>
           </DialogTitle>
           <DialogDescription className="sr-only">
             Configure app branding, backup and restore your data, install as PWA, or clear all data.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <QuickGuideSettingsSection isDark={isDark} />
           <div>
             <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
               <Globe className="w-3.5 h-3.5" /> {t("settings.language")}

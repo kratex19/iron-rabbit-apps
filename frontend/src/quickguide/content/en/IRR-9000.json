@@ -1,0 +1,48 @@
+{
+  "id": "IRR-9000",
+  "schema_version": 1,
+  "scope": "meta",
+  "title": "About Quick Guides",
+  "summary": "How the little ? button works throughout Iron Rabbit.",
+  "cards": [
+    {
+      "heading": "What Quick Guides are",
+      "body": "Quick Guides are short, friendly walk-throughs. Every major screen has a small ? button — tap it to see how that screen works, in five cards or fewer.",
+      "icon": "help-circle",
+      "media": null
+    },
+    {
+      "heading": "How to open one",
+      "body": "Tap the ? in any screen's header. Swipe left and right through the cards, or use the arrows. Every card teaches exactly one idea.",
+      "icon": "hand",
+      "media": null
+    },
+    {
+      "heading": "How to close",
+      "body": "Tap the X at the top-right. Iron Rabbit asks once to make sure — because closing counts as saying 'I've got it'.",
+      "icon": "x-circle",
+      "media": null
+    },
+    {
+      "heading": "Where to change guide settings",
+      "body": "Open Settings and scroll to Quick Guides. You can turn all guides off, or enable 'Automatically show' so new screens introduce themselves.",
+      "icon": "settings-2",
+      "media": null
+    },
+    {
+      "heading": "Tip: Guides even when turned off",
+      "body": "Tip: If Quick Guides are turned off, you can still peek. Tap the ? three times quickly — the guide opens once, just for this screen.",
+      "icon": "sparkles",
+      "media": null
+    }
+  ],
+  "related_ids": ["IRR-1000", "IRR-1200"],
+  "keywords": ["help", "guide", "quick guide", "tutorial", "how to", "walkthrough"],
+  "synonyms": ["help", "tour", "walk-through"],
+  "difficulty": "beginner",
+  "app_version_min": "1.0.0",
+  "applicable_module": "meta",
+  "deprecated": false,
+  "created_at": "2026-02-08",
+  "updated_at": "2026-02-08"
+}
