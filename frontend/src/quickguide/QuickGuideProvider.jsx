@@ -164,6 +164,30 @@ export function QuickGuideProvider({ children }) {
     persist(prev => (prev.nudge_seen ? {} : { nudge_seen: true }));
   }, [persist]);
 
+  // User-authored extra cards (appended to a guide's built-in cards).
+  // Stored under state.user_cards[resourceId]. Never touches shipped content.
+  const upsertUserCard = useCallback((resourceId, card) => {
+    persist(prev => {
+      const list = Array.isArray(prev.user_cards?.[resourceId]) ? prev.user_cards[resourceId] : [];
+      const existingIdx = card.id ? list.findIndex(c => c.id === card.id) : -1;
+      let next;
+      if (existingIdx >= 0) {
+        next = [...list];
+        next[existingIdx] = { ...list[existingIdx], ...card };
+      } else {
+        next = [...list, { ...card, id: card.id || `usr-${Date.now()}` }];
+      }
+      return { user_cards: { ...(prev.user_cards || {}), [resourceId]: next } };
+    });
+  }, [persist]);
+
+  const deleteUserCard = useCallback((resourceId, cardId) => {
+    persist(prev => {
+      const list = Array.isArray(prev.user_cards?.[resourceId]) ? prev.user_cards[resourceId] : [];
+      return { user_cards: { ...(prev.user_cards || {}), [resourceId]: list.filter(c => c.id !== cardId) } };
+    });
+  }, [persist]);
+
   const resetTour = useCallback(() => {
     // Clears Quick Guide seen_ids only. Does NOT re-arm FirstRunTour or QuickAccess.
     persist({ seen_ids: [] });
@@ -209,10 +233,12 @@ export function QuickGuideProvider({ children }) {
     getArticle,
     getAllArticles,
     dismissNudge,
+    upsertUserCard,
+    deleteUserCard,
     history,
     articleCount: BUNDLED_ARTICLES.length,
     contentVersion: manifest.content_version,
-  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, history]);
+  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge, upsertUserCard, deleteUserCard, history]);
 
   return (
     <QuickGuideContext.Provider value={value}>

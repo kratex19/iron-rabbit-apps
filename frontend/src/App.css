@@ -221,6 +221,15 @@
 @media (prefers-reduced-motion: reduce) {
     .qg-nudge { animation: none; }
 }
+/* Quick Guide horizontal scroll strip — hides the scrollbar for a clean shelf feel */
+.qg-strip {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+    scroll-behavior: smooth;
+}
+.qg-strip::-webkit-scrollbar { height: 6px; }
+.qg-strip::-webkit-scrollbar-track { background: transparent; }
+.qg-strip::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 6px; }
 
 /* ================== Attachments ================== */
 .attachments {

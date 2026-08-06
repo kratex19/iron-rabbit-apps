@@ -45,4 +45,7 @@ export const QG_DEFAULT_STATE = {
   // One-time first-launch nudge on the `?` button. Cleared the moment the
   // user taps any Quick Guide button, opens a guide, or after ~15s of visibility.
   nudge_seen: false,
+  // Per-resource user-authored cards, appended to the horizontal card strip
+  // in the Quick Guide modal. Shape: { [resourceId]: [{ id, heading, body }] }.
+  user_cards: {},
 };
