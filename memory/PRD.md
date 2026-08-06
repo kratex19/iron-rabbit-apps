@@ -10,6 +10,8 @@
 - **First-launch nudge on `?` button** — pulsing ring + orange notification dot on QuickGuideButton until first tap or 15s auto-dismiss. Persisted via `state.nudge_seen` in `app_settings.quickguide`. Respects `prefers-reduced-motion`.
 - **Collapsible Images & files accordion** — `FullScreenNote.jsx` now wraps `<Attachments>` in a chevron-toggle accordion. Auto-collapses when the note has attachments (writing space wins); auto-expands when empty (CTA visible)
 - **Confirmed Quick Guide content is production-ready** — all 11 articles (IRR-1000 → IRR-1900 + IRR-9000) already contain real, polished editorial copy matching `QUICK_GUIDE_AUTHORING.md`. No rewrite needed.
+- **Recent custom backgrounds strip** — `BackgroundPicker.jsx` now remembers the last 8 custom colors and 8 custom gradients under `localStorage['iron_rabbit_bg_recents_v1']`. Shown as a "Recent" strip above the custom builder in each tab, with hover-to-remove `×` per swatch. Purely cosmetic → localStorage is sufficient.
+- **Guide search in Settings** — `QuickGuideSettingsSection.jsx` gained a search bar (title×5, id×4, summary×3, keywords/synonyms×2, card body×1 scoring). Top 8 ranked results with title + `IRR-xxxx` chip + summary snippet. Empty state, clear button, click-to-open. Exposed via `getAllArticles()` on the context.
 
 ### Files touched
 - `frontend/src/data/noteIcons.js` — palette expansion

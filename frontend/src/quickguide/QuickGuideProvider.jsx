@@ -182,6 +182,7 @@ export function QuickGuideProvider({ children }) {
   }, [persist]);
 
   const getArticle = useCallback((id) => ARTICLE_INDEX[id] || null, []);
+  const getAllArticles = useCallback(() => BUNDLED_ARTICLES, []);
 
   const value = useMemo(() => ({
     hydrated,
@@ -198,10 +199,11 @@ export function QuickGuideProvider({ children }) {
     resetTour,
     recordFeedback,
     getArticle,
+    getAllArticles,
     dismissNudge,
     articleCount: BUNDLED_ARTICLES.length,
     contentVersion: manifest.content_version,
-  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, dismissNudge]);
+  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, getAllArticles, dismissNudge]);
 
   return (
     <QuickGuideContext.Provider value={value}>

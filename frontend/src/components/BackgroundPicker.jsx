@@ -1,15 +1,41 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
-import { Upload, X, Palette, Sparkles, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Palette, Sparkles, Image as ImageIcon, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 const MAX_IMAGE_BYTES = 800_000; // ~800KB — keep IndexedDB happy
+const RECENTS_STORAGE_KEY = "iron_rabbit_bg_recents_v1";
+const MAX_RECENTS = 8;
+
+// Load recents from localStorage (safe — cosmetic data, OK if it's not synced)
+function loadRecents() {
+  try {
+    const raw = localStorage.getItem(RECENTS_STORAGE_KEY);
+    if (!raw) return { colors: [], gradients: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      colors: Array.isArray(parsed.colors) ? parsed.colors.filter(c => typeof c === "string") : [],
+      gradients: Array.isArray(parsed.gradients) ? parsed.gradients.filter(g => typeof g === "string") : [],
+    };
+  } catch {
+    return { colors: [], gradients: [] };
+  }
+}
+
+function saveRecents(recents) {
+  try {
+    localStorage.setItem(RECENTS_STORAGE_KEY, JSON.stringify(recents));
+  } catch {
+    // storage full / private mode — silently ignore
+  }
+}
 
 export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isDark = true }) {
   const [tab, setTab] = useState("color");
   const fileInputRef = useRef(null);
+  const [recents, setRecents] = useState(() => loadRecents());
 
   // Custom color state (initialized from existing value if it's a solid color)
   const initialHex = value?.type === "color" && /^#([0-9a-f]{6})$/i.test(value.value) ? value.value : "#8b5cf6";
@@ -22,6 +48,29 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
   const [gradAngle, setGradAngle] = useState(initialGrad.angle);
   const customGradientCss = `linear-gradient(${gradAngle}deg, ${gradFrom} 0%, ${gradTo} 100%)`;
 
+  // Keep recents in sync if another instance of the picker updated them
+  useEffect(() => {
+    if (isOpen) setRecents(loadRecents());
+  }, [isOpen]);
+
+  const pushRecent = (kind, value) => {
+    setRecents(prev => {
+      const list = (prev[kind] || []).filter(v => v !== value);
+      list.unshift(value);
+      const next = { ...prev, [kind]: list.slice(0, MAX_RECENTS) };
+      saveRecents(next);
+      return next;
+    });
+  };
+
+  const removeRecent = (kind, value) => {
+    setRecents(prev => {
+      const next = { ...prev, [kind]: (prev[kind] || []).filter(v => v !== value) };
+      saveRecents(next);
+      return next;
+    });
+  };
+
   const pick = (bg) => {
     onSelect(bg);
     onClose();
@@ -33,10 +82,12 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
       toast.error("Please enter a valid hex (e.g. #ff5a5f)");
       return;
     }
+    pushRecent("colors", hex);
     pick({ type: "color", value: hex });
   };
 
   const applyCustomGradient = () => {
+    pushRecent("gradients", customGradientCss);
     pick({ type: "gradient", value: customGradientCss });
   };
 
@@ -125,6 +176,41 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
                 })}
               </div>
 
+              {/* Recent custom colors */}
+              {recents.colors.length > 0 && (
+                <div data-testid="bg-color-recents">
+                  <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                    <Clock className="w-3 h-3" /> Recent
+                  </div>
+                  <div className="grid grid-cols-8 gap-2">
+                    {recents.colors.map(hex => {
+                      const active = value?.type === "color" && value?.value === hex;
+                      return (
+                        <div key={hex} className="relative group">
+                          <button
+                            type="button"
+                            onClick={() => pick({ type: "color", value: hex })}
+                            className={`w-full aspect-square rounded-lg border-2 transition ${active ? "border-white ring-2 ring-indigo-500" : "border-transparent hover:border-white/40"}`}
+                            style={{ background: hex }}
+                            title={hex}
+                            data-testid={`bg-color-recent-${hex}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeRecent("colors", hex); }}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label={`Remove ${hex} from recents`}
+                            data-testid={`bg-color-recent-remove-${hex}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Custom color builder */}
               <div className={`rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}
                    data-testid="bg-color-custom">
@@ -187,6 +273,41 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
                   );
                 })}
               </div>
+
+              {/* Recent custom gradients */}
+              {recents.gradients.length > 0 && (
+                <div data-testid="bg-gradient-recents">
+                  <div className={`flex items-center gap-1.5 text-[11px] uppercase tracking-wide mb-1.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                    <Clock className="w-3 h-3" /> Recent
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {recents.gradients.map((g, idx) => {
+                      const active = value?.type === "gradient" && value?.value === g;
+                      return (
+                        <div key={`${g}-${idx}`} className="relative group">
+                          <button
+                            type="button"
+                            onClick={() => pick({ type: "gradient", value: g })}
+                            className={`w-full h-10 rounded-lg border-2 transition ${active ? "border-white ring-2 ring-indigo-500" : "border-transparent hover:border-white/40"}`}
+                            style={{ background: g }}
+                            title="Recent gradient"
+                            data-testid={`bg-gradient-recent-${idx}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeRecent("gradients", g); }}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label="Remove from recents"
+                            data-testid={`bg-gradient-recent-remove-${idx}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Custom gradient builder */}
               <div className={`rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}
