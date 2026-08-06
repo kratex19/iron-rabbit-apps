@@ -42,4 +42,7 @@ export const QG_DEFAULT_STATE = {
     not_helpful_ids: [],
     last_reset: null,
   },
+  // One-time first-launch nudge on the `?` button. Cleared the moment the
+  // user taps any Quick Guide button, opens a guide, or after ~15s of visibility.
+  nudge_seen: false,
 };

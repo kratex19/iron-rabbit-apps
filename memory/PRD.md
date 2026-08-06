@@ -1,6 +1,32 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
+## 📌 Session state (2026-02-06, this session)
+
+### 🎉 Shipped this session
+- **Palette expansion** — Tile background picker: 12→43 solid colors, 10→30 gradients (`data/noteIcons.js`); scrolling panel inside dialog
+- **Custom Color Picker** — `BackgroundPicker.jsx` gets a "Custom color" panel (native color wheel + hex input + Apply)
+- **Custom Gradient Builder** — 2-stop linear gradient builder with two color wheels, hex fields, 0-360° angle slider, live preview
+- **First-launch nudge on `?` button** — pulsing ring + orange notification dot on QuickGuideButton until first tap or 15s auto-dismiss. Persisted via `state.nudge_seen` in `app_settings.quickguide`. Respects `prefers-reduced-motion`.
+- **Collapsible Images & files accordion** — `FullScreenNote.jsx` now wraps `<Attachments>` in a chevron-toggle accordion. Auto-collapses when the note has attachments (writing space wins); auto-expands when empty (CTA visible)
+- **Confirmed Quick Guide content is production-ready** — all 11 articles (IRR-1000 → IRR-1900 + IRR-9000) already contain real, polished editorial copy matching `QUICK_GUIDE_AUTHORING.md`. No rewrite needed.
+
+### Files touched
+- `frontend/src/data/noteIcons.js` — palette expansion
+- `frontend/src/components/BackgroundPicker.jsx` — custom color + gradient builders, scroll container
+- `frontend/src/quickguide/tokens.js` — added `nudge_seen: false` to `QG_DEFAULT_STATE`
+- `frontend/src/quickguide/QuickGuideProvider.jsx` — added `dismissNudge()`, auto-clear on `open()`
+- `frontend/src/quickguide/QuickGuideButton.jsx` — pulse class + dot, 15s auto-dismiss timer
+- `frontend/src/App.css` — `@keyframes qg-nudge-ring`, `.qg-nudge`, `.qg-nudge-dot`
+- `frontend/src/notes/FullScreenNote.jsx` — collapsible accordion around `<Attachments>`
+
+### Next session priorities
+- P1: Play Store final submission (Android build + upload)
+- P2: Auto-show a Quick Guide on the first visit to each screen (currently locked to false)
+- P3: Rich Text Editor / Inline Images (deferred)
+
+
+
 ## 📌 Session state (2026-08-05, end-of-day)
 
 ### 🎉 Shipped this session (all on preview, deploy queued)

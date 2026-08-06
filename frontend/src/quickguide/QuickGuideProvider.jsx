@@ -122,7 +122,9 @@ export function QuickGuideProvider({ children }) {
     setTemporary(!!opts.temporary);
     setOpenId(resourceId);
     bufferEvent("guide_opened", { id: resourceId, origin: opts.origin || null, temporary: !!opts.temporary });
-  }, [bufferEvent]);
+    // Opening any guide also dismisses the first-launch nudge.
+    persist(prev => (prev.nudge_seen ? {} : { nudge_seen: true }));
+  }, [bufferEvent, persist]);
 
   const close = useCallback(() => {
     if (openId) {
@@ -149,6 +151,10 @@ export function QuickGuideProvider({ children }) {
 
   const setEnabled = useCallback((enabled) => persist({ enabled }), [persist]);
   const setAutoShow = useCallback((auto_show) => persist({ auto_show }), [persist]);
+
+  const dismissNudge = useCallback(() => {
+    persist(prev => (prev.nudge_seen ? {} : { nudge_seen: true }));
+  }, [persist]);
 
   const resetTour = useCallback(() => {
     // Clears Quick Guide seen_ids only. Does NOT re-arm FirstRunTour or QuickAccess.
@@ -192,9 +198,10 @@ export function QuickGuideProvider({ children }) {
     resetTour,
     recordFeedback,
     getArticle,
+    dismissNudge,
     articleCount: BUNDLED_ARTICLES.length,
     contentVersion: manifest.content_version,
-  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle]);
+  }), [hydrated, state, openId, origin, temporary, open, close, isSeen, markSeen, setEnabled, setAutoShow, resetTour, recordFeedback, getArticle, dismissNudge]);
 
   return (
     <QuickGuideContext.Provider value={value}>

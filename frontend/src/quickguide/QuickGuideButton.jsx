@@ -8,14 +8,21 @@
  *     3 taps within QG_TOKENS.TRIPLE_TAP_WINDOW_MS opens the guide temporarily
  *     (does NOT permanently re-enable).
  *
+ * First-launch nudge:
+ *   • Until the user has opened ANY guide, the button gently pulses and shows
+ *     a small "new" dot to draw attention. Once opened (or after ~15s of
+ *     visibility on any screen), the nudge is dismissed permanently.
+ *
  * Icon stays the familiar HelpCircle (`?`) — vocabulary is "Quick Guide" but
  * the icon is universally recognised.
  */
 
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { HelpCircle } from "lucide-react";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import { QG_TOKENS } from "./tokens";
+
+const NUDGE_AUTO_DISMISS_MS = 15000;
 
 export default function QuickGuideButton({
   resourceId,
@@ -25,11 +32,20 @@ export default function QuickGuideButton({
   size = "md", // "sm" | "md"
   ariaLabel,
 }) {
-  const { state, open, getArticle } = useQuickGuideContext();
+  const { state, open, getArticle, dismissNudge } = useQuickGuideContext();
   const tapTimestampsRef = useRef([]);
 
   const article = getArticle(resourceId);
   const disabled = !article; // no article registered → render nothing rather than a dead button
+  const showNudge = !disabled && state.enabled && !state.nudge_seen;
+
+  // Auto-dismiss the nudge after the button has been visible for a while,
+  // so it never nags forever even if the user is exploring other screens.
+  useEffect(() => {
+    if (!showNudge) return;
+    const t = setTimeout(() => { dismissNudge(); }, NUDGE_AUTO_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [showNudge, dismissNudge]);
 
   const handleClick = useCallback(() => {
     if (state.enabled) {
@@ -58,15 +74,23 @@ export default function QuickGuideButton({
       type="button"
       onClick={handleClick}
       aria-label={ariaLabel || `Open Quick Guide for ${article?.title || resourceId}`}
-      title={state.enabled ? "Quick Guide" : "Quick Guides are turned off — triple-tap to peek"}
+      title={state.enabled ? (showNudge ? "New — tap for a quick guide" : "Quick Guide") : "Quick Guides are turned off — triple-tap to peek"}
       data-testid={`quickguide-btn-${resourceId}`}
-      className={`inline-flex items-center justify-center rounded-full transition ${sizeClasses} ${
+      data-nudge={showNudge ? "on" : "off"}
+      className={`relative inline-flex items-center justify-center rounded-full transition ${sizeClasses} ${
         isDark
           ? "text-slate-300 hover:text-white hover:bg-white/10"
           : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-      } ${className}`}
+      } ${showNudge ? "qg-nudge" : ""} ${className}`}
     >
       <HelpCircle className={iconSize} strokeWidth={2} />
+      {showNudge && (
+        <span
+          aria-hidden="true"
+          className="qg-nudge-dot"
+          data-testid={`quickguide-nudge-dot-${resourceId}`}
+        />
+      )}
     </button>
   );
 }

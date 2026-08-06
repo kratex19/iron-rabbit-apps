@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { format } from "date-fns";
-import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages } from "lucide-react";
+import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages, ChevronDown, Paperclip } from "lucide-react";
 import ChoresPanel from "./ChoresPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,12 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
   const [translateOpen, setTranslateOpen] = useState(false);
+  // Collapsible images/attachments accordion — collapsed by default when the
+  // note has attachments so the text area gets maximum vertical space. If
+  // there are none, we expand it so the "Take photo / Attach files" call-to-
+  // action is immediately visible.
+  const initialAttachmentCount = (note?.attachments || []).length;
+  const [attachmentsOpen, setAttachmentsOpen] = useState(initialAttachmentCount === 0);
   const noteIdRef = useRef(note?.id);
 
   // When note changes (new note opened, or synced from parent after edit), reset local state
@@ -29,6 +35,8 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
       setTitle(note.title || "");
       setContent(note.content || "");
       setDirty(false);
+      // Reset accordion state for the new note based on its attachment count.
+      setAttachmentsOpen((note.attachments || []).length === 0);
       noteIdRef.current = note.id;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,17 +128,53 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
-          <Attachments
-            attachments={note.attachments || []}
-            onChange={(newAttachments) => onSaveInline(note.id, { attachments: newAttachments })}
-            isDark={isDark}
-            onExtractText={(text) => {
-              const next = (content || "") + `\n\n${text}`;
-              setContent(next);
-              setDirty(true);
-              onSaveInline(note.id, { content: next });
-            }}
-          />
+          {/* Collapsible Images & files accordion — keeps the text area airy */}
+          <div
+            className={`rounded-lg border ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
+            data-testid="fs-attachments-accordion"
+          >
+            <button
+              type="button"
+              onClick={() => setAttachmentsOpen(v => !v)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                isDark ? "hover:bg-white/5 text-slate-200" : "hover:bg-white text-gray-700"
+              }`}
+              aria-expanded={attachmentsOpen}
+              aria-controls="fs-attachments-panel"
+              data-testid="fs-attachments-toggle"
+            >
+              <Paperclip className="w-3.5 h-3.5 opacity-70" />
+              <span className="text-xs font-semibold">Images & files</span>
+              {(note.attachments || []).length > 0 && (
+                <span
+                  className={`ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                    isDark ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                  }`}
+                  data-testid="fs-attachments-count"
+                >
+                  {(note.attachments || []).length}
+                </span>
+              )}
+              <ChevronDown
+                className={`w-4 h-4 ml-auto transition-transform ${attachmentsOpen ? "rotate-180" : "rotate-0"} ${isDark ? "text-slate-400" : "text-gray-400"}`}
+              />
+            </button>
+            {attachmentsOpen && (
+              <div id="fs-attachments-panel" className="px-3 pb-3">
+                <Attachments
+                  attachments={note.attachments || []}
+                  onChange={(newAttachments) => onSaveInline(note.id, { attachments: newAttachments })}
+                  isDark={isDark}
+                  onExtractText={(text) => {
+                    const next = (content || "") + `\n\n${text}`;
+                    setContent(next);
+                    setDirty(true);
+                    onSaveInline(note.id, { content: next });
+                  }}
+                />
+              </div>
+            )}
+          </div>
           {Array.isArray(note.chores) && (
             <ChoresPanel
               chores={note.chores}
