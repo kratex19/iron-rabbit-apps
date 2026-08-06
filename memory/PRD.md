@@ -22,6 +22,7 @@
 - **Guide History (Recently Viewed)** — `QuickGuideProvider` tracks the last 10 guides opened this session (in-memory only). Modal search panel surfaces them as a "RECENTLY VIEWED" list when the query is empty. Verified live.
 - **Pin Sync to IndexedDB** — `BackgroundPicker` now hydrates pinned lists from `StorageService.getSettings().bg_pins` on open, migrates any pre-existing localStorage pins into IndexedDB the first time, and writes pins to both stores on toggle. Because Backup exports the full `app_settings` object, pins now travel with backup files.
 - **Play Submission playbook** — New `PLAY_SUBMISSION_TODAY.md` at `/app/` — a one-page, ~90-minute walkthrough from `yarn build` → signed AAB → Play Console upload. References the existing detailed `GOOGLE_PLAY_LAUNCH.md` for deep dives. Updated the launch doc to reflect that feature graphic + 8 screenshots are already generated.
+- **Icon Pins + Recents** — `IconPicker` now surfaces a "★ Pinned" + "🕐 Recent" strip at the top of the categorized view. Uses the same architecture as background pins: recents in `localStorage['iron_rabbit_icon_recents_v1']`, pinned in `StorageService.getSettings().icon_pins` so they travel with Backup/Restore. Auto-migrates any legacy localStorage pins into IndexedDB on first open. Every picked icon is remembered (unless pinned). Star toggle moves an item between recents and pinned; `×` removes from recents.
 
 ### Files touched
 - `frontend/src/data/noteIcons.js` — palette expansion
