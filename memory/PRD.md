@@ -3,7 +3,12 @@
 
 ## 📌 Session state (2026-02-06, this session)
 
-### 🎉 Shipped this session
+### 🎉 Shipped this session (fork continuation)
+- **Community Admin Dashboard** — Private `/admin/community` route with `AdminGate` (token-based via `ADMIN_TOKEN` env). Lists submitted community tips grouped by status (Pending / Promoted / Rejected) with live counts, filter, refresh, and per-tip Promote / Reject / Restore / Delete actions. Backend endpoints: `GET/POST/DELETE /api/community/tips*` (all admin-gated via `X-Admin-Token` header) plus public `GET /api/community/promoted`. Legacy null-status tips gracefully counted as pending. Settings modal exposes a "Community Dashboard" row that opens the admin page in a new tab. Tested: 18/18 backend pytest pass, admin UI verified end-to-end.
+- **QR Scan-Back** — Iron Rabbit tip QR payloads now include a machine-readable `[IRTIP1:<url-safe-b64-json>]` marker alongside the human-readable text. `BarcodeScannerModal` (both PantryModal + AppModals wirings) detects the marker via `decodeTipPayload` and short-circuits normal barcode handling. Scanned tips are staged into `QuickGuideProvider.pendingImport` — a "Import this tip?" preview banner appears inside `QuickGuideModal` with "Save to my cards" / "Discard" actions. Saving persists as a user card in the matching guide. QR reader now also supports `qr_code` format in the web BarcodeDetector fallback + native ML Kit path.
+- **Promoted community tips surface in Quick Guide** — Provider fetches `/api/community/promoted` on mount and renders matching tips as read-only emerald-badged "Community" cards inside their guide's card carousel, alongside shipped + user cards.
+
+### 🎉 Shipped earlier this session
 - **Palette expansion** — Tile background picker: 12→43 solid colors, 10→30 gradients (`data/noteIcons.js`); scrolling panel inside dialog
 - **Custom Color Picker** — `BackgroundPicker.jsx` gets a "Custom color" panel (native color wheel + hex input + Apply)
 - **Custom Gradient Builder** — 2-stop linear gradient builder with two color wheels, hex fields, 0-360° angle slider, live preview

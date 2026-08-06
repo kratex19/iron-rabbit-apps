@@ -496,11 +496,14 @@ async def list_community_tips(
     """Admin-only: list submitted tips. Optional `status_filter=pending|promoted|rejected`."""
     _require_admin(x_admin_token)
     query: Dict[str, Any] = {}
-    if status_filter in ("pending", "promoted", "rejected"):
-        query["status"] = status_filter
-    else:
-        # Legacy rows created before the status field exist as `pending`.
-        query = {}
+    if status_filter is not None:
+        if status_filter not in ("pending", "promoted", "rejected"):
+            raise HTTPException(status_code=400, detail="Invalid status_filter")
+        if status_filter == "pending":
+            # Legacy rows created before the status field existed count as pending.
+            query = {"$or": [{"status": "pending"}, {"status": {"$exists": False}}]}
+        else:
+            query = {"status": status_filter}
     docs = await db.community_tips.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
     # Normalize legacy rows without a status field.
     for d in docs:
