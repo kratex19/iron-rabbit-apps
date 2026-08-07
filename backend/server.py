@@ -927,7 +927,7 @@ async def digest_toggle(
     return await digest_status(x_admin_token=x_admin_token)
 
 
-@api_router.get("/community/digest/unsubscribe", response_class=FileResponse)
+@api_router.get("/community/digest/unsubscribe")
 async def digest_unsubscribe(token: str):
     """Public: unsubscribe link inside the digest email. Compares against the
     stored per-install token and disables future weekly sends when it matches.
@@ -1292,8 +1292,8 @@ async def _weekly_digest_job():
 @app.on_event("startup")
 async def _start_scheduler():
     global _scheduler
-    if _scheduler and _scheduler.running:
-        return
+    if _scheduler is not None:
+        return  # already registered — avoid double-scheduling on reload
     _scheduler = AsyncIOScheduler(timezone="UTC")
     _scheduler.add_job(
         _weekly_digest_job,
