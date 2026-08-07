@@ -4,17 +4,15 @@
 ## 📌 Session state (2026-02-06, this session)
 
 ### 🎉 Shipped this session (fork continuation)
-- **Nickname Reservations** — Implicit (any `nickname + email` pair in a prior tip claims the name) + explicit (`POST /api/community/nicknames/reserve` with idempotent same-email upsert). Public status endpoint `GET /api/community/nicknames/{n}/status?email=...` with reasons `free / claimed_by_you / taken / invalid`. Submit and reserve both return 409 on collision. Unique index on `nickname_reservations.nickname` prevents race. Frontend `CommunityShareDialog` shows live status (debounced 400ms) as user types + disables submit when taken.
-- **Wall Sharing** — Canvas-generated PNG social card with dual format (1200×630 landscape / 1080×1080 square) picker. Big gradient `@nickname`, tip count, latest heading, brand ribbon. Download PNG + native Share (falls back to download when unavailable). Share button on every `ContributorWall` card. "You" badge + label swap ("Share your card" vs "Share this contributor") when the nickname is stored in `localStorage['irr.owned_nicknames']` (auto-populated on tip submission, capped at 50).
-- **server.py refactor** — Monolith split into `deps.py` + `models/{notes,community,digest,analytics}.py` + `routes/{notes,community,digest,analytics,misc}.py`. `server.py` ~102 lines.
-- **Anonymous Nickname** — Optional `nickname` field on tips, rendered on Community cards, FeaturedTipStrip byline, thank-you email, Contributor Wall.
-- **Contributor Wall** — Public `/contributors` and `/community/wall` responsive grid.
-- **Contributor Thank-You** — Warm HTML email via Resend on promote (silent-skip when RESEND_API_KEY empty).
-- **Featured Tip Analytics** — Anonymous events + admin bar chart + 180-day TTL.
-- **Featured Tip Rotation** — Daily deterministic pick + home-screen strip.
-- **Digest Schedule** — APScheduler weekly Monday 09:00 UTC + unsubscribe.
-- **Import from Text (LLM bulk import)** — Shared dialog for admin + Quick Guide.
-- **Community Digest Email + Community Admin Dashboard + QR Scan-Back + Promoted community cards in Quick Guide** — all shipped earlier in this session.
+- **Share Card Themes** — 4 palette presets (Mint/Rose/Midnight/Sunset) with row of chip swatches above the format toggle in `WallShareDialog`. Choice persists via `localStorage['irr.wall_share_theme']`. Canvas repaints instantly with new gradient BG + nickname gradient + ribbon color.
+- **Nickname Recovery** — Two-step public flow via `POST /api/community/nicknames/{n}/recovery` (generates 6-digit code, 30-min TTL, emails ORIGINAL owner via Resend, silent-fails delivered=false when Resend not configured) + `POST /api/community/nicknames/{n}/recovery/verify` (transfers ownership + rewrites tip email + single-use code deletion). Frontend `NicknameRecoveryDialog` on every ContributorWall card that isn't yours (with `KeyRound` icon). Backend never leaks whether nickname is claimed vs unclaimed (both return `ok:true` — one with reason `not-claimed`).
+- **Wall Filter** — Client-side substring search on ContributorWall (nickname + latest_heading). Clear button + empty state.
+- **Nickname Reservations** — Implicit + explicit `POST /api/community/nicknames/reserve` with idempotent same-email upsert, unique index on reservation nickname.
+- **Wall Sharing** — Canvas-generated PNG social card (1200×630 or 1080×1080). Download + native Share.
+- **server.py refactor** — Monolith → `deps.py` + `models/` + `routes/`. `server.py` ~102 lines.
+- **Anonymous Nickname** — Optional field on tips.
+- **Contributor Wall** — Public `/contributors` + `/community/wall` responsive grid.
+- **Contributor Thank-You + Featured Tip Analytics + Rotation + Digest Schedule + Import from Text + Community Digest + Admin Dashboard + QR Scan-Back + Promoted cards in Quick Guide** — shipped earlier this session.
 
 ### 🎉 Shipped earlier this session
 - **Palette expansion** — Tile background picker: 12→43 solid colors, 10→30 gradients (`data/noteIcons.js`); scrolling panel inside dialog
