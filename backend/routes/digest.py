@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 scheduler = None
 
 
-def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dict[str, Any]], generated_at: str, unsubscribe_url: Optional[str] = None) -> str:
+def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dict[str, Any]], generated_at: str, unsubscribe_url: Optional[str] = None, funnel_line: Optional[Dict[str, Any]] = None) -> str:
     """Inline-styled HTML digest. Email HTML must never rely on external CSS."""
     def esc(s: str) -> str:
         return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
@@ -51,6 +51,31 @@ def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dic
         'No new pending tips this week.</td></tr>'
     )
     promoted_rows = "".join(row(t) for t in promoted_recent) or ""
+
+    # Recovery funnel one-liner — a tiny "green day" summary so a healthy
+    # week doesn't require opening the dashboard to know it. Only rendered
+    # when funnel_line was supplied and has actual open activity.
+    funnel_html = ''
+    if funnel_line and funnel_line.get("opens_total", 0) > 0:
+        share_pct = round(funnel_line.get("share", 0.0) * 100)
+        active = int(funnel_line.get("active_alerts", 0))
+        alert_txt = (
+            f'<span style="color:#B45309;">{active} active drop alert{"" if active == 1 else "s"}</span>'
+            if active > 0
+            else '<span style="color:#059669;">no active drop alerts</span>'
+        )
+        funnel_html = (
+            '<tr><td style="padding:16px 24px 4px;font-family:-apple-system,sans-serif;'
+            'font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#64748B;'
+            'font-weight:600;">Recovery funnel</td></tr>'
+            '<tr><td style="padding:0 24px 12px;font-family:-apple-system,sans-serif;'
+            'font-size:14px;color:#0F172A;line-height:1.5;">'
+            f'<strong>{share_pct}%</strong> magic-link share this week '
+            f'<span style="color:#94A3B8;">'
+            f'({funnel_line.get("magic", 0)} magic + {funnel_line.get("manual", 0)} manual) — '
+            f'</span>{alert_txt}.'
+            '</td></tr>'
+        )
 
     unsubscribe_html = ''
     if unsubscribe_url:
@@ -76,6 +101,7 @@ def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dic
         '<div style="font-size:22px;font-weight:700;margin-top:4px;">Community Digest</div>'
         f'<div style="font-size:12px;opacity:0.85;margin-top:4px;">Generated {esc(generated_at)}</div>'
         '</td></tr>'
+        + funnel_html +
         '<tr><td style="padding:20px 24px 8px;font-family:-apple-system,sans-serif;'
         'font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#64748B;'
         'font-weight:600;">Pending review</td></tr>'
@@ -132,6 +158,39 @@ async def send_digest_now(*, dry_run: bool = False, force_when_empty: bool = Tru
         {"status": "promoted"}, {"_id": 0},
     ).sort("promoted_at", -1).to_list(10)
 
+    # Recovery-funnel summary for the past 7 days. Kept inline (no separate
+    # helper import) so the digest keeps its self-contained shape.
+    from datetime import timedelta as _timedelta
+    now_utc = datetime.now(timezone.utc)
+    since = now_utc - _timedelta(days=7)
+    open_counts: Dict[str, int] = {}
+    async for r in db.recovery_events.aggregate([
+        {"$match": {"at": {"$gte": since},
+                    "event": {"$in": ["magic_link_opened", "manual_entry_opened"]}}},
+        {"$group": {"_id": "$event", "n": {"$sum": 1}}},
+    ]):
+        open_counts[r["_id"]] = int(r["n"])
+    magic = open_counts.get("magic_link_opened", 0)
+    manual = open_counts.get("manual_entry_opened", 0)
+    opens_total = magic + manual
+    active_alerts = await db.recovery_alerts.count_documents({
+        "$and": [
+            {"$or": [{"dismissed_at": {"$exists": False}}, {"dismissed_at": None}]},
+            {"$or": [
+                {"snooze_until": {"$exists": False}},
+                {"snooze_until": None},
+                {"snooze_until": {"$lt": now_utc}},
+            ]},
+        ],
+    })
+    funnel_line = {
+        "share": (magic / opens_total) if opens_total else 0.0,
+        "magic": magic,
+        "manual": manual,
+        "opens_total": opens_total,
+        "active_alerts": active_alerts,
+    }
+
     counts = {"pending": len(pending), "promoted": len(promoted_recent)}
     if not force_when_empty and counts["pending"] == 0:
         return DigestSendResponse(
@@ -146,7 +205,7 @@ async def send_digest_now(*, dry_run: bool = False, force_when_empty: bool = Tru
     if not public_base:
         public_base = (os.environ.get("CORS_ORIGINS", "").split(",")[0] or "").strip().rstrip("/")
     unsubscribe_url = f"{public_base}/api/community/digest/unsubscribe?token={unsub_token}" if public_base else None
-    html = _render_digest_html(pending, promoted_recent, generated_at, unsubscribe_url)
+    html = _render_digest_html(pending, promoted_recent, generated_at, unsubscribe_url, funnel_line=funnel_line)
 
     if dry_run:
         return DigestSendResponse(

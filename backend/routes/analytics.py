@@ -16,7 +16,7 @@ from models.analytics import (
     RecoveryFunnelResponse, RecoveryWeekPoint,
 )
 
-from deps import db, require_admin, SLACK_WEBHOOK_URL, PUBLIC_APP_URL, SLACK_SIGNING_SECRET
+from deps import db, require_admin, SLACK_WEBHOOK_URL, PUBLIC_APP_URL, SLACK_SIGNING_SECRET, AUTO_DISMISS_SHARE_THRESHOLD
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
@@ -233,10 +233,11 @@ async def _detect_and_ping_drop() -> Dict[str, Any]:
 
     # Auto-dismiss: latest week has healthy share → the funnel has recovered,
     # so any lingering active alerts should quietly clear themselves. We
-    # gate on the LATEST week only (not any week ≥65%) so a mid-window
-    # bounce that then dips again doesn't dismiss prematurely.
+    # gate on the LATEST week only (not any week ≥ threshold) so a mid-window
+    # bounce that then dips again doesn't dismiss prematurely. Threshold is
+    # env-tunable via AUTO_DISMISS_SHARE_THRESHOLD (default 0.65).
     auto_dismissed_ids: List[str] = []
-    if series and series[-1]["opens_total"] > 0 and series[-1]["magic_link_share"] >= 0.65:
+    if series and series[-1]["opens_total"] > 0 and series[-1]["magic_link_share"] >= AUTO_DISMISS_SHARE_THRESHOLD:
         cursor = db.recovery_alerts.find({
             "$and": [
                 {"$or": [{"dismissed_at": {"$exists": False}}, {"dismissed_at": None}]},

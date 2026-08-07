@@ -45,6 +45,14 @@ SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
 # Slack (button clicks on drop-alert messages). Empty = interactive endpoint
 # refuses all requests.
 SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "").strip()
+# Auto-dismiss threshold — when the latest weekly window's magic_link_share
+# is ≥ this fraction, active recovery alerts get auto-dismissed on the
+# next detector run. Env override lets you tune after a launch review.
+try:
+    _t = float(os.environ.get("AUTO_DISMISS_SHARE_THRESHOLD", "0.65"))
+except ValueError:
+    _t = 0.65
+AUTO_DISMISS_SHARE_THRESHOLD = max(0.0, min(1.0, _t))
 
 logger = logging.getLogger(__name__)
 
