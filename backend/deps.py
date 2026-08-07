@@ -41,6 +41,10 @@ SCREENSHOT_CRON_ENABLED = os.environ.get("SCREENSHOT_CRON_ENABLED", "").lower() 
 # Optional Slack incoming-webhook URL — recovery-funnel drop alerts POST here.
 # Missing/empty → alerts stay in-dashboard only.
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+# Slack app signing secret — required to accept interactive callbacks from
+# Slack (button clicks on drop-alert messages). Empty = interactive endpoint
+# refuses all requests.
+SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "").strip()
 
 logger = logging.getLogger(__name__)
 

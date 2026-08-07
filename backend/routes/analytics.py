@@ -8,14 +8,15 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from deps import db, require_admin, SLACK_WEBHOOK_URL
 from models.analytics import (
     CommunityEventsRequest,
     AnalyticsResponse, AnalyticsTipRow,
     RecoveryFunnelResponse, RecoveryWeekPoint,
 )
+
+from deps import db, require_admin, SLACK_WEBHOOK_URL, PUBLIC_APP_URL, SLACK_SIGNING_SECRET
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
@@ -201,6 +202,11 @@ _DROP_ALERT_THRESHOLD = 20  # percentage points
 async def _detect_and_ping_drop() -> Dict[str, Any]:
     """Compute the worst adjacent-week share drop >20pts (both weeks non-zero).
     If found and never previously pinged, POST to Slack + persist the marker.
+
+    Also auto-dismisses active alerts whose *most recent* week has recovered
+    to ≥65% magic-link share — so "the fire is out" reflects in the dashboard
+    without a manual click. Audit trail stays intact via `auto_dismissed_at`.
+
     Returns a summary dict so callers can log the outcome."""
     now = datetime.now(timezone.utc)
     series: List[Dict[str, Any]] = []
@@ -225,6 +231,34 @@ async def _detect_and_ping_drop() -> Dict[str, Any]:
             "opens_total": w_total,
         })
 
+    # Auto-dismiss: latest week has healthy share → the funnel has recovered,
+    # so any lingering active alerts should quietly clear themselves. We
+    # gate on the LATEST week only (not any week ≥65%) so a mid-window
+    # bounce that then dips again doesn't dismiss prematurely.
+    auto_dismissed_ids: List[str] = []
+    if series and series[-1]["opens_total"] > 0 and series[-1]["magic_link_share"] >= 0.65:
+        cursor = db.recovery_alerts.find({
+            "$and": [
+                {"$or": [{"dismissed_at": {"$exists": False}}, {"dismissed_at": None}]},
+                {"$or": [
+                    {"snooze_until": {"$exists": False}},
+                    {"snooze_until": None},
+                    {"snooze_until": {"$lt": now}},
+                ]},
+            ],
+        })
+        async for row in cursor:
+            await db.recovery_alerts.update_one(
+                {"_id": row["_id"]},
+                {"$set": {
+                    "dismissed_at": now,
+                    "auto_dismissed_at": now,
+                    "auto_dismissed_reason": "share_recovered",
+                    "auto_dismissed_at_share": series[-1]["magic_link_share"],
+                }},
+            )
+            auto_dismissed_ids.append(row.get("week_start", ""))
+
     # Largest qualifying drop across adjacent pairs.
     worst = None
     for i in range(1, len(series)):
@@ -236,31 +270,71 @@ async def _detect_and_ping_drop() -> Dict[str, Any]:
             worst = {"delta": delta, "from": a, "to": b}
 
     if not worst:
-        return {"alerted": False, "reason": "no qualifying drop"}
+        return {"alerted": False, "reason": "no qualifying drop",
+                "auto_dismissed": auto_dismissed_ids}
 
     # Dedupe: don't re-alert if we already pinged for this exact `to.week_start`.
     marker_key = worst["to"]["week_start"]
     existing = await db.recovery_alerts.find_one({"week_start": marker_key})
     if existing:
-        return {"alerted": False, "reason": "already alerted", "week_start": marker_key}
+        return {"alerted": False, "reason": "already alerted",
+                "week_start": marker_key,
+                "auto_dismissed": auto_dismissed_ids}
 
     posted = False
     if SLACK_WEBHOOK_URL:
         try:
             import requests as _requests
-            text = (
-                f":warning: *Iron Rabbit — recovery funnel alert*\n"
-                f"Magic-link share dropped *{worst['delta']} points* week-over-week.\n"
-                f"• {worst['from']['week_start']} → {worst['from']['week_end']}: "
-                f"*{round(worst['from']['magic_link_share'] * 100)}%*\n"
-                f"• {worst['to']['week_start']} → {worst['to']['week_end']}: "
-                f"*{round(worst['to']['magic_link_share'] * 100)}%*\n"
-                f"Check recent email deliverability or landing-page copy."
+            summary = (
+                f":warning: Iron Rabbit — recovery funnel alert · "
+                f"{worst['delta']} pt drop week of {worst['to']['week_start']}"
             )
+            blocks = [
+                {"type": "section", "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f":warning: *Iron Rabbit — recovery funnel alert*\n"
+                        f"Magic-link share dropped *{worst['delta']} points* week-over-week.\n"
+                        f"• {worst['from']['week_start']} → {worst['from']['week_end']}: "
+                        f"*{round(worst['from']['magic_link_share'] * 100)}%*\n"
+                        f"• {worst['to']['week_start']} → {worst['to']['week_end']}: "
+                        f"*{round(worst['to']['magic_link_share'] * 100)}%*\n"
+                        f"Check recent email deliverability or landing-page copy."
+                    ),
+                }},
+                # Interactive dismiss button — the `value` carries week_start so
+                # the interactive handler can PATCH it without a lookup. Slack
+                # only invokes the interactive endpoint if a Slack app + signing
+                # secret are configured; otherwise the button opens the dashboard.
+                {"type": "actions", "block_id": "recovery_alert_actions", "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Dismiss alert"},
+                        "style": "primary",
+                        "action_id": "dismiss_recovery_alert",
+                        "value": worst["to"]["week_start"],
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Snooze 7d"},
+                        "action_id": "snooze_recovery_alert",
+                        "value": worst["to"]["week_start"],
+                    },
+                    *([{
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Open dashboard"},
+                        "url": f"{PUBLIC_APP_URL}/admin/community",
+                    }] if PUBLIC_APP_URL else []),
+                ]},
+                # Context row keeps the week_start visible even after a click.
+                {"type": "context", "elements": [
+                    {"type": "mrkdwn", "text": f":date: `week_start: {worst['to']['week_start']}`"},
+                ]},
+            ]
             await asyncio.to_thread(
                 _requests.post,
                 SLACK_WEBHOOK_URL,
-                json={"text": text},
+                json={"text": summary, "blocks": blocks},
                 timeout=8,
             )
             posted = True
@@ -276,7 +350,7 @@ async def _detect_and_ping_drop() -> Dict[str, Any]:
         "alerted_at": datetime.now(timezone.utc),
     })
     return {"alerted": True, "posted_to_slack": posted, "delta": worst["delta"],
-            "week_start": marker_key}
+            "week_start": marker_key, "auto_dismissed": auto_dismissed_ids}
 
 
 @router.post("/admin/recovery/check-drop", dependencies=[Depends(require_admin)])
@@ -349,3 +423,89 @@ async def admin_patch_recovery_alert(week_start: str, payload: Dict[str, Any]):
 
     await db.recovery_alerts.update_one({"week_start": week_start}, update)
     return {"ok": True, "action": action}
+
+
+# =============================================================================
+# Slack interactive endpoint. Handles button clicks from the drop-alert
+# message so admins can dismiss/snooze without opening the dashboard.
+#
+# Slack signs every callback with an HMAC-SHA256 signature over
+#   `v0:{timestamp}:{raw_body}`  using the signing secret from the Slack app.
+# We reject anything without a valid signature to prevent forgery.
+#
+# Not registered unless SLACK_SIGNING_SECRET is set — a missing secret means
+# no Slack app is wired yet, so accepting the endpoint would be a footgun.
+# =============================================================================
+import hmac
+import hashlib
+import time as _time
+from urllib.parse import parse_qs
+
+
+def _verify_slack_signature(timestamp: str, body: bytes, signature: str) -> bool:
+    """Constant-time HMAC verification per Slack docs. `timestamp` older than
+    5 minutes is refused (replay-attack window)."""
+    if not SLACK_SIGNING_SECRET or not timestamp or not signature:
+        return False
+    try:
+        if abs(_time.time() - float(timestamp)) > 60 * 5:
+            return False
+    except ValueError:
+        return False
+    basestring = f"v0:{timestamp}:".encode() + body
+    expected = "v0=" + hmac.new(
+        SLACK_SIGNING_SECRET.encode(), basestring, hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+@router.post("/slack/interactive")
+async def slack_interactive(request: Request):
+    """Receiver for Slack Block Kit button clicks. Requires the Slack app's
+    signing secret to be configured — otherwise returns 503 so misconfigured
+    installs fail loudly."""
+    if not SLACK_SIGNING_SECRET:
+        raise HTTPException(status_code=503, detail="Slack interactivity not configured")
+
+    body = await request.body()
+    ts = request.headers.get("X-Slack-Request-Timestamp", "")
+    sig = request.headers.get("X-Slack-Signature", "")
+    if not _verify_slack_signature(ts, body, sig):
+        raise HTTPException(status_code=401, detail="Invalid Slack signature")
+
+    # Slack posts as form-urlencoded with a `payload` field holding JSON.
+    form = parse_qs(body.decode("utf-8", errors="replace"))
+    payload_raw = (form.get("payload") or [""])[0]
+    try:
+        payload = _json.loads(payload_raw)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed payload")
+
+    actions = payload.get("actions") or []
+    if not actions:
+        return {"text": "no action"}
+    a = actions[0]
+    action_id = a.get("action_id") or ""
+    week_start = a.get("value") or ""
+    if not week_start:
+        return {"text": "missing week_start"}
+
+    now = datetime.now(timezone.utc)
+    if action_id == "dismiss_recovery_alert":
+        await db.recovery_alerts.update_one(
+            {"week_start": week_start},
+            {"$set": {"dismissed_at": now, "dismissed_via": "slack"}},
+        )
+        summary = f":white_check_mark: Dismissed alert for week of {week_start}"
+    elif action_id == "snooze_recovery_alert":
+        await db.recovery_alerts.update_one(
+            {"week_start": week_start},
+            {"$set": {"snooze_until": now + timedelta(days=7), "snoozed_via": "slack"}},
+        )
+        summary = f":zzz: Snoozed alert for week of {week_start} (7 days)"
+    else:
+        return {"text": f"unknown action `{action_id}`"}
+
+    # `replace_original: true` swaps the original message so the row shows as
+    # handled. Slack expects a 200 within 3s; the update is quick.
+    return {"replace_original": True, "text": summary}
