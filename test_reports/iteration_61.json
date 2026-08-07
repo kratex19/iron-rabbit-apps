@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 61 — validated the three launch-mode enhancements on top of iter60: (1) Wall NEW ribbon, (2) Recovery Analytics + server-side funnel events, (3) Play-screenshot script output. 38/38 backend pytest cases pass — 14 new (test_recovery_analytics.py) + 24 regression across test_nickname_recovery.py + test_nickname_recovery_rate_limit.py. Public /api/community/recovery/track accepts only {magic_link_opened, manual_entry_opened}; email_sent/verify_success/verify_failed correctly rejected with 400. GET /api/community/recovery/analytics is 401 without X-Admin-Token, returns full field set with valid token, respects days= window, and magic_link_share math checks out (rounded to 3, 0.0 when no opens). Server-side funnel confirmed: request against claimed nickname → +1 email_sent; wrong verify → +1 verify_failed; correct planted-hash verify → +1 verify_success. Frontend: on /contributors both veggie_wizard and cook_ninja show `wall-new-badge-<nick>` amber 'New' ribbon, and the badges are freshness-based (still visible after switching to Recent sort). Opening NicknameRecoveryDialog from the Wall fires POST /api/community/recovery/track {event:'manual_entry_opened'} exactly once. Landing on /recover?n=veggie_wizard&c=123456 mounts the recovery dialog with prefill '123456' and fires magic_link_opened (see minor note about dev-mode StrictMode below). Screenshot script output at /app/frontend/public/screenshots/play/ all 8 PNGs are valid 1080x1920, 43-215 KB; 08-magic-link.png shows the recovery dialog (not the invalid explainer).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "RecoverLandingPage magic_link_opened event",
+        "issue": "In the preview env the funnel POST fires TWICE per /recover landing. Root cause is React 18 <React.StrictMode> double-invoking useEffect in dev mode (frontend is running `craco start`, not a production build). In a production build this effect runs once. The manual_entry_opened path only fired once in the same run because the effect depends on both isOpen and prefillCode and the dialog mount cycle wasn't StrictMode-doubled in that specific interaction. Not a code defect — inflation risk is only in dev. If concerned about matching the spec strictly ('exactly once per landing'), a ref-guard (`const fired = useRef(false)`) inside the effect would make it idempotent regardless of build mode.",
+        "affected_selectors": ["[data-testid=\"recover-landing\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_recovery_analytics.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/iter61.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: Add a useRef-guarded one-shot to RecoverLandingPage's magic_link_opened effect so counts are exact even under React.StrictMode dev double-invocation. Prod builds already fire once."
+  ],
+  "critical_code_review_comments": [
+    "/api/community/recovery/track uses a raw Dict[str, Any] payload instead of the already-defined RecoveryEventRequest Pydantic model in models/analytics.py. Minor DRY/consistency nit — swapping to `payload: RecoveryEventRequest` would let FastAPI reject non-string events with a proper 422 and document the schema in OpenAPI.",
+    "_track_recovery swallows all insert errors with a bare except+log — good for best-effort funnel, but consider a Motor connection metric so silent DB outages aren't invisible.",
+    "ContributorWall.isFreshlyPromoted uses Date.now() and Date.parse — timezone-safe. Good.",
+    "RecoverLandingPage effect key is [valid] which is a memo; useEffect will re-run only when validity flips. Combined with StrictMode dev double-mount this fires twice in dev, once in prod. Consider ref-guard if you want deterministic counts in dev too.",
+    "recovery_events collection has no TTL index — long-lived funnel data will grow unbounded. If retention matters, add `db.recovery_events.createIndex({at:1}, {expireAfterSeconds: 60*60*24*90})` for a 90-day rolling window."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_recovery_analytics.py (new — 14 tests)",
+    "/app/backend/tests/conftest.py (new — loads backend/.env + frontend/.env so pytest sees MONGO_URL/DB_NAME/REACT_APP_BACKEND_URL)"
+  ],
+  "success_rate": { "backend": "100% (38/38)", "frontend": "100%" },
+  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from backend/.env). No user-auth.",
+  "seed_data_creation": "test_recovery_analytics seeds TESTa61_<run> nickname + tip and cleans up in test_zzz_cleanup; it also purges recovery_events written during its own window (WINDOW_START snapshot). No preview-DB rows outside the TEST_ prefix are modified.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suite is now 38 tests via test_recovery_analytics.py + test_nickname_recovery.py + test_nickname_recovery_rate_limit.py, invoked as `pytest backend/tests/test_recovery_analytics.py backend/tests/test_nickname_recovery.py backend/tests/test_nickname_recovery_rate_limit.py`. conftest.py loads .env files automatically. If you want to run inside /app/backend, MONGO_URL/DB_NAME are picked up from backend/.env; REACT_APP_BACKEND_URL is picked up from frontend/.env. Preview DB has veggie_wizard + cook_ninja both promoted today — expect both to show `wall-new-badge-*`. If you need to force the negative NEW-ribbon case for frontend E2E, mutate `db.community_tips.updateMany({nickname:'veggie_wizard'},{$set:{promoted_at:<30-days-ago ISO>}})` then reload /contributors. Frontend is running `craco start` (dev mode) so React.StrictMode double-invokes some effects — factor that into funnel-count math when doing precise E2E counts.",
+  "rca of the issue": "N/A — no defects observed. Single dev-mode observation (StrictMode double effect on RecoverLandingPage magic_link_opened) documented in frontend_issues.integration_issues; it does not affect production builds."
+}

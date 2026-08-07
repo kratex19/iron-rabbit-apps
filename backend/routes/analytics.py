@@ -12,6 +12,7 @@ from deps import db, require_admin
 from models.analytics import (
     CommunityEventsRequest,
     AnalyticsResponse, AnalyticsTipRow,
+    RecoveryFunnelResponse,
 )
 
 router = APIRouter(prefix="/api")
@@ -118,4 +119,39 @@ async def community_analytics(days: int = 30):
         generated_at=datetime.now(timezone.utc).isoformat(),
         total_events=total,
         tips=tips,
+    )
+
+
+@router.get(
+    "/community/recovery/analytics",
+    response_model=RecoveryFunnelResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def recovery_funnel(days: int = 30):
+    """Admin-only: recovery-flow funnel counts over the last N days.
+
+    `magic_link_share` is the fraction of *opens* that came from the emailed
+    magic link vs manual entry from the Wall — the metric that answers
+    'is the deep link worth the URL length?'. Zero when nobody opened either
+    branch (avoids /0 in the client)."""
+    days = max(1, min(365, int(days or 30)))
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    counts: Dict[str, int] = {}
+    async for row in db.recovery_events.aggregate([
+        {"$match": {"at": {"$gte": since}}},
+        {"$group": {"_id": "$event", "n": {"$sum": 1}}},
+    ]):
+        counts[row["_id"]] = int(row["n"])
+    magic = counts.get("magic_link_opened", 0)
+    manual = counts.get("manual_entry_opened", 0)
+    share = round(magic / (magic + manual), 3) if (magic + manual) else 0.0
+    return RecoveryFunnelResponse(
+        window_days=days,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        email_sent=counts.get("email_sent", 0),
+        magic_link_opened=magic,
+        manual_entry_opened=manual,
+        verify_failed=counts.get("verify_failed", 0),
+        verify_success=counts.get("verify_success", 0),
+        magic_link_share=share,
     )

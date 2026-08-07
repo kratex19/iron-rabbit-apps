@@ -25,6 +25,17 @@ function formatDate(iso) {
   } catch { return ""; }
 }
 
+// A contributor is "freshly promoted" if their latest tip was promoted within
+// the last 7 days. Rendered as a subtle NEW ribbon so newcomers pop even in
+// the default "Top" sort where they'd otherwise be buried by veterans.
+const FRESH_MS = 7 * 24 * 60 * 60 * 1000;
+function isFreshlyPromoted(iso) {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < FRESH_MS;
+}
+
 export default function ContributorWall() {
   const [contributors, setContributors] = useState(null);
   const [error, setError] = useState(false);
@@ -205,6 +216,7 @@ export default function ContributorWall() {
             >
               {filteredContributors.map(c => {
                 const isMine = ownedNicks.includes(c.nickname);
+                const isFresh = isFreshlyPromoted(c.latest_promoted_at);
                 return (
                 <li
                   key={c.nickname}
@@ -218,6 +230,15 @@ export default function ContributorWall() {
                   {isMine && (
                     <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500 text-white" data-testid={`wall-mine-badge-${c.nickname}`}>
                       You
+                    </div>
+                  )}
+                  {isFresh && !isMine && (
+                    <div
+                      className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/90 text-slate-900 shadow-sm shadow-amber-500/30"
+                      data-testid={`wall-new-badge-${c.nickname}`}
+                      title="Promoted in the last 7 days"
+                    >
+                      New
                     </div>
                   )}
                   <div className="flex items-center gap-2 mb-2">

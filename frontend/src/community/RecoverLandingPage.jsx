@@ -9,7 +9,7 @@
  * with a link back to the Contributor Wall.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { KeyRound, ArrowLeft } from "lucide-react";
 import NicknameRecoveryDialog from "./NicknameRecoveryDialog";
@@ -32,6 +32,21 @@ export default function RecoverLandingPage() {
     () => isValidNickname(nickname) && isValidCode(code),
     [nickname, code]
   );
+
+  // Fire the magic-link funnel event once per valid landing. Best-effort —
+  // failures are swallowed so the recovery flow itself is never blocked.
+  useEffect(() => {
+    if (!valid) return;
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      fetch(`${base}/api/community/recovery/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "magic_link_opened" }),
+        keepalive: true,
+      }).catch(() => { /* funnel is best-effort */ });
+    } catch (e) { /* ignore */ }
+  }, [valid]);
 
   return (
     <div className="min-h-screen bg-[#0B1221] text-white flex flex-col" data-testid="recover-landing">

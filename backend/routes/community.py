@@ -290,11 +290,26 @@ import hashlib as _hashlib
 
 _RECOVERY_MAX_FAILED = 3
 _RECOVERY_LOCK_DURATION = timedelta(hours=1)
+_RECOVERY_EVENTS = {"email_sent", "magic_link_opened", "manual_entry_opened", "verify_failed", "verify_success"}
 
 
 def _hash_recovery_code(nickname: str, code: str) -> str:
     """SHA-256 of `<nickname>:<code>`. Nickname acts as a lightweight salt."""
     return _hashlib.sha256(f"{nickname}:{code}".encode("utf-8")).hexdigest()
+
+
+async def _track_recovery(event: str) -> None:
+    """Fire-and-forget funnel event. Failures are swallowed so analytics never
+    blocks the recovery flow itself. Only whitelisted events are stored."""
+    if event not in _RECOVERY_EVENTS:
+        return
+    try:
+        await db.recovery_events.insert_one({
+            "event": event,
+            "at": datetime.now(timezone.utc),
+        })
+    except Exception:
+        logger.exception("recovery event insert failed: %s", event)
 
 
 def _parse_dt(value: Any) -> Optional[datetime]:
@@ -415,11 +430,29 @@ async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequ
         except Exception:
             logger.exception("nickname recovery email failed")
 
+    # Track email_sent on every request where a code was issued (owner exists
+    # and we weren't locked). Delivered flag is orthogonal — even when Resend
+    # is disabled we've minted a code that could be surfaced via admin.
+    await _track_recovery("email_sent")
+
     return NicknameRecoveryResponse(
         ok=True, delivered=delivered,
         reason="sent" if delivered else "email disabled",
         masked_email=_mask_email(owner),
     )
+
+
+@router.post("/community/recovery/track")
+async def track_recovery_event(payload: Dict[str, Any]):
+    """Public no-auth funnel event. Callers post {event: 'magic_link_opened' |
+    'manual_entry_opened'}. Only two client events are accepted — server-side
+    events (email_sent, verify_success, verify_failed) are written internally
+    to prevent inflation from a hostile caller."""
+    event = str(payload.get("event") or "").strip()
+    if event not in {"magic_link_opened", "manual_entry_opened"}:
+        raise HTTPException(status_code=400, detail="unsupported event")
+    await _track_recovery(event)
+    return {"ok": True}
 
 
 @router.post("/community/nicknames/{nickname}/recovery/verify", response_model=NicknameStatusResponse)
@@ -474,6 +507,7 @@ async def verify_nickname_recovery(nickname: str, payload: NicknameRecoveryVerif
         if attempts >= _RECOVERY_MAX_FAILED:
             update["locked_until"] = datetime.now(timezone.utc) + _RECOVERY_LOCK_DURATION
         await db.nickname_recoveries.update_one({"_id": rec["_id"]}, {"$set": update})
+        await _track_recovery("verify_failed")
         if attempts >= _RECOVERY_MAX_FAILED:
             lu = update["locked_until"]
             raise HTTPException(
@@ -497,6 +531,7 @@ async def verify_nickname_recovery(nickname: str, payload: NicknameRecoveryVerif
         {"$set": {"contributor_email": new_email}},
     )
     await db.nickname_recoveries.delete_one({"_id": rec["_id"]})
+    await _track_recovery("verify_success")
     return NicknameStatusResponse(
         nickname=clean, available=True, reason="claimed_by_you", owned_by_you=True,
     )

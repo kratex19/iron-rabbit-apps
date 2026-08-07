@@ -32,3 +32,21 @@ class AnalyticsResponse(BaseModel):
     generated_at: str
     total_events: int
     tips: List[AnalyticsTipRow]
+
+
+# --- Recovery-flow funnel analytics ----------------------------------------
+# Tracks whether users complete recovery via the emailed magic link or via
+# manual code entry (so we can decide if the deep link earns its URL length).
+class RecoveryEventRequest(BaseModel):
+    event: str  # "magic_link_opened" | "manual_entry_opened"
+
+
+class RecoveryFunnelResponse(BaseModel):
+    window_days: int
+    generated_at: str
+    email_sent: int = 0
+    magic_link_opened: int = 0
+    manual_entry_opened: int = 0
+    verify_failed: int = 0
+    verify_success: int = 0
+    magic_link_share: float = 0.0  # opens attributable to the magic link

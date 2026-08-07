@@ -60,6 +60,22 @@ export default function NicknameRecoveryDialog({ isOpen, nickname, prefillCode, 
     }
   }, [isOpen, prefillCode]);
 
+  // Funnel event: user opened the dialog WITHOUT a magic-link prefill →
+  // manual entry from the Wall. Fired once per open. Server-side email_sent /
+  // verify_* events cover the other half of the funnel.
+  React.useEffect(() => {
+    if (!isOpen || prefillCode) return;
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      fetch(`${base}/api/community/recovery/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "manual_entry_opened" }),
+        keepalive: true,
+      }).catch(() => { /* funnel is best-effort */ });
+    } catch (e) { /* ignore */ }
+  }, [isOpen, prefillCode]);
+
   if (!isOpen || !nickname) return null;
 
   const close = () => {
