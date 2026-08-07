@@ -572,7 +572,7 @@ function NotificationsPanel({ isDark }) {
 
   return (
     <div className={`rounded-md p-3 ${chipCls}`} data-testid="notifications-panel">
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-3 mb-3">
         <div className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeCls}`} data-testid="notifications-permission-status">
           {status === "granted" ? "Enabled" : status === "denied" ? "Blocked" : status === "unsupported" ? "Not supported" : "Not asked"}
         </div>
@@ -580,7 +580,7 @@ function NotificationsPanel({ isDark }) {
           <button
             type="button"
             onClick={requestPermission}
-            className="text-xs px-3 py-1 rounded-md bg-indigo-500 hover:bg-indigo-600 text-white"
+            className="text-xs px-3 py-1 ml-auto rounded-md bg-indigo-500 hover:bg-indigo-600 text-white"
             data-testid="notifications-enable-btn"
           >
             Enable
@@ -590,7 +590,7 @@ function NotificationsPanel({ isDark }) {
           <button
             type="button"
             onClick={fireTest}
-            className={`text-xs px-3 py-1 rounded-md ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-white border border-gray-200 hover:bg-gray-100 text-gray-800"}`}
+            className={`text-xs px-3 py-1 ml-auto rounded-md ${isDark ? "bg-white/10 hover:bg-white/20 text-white" : "bg-white border border-gray-200 hover:bg-gray-100 text-gray-800"}`}
             data-testid="notifications-test-btn"
           >
             Send test
