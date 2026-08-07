@@ -9,7 +9,7 @@
  * with a link back to the Contributor Wall.
  */
 
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { KeyRound, ArrowLeft } from "lucide-react";
 import NicknameRecoveryDialog from "./NicknameRecoveryDialog";
@@ -27,6 +27,7 @@ export default function RecoverLandingPage() {
   const navigate = useNavigate();
   const nickname = params.get("n") || "";
   const code = params.get("c") || "";
+  const firedRef = useRef(false);  // idempotent under React.StrictMode dev double-mount
 
   const valid = useMemo(
     () => isValidNickname(nickname) && isValidCode(code),
@@ -35,8 +36,10 @@ export default function RecoverLandingPage() {
 
   // Fire the magic-link funnel event once per valid landing. Best-effort —
   // failures are swallowed so the recovery flow itself is never blocked.
+  // firedRef guard makes this exactly-once even under React.StrictMode.
   useEffect(() => {
-    if (!valid) return;
+    if (!valid || firedRef.current) return;
+    firedRef.current = true;
     try {
       const base = process.env.REACT_APP_BACKEND_URL;
       fetch(`${base}/api/community/recovery/track`, {

@@ -75,6 +75,15 @@ async def _start_scheduler():
     except Exception:
         logger.exception("could not create community_events TTL index")
 
+    # 90-day TTL on recovery funnel events — smaller window since the metric
+    # only informs the current-launch magic-link-vs-manual decision.
+    try:
+        await db.recovery_events.create_index(
+            "at", expireAfterSeconds=90 * 24 * 60 * 60, name="recovery_events_ttl",
+        )
+    except Exception:
+        logger.exception("could not create recovery_events TTL index")
+
     # Unique nickname reservation — prevents concurrent-write races.
     try:
         await db.nickname_reservations.create_index(

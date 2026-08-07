@@ -46,6 +46,12 @@ export default function NicknameRecoveryDialog({ isOpen, nickname, prefillCode, 
   const [code, setCode] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const manualEventFiredRef = React.useRef(false);  // guard against StrictMode double effects
+
+  // Reset the funnel-event guard whenever the dialog closes so re-opens count.
+  React.useEffect(() => {
+    if (!isOpen) manualEventFiredRef.current = false;
+  }, [isOpen]);
 
   // Magic-link entry: if a prefill code is passed in, skip step 1 and land
   // the user directly on the "enter new email" step with the code populated.
@@ -61,10 +67,10 @@ export default function NicknameRecoveryDialog({ isOpen, nickname, prefillCode, 
   }, [isOpen, prefillCode]);
 
   // Funnel event: user opened the dialog WITHOUT a magic-link prefill →
-  // manual entry from the Wall. Fired once per open. Server-side email_sent /
-  // verify_* events cover the other half of the funnel.
+  // manual entry from the Wall. Fired once per open (StrictMode-safe via ref).
   React.useEffect(() => {
-    if (!isOpen || prefillCode) return;
+    if (!isOpen || prefillCode || manualEventFiredRef.current) return;
+    manualEventFiredRef.current = true;
     try {
       const base = process.env.REACT_APP_BACKEND_URL;
       fetch(`${base}/api/community/recovery/track`, {
