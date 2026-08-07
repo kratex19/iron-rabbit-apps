@@ -284,3 +284,18 @@ async def admin_check_drop_alert():
     """Admin-only: force-run the drop detector. Same idempotency rules —
     running twice for the same drop won't double-ping. Handy for testing."""
     return await _detect_and_ping_drop()
+
+
+@router.get("/admin/recovery/alerts", dependencies=[Depends(require_admin)])
+async def admin_recovery_alerts(limit: int = 5):
+    """Admin-only: last N recovery-drop alerts (newest first). Feeds the
+    'Past alerts' panel under the Recovery Funnel so historical drops stay
+    visible after the toast/banner disappears."""
+    limit = max(1, min(50, int(limit or 5)))
+    docs = await db.recovery_alerts.find({}, {"_id": 0}).sort("alerted_at", -1).to_list(limit)
+    # Datetime → ISO for JSON safety.
+    for d in docs:
+        v = d.get("alerted_at")
+        if isinstance(v, datetime):
+            d["alerted_at"] = v.isoformat()
+    return {"alerts": docs}

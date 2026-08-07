@@ -21,6 +21,7 @@ import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGa
 import PasteTipsDialog from "./PasteTipsDialog";
 import AnalyticsChart from "./AnalyticsChart";
 import RecoveryFunnel from "./RecoveryFunnel";
+import RecoveryAlertsLog from "./RecoveryAlertsLog";
 import ScreenshotFreshness from "./ScreenshotFreshness";
 
 const STATUS_TABS = [
@@ -276,6 +277,9 @@ export default function CommunityDashboard() {
 
         {/* Recovery funnel — one number answers "is the magic link worth it?" */}
         <RecoveryFunnel apiFetch={apiFetch} token={token} />
+
+        {/* Past drop-alerts — silent when the log is empty. */}
+        <RecoveryAlertsLog apiFetch={apiFetch} token={token} />
 
         {/* Play carousel freshness strip — one-click regen + last-run status */}
         <ScreenshotFreshness apiFetch={apiFetch} token={token} />
