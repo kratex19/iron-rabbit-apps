@@ -4,15 +4,18 @@
 ## 📌 Session state (2026-02-06, this session)
 
 ### 🎉 Shipped this session (fork continuation)
-- **Contributor Thank-You** — `/api/community/tip` now accepts optional `contributor_email` + `contributor_opt_in`. New `_send_thank_you` async helper fires a warm HTML email via Resend when a tip is promoted. Silent-skips (never blocks promote) when RESEND_API_KEY isn't configured. Sets `thank_you_sent_at` on success. Frontend gets a new `CommunityShareDialog` replacing the old `window.confirm+prompt` in QuickGuideModal — one-time consent + opt-in checkbox + email input. Admin dashboard rows now show an "opt-in" chip that flips to "notified" once the thank-you email is dispatched.
-- **Featured Tip Analytics** — Public `POST /api/community/events` batch-endpoint tracks `{event, tip_id, install_id}` anonymously (install UUID from localStorage). Admin `GET /api/community/analytics?days=N` returns per-tip counts + unique installs sorted by opens DESC. New `AnalyticsChart` (recharts, horizontal bar chart with 4 stat cards) mounted at top of Community Dashboard with days-select (7/30/90) + refresh. Events stored as BSON Date with **180-day TTL index** so storage stays bounded. Frontend `FeaturedTipStrip` now fires impression on mount, open on "Open guide" click, dismiss on X — batched to backend every 5 seconds / on visibility change via sendBeacon.
-- **Featured Tip Rotation (home-screen)** — Public endpoint `GET /api/community/featured` deterministically picks ONE promoted tip per UTC date. `FeaturedTipStrip.jsx` mounts above the notes list.
-- **Digest Schedule** — APScheduler in-process cron fires every Monday 09:00 UTC. `_send_digest_now(force_when_empty=False)` skips silently when zero pending tips. Admin endpoints: `digest/status`, `digest/toggle`, public `digest/unsubscribe?token=...`.
-- **Import from Text (LLM bulk import)** — `POST /api/community/tips/parse` (Emergent LLM). Shared `PasteTipsDialog` for admin bulk-import (Save as pending OR Promote all) and Quick Guide (Paste multiple tips → add as user cards).
-- **Community Digest Email (Resend)** — `POST /api/community/digest/send` renders HTML digest of pending + recently-promoted tips.
-- **Community Admin Dashboard** — Private `/admin/community` with `AdminGate`, per-tip Promote/Reject/Restore/Delete, pending/promoted/rejected tabs with live counts.
-- **QR Scan-Back** — Tip QRs include `[IRTIP1:<b64>]` marker. Scanner short-circuits to `QuickGuideProvider.pendingImport` with "Import this tip?" preview.
-- **Promoted community tips surface in Quick Guide** — Read-only emerald-badged "Community" cards inside the matching guide.
+- **server.py refactor** — 1546-line monolith split into a clean tree: `deps.py` (shared: db, LLM key, admin auth), `models/{notes,community,digest,analytics}.py`, `routes/{notes,community,digest,analytics,misc}.py`. `server.py` shrunk to ~102 lines (FastAPI app, CORS, `include_router`, APScheduler cron, TTL index, shutdown). ZERO behavioral change — 30/30 regression tests pass. Scheduler handle re-exposed via `digest_module.scheduler` binding on startup so `/digest/status.scheduler_next_run` still populates.
+- **Anonymous Nickname** — Optional `nickname` field on tips (`^[A-Za-z0-9_]{2,20}$`). Rendered on Community-badged cards in Quick Guide (`@nickname · Community`), on the FeaturedTipStrip byline (`· shared by @nickname`), in the thank-you email, and on the Contributor Wall. Invalid nicknames silently coerced to null server-side.
+- **Contributor Wall** — Public page at `/contributors` and `/community/wall` (aliases). Fetches `/api/community/contributors` (aggregates promoted tips by nickname, sorted by tip_count DESC, only nickname-tagged tips appear). Responsive grid (1 col mobile → 2 col tablet → 3 col desktop). Heart icon on the FeaturedTipStrip opens the wall in a new tab.
+- **Contributor Thank-You** — `/api/community/tip` accepts optional `contributor_email` + `contributor_opt_in`. `_send_thank_you` async helper fires warm HTML email via Resend on promote. Silent-skips when RESEND_API_KEY empty. Admin rows show "opt-in" chip that flips to "notified" once sent.
+- **Featured Tip Analytics** — Public `POST /api/community/events` batch endpoint. Admin `GET /api/community/analytics?days=N` with unique installs count. `AnalyticsChart` (recharts) at top of Community Dashboard. 180-day TTL index on events collection.
+- **Featured Tip Rotation** — Public `GET /api/community/featured` picks one promoted tip per UTC date. `FeaturedTipStrip.jsx` on home screen.
+- **Digest Schedule** — APScheduler in-process cron Monday 09:00 UTC. Skips silently when zero pending. Admin toggle + public unsubscribe endpoint with themed HTML confirmation.
+- **Import from Text** — `POST /api/community/tips/parse` (Emergent LLM). Shared `PasteTipsDialog` for admin bulk-import and Quick Guide paste-multiple.
+- **Community Digest Email** — `POST /api/community/digest/send` HTML digest via Resend.
+- **Community Admin Dashboard** — Private `/admin/community` with `AdminGate`, per-tip actions.
+- **QR Scan-Back** — Tip QRs carry `[IRTIP1:<b64>]` marker; scanner short-circuits to Quick Guide import preview.
+- **Promoted community tips surface in Quick Guide** — Emerald-badged read-only cards.
 
 ### 🎉 Shipped earlier this session
 - **Palette expansion** — Tile background picker: 12→43 solid colors, 10→30 gradients (`data/noteIcons.js`); scrolling panel inside dialog
