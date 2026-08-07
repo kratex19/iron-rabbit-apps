@@ -1,0 +1,149 @@
+/**
+ * RecoveryFunnel — compact "magic-link vs manual entry" panel.
+ *
+ * Answers one question: is the magic link in recovery emails earning its
+ * URL length? Reads `/api/community/recovery/analytics` and surfaces:
+ *   • magic_link_share as a big number (0-100%)
+ *   • 5 supporting counts (email_sent, opens split, verify success/fail)
+ *   • a tiny window picker (7d / 30d / 90d)
+ *
+ * Zero deps beyond what the admin dashboard already ships.
+ */
+
+import React, { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { RefreshCcw, Link2, Loader2, KeyRound, MailCheck, ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+const WINDOWS = [
+  { label: "7d", days: 7 },
+  { label: "30d", days: 30 },
+  { label: "90d", days: 90 },
+];
+
+export default function RecoveryFunnel({ apiFetch, token }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [days, setDays] = useState(30);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/community/recovery/analytics?days=${days}`, token);
+      setData(res);
+    } catch (e) {
+      toast.error("Couldn't load recovery funnel");
+    } finally { setLoading(false); }
+  }, [apiFetch, token, days]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const sharePct = data ? Math.round((data.magic_link_share || 0) * 100) : 0;
+  const opensTotal = data ? (data.magic_link_opened + data.manual_entry_opened) : 0;
+  const verifyTotal = data ? (data.verify_success + data.verify_failed) : 0;
+  const conversion = data && data.email_sent > 0
+    ? Math.round((data.verify_success / data.email_sent) * 100)
+    : 0;
+
+  return (
+    <div
+      className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-4"
+      data-testid="recovery-funnel-panel"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-fuchsia-500">
+          <KeyRound className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-white">Recovery funnel</div>
+          <div className="text-[10px] text-slate-500">
+            Is the emailed magic link earning its URL length?
+          </div>
+        </div>
+        {/* Window picker */}
+        <div className="inline-flex rounded-md bg-white/5 border border-white/10 p-0.5 gap-0.5">
+          {WINDOWS.map(w => (
+            <button
+              key={w.days}
+              type="button"
+              onClick={() => setDays(w.days)}
+              className={`px-2 h-7 rounded text-[11px] font-medium transition-colors ${
+                days === w.days
+                  ? "bg-indigo-500/20 text-indigo-200"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+              }`}
+              data-testid={`funnel-window-${w.days}`}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={load}
+          disabled={loading}
+          className="h-7 px-2 text-xs text-slate-300 border-white/10 hover:bg-white/5"
+          data-testid="funnel-refresh"
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCcw className="w-3 h-3" />}
+        </Button>
+      </div>
+
+      {!data ? (
+        <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          {/* Big number: magic-link share */}
+          <div className="sm:col-span-1 rounded-lg bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/10 border border-indigo-400/20 p-4 flex flex-col items-center justify-center" data-testid="funnel-magic-share">
+            <div className="text-[10px] uppercase tracking-wider text-indigo-200 font-semibold mb-1 flex items-center gap-1">
+              <Link2 className="w-3 h-3" /> Magic-link share
+            </div>
+            <div className="text-4xl font-extrabold text-white leading-none">
+              {sharePct}<span className="text-lg text-indigo-200">%</span>
+            </div>
+            <div className="text-[10px] text-slate-400 mt-2 text-center">
+              of {opensTotal} open{opensTotal === 1 ? "" : "s"} came via email link
+            </div>
+          </div>
+
+          {/* Supporting metrics */}
+          <div className="sm:col-span-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Stat label="Emails minted" value={data.email_sent} testId="funnel-email-sent" icon={<MailCheck className="w-3 h-3" />} />
+            <Stat label="Magic-link opens" value={data.magic_link_opened} testId="funnel-magic-opened" tone="indigo" />
+            <Stat label="Manual opens" value={data.manual_entry_opened} testId="funnel-manual-opened" tone="slate" />
+            <Stat label={`Verified (${conversion}%)`} value={data.verify_success} testId="funnel-verify-success" tone="emerald" />
+            <Stat
+              label="Wrong codes"
+              value={data.verify_failed}
+              testId="funnel-verify-failed"
+              tone={data.verify_failed > 0 && verifyTotal > 0 && (data.verify_failed / verifyTotal) > 0.5 ? "amber" : "slate"}
+              icon={data.verify_failed > 5 ? <ShieldAlert className="w-3 h-3" /> : null}
+            />
+            <Stat label="Window" value={`${data.window_days}d`} testId="funnel-window" tone="slate" small />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, tone = "slate", icon = null, testId, small = false }) {
+  const tones = {
+    slate: "bg-white/[0.03] border-white/10 text-white",
+    indigo: "bg-indigo-500/10 border-indigo-400/20 text-indigo-100",
+    emerald: "bg-emerald-500/10 border-emerald-400/20 text-emerald-100",
+    amber: "bg-amber-500/10 border-amber-400/30 text-amber-100",
+  };
+  return (
+    <div className={`rounded-lg border p-2.5 ${tones[tone] || tones.slate}`} data-testid={testId}>
+      <div className="text-[9px] uppercase tracking-wider opacity-70 font-semibold flex items-center gap-1">
+        {icon}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className={`font-extrabold leading-tight mt-0.5 ${small ? "text-lg" : "text-2xl"}`}>{value}</div>
+    </div>
+  );
+}

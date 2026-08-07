@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGate";
 import PasteTipsDialog from "./PasteTipsDialog";
 import AnalyticsChart from "./AnalyticsChart";
+import RecoveryFunnel from "./RecoveryFunnel";
 
 const STATUS_TABS = [
   { key: "pending", label: "Pending" },
@@ -215,6 +216,9 @@ export default function CommunityDashboard() {
 
         {/* Featured tip analytics — top of dashboard so I know what lands */}
         <AnalyticsChart apiFetch={apiFetch} token={token} />
+
+        {/* Recovery funnel — one number answers "is the magic link worth it?" */}
+        <RecoveryFunnel apiFetch={apiFetch} token={token} />
 
         {/* Digest schedule strip — quick at-a-glance state of the weekly cron.
             Toggle here doubles as the "unsubscribe re-enable" surface. */}
