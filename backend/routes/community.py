@@ -7,7 +7,7 @@ import json as _json
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,6 +23,7 @@ from models.community import (
     ParseTipsRequest, ParseTipsResponse, ParsedCard,
     Contributor, ContributorsResponse,
     NicknameReserveRequest, NicknameStatusResponse,
+    NicknameRecoveryRequestBody, NicknameRecoveryVerifyBody, NicknameRecoveryResponse,
 )
 
 router = APIRouter(prefix="/api")
@@ -262,6 +263,125 @@ async def reserve_nickname(payload: NicknameReserveRequest):
         upsert=True,
     )
     return NicknameStatusResponse(nickname=clean, available=True, reason="claimed_by_you", owned_by_you=True)
+
+
+
+def _mask_email(email: str) -> str:
+    """Return a redacted address safe to display: a***@d***.com."""
+    if not email or "@" not in email:
+        return ""
+    local, _, domain = email.partition("@")
+    _, _, dtail = domain.rpartition(".")
+    return f"{local[:1]}***@***.{dtail}"
+
+
+@router.post("/community/nicknames/{nickname}/recovery", response_model=NicknameRecoveryResponse)
+async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequestBody):
+    """Public: request an unlock code for a claimed nickname. Code is
+    emailed to the ORIGINAL owner. Silent-fails (delivered=false) when
+    Resend isn't configured — matches the digest pattern."""
+    clean = _sanitize_nickname(nickname)
+    if not clean:
+        raise HTTPException(status_code=400, detail="Invalid nickname format")
+    owner = await _nickname_owner_email(clean)
+    if not owner:
+        return NicknameRecoveryResponse(ok=True, delivered=False, reason="not-claimed")
+
+    import secrets
+    code = f"{secrets.randbelow(1000000):06d}"
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    await db.nickname_recoveries.update_one(
+        {"nickname": clean},
+        {"$set": {
+            "nickname": clean, "email": owner, "code": code,
+            "expires_at": expires_at,
+            "requested_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+
+    delivered = False
+    if RESEND_API_KEY and SENDER_EMAIL:
+        try:
+            import resend as _resend
+            _resend.api_key = RESEND_API_KEY
+            html = (
+                '<!DOCTYPE html><html><body style="margin:0;padding:24px;background:#0B1221;'
+                'font-family:-apple-system,sans-serif;">'
+                '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+                'style="max-width:520px;margin:0 auto;background:#FFF;border-radius:16px;overflow:hidden;">'
+                '<tr><td style="padding:24px;background:linear-gradient(135deg,#6366F1,#EC4899);color:#FFF;">'
+                '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;opacity:.9;">Iron Rabbit</div>'
+                f'<div style="font-size:22px;font-weight:700;margin-top:4px;">Recover @{clean}</div>'
+                '</td></tr>'
+                '<tr><td style="padding:20px 24px;font-size:15px;color:#0F172A;line-height:1.6;">'
+                f'Someone (probably you) asked to reclaim <strong>@{clean}</strong>. Enter this code in the app to move ownership to a new email:'
+                f'<div style="margin:20px 0;padding:16px;text-align:center;background:#F1F5F9;border-radius:8px;font-size:32px;font-weight:800;letter-spacing:6px;color:#0F172A;">{code}</div>'
+                '<div style="font-size:12px;color:#64748B;">Code expires in 30 minutes. Ignore this email if you didn&#39;t request it.</div>'
+                '</td></tr></table></body></html>'
+            )
+            await asyncio.to_thread(_resend.Emails.send, {
+                "from": f"Iron Rabbit <{SENDER_EMAIL}>",
+                "to": [owner],
+                "subject": f"Iron Rabbit — unlock code for @{clean}",
+                "html": html,
+            })
+            delivered = True
+        except Exception:
+            logger.exception("nickname recovery email failed")
+
+    return NicknameRecoveryResponse(
+        ok=True, delivered=delivered,
+        reason="sent" if delivered else "email disabled",
+        masked_email=_mask_email(owner),
+    )
+
+
+@router.post("/community/nicknames/{nickname}/recovery/verify", response_model=NicknameStatusResponse)
+async def verify_nickname_recovery(nickname: str, payload: NicknameRecoveryVerifyBody):
+    """Public: submit unlock code + new_email to transfer ownership. Single-use."""
+    clean = _sanitize_nickname(nickname)
+    if not clean or clean != _sanitize_nickname(payload.nickname):
+        raise HTTPException(status_code=400, detail="Invalid nickname")
+    new_email = (payload.new_email or "").strip().lower()[:200]
+    if not new_email or "@" not in new_email:
+        raise HTTPException(status_code=400, detail="Valid new_email required")
+    code = (payload.code or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code required")
+
+    rec = await db.nickname_recoveries.find_one({"nickname": clean, "code": code})
+    if not rec:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    expires = rec.get("expires_at")
+    if isinstance(expires, str):
+        try: expires = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+        except Exception: expires = None
+    # BSON dates come back naive from motor — coerce to UTC before compare.
+    if expires and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if not expires or expires < datetime.now(timezone.utc):
+        await db.nickname_recoveries.delete_one({"_id": rec["_id"]})
+        raise HTTPException(status_code=410, detail="Code expired — request a new one")
+
+    old_email = rec.get("email")
+    await db.nickname_reservations.update_one(
+        {"nickname": clean},
+        {"$set": {
+            "nickname": clean, "email": new_email,
+            "reserved_at": datetime.now(timezone.utc).isoformat(),
+            "recovered": True,
+        }},
+        upsert=True,
+    )
+    await db.community_tips.update_many(
+        {"nickname": clean, "contributor_email": old_email},
+        {"$set": {"contributor_email": new_email}},
+    )
+    await db.nickname_recoveries.delete_one({"_id": rec["_id"]})
+    return NicknameStatusResponse(
+        nickname=clean, available=True, reason="claimed_by_you", owned_by_you=True,
+    )
 
 
 

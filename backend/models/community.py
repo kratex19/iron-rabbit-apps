@@ -95,3 +95,20 @@ class NicknameStatusResponse(BaseModel):
     available: bool
     reason: str = ""  # "free" | "claimed_by_you" | "taken" | "invalid"
     owned_by_you: bool = False
+
+
+class NicknameRecoveryRequestBody(BaseModel):
+    nickname: str
+
+
+class NicknameRecoveryVerifyBody(BaseModel):
+    nickname: str
+    code: str
+    new_email: str
+
+
+class NicknameRecoveryResponse(BaseModel):
+    ok: bool
+    delivered: bool = False
+    reason: str = ""
+    masked_email: Optional[str] = None

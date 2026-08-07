@@ -17,33 +17,69 @@ const FORMATS = [
   { key: "square",    label: "Square · 1080×1080",   w: 1080, h: 1080 },
 ];
 
-async function drawWallCard(canvas, contributor, format) {
+// Palette presets — tuned to feel distinct at a glance and print well.
+// The `bg` triplet is the diagonal linear gradient, `glow` is the radial
+// backlight behind the nickname, `nick` is the nickname gradient.
+const THEMES = [
+  {
+    key: "mint",     label: "Mint",     preview: "linear-gradient(135deg,#10b981,#0284c7)",
+    bg: ["#0B1221", "#0F172A", "#1E3A2F"],
+    glow: ["rgba(16, 185, 129, 0.28)", "rgba(2, 132, 199, 0.16)"],
+    nick: ["#34d399", "#0ea5e9"],
+    ribbon: "#10b981",
+  },
+  {
+    key: "rose",     label: "Rose",     preview: "linear-gradient(135deg,#f472b6,#ef4444)",
+    bg: ["#1F0A17", "#2A0F1E", "#3B1520"],
+    glow: ["rgba(244, 114, 182, 0.32)", "rgba(239, 68, 68, 0.16)"],
+    nick: ["#f9a8d4", "#fca5a5"],
+    ribbon: "#f472b6",
+  },
+  {
+    key: "midnight", label: "Midnight", preview: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+    bg: ["#0A0B1F", "#0F0F2A", "#1E1B4B"],
+    glow: ["rgba(99, 102, 241, 0.30)", "rgba(139, 92, 246, 0.18)"],
+    nick: ["#a5b4fc", "#c4b5fd"],
+    ribbon: "#818cf8",
+  },
+  {
+    key: "sunset",   label: "Sunset",   preview: "linear-gradient(135deg,#fb923c,#ec4899)",
+    bg: ["#1F0F0A", "#2B140F", "#3B1D1E"],
+    glow: ["rgba(251, 146, 60, 0.32)", "rgba(236, 72, 153, 0.16)"],
+    nick: ["#fdba74", "#f9a8d4"],
+    ribbon: "#fb923c",
+  },
+];
+
+const THEME_STORAGE_KEY = "irr.wall_share_theme";
+
+async function drawWallCard(canvas, contributor, format, theme) {
   const ctx = canvas.getContext("2d");
   canvas.width = format.w;
   canvas.height = format.h;
-  // Background gradient
+  // Background gradient (3-stop diagonal, drives the whole card's mood)
   const bg = ctx.createLinearGradient(0, 0, format.w, format.h);
-  bg.addColorStop(0, "#0B1221");
-  bg.addColorStop(0.6, "#0F172A");
-  bg.addColorStop(1, "#1E1B4B");
+  bg.addColorStop(0, theme.bg[0]);
+  bg.addColorStop(0.6, theme.bg[1]);
+  bg.addColorStop(1, theme.bg[2]);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, format.w, format.h);
 
-  // Emerald→sky glow behind the nickname
+  // Radial glow behind the nickname
   const glow = ctx.createRadialGradient(format.w / 2, format.h * 0.42, 20, format.w / 2, format.h * 0.42, format.w * 0.55);
-  glow.addColorStop(0, "rgba(16, 185, 129, 0.28)");
-  glow.addColorStop(0.4, "rgba(2, 132, 199, 0.16)");
-  glow.addColorStop(1, "rgba(2, 132, 199, 0)");
+  glow.addColorStop(0, theme.glow[0]);
+  glow.addColorStop(0.4, theme.glow[1]);
+  glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, format.w, format.h);
 
   const isSquare = format.key === "square";
-  const padX = isSquare ? 80 : 80;
+  const padX = 80;
   const nickTop = isSquare ? format.h * 0.36 : format.h * 0.42;
 
   // Brand ribbon
   ctx.font = `700 ${isSquare ? 22 : 20}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-  ctx.fillStyle = "#10b981";
+  ctx.fillStyle = theme.ribbon;
   ctx.textAlign = "left";
   ctx.fillText("IRON RABBIT · COMMUNITY", padX, isSquare ? 92 : 78);
 
@@ -56,8 +92,6 @@ async function drawWallCard(canvas, contributor, format) {
   ctx.textAlign = "center";
   const nick = "@" + (contributor.nickname || "you");
   const nickSize = isSquare ? 140 : 132;
-  ctx.font = `800 ${nickSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
-  // Fit if too long
   let currSize = nickSize;
   ctx.font = `800 ${currSize}px -apple-system, sans-serif`;
   while (ctx.measureText(nick).width > format.w - padX * 2 && currSize > 60) {
@@ -65,12 +99,12 @@ async function drawWallCard(canvas, contributor, format) {
     ctx.font = `800 ${currSize}px -apple-system, sans-serif`;
   }
   const gradient = ctx.createLinearGradient(0, nickTop - 60, 0, nickTop + 60);
-  gradient.addColorStop(0, "#34d399");
-  gradient.addColorStop(1, "#0ea5e9");
+  gradient.addColorStop(0, theme.nick[0]);
+  gradient.addColorStop(1, theme.nick[1]);
   ctx.fillStyle = gradient;
   ctx.fillText(nick, format.w / 2, nickTop);
 
-  // Tip count + latest heading
+  // Tip count
   ctx.font = `600 ${isSquare ? 34 : 32}px -apple-system, sans-serif`;
   ctx.fillStyle = "#F1F5F9";
   const countText = `${contributor.tip_count || 0} ${(contributor.tip_count || 0) === 1 ? "tip promoted" : "tips promoted"}`;
@@ -78,10 +112,8 @@ async function drawWallCard(canvas, contributor, format) {
 
   if (contributor.latest_heading) {
     ctx.font = `italic 500 ${isSquare ? 28 : 24}px -apple-system, sans-serif`;
-    ctx.fillStyle = "rgba(148, 163, 184, 0.9)";
-    const heading = `"${contributor.latest_heading}"`;
-    // Truncate if too wide
-    let text = heading;
+    ctx.fillStyle = "rgba(203, 213, 225, 0.85)";
+    let text = `"${contributor.latest_heading}"`;
     while (ctx.measureText(text).width > format.w - padX * 2 && text.length > 20) {
       text = text.slice(0, -2) + '…"';
     }
@@ -101,13 +133,24 @@ function canvasToBlob(canvas) {
 
 export default function WallShareDialog({ isOpen, contributor, onClose }) {
   const [format, setFormat] = useState(FORMATS[0]);
+  const [theme, setTheme] = useState(() => {
+    try {
+      const key = localStorage.getItem(THEME_STORAGE_KEY);
+      const found = THEMES.find(t => t.key === key);
+      return found || THEMES[0];
+    } catch (e) { return THEMES[0]; }
+  });
   const [busy, setBusy] = useState(false);
   const canvasRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen || !contributor || !canvasRef.current) return;
-    drawWallCard(canvasRef.current, contributor, format);
-  }, [isOpen, contributor, format]);
+    drawWallCard(canvasRef.current, contributor, format, theme);
+  }, [isOpen, contributor, format, theme]);
+
+  useEffect(() => {
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme.key); } catch (e) { /* quota */ }
+  }, [theme]);
 
   if (!isOpen || !contributor) return null;
 
@@ -167,6 +210,30 @@ export default function WallShareDialog({ isOpen, contributor, onClose }) {
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          {/* Theme picker — 4 mini swatches */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Palette</div>
+            <div className="flex gap-2">
+              {THEMES.map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTheme(t)}
+                  className={`flex-1 h-11 rounded-md flex items-center justify-center text-[11px] font-medium transition-all relative overflow-hidden ${
+                    theme.key === t.key ? "ring-2 ring-white ring-offset-2 ring-offset-[#0F172A]" : "opacity-80 hover:opacity-100"
+                  }`}
+                  style={{ background: t.preview }}
+                  data-testid={`wall-share-theme-${t.key}`}
+                  title={t.label}
+                >
+                  <span className="text-white drop-shadow" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+                    {t.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Format picker */}
           <div className="flex gap-2">
             {FORMATS.map(f => (

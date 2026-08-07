@@ -10,10 +10,11 @@
  * simple list on mobile (single column, tighter spacing).
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Heart, ArrowLeft, Loader2, AtSign, Share2 } from "lucide-react";
+import { Sparkles, Heart, ArrowLeft, Loader2, AtSign, Share2, Search, X, KeyRound } from "lucide-react";
 import WallShareDialog from "./WallShareDialog";
+import NicknameRecoveryDialog from "./NicknameRecoveryDialog";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -26,13 +27,25 @@ export default function ContributorWall() {
   const [contributors, setContributors] = useState(null);
   const [error, setError] = useState(false);
   const [shareTarget, setShareTarget] = useState(null);
+  const [recoveryTarget, setRecoveryTarget] = useState(null);
   const [ownedNicks, setOwnedNicks] = useState([]);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     try {
       setOwnedNicks(JSON.parse(localStorage.getItem("irr.owned_nicknames") || "[]"));
     } catch (e) { /* ignore */ }
   }, []);
+
+  const filteredContributors = useMemo(() => {
+    if (!contributors) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return contributors;
+    return contributors.filter(c =>
+      (c.nickname || "").toLowerCase().includes(q) ||
+      (c.latest_heading || "").toLowerCase().includes(q)
+    );
+  }, [contributors, query]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,16 +111,46 @@ export default function ContributorWall() {
         {/* Content — grid on desktop, single column on mobile */}
         {contributors && contributors.length > 0 && (
           <>
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-3 flex items-center gap-2">
-              <span>{contributors.length} {contributors.length === 1 ? "contributor" : "contributors"}</span>
-              <span className="text-slate-600">·</span>
-              <span>sorted by tips promoted</span>
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-2">
+                <span>{contributors.length} {contributors.length === 1 ? "contributor" : "contributors"}</span>
+                <span className="text-slate-600">·</span>
+                <span>sorted by tips promoted</span>
+              </div>
+              <div className="flex-1" />
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Find a tipper…"
+                  className="pl-8 pr-7 h-9 rounded-md bg-white/5 border border-white/10 text-white placeholder:text-slate-500 text-xs w-52 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                  data-testid="wall-filter-input"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10"
+                    aria-label="Clear filter"
+                    data-testid="wall-filter-clear"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
+            {filteredContributors.length === 0 ? (
+              <div className="text-center py-16 text-slate-500 text-sm" data-testid="wall-filter-no-results">
+                No contributors matching &ldquo;{query}&rdquo;.
+              </div>
+            ) : (
             <ul
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
               data-testid="wall-list"
             >
-              {contributors.map(c => {
+              {filteredContributors.map(c => {
                 const isMine = ownedNicks.includes(c.nickname);
                 return (
                 <li
@@ -155,10 +198,22 @@ export default function ContributorWall() {
                     <Share2 className="w-3.5 h-3.5" />
                     {isMine ? "Share your card" : "Share this contributor"}
                   </button>
+                  {!isMine && (
+                    <button
+                      type="button"
+                      onClick={() => setRecoveryTarget(c)}
+                      className="w-full h-7 mt-1 rounded-md text-[10px] inline-flex items-center justify-center gap-1 text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-colors"
+                      data-testid={`wall-recover-${c.nickname}`}
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      Not you? Recover this nickname
+                    </button>
+                  )}
                 </li>
                 );
               })}
             </ul>
+            )}
           </>
         )}
 
@@ -173,6 +228,11 @@ export default function ContributorWall() {
         isOpen={!!shareTarget}
         contributor={shareTarget}
         onClose={() => setShareTarget(null)}
+      />
+      <NicknameRecoveryDialog
+        isOpen={!!recoveryTarget}
+        nickname={recoveryTarget?.nickname}
+        onClose={() => setRecoveryTarget(null)}
       />
     </div>
   );
