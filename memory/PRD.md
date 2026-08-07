@@ -4,18 +4,17 @@
 ## 📌 Session state (2026-02-06, this session)
 
 ### 🎉 Shipped this session (fork continuation)
-- **server.py refactor** — 1546-line monolith split into a clean tree: `deps.py` (shared: db, LLM key, admin auth), `models/{notes,community,digest,analytics}.py`, `routes/{notes,community,digest,analytics,misc}.py`. `server.py` shrunk to ~102 lines (FastAPI app, CORS, `include_router`, APScheduler cron, TTL index, shutdown). ZERO behavioral change — 30/30 regression tests pass. Scheduler handle re-exposed via `digest_module.scheduler` binding on startup so `/digest/status.scheduler_next_run` still populates.
-- **Anonymous Nickname** — Optional `nickname` field on tips (`^[A-Za-z0-9_]{2,20}$`). Rendered on Community-badged cards in Quick Guide (`@nickname · Community`), on the FeaturedTipStrip byline (`· shared by @nickname`), in the thank-you email, and on the Contributor Wall. Invalid nicknames silently coerced to null server-side.
-- **Contributor Wall** — Public page at `/contributors` and `/community/wall` (aliases). Fetches `/api/community/contributors` (aggregates promoted tips by nickname, sorted by tip_count DESC, only nickname-tagged tips appear). Responsive grid (1 col mobile → 2 col tablet → 3 col desktop). Heart icon on the FeaturedTipStrip opens the wall in a new tab.
-- **Contributor Thank-You** — `/api/community/tip` accepts optional `contributor_email` + `contributor_opt_in`. `_send_thank_you` async helper fires warm HTML email via Resend on promote. Silent-skips when RESEND_API_KEY empty. Admin rows show "opt-in" chip that flips to "notified" once sent.
-- **Featured Tip Analytics** — Public `POST /api/community/events` batch endpoint. Admin `GET /api/community/analytics?days=N` with unique installs count. `AnalyticsChart` (recharts) at top of Community Dashboard. 180-day TTL index on events collection.
-- **Featured Tip Rotation** — Public `GET /api/community/featured` picks one promoted tip per UTC date. `FeaturedTipStrip.jsx` on home screen.
-- **Digest Schedule** — APScheduler in-process cron Monday 09:00 UTC. Skips silently when zero pending. Admin toggle + public unsubscribe endpoint with themed HTML confirmation.
-- **Import from Text** — `POST /api/community/tips/parse` (Emergent LLM). Shared `PasteTipsDialog` for admin bulk-import and Quick Guide paste-multiple.
-- **Community Digest Email** — `POST /api/community/digest/send` HTML digest via Resend.
-- **Community Admin Dashboard** — Private `/admin/community` with `AdminGate`, per-tip actions.
-- **QR Scan-Back** — Tip QRs carry `[IRTIP1:<b64>]` marker; scanner short-circuits to Quick Guide import preview.
-- **Promoted community tips surface in Quick Guide** — Emerald-badged read-only cards.
+- **Nickname Reservations** — Implicit (any `nickname + email` pair in a prior tip claims the name) + explicit (`POST /api/community/nicknames/reserve` with idempotent same-email upsert). Public status endpoint `GET /api/community/nicknames/{n}/status?email=...` with reasons `free / claimed_by_you / taken / invalid`. Submit and reserve both return 409 on collision. Unique index on `nickname_reservations.nickname` prevents race. Frontend `CommunityShareDialog` shows live status (debounced 400ms) as user types + disables submit when taken.
+- **Wall Sharing** — Canvas-generated PNG social card with dual format (1200×630 landscape / 1080×1080 square) picker. Big gradient `@nickname`, tip count, latest heading, brand ribbon. Download PNG + native Share (falls back to download when unavailable). Share button on every `ContributorWall` card. "You" badge + label swap ("Share your card" vs "Share this contributor") when the nickname is stored in `localStorage['irr.owned_nicknames']` (auto-populated on tip submission, capped at 50).
+- **server.py refactor** — Monolith split into `deps.py` + `models/{notes,community,digest,analytics}.py` + `routes/{notes,community,digest,analytics,misc}.py`. `server.py` ~102 lines.
+- **Anonymous Nickname** — Optional `nickname` field on tips, rendered on Community cards, FeaturedTipStrip byline, thank-you email, Contributor Wall.
+- **Contributor Wall** — Public `/contributors` and `/community/wall` responsive grid.
+- **Contributor Thank-You** — Warm HTML email via Resend on promote (silent-skip when RESEND_API_KEY empty).
+- **Featured Tip Analytics** — Anonymous events + admin bar chart + 180-day TTL.
+- **Featured Tip Rotation** — Daily deterministic pick + home-screen strip.
+- **Digest Schedule** — APScheduler weekly Monday 09:00 UTC + unsubscribe.
+- **Import from Text (LLM bulk import)** — Shared dialog for admin + Quick Guide.
+- **Community Digest Email + Community Admin Dashboard + QR Scan-Back + Promoted community cards in Quick Guide** — all shipped earlier in this session.
 
 ### 🎉 Shipped earlier this session
 - **Palette expansion** — Tile background picker: 12→43 solid colors, 10→30 gradients (`data/noteIcons.js`); scrolling panel inside dialog

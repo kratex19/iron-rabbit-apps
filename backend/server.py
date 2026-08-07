@@ -75,6 +75,14 @@ async def _start_scheduler():
     except Exception:
         logger.exception("could not create community_events TTL index")
 
+    # Unique nickname reservation — prevents concurrent-write races.
+    try:
+        await db.nickname_reservations.create_index(
+            "nickname", unique=True, name="nickname_unique",
+        )
+    except Exception:
+        logger.exception("could not create nickname_reservations unique index")
+
     _scheduler = AsyncIOScheduler(timezone="UTC")
     _scheduler.add_job(
         _weekly_digest_job,

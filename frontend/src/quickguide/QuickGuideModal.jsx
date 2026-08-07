@@ -305,7 +305,8 @@ export default function QuickGuideModal({ isDark = true }) {
       if (payload.nickname) {
         try {
           const prev = JSON.parse(localStorage.getItem("irr.owned_nicknames") || "[]");
-          const next = Array.from(new Set([...prev, payload.nickname]));
+          // Cap at last 50 so a lifetime of shares can't unbounded-grow localStorage.
+          const next = Array.from(new Set([...prev, payload.nickname])).slice(-50);
           localStorage.setItem("irr.owned_nicknames", JSON.stringify(next));
         } catch (e) { /* quota */ }
       }
