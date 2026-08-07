@@ -22,8 +22,22 @@ async function api(path, body) {
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.detail || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
+}
+
+function formatLockUntil(iso) {
+  if (!iso) return "later";
+  try {
+    const dt = new Date(iso);
+    const mins = Math.max(1, Math.round((dt.getTime() - Date.now()) / 60000));
+    if (mins >= 60) return `about ${Math.round(mins / 60)}h`;
+    return `${mins} min`;
+  } catch (e) { return "later"; }
 }
 
 export default function NicknameRecoveryDialog({ isOpen, nickname, onClose }) {
@@ -46,6 +60,10 @@ export default function NicknameRecoveryDialog({ isOpen, nickname, onClose }) {
       const res = await api(`/api/community/nicknames/${encodeURIComponent(nickname)}/recovery`, { nickname });
       if (res.reason === "not-claimed") {
         toast.info("This nickname isn't claimed — just share a tip with it to claim it");
+        close(); return;
+      }
+      if (res.reason === "locked") {
+        toast.error(`Too many attempts. Try again in ${formatLockUntil(res.locked_until)}.`);
         close(); return;
       }
       setMaskedEmail(res.masked_email || "");
@@ -77,6 +95,10 @@ export default function NicknameRecoveryDialog({ isOpen, nickname, onClose }) {
       // Reload so the Wall re-fetches with new ownership.
       setTimeout(() => window.location.reload(), 500);
     } catch (e) {
+      if (e.status === 429) {
+        toast.error("Too many attempts — try again in about an hour.");
+        close(); return;
+      }
       toast.error(String(e.message || "Couldn't verify"));
     } finally { setBusy(false); }
   };

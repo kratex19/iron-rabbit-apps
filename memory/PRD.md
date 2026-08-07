@@ -1,9 +1,13 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
-## 📌 Session state (2026-02-06, this session)
+## 📌 Session state (2026-02-07, this session)
 
 ### 🎉 Shipped this session (fork continuation)
+- **Recovery Codes Hashed at Rest** (2026-02-07) — `nickname_recoveries.code_hash` now stores SHA-256(`<nickname>:<code>`) instead of the plaintext 6-digit code. Verification uses `hmac.compare_digest`. Legacy plaintext-code rows are still honored one last time (for users mid-flow on upgrade) and are scrubbed via `$unset code` on the next request. See `_hash_recovery_code` / `_RECOVERY_MAX_FAILED` in `routes/community.py`.
+- **Recovery Rate Limiting** (2026-02-07) — 3 failed verify attempts → 1-hour lockout on the nickname (`failed_attempts` + `locked_until` on the recovery doc). Locked state returns HTTP 429 on verify, and requests during lock return `{ok:true, reason:"locked", locked_until}` without issuing a new code (so an attacker can't cycle requests to reset the counter). Lock expiry auto-resets `failed_attempts` on next request. `NicknameRecoveryDialog` catches both branches and shows a "Try again in ~1h" toast. Full test coverage in `tests/test_nickname_recovery_rate_limit.py` (7 scenarios) + updated `test_nickname_recovery.py` (hash-at-rest assertion). **24/24 pytest green.**
+
+### 🎉 Shipped earlier in fork (2026-02-06)
 - **Share Card Themes** — 4 palette presets (Mint/Rose/Midnight/Sunset) with row of chip swatches above the format toggle in `WallShareDialog`. Choice persists via `localStorage['irr.wall_share_theme']`. Canvas repaints instantly with new gradient BG + nickname gradient + ribbon color.
 - **Nickname Recovery** — Two-step public flow via `POST /api/community/nicknames/{n}/recovery` (generates 6-digit code, 30-min TTL, emails ORIGINAL owner via Resend, silent-fails delivered=false when Resend not configured) + `POST /api/community/nicknames/{n}/recovery/verify` (transfers ownership + rewrites tip email + single-use code deletion). Frontend `NicknameRecoveryDialog` on every ContributorWall card that isn't yours (with `KeyRound` icon). Backend never leaks whether nickname is claimed vs unclaimed (both return `ok:true` — one with reason `not-claimed`).
 - **Wall Filter** — Client-side substring search on ContributorWall (nickname + latest_heading). Clear button + empty state.

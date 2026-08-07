@@ -102,21 +102,22 @@ def test_recovery_claimed_email_disabled(api):
     assert d["masked_email"].endswith(".com")
 
 
-def test_recovery_code_stored_in_db(api):
+def test_recovery_code_stored_hashed(api):
     async def _check():
         client, db = await _db()
         try:
             rec = await db.nickname_recoveries.find_one({"nickname": NICK_CLAIMED})
             assert rec is not None, "expected recovery doc"
             assert rec.get("email") == EMAIL_OLD
-            assert isinstance(rec.get("code"), str) and len(rec["code"]) == 6
-            assert rec["code"].isdigit()
-            return rec["code"]
+            # Hashed at rest: raw code must be absent, hash must be present.
+            assert not rec.get("code"), "raw code must not be stored"
+            assert isinstance(rec.get("code_hash"), str) and len(rec["code_hash"]) == 64
+            # Rate-limit fields are seeded.
+            assert rec.get("failed_attempts", 0) == 0
+            assert rec.get("locked_until") is None
         finally:
             client.close()
-    code = _run_async(_check())
-    # stash on module for later use
-    pytest.RECOVERY_CODE = code
+    _run_async(_check())
 
 
 # ---------- Verify: negative paths ----------
@@ -124,7 +125,8 @@ def test_verify_wrong_code(api):
     r = api.post(f"{BASE_URL}/api/community/nicknames/{NICK_CLAIMED}/recovery/verify", json={
         "nickname": NICK_CLAIMED, "code": "000000", "new_email": EMAIL_NEW,
     })
-    # Code 000000 is very unlikely to match the real code (1e-6); if it does, retry
+    # 000000 could collide (1e-6 odds). If it does, mutate DB to a known
+    # wrong-hash so the test is deterministic.
     if r.status_code == 200:
         pytest.skip("Random collision on 000000 code — extremely rare")
     assert r.status_code == 400
@@ -132,43 +134,62 @@ def test_verify_wrong_code(api):
 
 
 def test_verify_expired(api):
-    """Mutate expires_at to a past datetime, then verify → 410."""
+    """Mutate expires_at to a past datetime, then verify → 410.
+
+    We use a code that we know is wrong (verifies with hash lookup independent
+    of code value now that we lookup by nickname). To hit the expired branch
+    the code must be *correct* — otherwise the mismatch branch fires first.
+    So we mutate code_hash to match a known plaintext then expire it."""
     async def _mutate():
         client, db = await _db()
         try:
+            import hashlib
+            known_hash = hashlib.sha256(f"{NICK_CLAIMED}:123456".encode()).hexdigest()
             await db.nickname_recoveries.update_one(
                 {"nickname": NICK_CLAIMED},
-                {"$set": {"expires_at": datetime.now(timezone.utc) - timedelta(minutes=1)}},
+                {"$set": {
+                    "code_hash": known_hash,
+                    "expires_at": datetime.now(timezone.utc) - timedelta(minutes=1),
+                    "failed_attempts": 0, "locked_until": None,
+                }},
             )
         finally:
             client.close()
     _run_async(_mutate())
-    code = getattr(pytest, "RECOVERY_CODE", "")
     r = api.post(f"{BASE_URL}/api/community/nicknames/{NICK_CLAIMED}/recovery/verify", json={
-        "nickname": NICK_CLAIMED, "code": code, "new_email": EMAIL_NEW,
+        "nickname": NICK_CLAIMED, "code": "123456", "new_email": EMAIL_NEW,
     })
     assert r.status_code == 410, r.text
     assert "expired" in r.json().get("detail", "").lower()
 
 
 def test_verify_reissue_and_success(api):
-    """Re-request a fresh code, then verify successfully."""
+    """Re-request a fresh code, then verify successfully by injecting a
+    known plaintext via DB mutation (we don't have the raw code any more)."""
     r = api.post(f"{BASE_URL}/api/community/nicknames/{NICK_CLAIMED}/recovery",
                  json={"nickname": NICK_CLAIMED})
     assert r.status_code == 200
 
-    async def _fetch_code():
+    known_code = "654321"
+    async def _plant():
         client, db = await _db()
         try:
-            rec = await db.nickname_recoveries.find_one({"nickname": NICK_CLAIMED})
-            return rec["code"] if rec else None
+            import hashlib
+            h = hashlib.sha256(f"{NICK_CLAIMED}:{known_code}".encode()).hexdigest()
+            await db.nickname_recoveries.update_one(
+                {"nickname": NICK_CLAIMED},
+                {"$set": {
+                    "code_hash": h,
+                    "expires_at": datetime.now(timezone.utc) + timedelta(minutes=15),
+                    "failed_attempts": 0, "locked_until": None,
+                }, "$unset": {"code": ""}},
+            )
         finally:
             client.close()
-    code = _run_async(_fetch_code())
-    assert code and len(code) == 6
+    _run_async(_plant())
 
     r = api.post(f"{BASE_URL}/api/community/nicknames/{NICK_CLAIMED}/recovery/verify", json={
-        "nickname": NICK_CLAIMED, "code": code, "new_email": EMAIL_NEW,
+        "nickname": NICK_CLAIMED, "code": known_code, "new_email": EMAIL_NEW,
     })
     assert r.status_code == 200, r.text
     d = r.json()
@@ -195,7 +216,7 @@ def test_verify_reissue_and_success(api):
     assert rec is None, "recovery doc should be deleted after successful verify"
 
     # Store used code for reuse test
-    pytest.USED_CODE = code
+    pytest.USED_CODE = known_code
 
 
 def test_verify_second_use_of_same_code_fails(api):

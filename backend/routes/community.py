@@ -275,11 +275,57 @@ def _mask_email(email: str) -> str:
     return f"{local[:1]}***@***.{dtail}"
 
 
+# --- Recovery: hashing + rate limiting -------------------------------------
+# Codes are 6-digit numeric, so plaintext at rest is a real risk: a DB leak
+# would expose any live codes. We store SHA-256(nickname:code) instead —
+# nickname acts as a salt so rainbow tables across nicknames don't work.
+# The 10^6 keyspace still allows offline brute force, but the DB is now
+# defense-in-depth rather than an active credential store.
+#
+# Rate limit: 3 failed VERIFY attempts across code cycles → 1-hour lockout.
+# Requests while locked do NOT issue a new code (that would let an attacker
+# reset the attempt window). Attempts reset to 0 only when a lock expires
+# or on successful verify (which deletes the doc anyway).
+import hashlib as _hashlib
+
+_RECOVERY_MAX_FAILED = 3
+_RECOVERY_LOCK_DURATION = timedelta(hours=1)
+
+
+def _hash_recovery_code(nickname: str, code: str) -> str:
+    """SHA-256 of `<nickname>:<code>`. Nickname acts as a lightweight salt."""
+    return _hashlib.sha256(f"{nickname}:{code}".encode("utf-8")).hexdigest()
+
+
+def _parse_dt(value: Any) -> Optional[datetime]:
+    """Coerce a mongo BSON date or ISO string back to a tz-aware datetime."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    else:
+        dt = value
+    if isinstance(dt, datetime) and dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt if isinstance(dt, datetime) else None
+
+
+def _is_locked(rec: Dict[str, Any]) -> bool:
+    lu = _parse_dt(rec.get("locked_until") if rec else None)
+    return bool(lu and lu > datetime.now(timezone.utc))
+
+
 @router.post("/community/nicknames/{nickname}/recovery", response_model=NicknameRecoveryResponse)
 async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequestBody):
     """Public: request an unlock code for a claimed nickname. Code is
     emailed to the ORIGINAL owner. Silent-fails (delivered=false) when
-    Resend isn't configured — matches the digest pattern."""
+    Resend isn't configured — matches the digest pattern.
+
+    Refuses to issue a new code while a lockout is active so attackers
+    can't reset the failed-attempts counter by cycling requests."""
     clean = _sanitize_nickname(nickname)
     if not clean:
         raise HTTPException(status_code=400, detail="Invalid nickname format")
@@ -287,16 +333,38 @@ async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequ
     if not owner:
         return NicknameRecoveryResponse(ok=True, delivered=False, reason="not-claimed")
 
+    # Lock check happens BEFORE we generate/send anything so attackers can't
+    # spam the mail path either. Existing lock still visible only for a
+    # claimed nickname, matching the enumeration boundary above.
+    existing = await db.nickname_recoveries.find_one({"nickname": clean})
+    if existing and _is_locked(existing):
+        lu = _parse_dt(existing.get("locked_until"))
+        return NicknameRecoveryResponse(
+            ok=True, delivered=False, reason="locked",
+            masked_email=_mask_email(owner),
+            locked_until=lu.isoformat() if lu else None,
+        )
+
     import secrets
     code = f"{secrets.randbelow(1000000):06d}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+    # Preserve failed_attempts across cycles unless the previous lock has
+    # expired, in which case the counter resets. New request always overwrites
+    # the code_hash so an old (leaked) code can't be reused.
+    prior_attempts = int((existing or {}).get("failed_attempts", 0)) if existing else 0
+    prior_lock = _parse_dt((existing or {}).get("locked_until"))
+    if prior_lock and prior_lock <= datetime.now(timezone.utc):
+        prior_attempts = 0  # lock expired → fresh counter
     await db.nickname_recoveries.update_one(
         {"nickname": clean},
         {"$set": {
-            "nickname": clean, "email": owner, "code": code,
+            "nickname": clean, "email": owner,
+            "code_hash": _hash_recovery_code(clean, code),
             "expires_at": expires_at,
             "requested_at": datetime.now(timezone.utc).isoformat(),
-        }},
+            "failed_attempts": prior_attempts,
+            "locked_until": None,
+        }, "$unset": {"code": ""}},  # scrub any legacy plaintext code
         upsert=True,
     )
 
@@ -339,7 +407,10 @@ async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequ
 
 @router.post("/community/nicknames/{nickname}/recovery/verify", response_model=NicknameStatusResponse)
 async def verify_nickname_recovery(nickname: str, payload: NicknameRecoveryVerifyBody):
-    """Public: submit unlock code + new_email to transfer ownership. Single-use."""
+    """Public: submit unlock code + new_email to transfer ownership. Single-use.
+
+    Rate-limited: after 3 failed attempts we set a 1-hour lockout on the
+    nickname. Further verifies (and requests) refuse until the lock expires."""
     clean = _sanitize_nickname(nickname)
     if not clean or clean != _sanitize_nickname(payload.nickname):
         raise HTTPException(status_code=400, detail="Invalid nickname")
@@ -350,19 +421,49 @@ async def verify_nickname_recovery(nickname: str, payload: NicknameRecoveryVerif
     if not code:
         raise HTTPException(status_code=400, detail="Code required")
 
-    rec = await db.nickname_recoveries.find_one({"nickname": clean, "code": code})
+    rec = await db.nickname_recoveries.find_one({"nickname": clean})
     if not rec:
         raise HTTPException(status_code=400, detail="Invalid code")
-    expires = rec.get("expires_at")
-    if isinstance(expires, str):
-        try: expires = datetime.fromisoformat(expires.replace("Z", "+00:00"))
-        except Exception: expires = None
-    # BSON dates come back naive from motor — coerce to UTC before compare.
-    if expires and expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
+
+    # Lock gate — refuse before comparing so timing gives nothing away.
+    if _is_locked(rec):
+        lu = _parse_dt(rec.get("locked_until"))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many attempts. Try again after {lu.isoformat() if lu else 'later'}.",
+        )
+
+    expires = _parse_dt(rec.get("expires_at"))
     if not expires or expires < datetime.now(timezone.utc):
         await db.nickname_recoveries.delete_one({"_id": rec["_id"]})
         raise HTTPException(status_code=410, detail="Code expired — request a new one")
+
+    # Constant-time-ish comparison via hashlib output. Legacy rows that still
+    # carry a plaintext `code` (pre-migration) are also accepted so users mid-
+    # flow on upgrade day aren't stranded — the next request rewrites them to
+    # a hash and unsets `code`.
+    submitted_hash = _hash_recovery_code(clean, code)
+    matched = False
+    if rec.get("code_hash"):
+        import hmac
+        matched = hmac.compare_digest(str(rec["code_hash"]), submitted_hash)
+    elif rec.get("code"):
+        import hmac
+        matched = hmac.compare_digest(str(rec["code"]), code)
+
+    if not matched:
+        attempts = int(rec.get("failed_attempts", 0)) + 1
+        update: Dict[str, Any] = {"failed_attempts": attempts}
+        if attempts >= _RECOVERY_MAX_FAILED:
+            update["locked_until"] = datetime.now(timezone.utc) + _RECOVERY_LOCK_DURATION
+        await db.nickname_recoveries.update_one({"_id": rec["_id"]}, {"$set": update})
+        if attempts >= _RECOVERY_MAX_FAILED:
+            lu = update["locked_until"]
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many attempts. Try again after {lu.isoformat()}.",
+            )
+        raise HTTPException(status_code=400, detail="Invalid code")
 
     old_email = rec.get("email")
     await db.nickname_reservations.update_one(

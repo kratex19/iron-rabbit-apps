@@ -112,3 +112,6 @@ class NicknameRecoveryResponse(BaseModel):
     delivered: bool = False
     reason: str = ""
     masked_email: Optional[str] = None
+    # ISO timestamp; set when the nickname is currently locked out from
+    # verify attempts. UI can show a countdown until unlock.
+    locked_until: Optional[str] = None
