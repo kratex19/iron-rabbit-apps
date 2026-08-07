@@ -96,12 +96,12 @@ export default function AnalyticsChart({ apiFetch, token }) {
       {/* Top-line totals */}
       <div className="grid grid-cols-4 gap-2 mb-4">
         {[
-          { label: "Impressions", value: totals.impressions, color: "text-slate-300" },
-          { label: "Opens", value: totals.opens, color: "text-emerald-400" },
-          { label: "Dismissed", value: totals.dismisses, color: "text-amber-400" },
-          { label: "Unique installs", value: totals.uniques, color: "text-indigo-400" },
+          { label: "Impressions", value: totals.impressions, color: "text-slate-300", key: "impressions" },
+          { label: "Opens", value: totals.opens, color: "text-emerald-400", key: "opens" },
+          { label: "Dismisses", value: totals.dismisses, color: "text-amber-400", key: "dismisses" },
+          { label: "Unique installs", value: totals.uniques, color: "text-indigo-400", key: "unique-installs" },
         ].map(stat => (
-          <div key={stat.label} className="rounded-lg bg-black/20 border border-white/5 p-2.5" data-testid={`analytics-total-${stat.label.toLowerCase().replace(" ","-")}`}>
+          <div key={stat.key} className="rounded-lg bg-black/20 border border-white/5 p-2.5" data-testid={`analytics-total-${stat.key}`}>
             <div className="text-[10px] uppercase tracking-wider text-slate-500">{stat.label}</div>
             <div className={`text-lg font-bold ${stat.color}`}>{stat.value}</div>
           </div>
@@ -135,10 +135,10 @@ export default function AnalyticsChart({ apiFetch, token }) {
                   contentStyle={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
                   cursor={{ fill: "rgba(255,255,255,0.02)" }}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />
-                <Bar dataKey="opens" stackId="stack" fill="#10B981" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="impressions" stackId="stack" fill="#6366F1" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="dismisses" stackId="stack" fill="#F59E0B" radius={[0, 0, 0, 0]}>
+                <Legend wrapperStyle={{ fontSize: 11, textTransform: "capitalize" }} iconType="circle" />
+                <Bar dataKey="opens" name="Opens" stackId="stack" fill="#10B981" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="impressions" name="Impressions" stackId="stack" fill="#6366F1" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="dismisses" name="Dismisses" stackId="stack" fill="#F59E0B" radius={[0, 0, 0, 0]}>
                   {chartData.map((_, i) => <Cell key={i} />)}
                 </Bar>
               </BarChart>

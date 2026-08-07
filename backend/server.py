@@ -1099,7 +1099,7 @@ async def track_community_events(payload: CommunityEventsRequest):
     so we can compute 'unique installs' without any user identity."""
     if not payload.events:
         return {"ok": True, "written": 0}
-    now = datetime.now(timezone.utc).isoformat()
+    now_dt = datetime.now(timezone.utc)
     docs = []
     for ev in payload.events[:50]:  # hard cap per call
         if ev.event not in _ALLOWED_EVENTS:
@@ -1108,12 +1108,19 @@ async def track_community_events(payload: CommunityEventsRequest):
         if not tip_id:
             continue
         install = (ev.install_id or "").strip()[:64] or None
+        # `at` stored as BSON Date so the TTL index can expire old rows.
+        at_dt = now_dt
+        if ev.at:
+            try:
+                at_dt = datetime.fromisoformat(ev.at.replace("Z", "+00:00"))
+            except Exception:
+                at_dt = now_dt
         docs.append({
             "id": str(uuid.uuid4()),
             "event": ev.event,
             "tip_id": tip_id,
             "install_id": install,
-            "at": ev.at or now,
+            "at": at_dt,
         })
     if docs:
         try:
@@ -1149,7 +1156,8 @@ async def community_analytics(
     """Admin-only: per-tip event counts + unique installs over the last N days."""
     _require_admin(x_admin_token)
     days = max(1, min(365, int(days or 30)))
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    # `at` is BSON Date since iter57 — compare with datetime, not string.
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     pipeline = [
         {"$match": {"at": {"$gte": since}}},
         {"$group": {
@@ -1515,6 +1523,15 @@ async def _start_scheduler():
     global _scheduler
     if _scheduler is not None:
         return  # already registered — avoid double-scheduling on reload
+    # One-shot: TTL index on analytics events so long-term storage doesn't
+    # grow unbounded. 180 days of `at` history is plenty for the last-90-days
+    # dashboard window while covering seasonality analysis.
+    try:
+        await db.community_events.create_index(
+            "at", expireAfterSeconds=180 * 24 * 60 * 60, name="events_ttl"
+        )
+    except Exception:
+        logger.exception("could not create community_events TTL index")
     _scheduler = AsyncIOScheduler(timezone="UTC")
     _scheduler.add_job(
         _weekly_digest_job,
