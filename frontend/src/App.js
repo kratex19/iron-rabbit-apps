@@ -16,6 +16,7 @@ import BlogPostPage from "./site/pages/BlogPostPage";
 import NotesApp from "./NotesApp";
 import CommunityDashboard from "./admin/CommunityDashboard";
 import ContributorWall from "./community/ContributorWall";
+import RecoverLandingPage from "./community/RecoverLandingPage";
 
 function NotFound() {
   return (
@@ -43,6 +44,8 @@ export default function App() {
         {/* Contributor Wall — public "thanks" page. Two URLs, same component. */}
         <Route path="/contributors" element={<ContributorWall />} />
         <Route path="/community/wall" element={<ContributorWall />} />
+        {/* Magic-link recovery landing */}
+        <Route path="/recover" element={<RecoverLandingPage />} />
 
         {/* Company Website — nested under /site (will move to ironrabbitapps.com) */}
         <Route path="/site" element={<HomePage />} />

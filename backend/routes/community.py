@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from deps import (
     db, EMERGENT_LLM_KEY,
-    RESEND_API_KEY, SENDER_EMAIL,
+    RESEND_API_KEY, SENDER_EMAIL, PUBLIC_APP_URL,
     require_admin,
 )
 from models.community import (
@@ -372,7 +372,23 @@ async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequ
     if RESEND_API_KEY and SENDER_EMAIL:
         try:
             import resend as _resend
+            from urllib.parse import quote
             _resend.api_key = RESEND_API_KEY
+            # Magic link: one-tap deep link into the recovery flow with the
+            # code pre-filled. Only rendered when PUBLIC_APP_URL is configured;
+            # the plaintext code is still shown so users on native clients
+            # that block the link (e.g., stripped email previews) can copy it.
+            magic_link = (
+                f"{PUBLIC_APP_URL}/recover?n={quote(clean)}&c={code}"
+                if PUBLIC_APP_URL else ""
+            )
+            magic_block = (
+                f'<div style="margin:20px 0;text-align:center;">'
+                f'<a href="{magic_link}" style="display:inline-block;padding:12px 24px;background:#6366F1;color:#FFF;'
+                f'text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">Recover @{clean} in one tap</a>'
+                f'</div>'
+                f'<div style="text-align:center;font-size:11px;color:#94A3B8;margin:-8px 0 12px;">or enter this code manually:</div>'
+            ) if magic_link else ""
             html = (
                 '<!DOCTYPE html><html><body style="margin:0;padding:24px;background:#0B1221;'
                 'font-family:-apple-system,sans-serif;">'
@@ -383,7 +399,8 @@ async def request_nickname_recovery(nickname: str, payload: NicknameRecoveryRequ
                 f'<div style="font-size:22px;font-weight:700;margin-top:4px;">Recover @{clean}</div>'
                 '</td></tr>'
                 '<tr><td style="padding:20px 24px;font-size:15px;color:#0F172A;line-height:1.6;">'
-                f'Someone (probably you) asked to reclaim <strong>@{clean}</strong>. Enter this code in the app to move ownership to a new email:'
+                f'Someone (probably you) asked to reclaim <strong>@{clean}</strong>.'
+                f'{magic_block}'
                 f'<div style="margin:20px 0;padding:16px;text-align:center;background:#F1F5F9;border-radius:8px;font-size:32px;font-weight:800;letter-spacing:6px;color:#0F172A;">{code}</div>'
                 '<div style="font-size:12px;color:#64748B;">Code expires in 30 minutes. Ignore this email if you didn&#39;t request it.</div>'
                 '</td></tr></table></body></html>'

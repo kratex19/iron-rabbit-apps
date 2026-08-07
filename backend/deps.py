@@ -32,6 +32,9 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "")
 ADMIN_DIGEST_EMAIL = os.environ.get("ADMIN_DIGEST_EMAIL", "")
+# Public URL used in transactional email links (magic-link recovery, etc.).
+# Falls back to empty string — emails then omit the one-tap link.
+PUBLIC_APP_URL = os.environ.get("PUBLIC_APP_URL", "").rstrip("/")
 
 logger = logging.getLogger(__name__)
 

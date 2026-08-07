@@ -12,9 +12,11 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Heart, ArrowLeft, Loader2, AtSign, Share2, Search, X, KeyRound } from "lucide-react";
+import { Sparkles, Heart, ArrowLeft, Loader2, AtSign, Share2, Search, X, KeyRound, Trophy, Clock } from "lucide-react";
 import WallShareDialog from "./WallShareDialog";
 import NicknameRecoveryDialog from "./NicknameRecoveryDialog";
+
+const SORT_KEY = "irr.wall_sort_mode";  // "top" | "recent"
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -30,6 +32,14 @@ export default function ContributorWall() {
   const [recoveryTarget, setRecoveryTarget] = useState(null);
   const [ownedNicks, setOwnedNicks] = useState([]);
   const [query, setQuery] = useState("");
+  const [sortMode, setSortMode] = useState(() => {
+    try { return localStorage.getItem(SORT_KEY) === "recent" ? "recent" : "top"; }
+    catch (e) { return "top"; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(SORT_KEY, sortMode); } catch (e) { /* ignore */ }
+  }, [sortMode]);
 
   useEffect(() => {
     try {
@@ -40,12 +50,22 @@ export default function ContributorWall() {
   const filteredContributors = useMemo(() => {
     if (!contributors) return [];
     const q = query.trim().toLowerCase();
-    if (!q) return contributors;
-    return contributors.filter(c =>
-      (c.nickname || "").toLowerCase().includes(q) ||
-      (c.latest_heading || "").toLowerCase().includes(q)
-    );
-  }, [contributors, query]);
+    const filtered = q
+      ? contributors.filter(c =>
+          (c.nickname || "").toLowerCase().includes(q) ||
+          (c.latest_heading || "").toLowerCase().includes(q))
+      : contributors;
+    // Backend already returns sorted by tip_count desc, latest_promoted_at desc.
+    // For "recent" we resort locally so we don't need a second endpoint.
+    if (sortMode === "recent") {
+      return [...filtered].sort((a, b) => {
+        const ta = a.latest_promoted_at ? Date.parse(a.latest_promoted_at) : 0;
+        const tb = b.latest_promoted_at ? Date.parse(b.latest_promoted_at) : 0;
+        return tb - ta;
+      });
+    }
+    return filtered;
+  }, [contributors, query, sortMode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,9 +135,42 @@ export default function ContributorWall() {
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold flex items-center gap-2">
                 <span>{contributors.length} {contributors.length === 1 ? "contributor" : "contributors"}</span>
                 <span className="text-slate-600">·</span>
-                <span>sorted by tips promoted</span>
+                <span data-testid="wall-sort-label">
+                  {sortMode === "top" ? "sorted by tips promoted" : "sorted by most recent"}
+                </span>
               </div>
               <div className="flex-1" />
+              {/* Sort toggle */}
+              <div className="inline-flex rounded-md bg-white/5 border border-white/10 p-0.5 gap-0.5" role="tablist" aria-label="Sort contributors">
+                <button
+                  type="button"
+                  onClick={() => setSortMode("top")}
+                  role="tab"
+                  aria-selected={sortMode === "top"}
+                  className={`px-2.5 h-8 rounded text-[11px] font-medium inline-flex items-center gap-1 transition-colors ${
+                    sortMode === "top"
+                      ? "bg-emerald-500/20 text-emerald-200"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  }`}
+                  data-testid="wall-sort-top"
+                >
+                  <Trophy className="w-3 h-3" /> Top
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortMode("recent")}
+                  role="tab"
+                  aria-selected={sortMode === "recent"}
+                  className={`px-2.5 h-8 rounded text-[11px] font-medium inline-flex items-center gap-1 transition-colors ${
+                    sortMode === "recent"
+                      ? "bg-emerald-500/20 text-emerald-200"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  }`}
+                  data-testid="wall-sort-recent"
+                >
+                  <Clock className="w-3 h-3" /> Recent
+                </button>
+              </div>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input

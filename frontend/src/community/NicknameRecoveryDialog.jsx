@@ -40,12 +40,25 @@ function formatLockUntil(iso) {
   } catch (e) { return "later"; }
 }
 
-export default function NicknameRecoveryDialog({ isOpen, nickname, onClose }) {
+export default function NicknameRecoveryDialog({ isOpen, nickname, prefillCode, onClose }) {
   const [step, setStep] = useState(1);
   const [maskedEmail, setMaskedEmail] = useState("");
   const [code, setCode] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Magic-link entry: if a prefill code is passed in, skip step 1 and land
+  // the user directly on the "enter new email" step with the code populated.
+  React.useEffect(() => {
+    if (isOpen && prefillCode) {
+      const c = String(prefillCode).replace(/\D/g, "").slice(0, 6);
+      if (c.length === 6) {
+        setCode(c);
+        setMaskedEmail("");
+        setStep(2);
+      }
+    }
+  }, [isOpen, prefillCode]);
 
   if (!isOpen || !nickname) return null;
 
