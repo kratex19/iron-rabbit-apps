@@ -287,15 +287,65 @@ async def admin_check_drop_alert():
 
 
 @router.get("/admin/recovery/alerts", dependencies=[Depends(require_admin)])
-async def admin_recovery_alerts(limit: int = 5):
-    """Admin-only: last N recovery-drop alerts (newest first). Feeds the
-    'Past alerts' panel under the Recovery Funnel so historical drops stay
-    visible after the toast/banner disappears."""
+async def admin_recovery_alerts(limit: int = 5, include_dismissed: int = 0):
+    """Admin-only: last N recovery-drop alerts (newest first).
+
+    By default hides rows that have been dismissed or are currently snoozed —
+    the panel is a live "still-relevant drops" view, not the full audit
+    trail. Pass `?include_dismissed=1` to see everything (audit mode)."""
     limit = max(1, min(50, int(limit or 5)))
-    docs = await db.recovery_alerts.find({}, {"_id": 0}).sort("alerted_at", -1).to_list(limit)
+    q: Dict[str, Any] = {}
+    if not include_dismissed:
+        now = datetime.now(timezone.utc)
+        # `dismissed_at` and `snooze_until` are added by PATCH — legacy rows
+        # won't have them at all. `$exists:false` + explicit null both count
+        # as "not dismissed / not snoozed".
+        q = {
+            "$and": [
+                {"$or": [{"dismissed_at": {"$exists": False}}, {"dismissed_at": None}]},
+                {"$or": [
+                    {"snooze_until": {"$exists": False}},
+                    {"snooze_until": None},
+                    {"snooze_until": {"$lt": now}},
+                ]},
+            ],
+        }
+    docs = await db.recovery_alerts.find(q, {"_id": 0}).sort("alerted_at", -1).to_list(limit)
     # Datetime → ISO for JSON safety.
     for d in docs:
-        v = d.get("alerted_at")
-        if isinstance(v, datetime):
-            d["alerted_at"] = v.isoformat()
+        for k in ("alerted_at", "dismissed_at", "snooze_until"):
+            v = d.get(k)
+            if isinstance(v, datetime):
+                d[k] = v.isoformat()
     return {"alerts": docs}
+
+
+@router.patch("/admin/recovery/alerts/{week_start}", dependencies=[Depends(require_admin)])
+async def admin_patch_recovery_alert(week_start: str, payload: Dict[str, Any]):
+    """Admin-only: acknowledge a drop.
+
+    Actions:
+      * `dismiss`  — set `dismissed_at` = now (removes from default view)
+      * `snooze`   — set `snooze_until` = now + N days (default 7)
+      * `restore`  — clear both fields (row reappears in default view)
+    """
+    action = str(payload.get("action") or "").strip().lower()
+    if action not in {"dismiss", "snooze", "restore"}:
+        raise HTTPException(status_code=400, detail="Unsupported action")
+
+    doc = await db.recovery_alerts.find_one({"week_start": week_start})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Alert not found")
+
+    now = datetime.now(timezone.utc)
+    if action == "dismiss":
+        update = {"$set": {"dismissed_at": now}}
+    elif action == "snooze":
+        days = int(payload.get("days") or 7)
+        days = max(1, min(30, days))
+        update = {"$set": {"snooze_until": now + timedelta(days=days), "dismissed_at": None}}
+    else:  # restore
+        update = {"$set": {"dismissed_at": None, "snooze_until": None}}
+
+    await db.recovery_alerts.update_one({"week_start": week_start}, update)
+    return {"ok": True, "action": action}

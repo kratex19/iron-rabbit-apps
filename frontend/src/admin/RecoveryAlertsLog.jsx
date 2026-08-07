@@ -7,7 +7,8 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
-import { History, TrendingDown, RefreshCcw, Loader2, Slack } from "lucide-react";
+import { toast } from "sonner";
+import { History, TrendingDown, RefreshCcw, Loader2, Slack, X, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function formatDate(iso) {
@@ -31,6 +32,7 @@ function formatRelative(iso) {
 export default function RecoveryAlertsLog({ apiFetch, token }) {
   const [alerts, setAlerts] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [busyKey, setBusyKey] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,6 +45,22 @@ export default function RecoveryAlertsLog({ apiFetch, token }) {
   }, [apiFetch, token]);
 
   useEffect(() => { load(); }, [load]);
+
+  const patchAlert = async (weekStart, action, days) => {
+    setBusyKey(`${weekStart}:${action}`);
+    try {
+      await apiFetch(`/api/admin/recovery/alerts/${encodeURIComponent(weekStart)}`, token, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(days ? { action, days } : { action }),
+      });
+      // Optimistic: drop the row locally so the panel updates instantly.
+      setAlerts(prev => (prev || []).filter(a => a.week_start !== weekStart));
+      toast.success(action === "snooze" ? `Snoozed for ${days || 7} days` : "Dismissed");
+    } catch (e) {
+      toast.error("Couldn't update alert");
+    } finally { setBusyKey(""); }
+  };
 
   // Empty state: don't render at all so a healthy funnel doesn't get a
   // "no alerts" placeholder. Log-style panels are for history, not zero.
@@ -80,7 +98,7 @@ export default function RecoveryAlertsLog({ apiFetch, token }) {
           return (
             <li
               key={a.week_start || idx}
-              className="py-2 flex items-center gap-3 text-xs"
+              className="py-2 flex items-center gap-3 text-xs group"
               data-testid={`alerts-log-row-${idx}`}
             >
               <TrendingDown className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" />
@@ -111,6 +129,29 @@ export default function RecoveryAlertsLog({ apiFetch, token }) {
                   )}
                 </div>
               </div>
+              {/* Snooze 7d + Dismiss. Both keep the row in Mongo (audit trail
+                  intact) — the default GET just filters them out. */}
+              <button
+                type="button"
+                onClick={() => patchAlert(a.week_start, "snooze", 7)}
+                disabled={busyKey.startsWith(`${a.week_start}:`)}
+                className="h-6 px-2 rounded text-[10px] font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 inline-flex items-center gap-1 transition-colors"
+                title="Hide this alert for 7 days"
+                data-testid={`alerts-log-snooze-${idx}`}
+              >
+                <Clock className="w-3 h-3" /> 7d
+              </button>
+              <button
+                type="button"
+                onClick={() => patchAlert(a.week_start, "dismiss")}
+                disabled={busyKey.startsWith(`${a.week_start}:`)}
+                className="w-6 h-6 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+                title="Dismiss — keeps the audit row, hides from panel"
+                aria-label="Dismiss alert"
+                data-testid={`alerts-log-dismiss-${idx}`}
+              >
+                <X className="w-3 h-3" />
+              </button>
             </li>
           );
         })}
