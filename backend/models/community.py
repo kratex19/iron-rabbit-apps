@@ -83,3 +83,15 @@ class Contributor(BaseModel):
 class ContributorsResponse(BaseModel):
     contributors: List[Contributor]
     total: int
+
+
+class NicknameReserveRequest(BaseModel):
+    nickname: str
+    email: str
+
+
+class NicknameStatusResponse(BaseModel):
+    nickname: str
+    available: bool
+    reason: str = ""  # "free" | "claimed_by_you" | "taken" | "invalid"
+    owned_by_you: bool = False

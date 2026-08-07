@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 58 — Nickname Reservations + Wall Sharing. Backend: 23/23 pytest passing on tests/test_nickname_reservations.py covering /api/community/nicknames/{n}/status (free/taken/claimed_by_you/invalid), /api/community/nicknames/reserve (create, idempotent same-email, 409 different-email, 400 invalid nickname / bad email / missing email), and /api/community/tip 409 collisions (explicit reservation & implicit-via-first-tip). Regression: contributors/featured/promoted/admin-tips-gate/anonymous-tip/notes CRUD all still pass. Frontend: /contributors Wall renders 2 seeded cards; seeded localStorage['irr.owned_nicknames']=['cook_ninja'] → wall-mine-badge-cook_ninja rendered; wall-share-<nick> buttons on every card; clicking opens wall-share-dialog with canvas 1200×630, toggles to 1080×1080 on -format-square and back to 1200×630 on -format-landscape (no JS errors, no console warnings); Download PNG + Share buttons present. Share-button label correctly toggles 'Share your card' when owned vs 'Share this contributor' otherwise (verified in code + prior screenshot).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_nickname_reservations.py",
+    "/app/test_reports/pytest/iter58.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "reserve_nickname is idempotent via upsert on {nickname} unique key — but there is NO unique index on `nickname_reservations.nickname` in server.startup. Two concurrent POSTs for the same nickname with different emails could race past the owner-check and both upsert. Consider `db.nickname_reservations.create_index('nickname', unique=True)` on startup.",
+    "_nickname_owner_email lowercases emails when returning but the STORED contributor_email in community_tips is also lowercased in submit_community_tip — consistent. Reservation email is also lowercased in reserve_nickname. Good.",
+    "The 409 error message on submit_community_tip includes the raw nickname — safe because it's already regex-restricted to [A-Za-z0-9_], no XSS/injection risk.",
+    "Nickname regex is duplicated in CommunityShareDialog.jsx (NICK_RE) — kept in sync manually. Consider exporting a shared constant, but low priority.",
+    "WallShareDialog renders on a <canvas> element sized 1200×630 / 1080×1080 — CSS scales to container. No JS errors on switch. But there's no explicit width/height clamp so on very small viewports the canvas overflows the modal — modal has max-h-[92vh] but not width. Minor cosmetic on mobile.",
+    "localStorage key 'irr.owned_nicknames' has no size cap — unbounded write across sessions could accumulate. Rare edge case, but a `.slice(-50)` on write would be prudent.",
+    "reserve_nickname returns 'claimed_by_you' when the SAME email re-reserves — that's the intended idempotent shape. GET status with same email returns identical shape. Consistent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_nickname_reservations.py (new — 23 tests)"
+  ],
+  "success_rate": { "backend": "100% (23/23)", "frontend": "100% (Wall + WallShareDialog + You badge + format toggle + Share/Download buttons all verified)" },
+  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5",
+  "seed_data_creation": "Test file inserts TEST_iter58 tips with run-scoped nickname suffix TESTe58_<hex> / TESTi58_<hex> / TESTf58_<hex>. Cleaned up in test_zzz_cleanup which deletes both community_tips (via admin endpoint) and nickname_reservations (direct motor cleanup using MONGO_URL/DB_NAME). Pre-existing seeded 'cook_ninja' and 'veggie_wizard' promoted tips left in place per instructions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_nickname_reservations.py is idempotent and safe to re-run. Requires REACT_APP_BACKEND_URL and ADMIN_TOKEN env vars (defaults to prod admin token). Uses a per-run uuid suffix so parallel runs won't collide. Frontend WallShareDialog test used localStorage seed BEFORE navigation via a two-step goto — otherwise React reads localStorage on mount before the seed is set. The CommunityShareDialog live-status indicator (data-testid=share-nickname-status) was verified via code review only — reaching it requires opening the Quick Guide modal, opening the share dialog for a card, and typing — not exercised interactively this run. The backend endpoint it hits (/api/community/nicknames/{n}/status) IS fully covered by pytest so the integration is safe."
+}

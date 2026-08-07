@@ -22,6 +22,7 @@ from models.community import (
     PromotedTip, FeaturedTipResponse,
     ParseTipsRequest, ParseTipsResponse, ParsedCard,
     Contributor, ContributorsResponse,
+    NicknameReserveRequest, NicknameStatusResponse,
 )
 
 router = APIRouter(prefix="/api")
@@ -58,10 +59,38 @@ def _normalize_tip_row(d: Dict[str, Any]) -> Dict[str, Any]:
     return d
 
 
+async def _nickname_owner_email(nickname: str) -> Optional[str]:
+    """Find the email that has claimed this nickname, if any.
+
+    Priority order (implicit reservation):
+      1. explicit reservation in `nickname_reservations`
+      2. first tip that used this nickname + a non-empty contributor_email
+    Anonymous prior use (nickname without any email) leaves the name free
+    for later explicit claim by an email owner.
+    Returns lowercased email or None if free."""
+    # Explicit reservation wins
+    r = await db.nickname_reservations.find_one({"nickname": nickname})
+    if r and r.get("email"):
+        return str(r["email"]).lower()
+    # Implicit: first tip that paired this nickname + email
+    doc = await db.community_tips.find_one(
+        {"nickname": nickname, "contributor_email": {"$exists": True, "$nin": [None, ""]}},
+        {"_id": 0, "contributor_email": 1},
+        sort=[("created_at", 1)],
+    )
+    if doc and doc.get("contributor_email"):
+        return str(doc["contributor_email"]).lower()
+    return None
+
+
 @router.post("/community/tip", response_model=CommunityTipResponse)
 async def submit_community_tip(payload: CommunityTipRequest):
     """Anonymously receive a Quick Guide tip. Nothing that identifies the
-    sender is stored — only what they typed and the guide it belongs to."""
+    sender is stored — only what they typed and the guide it belongs to.
+
+    Nickname reservation: if a nickname has already been claimed (via
+    explicit reservation OR by a prior tip with a matching email), the
+    submission must use the same email or we reject with 409."""
     heading = (payload.heading or "").strip()[:120]
     body = (payload.body or "").strip()[:800]
     if not heading and not body:
@@ -71,6 +100,14 @@ async def submit_community_tip(payload: CommunityTipRequest):
         contributor_email = ""
     contributor_opt_in = bool(payload.contributor_opt_in) and bool(contributor_email)
     nickname = _sanitize_nickname(payload.nickname)
+    if nickname:
+        owner = await _nickname_owner_email(nickname)
+        # Owner exists AND either the incoming email is missing OR different → block.
+        if owner and (not contributor_email or contributor_email != owner):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Nickname '@{nickname}' is claimed. Include the original owner's email to reuse it, or pick another.",
+            )
     doc = {
         "id": str(uuid.uuid4()),
         "heading": heading,
@@ -186,6 +223,47 @@ async def featured_community_tip():
     chosen.setdefault("promoted_at", None)
     chosen.setdefault("nickname", None)
     return FeaturedTipResponse(tip=PromotedTip(**chosen), total_promoted=len(docs))
+
+
+@router.get("/community/nicknames/{nickname}/status", response_model=NicknameStatusResponse)
+async def nickname_status(nickname: str, email: Optional[str] = None):
+    """Public availability check for the share dialog."""
+    clean = _sanitize_nickname(nickname)
+    if not clean:
+        return NicknameStatusResponse(nickname=nickname, available=False, reason="invalid")
+    email_norm = (email or "").strip().lower()
+    owner = await _nickname_owner_email(clean)
+    if not owner:
+        return NicknameStatusResponse(nickname=clean, available=True, reason="free")
+    if email_norm and email_norm == owner:
+        return NicknameStatusResponse(nickname=clean, available=True, reason="claimed_by_you", owned_by_you=True)
+    return NicknameStatusResponse(nickname=clean, available=False, reason="taken")
+
+
+@router.post("/community/nicknames/reserve", response_model=NicknameStatusResponse)
+async def reserve_nickname(payload: NicknameReserveRequest):
+    """Explicit pre-claim of a nickname. Idempotent for same (nickname,email)."""
+    clean = _sanitize_nickname(payload.nickname)
+    if not clean:
+        raise HTTPException(status_code=400, detail="Invalid nickname format")
+    email_norm = (payload.email or "").strip().lower()[:200]
+    if not email_norm or "@" not in email_norm:
+        raise HTTPException(status_code=400, detail="Valid email required")
+    owner = await _nickname_owner_email(clean)
+    if owner and owner != email_norm:
+        raise HTTPException(status_code=409, detail=f"Nickname '@{clean}' is already claimed by another email")
+    await db.nickname_reservations.update_one(
+        {"nickname": clean},
+        {"$set": {
+            "nickname": clean,
+            "email": email_norm,
+            "reserved_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+    return NicknameStatusResponse(nickname=clean, available=True, reason="claimed_by_you", owned_by_you=True)
+
+
 
 
 @router.get("/community/contributors", response_model=ContributorsResponse)

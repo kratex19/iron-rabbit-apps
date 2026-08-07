@@ -29,8 +29,27 @@ export default function CommunityShareDialog({
   const [email, setEmail] = useState("");
   const [optIn, setOptIn] = useState(false);
   const [nickname, setNickname] = useState("");
+  const [nicknameStatus, setNicknameStatus] = useState(null); // {available, reason, owned_by_you} | null
   const [rememberConsent, setRememberConsent] = useState(consentGranted);
   const [busy, setBusy] = useState(false);
+
+  // Live availability check as the user types (debounced 400ms).
+  React.useEffect(() => {
+    const trimmed = nickname.trim();
+    if (!trimmed) { setNicknameStatus(null); return; }
+    if (!NICK_RE.test(trimmed)) { setNicknameStatus({ available: false, reason: "invalid" }); return; }
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const base = process.env.REACT_APP_BACKEND_URL;
+        const q = email.trim() ? `?email=${encodeURIComponent(email.trim())}` : "";
+        const res = await fetch(`${base}/api/community/nicknames/${encodeURIComponent(trimmed)}/status${q}`, { signal: controller.signal });
+        if (!res.ok) return;
+        setNicknameStatus(await res.json());
+      } catch (e) { /* silent */ }
+    }, 400);
+    return () => { clearTimeout(t); controller.abort(); };
+  }, [nickname, email]);
 
   if (!isOpen || !card) return null;
 
@@ -113,6 +132,21 @@ export default function CommunityShareDialog({
             </div>
             {!nicknameValid && (
               <div className="text-[11px] text-red-400">Only letters, numbers, and underscore. Try again or leave blank.</div>
+            )}
+            {nicknameValid && nicknameStatus && (
+              <div
+                className={`text-[11px] flex items-center gap-1 ${
+                  nicknameStatus.available
+                    ? (nicknameStatus.owned_by_you ? "text-emerald-400" : "text-emerald-400")
+                    : "text-amber-400"
+                }`}
+                data-testid="share-nickname-status"
+              >
+                {nicknameStatus.reason === "free" && "✓ Available"}
+                {nicknameStatus.reason === "claimed_by_you" && "✓ You already own this nickname"}
+                {nicknameStatus.reason === "taken" && "⚠ Already claimed — use the original email or pick another"}
+                {nicknameStatus.reason === "invalid" && "✕ Invalid format"}
+              </div>
             )}
           </div>
 

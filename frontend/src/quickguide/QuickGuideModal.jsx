@@ -295,14 +295,27 @@ export default function QuickGuideModal({ isDark = true }) {
           nickname: payload.nickname || undefined,
         }),
       });
-      if (!res.ok) throw new Error(`submit ${res.status}`);
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `submit ${res.status}`);
+      }
+      // Remember that this user owns this nickname (persists across sessions)
+      // so the ContributorWall can render a "This is you" badge + auto-select
+      // the share card generator for their own tile.
+      if (payload.nickname) {
+        try {
+          const prev = JSON.parse(localStorage.getItem("irr.owned_nicknames") || "[]");
+          const next = Array.from(new Set([...prev, payload.nickname]));
+          localStorage.setItem("irr.owned_nicknames", JSON.stringify(next));
+        } catch (e) { /* quota */ }
+      }
       toast.success(payload.contributor_opt_in
         ? "Thanks — tip submitted. We'll email you if it goes live."
         : "Thanks — tip submitted");
       setShareDialogCard(null);
     } catch (e) {
       console.error("[QuickGuide] community submit failed:", e);
-      toast.error("Couldn't submit — try again");
+      toast.error(String(e.message || "Couldn't submit — try again"));
     }
   };
 

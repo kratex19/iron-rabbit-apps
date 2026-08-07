@@ -12,7 +12,8 @@
 
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Heart, ArrowLeft, Loader2, AtSign } from "lucide-react";
+import { Sparkles, Heart, ArrowLeft, Loader2, AtSign, Share2 } from "lucide-react";
+import WallShareDialog from "./WallShareDialog";
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -24,6 +25,14 @@ function formatDate(iso) {
 export default function ContributorWall() {
   const [contributors, setContributors] = useState(null);
   const [error, setError] = useState(false);
+  const [shareTarget, setShareTarget] = useState(null);
+  const [ownedNicks, setOwnedNicks] = useState([]);
+
+  useEffect(() => {
+    try {
+      setOwnedNicks(JSON.parse(localStorage.getItem("irr.owned_nicknames") || "[]"));
+    } catch (e) { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,12 +107,23 @@ export default function ContributorWall() {
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
               data-testid="wall-list"
             >
-              {contributors.map(c => (
+              {contributors.map(c => {
+                const isMine = ownedNicks.includes(c.nickname);
+                return (
                 <li
                   key={c.nickname}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-4 hover:bg-white/[0.05] transition-colors"
+                  className={`rounded-xl border p-4 transition-colors relative ${
+                    isMine
+                      ? "border-emerald-400/40 bg-emerald-500/[0.06] hover:bg-emerald-500/[0.09]"
+                      : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]"
+                  }`}
                   data-testid={`wall-contributor-${c.nickname}`}
                 >
+                  {isMine && (
+                    <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500 text-white" data-testid={`wall-mine-badge-${c.nickname}`}>
+                      You
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#10b981,#0284c7)" }}>
                       {(c.nickname || "?").slice(0, 2).toUpperCase()}
@@ -122,12 +142,22 @@ export default function ContributorWall() {
                     </div>
                   </div>
                   {c.latest_heading && (
-                    <div className="text-xs text-slate-300 line-clamp-2" title={c.latest_heading}>
+                    <div className="text-xs text-slate-300 line-clamp-2 mb-3" title={c.latest_heading}>
                       {c.latest_heading}
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setShareTarget(c)}
+                    className="w-full h-8 rounded-md text-xs font-medium inline-flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 text-slate-200 transition-colors"
+                    data-testid={`wall-share-${c.nickname}`}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    {isMine ? "Share your card" : "Share this contributor"}
+                  </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </>
         )}
@@ -138,6 +168,12 @@ export default function ContributorWall() {
           — if it gets promoted, you&apos;ll land here automatically.
         </div>
       </div>
+
+      <WallShareDialog
+        isOpen={!!shareTarget}
+        contributor={shareTarget}
+        onClose={() => setShareTarget(null)}
+      />
     </div>
   );
 }
