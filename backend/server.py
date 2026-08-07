@@ -11,7 +11,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import aiofiles
 import shutil
 
@@ -438,6 +438,11 @@ class CommunityTipRequest(BaseModel):
     body: str
     resource_id: Optional[str] = ""
     theme: Optional[str] = None
+    # Optional contributor opt-in: when both provided, the admin promote flow
+    # will send a friendly "your tip is live" email via Resend. Absent =
+    # totally anonymous, current behaviour preserved.
+    contributor_email: Optional[str] = None
+    contributor_opt_in: Optional[bool] = False
 
 
 class CommunityTipResponse(BaseModel):
@@ -454,6 +459,9 @@ class CommunityTip(BaseModel):
     status: str = "pending"  # pending | promoted | rejected
     created_at: str
     promoted_at: Optional[str] = None
+    contributor_email: Optional[str] = None
+    contributor_opt_in: bool = False
+    thank_you_sent_at: Optional[str] = None
 
 
 class CommunityTipList(BaseModel):
@@ -471,6 +479,12 @@ async def submit_community_tip(payload: CommunityTipRequest):
     body = (payload.body or "").strip()[:800]
     if not heading and not body:
         raise HTTPException(status_code=400, detail="heading or body required")
+    # Simple email sanity check (no regex-heavy validator — Resend rejects
+    # obviously bad addresses at send time anyway).
+    contributor_email = (payload.contributor_email or "").strip().lower()[:200]
+    if contributor_email and "@" not in contributor_email:
+        contributor_email = ""
+    contributor_opt_in = bool(payload.contributor_opt_in) and bool(contributor_email)
     doc = {
         "id": str(uuid.uuid4()),
         "heading": heading,
@@ -480,6 +494,9 @@ async def submit_community_tip(payload: CommunityTipRequest):
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "promoted_at": None,
+        "contributor_email": contributor_email or None,
+        "contributor_opt_in": contributor_opt_in,
+        "thank_you_sent_at": None,
     }
     try:
         await db.community_tips.insert_one(doc)
@@ -512,6 +529,9 @@ async def list_community_tips(
         d.setdefault("promoted_at", None)
         d.setdefault("resource_id", "")
         d.setdefault("theme", "")
+        d.setdefault("contributor_email", None)
+        d.setdefault("contributor_opt_in", False)
+        d.setdefault("thank_you_sent_at", None)
     counts_pipeline = [{"$group": {"_id": "$status", "n": {"$sum": 1}}}]
     counts = {"pending": 0, "promoted": 0, "rejected": 0}
     async for row in db.community_tips.aggregate(counts_pipeline):
@@ -528,7 +548,8 @@ async def promote_community_tip(
 ):
     """Admin-only: mark a submitted tip as promoted. Promoted tips are
     surfaced by the public /api/community/promoted endpoint and shown as
-    read-only community cards inside the Quick Guide modal."""
+    read-only community cards inside the Quick Guide modal. If the contributor
+    opted in with an email, we also fire a warm 'your tip is live' note."""
     _require_admin(x_admin_token)
     now = datetime.now(timezone.utc).isoformat()
     result = await db.community_tips.update_one(
@@ -539,7 +560,78 @@ async def promote_community_tip(
     doc = await db.community_tips.find_one({"id": tip_id}, {"_id": 0})
     doc.setdefault("resource_id", "")
     doc.setdefault("theme", "")
+    # Fire-and-forget thank-you (never blocks the response). Silent-skip when
+    # opt-in wasn't given, or Resend isn't configured yet.
+    if doc.get("contributor_opt_in") and doc.get("contributor_email") and not doc.get("thank_you_sent_at"):
+        asyncio.create_task(_send_thank_you(doc))
     return CommunityTip(**doc)
+
+
+async def _send_thank_you(tip: Dict[str, Any]) -> None:
+    """Warm confirmation email to a contributor whose tip was promoted."""
+    if not RESEND_API_KEY or not SENDER_EMAIL:
+        logger.info("thank-you skipped: Resend not configured (tip %s)", tip.get("id"))
+        return
+    to_addr = str(tip.get("contributor_email") or "").strip().lower()
+    if not to_addr or "@" not in to_addr:
+        return
+    heading = str(tip.get("heading") or "your tip")
+
+    def esc(s: str) -> str:
+        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    body_html = ""
+    if tip.get("body"):
+        body_html = '<br><span style="color:#475569;font-size:14px;">' + esc(tip.get("body") or "") + '</span>'
+    html = (
+        '<!DOCTYPE html><html><body style="margin:0;padding:24px;'
+        'background:#0B1221;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="max-width:520px;margin:0 auto;background:#FFFFFF;border-radius:16px;'
+        'overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.15);">'
+        '<tr><td style="padding:24px 24px 8px;background:linear-gradient(135deg,#10B981,#0284C7);'
+        'color:#FFFFFF;">'
+        '<div style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;opacity:0.9;">'
+        'Iron Rabbit</div>'
+        '<div style="font-size:22px;font-weight:700;margin-top:4px;">Your tip just went live 🎉</div>'
+        '</td></tr>'
+        '<tr><td style="padding:20px 24px;font-size:15px;color:#0F172A;line-height:1.6;">'
+        'Hey — a quick note to say your tip'
+        f'<div style="margin:12px 0;padding:12px 14px;border-left:3px solid #10B981;'
+        f'background:#F0FDF4;border-radius:0 8px 8px 0;">'
+        f'<strong>{esc(heading)}</strong>'
+        f'{body_html}'
+        '</div>'
+        'just went live in Iron Rabbit and is being seen by folks opening the '
+        'Quick Guide right now. Thanks for making the app better for everyone.'
+        '<div style="margin-top:24px;font-size:13px;color:#64748B;">— The Iron Rabbit team</div>'
+        '</td></tr>'
+        '<tr><td style="padding:0 24px 20px;font-size:11px;color:#94A3B8;text-align:center;">'
+        'You received this because you opted in to promotion updates when submitting your tip. '
+        'No further emails will be sent unless another of your tips is promoted.'
+        '</td></tr>'
+        '</table></body></html>'
+    )
+    import resend as _resend
+    _resend.api_key = RESEND_API_KEY
+    params = {
+        "from": f"Iron Rabbit <{SENDER_EMAIL}>",
+        "to": [to_addr],
+        "subject": f"Your Iron Rabbit tip is live — {heading[:60]}",
+        "html": html,
+    }
+    try:
+        email = await asyncio.to_thread(_resend.Emails.send, params)
+    except Exception as e:
+        logger.exception("thank-you send failed for tip %s: %s", tip.get("id"), e)
+        return
+    email_id = (email or {}).get("id") if isinstance(email, dict) else None
+    await db.community_tips.update_one(
+        {"id": tip.get("id")},
+        {"$set": {"thank_you_sent_at": datetime.now(timezone.utc).isoformat(),
+                  "thank_you_email_id": email_id}},
+    )
+    logger.info("thank-you sent for tip %s → %s (id=%s)", tip.get("id"), to_addr, email_id)
 
 
 @api_router.post("/community/tips/{tip_id}/reject", response_model=CommunityTip)
@@ -960,7 +1052,7 @@ async def digest_unsubscribe(token: str):
     return HTMLResponse(content=body)
 
 
-# ================== FEATURED COMMUNITY TIP ==================
+# ================== FEATURED COMMUNITY TIP + ANALYTICS ==================
 class FeaturedTipResponse(BaseModel):
     tip: Optional[PromotedTip] = None
     total_promoted: int = 0
@@ -984,6 +1076,135 @@ async def featured_community_tip():
     chosen.setdefault("resource_id", "")
     chosen.setdefault("promoted_at", None)
     return FeaturedTipResponse(tip=PromotedTip(**chosen), total_promoted=len(docs))
+
+
+class CommunityEvent(BaseModel):
+    event: str            # "impression" | "open" | "dismiss"
+    tip_id: str
+    install_id: Optional[str] = None
+    at: Optional[str] = None  # client-supplied ISO — we default server-side
+
+
+class CommunityEventsRequest(BaseModel):
+    events: List[CommunityEvent]
+
+
+_ALLOWED_EVENTS = {"impression", "open", "dismiss"}
+
+
+@api_router.post("/community/events")
+async def track_community_events(payload: CommunityEventsRequest):
+    """Public: batch-insert lightweight analytics events for the featured tip.
+    Anonymous — clients pass a random install UUID (stored in localStorage)
+    so we can compute 'unique installs' without any user identity."""
+    if not payload.events:
+        return {"ok": True, "written": 0}
+    now = datetime.now(timezone.utc).isoformat()
+    docs = []
+    for ev in payload.events[:50]:  # hard cap per call
+        if ev.event not in _ALLOWED_EVENTS:
+            continue
+        tip_id = (ev.tip_id or "").strip()[:64]
+        if not tip_id:
+            continue
+        install = (ev.install_id or "").strip()[:64] or None
+        docs.append({
+            "id": str(uuid.uuid4()),
+            "event": ev.event,
+            "tip_id": tip_id,
+            "install_id": install,
+            "at": ev.at or now,
+        })
+    if docs:
+        try:
+            await db.community_events.insert_many(docs)
+        except Exception:
+            logger.exception("community_events insert_many failed")
+            raise HTTPException(status_code=500, detail="Storage error")
+    return {"ok": True, "written": len(docs)}
+
+
+class AnalyticsTipRow(BaseModel):
+    tip_id: str
+    heading: str = ""
+    resource_id: str = ""
+    impressions: int = 0
+    opens: int = 0
+    dismisses: int = 0
+    unique_installs: int = 0
+
+
+class AnalyticsResponse(BaseModel):
+    window_days: int
+    generated_at: str
+    total_events: int
+    tips: List[AnalyticsTipRow]
+
+
+@api_router.get("/community/analytics", response_model=AnalyticsResponse)
+async def community_analytics(
+    days: int = 30,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: per-tip event counts + unique installs over the last N days."""
+    _require_admin(x_admin_token)
+    days = max(1, min(365, int(days or 30)))
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    pipeline = [
+        {"$match": {"at": {"$gte": since}}},
+        {"$group": {
+            "_id": {"tip_id": "$tip_id", "event": "$event"},
+            "count": {"$sum": 1},
+            "installs": {"$addToSet": "$install_id"},
+        }},
+    ]
+    rows: Dict[str, Dict[str, Any]] = {}
+    total = 0
+    async for r in db.community_events.aggregate(pipeline):
+        tip_id = r["_id"]["tip_id"]
+        event = r["_id"]["event"]
+        count = int(r["count"])
+        total += count
+        row = rows.setdefault(tip_id, {
+            "tip_id": tip_id, "impressions": 0, "opens": 0, "dismisses": 0,
+            "installs": set(),
+        })
+        if event == "impression": row["impressions"] += count
+        elif event == "open": row["opens"] += count
+        elif event == "dismiss": row["dismisses"] += count
+        for inst in r["installs"]:
+            if inst: row["installs"].add(inst)
+
+    # Enrich with tip metadata.
+    tip_ids = list(rows.keys())
+    tips_meta: Dict[str, Dict[str, Any]] = {}
+    if tip_ids:
+        async for t in db.community_tips.find(
+            {"id": {"$in": tip_ids}},
+            {"_id": 0, "id": 1, "heading": 1, "resource_id": 1},
+        ):
+            tips_meta[t["id"]] = t
+
+    tips: List[AnalyticsTipRow] = []
+    for tid, row in rows.items():
+        meta = tips_meta.get(tid, {})
+        tips.append(AnalyticsTipRow(
+            tip_id=tid,
+            heading=meta.get("heading", "") or "(missing tip)",
+            resource_id=meta.get("resource_id", "") or "",
+            impressions=row["impressions"],
+            opens=row["opens"],
+            dismisses=row["dismisses"],
+            unique_installs=len(row["installs"]),
+        ))
+    # Sort by opens desc, then impressions desc
+    tips.sort(key=lambda t: (-t.opens, -t.impressions))
+    return AnalyticsResponse(
+        window_days=days,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        total_events=total,
+        tips=tips,
+    )
 
 
 # ================== DINING INSIGHTS ENDPOINT ==================

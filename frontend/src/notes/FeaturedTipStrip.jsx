@@ -16,6 +16,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Sparkles, X, ArrowUpRight } from "lucide-react";
 import { useQuickGuideContext } from "../quickguide/QuickGuideProvider";
+import { trackCommunityEvent } from "../utils/communityAnalytics";
 
 const HIDDEN_KEY = "irr.featured_tip_hidden_date";
 
@@ -39,7 +40,15 @@ export default function FeaturedTipStrip({ isDark = true }) {
         const res = await fetch(`${base}/api/community/featured`);
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled && data?.tip) setTip(data.tip);
+        if (!cancelled && data?.tip) {
+          setTip(data.tip);
+          // Fire one "impression" per strip mount when the strip is visible.
+          // Read hiddenToday via localStorage rather than closure to avoid
+          // re-firing the effect on dismiss.
+          let hidden = false;
+          try { hidden = localStorage.getItem(HIDDEN_KEY) === todayKey(); } catch (e) { /* ignore */ }
+          if (!hidden) trackCommunityEvent("impression", data.tip.id);
+        }
       } catch (e) {
         // Silent — the strip degrades to invisible when offline.
       }
@@ -48,9 +57,10 @@ export default function FeaturedTipStrip({ isDark = true }) {
   }, []);
 
   const dismiss = useCallback(() => {
+    if (tip?.id) trackCommunityEvent("dismiss", tip.id);
     setHiddenToday(true);
     try { localStorage.setItem(HIDDEN_KEY, todayKey()); } catch (e) { /* quota */ }
-  }, []);
+  }, [tip]);
 
   if (!tip || hiddenToday) return null;
 
@@ -88,7 +98,10 @@ export default function FeaturedTipStrip({ isDark = true }) {
           {canOpen && (
             <button
               type="button"
-              onClick={() => open(tip.resource_id, "featured-strip")}
+              onClick={() => {
+                trackCommunityEvent("open", tip.id);
+                open(tip.resource_id, "featured-strip");
+              }}
               className={`h-7 px-2 rounded-md text-xs inline-flex items-center gap-1 transition-colors ${
                 isDark
                   ? "text-emerald-300 hover:bg-emerald-500/10"

@@ -24,6 +24,7 @@ import { shareCardAsImage, shareCardAsQr } from "./shareCard";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
 import StorageService from "../storage/storageService";
 import PasteTipsDialog from "../admin/PasteTipsDialog";
+import CommunityShareDialog from "./CommunityShareDialog";
 import { ClipboardPaste } from "lucide-react";
 
 // Compact theme palette — 4 solids + 4 gradients. Enough to feel personal
@@ -53,7 +54,19 @@ export default function QuickGuideModal({ isDark = true }) {
   const [dragOverId, setDragOverId] = useState(null);
   const [sharingId, setSharingId] = useState(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [shareDialogCard, setShareDialogCard] = useState(null); // card object to open share dialog with
+  const [consentGranted, setConsentGranted] = useState(false);
   const searchInputRef = useRef(null);
+
+  // Load current sharing consent so the dialog can hide the consent copy
+  // for repeat sharers.
+  useEffect(() => {
+    let cancelled = false;
+    StorageService.getSettings().then(s => {
+      if (!cancelled) setConsentGranted(!!s?.community_consent);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [shareDialogCard]);
   const scrollerRef = useRef(null);
 
   // Reset internal state whenever a new guide opens
@@ -257,17 +270,15 @@ export default function QuickGuideModal({ isDark = true }) {
     }
   };
 
-  // Submit a user tip to the community backlog. Requires one-time consent
-  // stored in `app_settings.community_consent`. Anonymous — we send only the
-  // heading + body + resource id, never PII.
+  // Open the polished community-share dialog. Keeps consent logic in one
+  // place — the dialog itself handles the opt-in email flow.
   const submitToCommunity = async (card) => {
+    setShareDialogCard(card);
+  };
+
+  const handleShareConfirm = async (payload) => {
     try {
-      const settings = await StorageService.getSettings();
-      if (!settings?.community_consent) {
-        const ok = window.confirm(
-          "Share this tip anonymously with the Iron Rabbit team? The best tips are baked into future updates for everyone. Nothing that identifies you is sent."
-        );
-        if (!ok) return;
+      if (payload.remember_consent) {
         await StorageService.saveSettings({ community_consent: true });
       }
       const base = process.env.REACT_APP_BACKEND_URL;
@@ -275,14 +286,19 @@ export default function QuickGuideModal({ isDark = true }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          heading: card.heading || "",
-          body: card.body || "",
+          heading: payload.heading,
+          body: payload.body,
           resource_id: article?.id || "",
-          theme: card.theme?.value || null,
+          theme: payload.theme || null,
+          contributor_email: payload.contributor_email || undefined,
+          contributor_opt_in: payload.contributor_opt_in || false,
         }),
       });
       if (!res.ok) throw new Error(`submit ${res.status}`);
-      toast.success("Thanks — tip submitted");
+      toast.success(payload.contributor_opt_in
+        ? "Thanks — tip submitted. We'll email you if it goes live."
+        : "Thanks — tip submitted");
+      setShareDialogCard(null);
     } catch (e) {
       console.error("[QuickGuide] community submit failed:", e);
       toast.error("Couldn't submit — try again");
@@ -859,6 +875,13 @@ export default function QuickGuideModal({ isDark = true }) {
             if (scrollerRef.current) scrollerRef.current.scrollLeft = scrollerRef.current.scrollWidth;
           });
         }}
+      />
+      <CommunityShareDialog
+        isOpen={!!shareDialogCard}
+        onClose={() => setShareDialogCard(null)}
+        card={shareDialogCard}
+        consentGranted={consentGranted}
+        onConfirm={handleShareConfirm}
       />
     </>
   );

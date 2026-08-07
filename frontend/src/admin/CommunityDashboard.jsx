@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGate";
 import PasteTipsDialog from "./PasteTipsDialog";
+import AnalyticsChart from "./AnalyticsChart";
 
 const STATUS_TABS = [
   { key: "pending", label: "Pending" },
@@ -212,6 +213,9 @@ export default function CommunityDashboard() {
           </Button>
         </div>
 
+        {/* Featured tip analytics — top of dashboard so I know what lands */}
+        <AnalyticsChart apiFetch={apiFetch} token={token} />
+
         {/* Digest schedule strip — quick at-a-glance state of the weekly cron.
             Toggle here doubles as the "unsubscribe re-enable" surface. */}
         {digestStatus && (
@@ -352,7 +356,7 @@ export default function CommunityDashboard() {
                     <div className="text-xs text-slate-300 mt-1 whitespace-pre-wrap">
                       {tip.body || <span className="italic text-slate-500">No body</span>}
                     </div>
-                    <div className="text-[10px] font-mono text-slate-500 mt-2 uppercase tracking-wide flex items-center gap-3">
+                    <div className="text-[10px] font-mono text-slate-500 mt-2 uppercase tracking-wide flex items-center gap-3 flex-wrap">
                       <span data-testid={`admin-tip-resource-${tip.id}`}>{tip.resource_id || "—"}</span>
                       <span>·</span>
                       <span>submitted {formatDate(tip.created_at)}</span>
@@ -360,6 +364,23 @@ export default function CommunityDashboard() {
                         <>
                           <span>·</span>
                           <span className="text-emerald-400">promoted {formatDate(tip.promoted_at)}</span>
+                        </>
+                      )}
+                      {tip.contributor_opt_in && tip.contributor_email && (
+                        <>
+                          <span>·</span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${
+                              tip.thank_you_sent_at
+                                ? "bg-emerald-500/15 text-emerald-300"
+                                : "bg-indigo-500/15 text-indigo-300"
+                            }`}
+                            data-testid={`admin-tip-optin-${tip.id}`}
+                            title={tip.thank_you_sent_at ? "Thank-you email sent" : "Will email contributor on promote"}
+                          >
+                            <Mail className="w-2.5 h-2.5" />
+                            {tip.thank_you_sent_at ? "notified" : "opt-in"}
+                          </span>
                         </>
                       )}
                     </div>

@@ -19,6 +19,9 @@ Set in `/app/backend/.env` as `ADMIN_TOKEN`. Required to review, promote, or rej
 - `DELETE /api/community/tips/{id}`
 - `POST /api/admin/verify` (used by the AdminGate UI)
 - `POST /api/community/tips/parse` — public LLM parser for "Import from Text" (Emergent LLM key)
+- `POST /api/community/tip` now accepts optional `contributor_email` + `contributor_opt_in` — on promote, if opted-in, a warm "your tip is live" email is dispatched via Resend (silent-skips when key missing)
+- `POST /api/community/events` — public. Body `{events:[{event:"impression"|"open"|"dismiss", tip_id, install_id}]}`. Batched analytics from the home-screen strip.
+- `GET /api/community/analytics?days=30` — admin-only. Per-tip counts + unique installs. Powers the dashboard bar chart.
 - `POST /api/community/digest/send` — admin-only Resend email dispatch. Currently returns `{ok:false, reason:"RESEND_API_KEY not configured on server"}` until the user provides a Resend API key. Supports `?dry_run=1` to preview without sending.
 - `GET /api/community/digest/status` — admin-only. Returns `{enabled, last_sent_at, sender_email, recipient_email, resend_key_configured, scheduler_next_run}`.
 - `POST /api/community/digest/toggle` — admin-only. Body `{enabled: true|false}`.
