@@ -12,7 +12,7 @@ from deps import db, require_admin
 from models.analytics import (
     CommunityEventsRequest,
     AnalyticsResponse, AnalyticsTipRow,
-    RecoveryFunnelResponse,
+    RecoveryFunnelResponse, RecoveryWeekPoint,
 )
 
 router = APIRouter(prefix="/api")
@@ -145,6 +145,35 @@ async def recovery_funnel(days: int = 30):
     magic = counts.get("magic_link_opened", 0)
     manual = counts.get("manual_entry_opened", 0)
     share = round(magic / (magic + manual), 3) if (magic + manual) else 0.0
+
+    # Weekly series: last 4 completed 7-day windows, oldest → newest. Each
+    # window is [now-7d*(i+1), now-7d*i). We do 4 parallel aggregates rather
+    # than one big group so the shape stays simple.
+    now = datetime.now(timezone.utc)
+    weekly_series: List[RecoveryWeekPoint] = []
+    for i in range(4, 0, -1):
+        wstart = now - timedelta(days=7 * i)
+        wend = now - timedelta(days=7 * (i - 1))
+        wcounts: Dict[str, int] = {}
+        async for row in db.recovery_events.aggregate([
+            {"$match": {"at": {"$gte": wstart, "$lt": wend},
+                        "event": {"$in": ["magic_link_opened", "manual_entry_opened"]}}},
+            {"$group": {"_id": "$event", "n": {"$sum": 1}}},
+        ]):
+            wcounts[row["_id"]] = int(row["n"])
+        w_magic = wcounts.get("magic_link_opened", 0)
+        w_manual = wcounts.get("manual_entry_opened", 0)
+        w_total = w_magic + w_manual
+        w_share = round(w_magic / w_total, 3) if w_total else 0.0
+        weekly_series.append(RecoveryWeekPoint(
+            week_start=wstart.date().isoformat(),
+            week_end=(wend - timedelta(seconds=1)).date().isoformat(),
+            magic_link_opened=w_magic,
+            manual_entry_opened=w_manual,
+            magic_link_share=w_share,
+            opens_total=w_total,
+        ))
+
     return RecoveryFunnelResponse(
         window_days=days,
         generated_at=datetime.now(timezone.utc).isoformat(),
@@ -154,4 +183,5 @@ async def recovery_funnel(days: int = 30):
         verify_failed=counts.get("verify_failed", 0),
         verify_success=counts.get("verify_success", 0),
         magic_link_share=share,
+        weekly_series=weekly_series,
     )

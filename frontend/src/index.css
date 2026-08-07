@@ -242,3 +242,20 @@ body:not(.nx-light) [style*="color: #000"] {
 .grid-cols-3-custom { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-cols-4-custom { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-cols-5-custom { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* ContributorWall highlight pulse — used by ?highlight=@nickname deep link.
+ * Ring pulses amber to gently draw the eye for ~2.5s then settles. Respects
+ * prefers-reduced-motion by falling back to a static ring. */
+@keyframes irr-wall-pulse-kf {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+  50%  { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0.0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.0); }
+}
+.irr-wall-pulse {
+  animation: irr-wall-pulse-kf 1.25s ease-out 2;
+  outline: 2px solid rgba(245, 158, 11, 0.7);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .irr-wall-pulse { animation: none; }
+}

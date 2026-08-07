@@ -107,6 +107,8 @@ export default function RecoveryFunnel({ apiFetch, token }) {
             <div className="text-[10px] text-slate-400 mt-2 text-center">
               of {opensTotal} open{opensTotal === 1 ? "" : "s"} came via email link
             </div>
+            {/* 4-week sparkline — spot climbs/drops week-over-week. */}
+            <Sparkline series={data.weekly_series || []} />
           </div>
 
           {/* Supporting metrics */}
@@ -144,6 +146,59 @@ function Stat({ label, value, tone = "slate", icon = null, testId, small = false
         <span className="truncate">{label}</span>
       </div>
       <div className={`font-extrabold leading-tight mt-0.5 ${small ? "text-lg" : "text-2xl"}`}>{value}</div>
+    </div>
+  );
+}
+
+/**
+ * Sparkline — compact 4-bar week-over-week chart of magic-link share.
+ * Heights scale to the max share in the series (min 5% so zero weeks still
+ * render a visible baseline). Trend indicator compares first vs last non-zero.
+ */
+function Sparkline({ series }) {
+  if (!Array.isArray(series) || series.length === 0) return null;
+  const maxShare = Math.max(0.05, ...series.map(w => w.magic_link_share || 0));
+  // Trend arrow: compare last week to first week that had activity.
+  const withData = series.filter(w => w.opens_total > 0);
+  let trend = 0;  // -1 down, 0 flat, +1 up
+  if (withData.length >= 2) {
+    const first = withData[0].magic_link_share;
+    const last = withData[withData.length - 1].magic_link_share;
+    if (last - first > 0.05) trend = 1;
+    else if (first - last > 0.05) trend = -1;
+  }
+  const trendColor = trend > 0 ? "text-emerald-300" : trend < 0 ? "text-amber-300" : "text-slate-400";
+  const trendArrow = trend > 0 ? "↑" : trend < 0 ? "↓" : "→";
+
+  return (
+    <div className="w-full mt-3 pt-3 border-t border-white/10" data-testid="funnel-sparkline">
+      <div className="flex items-end gap-1 h-8" role="img" aria-label="Magic-link share, last 4 weeks">
+        {series.map((w, i) => {
+          const h = w.opens_total > 0
+            ? Math.max(8, Math.round((w.magic_link_share / maxShare) * 100))
+            : 6;  // baseline for weeks with zero data
+          const empty = w.opens_total === 0;
+          return (
+            <div
+              key={w.week_start || i}
+              className={`flex-1 rounded-sm ${empty ? "bg-white/10" : "bg-indigo-400/70"}`}
+              style={{ height: `${h}%` }}
+              title={
+                `${w.week_start} → ${w.week_end}\n` +
+                `magic: ${w.magic_link_opened}  manual: ${w.manual_entry_opened}\n` +
+                (w.opens_total > 0 ? `share: ${Math.round(w.magic_link_share * 100)}%` : "no opens")
+              }
+              data-testid={`funnel-spark-week-${i}`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between text-[9px] mt-1">
+        <span className="text-slate-500">4-week trend</span>
+        <span className={`font-semibold ${trendColor}`} data-testid="funnel-spark-trend">
+          {trendArrow} {trend > 0 ? "climbing" : trend < 0 ? "slipping" : "flat"}
+        </span>
+      </div>
     </div>
   );
 }

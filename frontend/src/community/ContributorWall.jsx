@@ -10,8 +10,8 @@
  * simple list on mobile (single column, tighter spacing).
  */
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Sparkles, Heart, ArrowLeft, Loader2, AtSign, Share2, Search, X, KeyRound, Trophy, Clock } from "lucide-react";
 import WallShareDialog from "./WallShareDialog";
 import NicknameRecoveryDialog from "./NicknameRecoveryDialog";
@@ -36,6 +36,14 @@ function isFreshlyPromoted(iso) {
   return Date.now() - t < FRESH_MS;
 }
 
+// Strip leading @ and normalize case for URL matching. Nickname regex is
+// [A-Za-z0-9_]{2,20} so trimming @ is enough to reach the raw form.
+function parseHighlight(raw) {
+  if (!raw) return "";
+  const cleaned = String(raw).trim().replace(/^@+/, "");
+  return /^[A-Za-z0-9_]{2,20}$/.test(cleaned) ? cleaned : "";
+}
+
 export default function ContributorWall() {
   const [contributors, setContributors] = useState(null);
   const [error, setError] = useState(false);
@@ -48,6 +56,13 @@ export default function ContributorWall() {
     catch (e) { return "top"; }
   });
 
+  // Deep link: /contributors?highlight=@veggie_wizard scrolls that card into
+  // view and briefly pulses it. Perfect for "your tip was promoted" emails.
+  const [searchParams] = useSearchParams();
+  const highlight = useMemo(() => parseHighlight(searchParams.get("highlight")), [searchParams]);
+  const [pulseNick, setPulseNick] = useState("");
+  const cardRefs = useRef({});
+
   useEffect(() => {
     try { localStorage.setItem(SORT_KEY, sortMode); } catch (e) { /* ignore */ }
   }, [sortMode]);
@@ -57,6 +72,29 @@ export default function ContributorWall() {
       setOwnedNicks(JSON.parse(localStorage.getItem("irr.owned_nicknames") || "[]"));
     } catch (e) { /* ignore */ }
   }, []);
+
+  // After contributors load, honour the ?highlight= param: scroll into view
+  // and pulse the ring for ~2.5s. Case-insensitive match; missing nickname
+  // is a no-op (contributor might have been un-promoted since the link was
+  // shared, or the URL was manually crafted).
+  useEffect(() => {
+    if (!highlight || !contributors) return;
+    const target = contributors.find(
+      c => (c.nickname || "").toLowerCase() === highlight.toLowerCase()
+    );
+    if (!target) return;
+    // Scroll happens after the current paint so the ref is populated. rAF
+    // is preferred over setTimeout(0) for smoother behaviour on mobile.
+    requestAnimationFrame(() => {
+      const el = cardRefs.current[target.nickname];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      setPulseNick(target.nickname);
+      const t = setTimeout(() => setPulseNick(""), 2500);
+      return () => clearTimeout(t);
+    });
+  }, [highlight, contributors]);
 
   const filteredContributors = useMemo(() => {
     if (!contributors) return [];
@@ -217,15 +255,18 @@ export default function ContributorWall() {
               {filteredContributors.map(c => {
                 const isMine = ownedNicks.includes(c.nickname);
                 const isFresh = isFreshlyPromoted(c.latest_promoted_at);
+                const isPulsing = pulseNick === c.nickname;
                 return (
                 <li
                   key={c.nickname}
-                  className={`rounded-xl border p-4 transition-colors relative ${
+                  ref={(el) => { if (el) cardRefs.current[c.nickname] = el; }}
+                  className={`rounded-xl border p-4 transition-all relative ${
                     isMine
                       ? "border-emerald-400/40 bg-emerald-500/[0.06] hover:bg-emerald-500/[0.09]"
                       : "border-white/10 bg-white/[0.03] hover:bg-white/[0.05]"
-                  }`}
+                  } ${isPulsing ? "irr-wall-pulse" : ""}`}
                   data-testid={`wall-contributor-${c.nickname}`}
+                  data-highlighted={isPulsing ? "true" : undefined}
                 >
                   {isMine && (
                     <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500 text-white" data-testid={`wall-mine-badge-${c.nickname}`}>
