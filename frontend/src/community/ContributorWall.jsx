@@ -83,17 +83,20 @@ export default function ContributorWall() {
       c => (c.nickname || "").toLowerCase() === highlight.toLowerCase()
     );
     if (!target) return;
+    let cancelled = false;
+    let timeoutId;
     // Scroll happens after the current paint so the ref is populated. rAF
     // is preferred over setTimeout(0) for smoother behaviour on mobile.
     requestAnimationFrame(() => {
+      if (cancelled) return;
       const el = cardRefs.current[target.nickname];
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
       setPulseNick(target.nickname);
-      const t = setTimeout(() => setPulseNick(""), 2500);
-      return () => clearTimeout(t);
+      timeoutId = setTimeout(() => setPulseNick(""), 2500);
     });
+    // Real cleanup — returned from the useEffect itself so unmounts during
+    // the 2.5s window don't warn about setState on an unmounted component.
+    return () => { cancelled = true; if (timeoutId) clearTimeout(timeoutId); };
   }, [highlight, contributors]);
 
   const filteredContributors = useMemo(() => {
