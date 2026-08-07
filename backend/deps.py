@@ -35,6 +35,9 @@ ADMIN_DIGEST_EMAIL = os.environ.get("ADMIN_DIGEST_EMAIL", "")
 # Public URL used in transactional email links (magic-link recovery, etc.).
 # Falls back to empty string — emails then omit the one-tap link.
 PUBLIC_APP_URL = os.environ.get("PUBLIC_APP_URL", "").rstrip("/")
+# Weekly Play-screenshot regen — guarded so preview env doesn't run it. Set
+# to "1"/"true"/"yes" in production to enable.
+SCREENSHOT_CRON_ENABLED = os.environ.get("SCREENSHOT_CRON_ENABLED", "").lower() in {"1", "true", "yes"}
 
 logger = logging.getLogger(__name__)
 

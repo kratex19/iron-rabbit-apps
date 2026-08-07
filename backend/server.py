@@ -16,13 +16,14 @@ from starlette.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from deps import client, db, logger as _deps_logger  # noqa: F401 — ensures dotenv/db loaded once
+from deps import client, db, logger as _deps_logger, SCREENSHOT_CRON_ENABLED  # noqa: F401 — ensures dotenv/db loaded once
 from routes.notes import router as notes_router
 from routes.community import router as community_router
 from routes.digest import router as digest_router, send_digest_now
 from routes import digest as digest_module  # for scheduler handle binding
 from routes.analytics import router as analytics_router
 from routes.misc import router as misc_router
+from routes.misc import _run_screenshot_regen
 
 logging.basicConfig(
     level=logging.INFO,
@@ -101,6 +102,25 @@ async def _start_scheduler():
         max_instances=1,
         coalesce=True,
     )
+    # Weekly Play-carousel regen — Sunday 07:00 UTC, before Monday launch
+    # review. Guarded by SCREENSHOT_CRON_ENABLED so preview env doesn't
+    # burn cycles regenerating a gallery nobody uploads from here.
+    if SCREENSHOT_CRON_ENABLED:
+        async def _screenshot_cron_job():
+            try:
+                result = await _run_screenshot_regen("cron")
+                logger.info("screenshot regen cron result: %s", result)
+            except Exception:
+                logger.exception("screenshot regen cron crashed")
+        _scheduler.add_job(
+            _screenshot_cron_job,
+            trigger=CronTrigger(day_of_week="sun", hour=7, minute=0, timezone="UTC"),
+            id="weekly_screenshots",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("weekly_screenshots scheduler started (Sun 07:00 UTC)")
     _scheduler.start()
     # Expose the scheduler handle to the digest router so /digest/status can
     # report the next-run time.

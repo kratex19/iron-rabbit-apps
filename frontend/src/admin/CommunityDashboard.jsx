@@ -14,7 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  ShieldCheck, RefreshCcw, ThumbsUp, ThumbsDown, Trash2, Loader2, MessageSquareQuote, Rocket, Filter, X, ClipboardPaste, Mail, Bell, BellOff, Calendar,
+  ShieldCheck, RefreshCcw, ThumbsUp, ThumbsDown, Trash2, Loader2, MessageSquareQuote, Rocket, Filter, X, ClipboardPaste, Mail, Bell, BellOff, Calendar, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGate";
@@ -62,6 +62,8 @@ export default function CommunityDashboard() {
   const [pasteOpen, setPasteOpen] = useState(false);
   const [digestBusy, setDigestBusy] = useState(false);
   const [digestStatus, setDigestStatus] = useState(null); // {enabled, last_sent_at, scheduler_next_run, ...}
+  const [previewHtml, setPreviewHtml] = useState(null);   // string when open, null when closed
+  const [previewSubject, setPreviewSubject] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -116,6 +118,26 @@ export default function CommunityDashboard() {
       load();
     } catch (e) {
       toast.error("Couldn't promote");
+    } finally { setBusyId(null); }
+  };
+
+  // Preview mode hits the same endpoint with ?preview=1 — server skips the
+  // DB mutation + email send and returns text/html so we can eyeball the CTA
+  // and copy before committing. Requires opt-in + email to be meaningful.
+  const previewThankYou = async (tip) => {
+    setBusyId(tip.id);
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${base}/api/community/tips/${tip.id}/promote?preview=1`, {
+        method: "POST",
+        headers: { "X-Admin-Token": token },
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const html = await res.text();
+      setPreviewHtml(html);
+      setPreviewSubject(`Your Iron Rabbit tip is live — ${(tip.heading || "").slice(0, 60)}`);
+    } catch (e) {
+      toast.error("Couldn't render preview");
     } finally { setBusyId(null); }
   };
 
@@ -410,6 +432,20 @@ export default function CommunityDashboard() {
                       Promote to shipped
                     </Button>
                   )}
+                  {tip.status !== "promoted" && tip.contributor_opt_in && tip.contributor_email && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => previewThankYou(tip)}
+                      disabled={busyId === tip.id}
+                      className="border-indigo-400/40 text-indigo-200 hover:bg-indigo-500/10 h-8 text-xs"
+                      data-testid={`admin-preview-thankyou-${tip.id}`}
+                      title="Render thank-you email HTML without sending or promoting"
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1" />
+                      Preview email
+                    </Button>
+                  )}
                   {tip.status !== "rejected" && (
                     <Button
                       size="sm"
@@ -461,6 +497,43 @@ export default function CommunityDashboard() {
         adminToken={token}
         onFinished={load}
       />
+
+      {/* Thank-you email preview modal — renders the raw HTML in a sandboxed
+          iframe so we see exactly what would arrive in the inbox. */}
+      {previewHtml !== null && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"
+          data-testid="thankyou-preview-modal"
+        >
+          <div className="w-full max-w-2xl h-[80vh] rounded-2xl bg-[#0F172A] border border-white/10 shadow-2xl flex flex-col">
+            <div className="flex items-center gap-2 p-4 border-b border-white/10">
+              <Eye className="w-4 h-4 text-indigo-300" />
+              <div className="text-sm font-semibold text-white flex-1">
+                Thank-you email preview
+                <div className="text-[10px] text-slate-500 mt-0.5 font-normal truncate" data-testid="preview-subject">
+                  Subject: {previewSubject}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewHtml(null)}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5"
+                aria-label="Close preview"
+                data-testid="preview-close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <iframe
+              title="thank-you preview"
+              srcDoc={previewHtml}
+              sandbox=""
+              className="flex-1 w-full bg-white rounded-b-2xl"
+              data-testid="preview-iframe"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

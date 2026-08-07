@@ -10,10 +10,10 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import requests as _requests
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from deps import EMERGENT_LLM_KEY
+from deps import EMERGENT_LLM_KEY, db, require_admin
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
@@ -367,3 +367,91 @@ async def get_product_info(barcode: str):
     }
     _OFF_CACHE[key] = result
     return result
+
+
+# ---------------- PLAY SCREENSHOT REGEN ----------------
+# Admin-triggered + weekly-cron entry for the Play Store carousel refresh.
+# Runs the capture + overlay scripts in the background so the request returns
+# immediately. Status is persisted so callers can poll for the outcome.
+from datetime import datetime, timezone  # noqa: E402
+import sys as _sys
+from pathlib import Path as _Path  # noqa: E402
+
+_screenshot_lock = asyncio.Lock()  # single-flight — one regen at a time
+
+
+async def _run_screenshot_regen(trigger: str) -> Dict[str, Any]:
+    """Actual work. Persists start/finish status so the admin can inspect
+    it via /screenshots/status. `trigger` is 'manual' or 'cron' for audit."""
+    if _screenshot_lock.locked():
+        # Refuse to stack a second regen — the first is still working.
+        return {"ok": False, "reason": "already running"}
+    async with _screenshot_lock:
+        started = datetime.now(timezone.utc)
+        await db.screenshot_runs.insert_one({
+            "id": started.isoformat(),
+            "trigger": trigger,
+            "started_at": started,
+            "status": "running",
+        })
+        # Import + invoke the shared entry point. Kept lazy so a missing
+        # Playwright install only fails when the endpoint fires, not on boot.
+        try:
+            script = _Path(__file__).resolve().parent.parent.parent / "scripts" / "regen_play_gallery.py"
+            if not script.exists():
+                raise RuntimeError(f"regen script missing: {script}")
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("_regen_entry", script)
+            mod = importlib.util.module_from_spec(spec)
+            _sys.modules["_regen_entry"] = mod
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
+            result = await mod.regen()
+            finished = datetime.now(timezone.utc)
+            await db.screenshot_runs.update_one(
+                {"id": started.isoformat()},
+                {"$set": {
+                    "finished_at": finished,
+                    "status": "error" if result.get("error") else "ok",
+                    "captured_count": len(result.get("captured", [])),
+                    "framed_count": len(result.get("framed", [])),
+                    "error": result.get("error"),
+                }},
+            )
+            return {"ok": not result.get("error"), **result}
+        except Exception as e:
+            logger.exception("screenshot regen crashed")
+            await db.screenshot_runs.update_one(
+                {"id": started.isoformat()},
+                {"$set": {
+                    "finished_at": datetime.now(timezone.utc),
+                    "status": "crashed",
+                    "error": str(e)[:500],
+                }},
+            )
+            return {"ok": False, "reason": "crashed", "error": str(e)[:500]}
+
+
+@router.post("/admin/screenshots/regen", dependencies=[Depends(require_admin)])
+async def admin_regen_screenshots():
+    """Admin-only: kick off a Play carousel regen in the background. Returns
+    202 immediately with a `started_at` marker; poll `/admin/screenshots/status`
+    to see when it finishes."""
+    if _screenshot_lock.locked():
+        raise HTTPException(status_code=409, detail="A regen is already running")
+    started = datetime.now(timezone.utc).isoformat()
+    asyncio.create_task(_run_screenshot_regen("manual"))
+    return {"ok": True, "started_at": started}
+
+
+@router.get("/admin/screenshots/status", dependencies=[Depends(require_admin)])
+async def admin_screenshot_status():
+    """Admin-only: last 5 regen runs (newest first) + whether one is active."""
+    docs = await db.screenshot_runs.find(
+        {}, {"_id": 0},
+    ).sort("started_at", -1).to_list(5)
+    # Coerce datetime → ISO strings for JSON-safety.
+    for d in docs:
+        for k in ("started_at", "finished_at"):
+            if isinstance(d.get(k), datetime):
+                d[k] = d[k].isoformat()
+    return {"running": _screenshot_lock.locked(), "recent": docs}

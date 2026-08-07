@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from deps import (
     db, EMERGENT_LLM_KEY,
@@ -153,16 +153,28 @@ async def list_community_tips(status_filter: Optional[str] = None):
     return CommunityTipList(tips=[CommunityTip(**d) for d in docs], counts=counts)
 
 
-@router.post("/community/tips/{tip_id}/promote", response_model=CommunityTip, dependencies=[Depends(require_admin)])
-async def promote_community_tip(tip_id: str):
-    """Admin-only: mark a submitted tip as promoted. Fires a warm thank-you
-    email async (silent-skip when Resend isn't configured)."""
+@router.post("/community/tips/{tip_id}/promote", dependencies=[Depends(require_admin)])
+async def promote_community_tip(tip_id: str, preview: int = 0):
+    """Admin-only. Two modes:
+    * Normal (`preview=0`): mark the tip promoted + fire the thank-you email.
+      Returns the updated CommunityTip JSON.
+    * Preview (`preview=1`): DO NOT mutate DB, DO NOT send email. Return the
+      rendered thank-you HTML so the admin can eyeball the CTA + copy before
+      committing. Returned with `Content-Type: text/html` so the response
+      can be opened directly in a browser tab.
+    """
+    doc = await db.community_tips.find_one({"id": tip_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Tip not found")
+
+    if preview:
+        html = _render_thank_you_html(_normalize_tip_row(doc))
+        return Response(content=html, media_type="text/html")
+
     now = datetime.now(timezone.utc).isoformat()
-    result = await db.community_tips.update_one(
+    await db.community_tips.update_one(
         {"id": tip_id}, {"$set": {"status": "promoted", "promoted_at": now}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Tip not found")
     doc = _normalize_tip_row(await db.community_tips.find_one({"id": tip_id}, {"_id": 0}))
     if doc.get("contributor_opt_in") and doc.get("contributor_email") and not doc.get("thank_you_sent_at"):
         asyncio.create_task(_send_thank_you(doc))
@@ -639,14 +651,10 @@ async def parse_tips_from_text(payload: ParseTipsRequest):
 # Thank-you email (fired by promote endpoint). Kept in this module so its
 # lifecycle stays next to the tip it belongs to.
 # =============================================================================
-async def _send_thank_you(tip: Dict[str, Any]) -> None:
-    """Warm 'your tip is live' email to a contributor who opted in."""
-    if not RESEND_API_KEY or not SENDER_EMAIL:
-        logger.info("thank-you skipped: Resend not configured (tip %s)", tip.get("id"))
-        return
-    to_addr = str(tip.get("contributor_email") or "").strip().lower()
-    if not to_addr or "@" not in to_addr:
-        return
+def _render_thank_you_html(tip: Dict[str, Any]) -> str:
+    """Pure function: builds the thank-you email HTML. Shared by the actual
+    send flow (`_send_thank_you`) and the admin preview endpoint so what you
+    see is exactly what would fly. No side effects, no I/O."""
     heading = str(tip.get("heading") or "your tip")
 
     def esc(s: str) -> str:
@@ -674,7 +682,7 @@ async def _send_thank_you(tip: Dict[str, Any]) -> None:
             f'font-weight:600;font-size:14px;">See your card on the wall</a>'
             f'</div>'
         )
-    html = (
+    return (
         '<!DOCTYPE html><html><body style="margin:0;padding:24px;'
         'background:#0B1221;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">'
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
@@ -704,6 +712,18 @@ async def _send_thank_you(tip: Dict[str, Any]) -> None:
         '</td></tr>'
         '</table></body></html>'
     )
+
+
+async def _send_thank_you(tip: Dict[str, Any]) -> None:
+    """Warm 'your tip is live' email to a contributor who opted in."""
+    if not RESEND_API_KEY or not SENDER_EMAIL:
+        logger.info("thank-you skipped: Resend not configured (tip %s)", tip.get("id"))
+        return
+    to_addr = str(tip.get("contributor_email") or "").strip().lower()
+    if not to_addr or "@" not in to_addr:
+        return
+    heading = str(tip.get("heading") or "your tip")
+    html = _render_thank_you_html(tip)
     import resend as _resend
     _resend.api_key = RESEND_API_KEY
     params = {
