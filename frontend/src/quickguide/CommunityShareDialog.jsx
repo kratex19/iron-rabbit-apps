@@ -12,11 +12,12 @@
  */
 
 import React, { useState } from "react";
-import { Sparkles, X, Mail, Loader2 } from "lucide-react";
+import { Sparkles, X, Mail, AtSign, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NICK_RE = /^[A-Za-z0-9_]{2,20}$/;
 
 export default function CommunityShareDialog({
   isOpen,
@@ -27,15 +28,18 @@ export default function CommunityShareDialog({
 }) {
   const [email, setEmail] = useState("");
   const [optIn, setOptIn] = useState(false);
+  const [nickname, setNickname] = useState("");
   const [rememberConsent, setRememberConsent] = useState(consentGranted);
   const [busy, setBusy] = useState(false);
 
   if (!isOpen || !card) return null;
 
   const emailValid = !email || EMAIL_RE.test(email.trim());
+  const trimmedNick = nickname.trim();
+  const nicknameValid = !trimmedNick || NICK_RE.test(trimmedNick);
 
   const submit = async () => {
-    if (!emailValid) return;
+    if (!emailValid || !nicknameValid) return;
     setBusy(true);
     try {
       await onConfirm({
@@ -44,6 +48,7 @@ export default function CommunityShareDialog({
         theme: card.theme?.value || null,
         contributor_email: optIn ? email.trim() : "",
         contributor_opt_in: !!(optIn && email.trim()),
+        nickname: trimmedNick || null,
         remember_consent: rememberConsent,
       });
     } finally {
@@ -85,6 +90,30 @@ export default function CommunityShareDialog({
             <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1">Preview</div>
             <div className="text-sm font-semibold text-white">{card.heading || <span className="italic text-slate-500">Untitled</span>}</div>
             {card.body && <div className="text-xs text-slate-300 mt-1 whitespace-pre-wrap">{card.body}</div>}
+          </div>
+
+          {/* Optional nickname — appears on the Community card + Featured strip
+              + Contributor Wall when the tip is promoted. Left blank = fully anonymous. */}
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
+            <label className="text-sm text-white font-medium flex items-center gap-1.5">
+              <AtSign className="w-3.5 h-3.5 text-fuchsia-400" />
+              Nickname (optional)
+            </label>
+            <Input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="e.g. cook_ninja"
+              maxLength={20}
+              className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 h-9 text-sm"
+              data-testid="share-nickname-input"
+            />
+            <div className="text-[11px] text-slate-500">
+              Letters, numbers, underscore · 2-20 chars · shown next to your tip
+            </div>
+            {!nicknameValid && (
+              <div className="text-[11px] text-red-400">Only letters, numbers, and underscore. Try again or leave blank.</div>
+            )}
           </div>
 
           {/* Opt-in email — the whole reason this dialog exists */}
@@ -151,7 +180,7 @@ export default function CommunityShareDialog({
           <div className="flex-1" />
           <Button
             onClick={submit}
-            disabled={busy || !emailValid || (optIn && !email.trim())}
+            disabled={busy || !emailValid || !nicknameValid || (optIn && !email.trim())}
             className="bg-emerald-500 hover:bg-emerald-600 text-white"
             data-testid="share-submit"
           >

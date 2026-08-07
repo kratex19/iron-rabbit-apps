@@ -15,6 +15,7 @@ import BlogPage from "./site/pages/BlogPage";
 import BlogPostPage from "./site/pages/BlogPostPage";
 import NotesApp from "./NotesApp";
 import CommunityDashboard from "./admin/CommunityDashboard";
+import ContributorWall from "./community/ContributorWall";
 
 function NotFound() {
   return (
@@ -38,6 +39,10 @@ export default function App() {
 
         {/* Community Dashboard — admin-only, gated by ADMIN_TOKEN */}
         <Route path="/admin/community" element={<CommunityDashboard />} />
+
+        {/* Contributor Wall — public "thanks" page. Two URLs, same component. */}
+        <Route path="/contributors" element={<ContributorWall />} />
+        <Route path="/community/wall" element={<ContributorWall />} />
 
         {/* Company Website — nested under /site (will move to ironrabbitapps.com) */}
         <Route path="/site" element={<HomePage />} />

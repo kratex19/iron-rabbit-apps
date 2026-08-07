@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 57 — Post-refactor regression + Anonymous Nickname + Contributor Wall. Backend 30/30 pytest passing after fixing one test assertion (categories returns dict, not list — not a code bug). Verified every previously-passing endpoint still works after server.py -> deps/models/routes split. Verified nickname sanitization (7 invalid variants -> null, case preserved, valid stored). Verified /api/community/contributors is public, aggregates only nicknamed promoted tips, sorted tip_count DESC. Verified /api/community/promoted and /api/community/featured now surface nickname. Scheduler handle wired correctly — /digest/status returns non-null scheduler_next_run. Frontend Contributor Wall renders at both /contributors and /community/wall (2 seeded contributors: veggie_wizard, cook_ninja). Back link navigates to /. FeaturedTipStrip Heart icon -> /contributors target=_blank confirmed.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_refactor_regression.py",
+    "/app/test_reports/pytest/iter57.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py refactor is clean — thin 102-line bootstrap, all routers wired, scheduler handle re-exposed to routes/digest.py via digest_module.scheduler = _scheduler on startup (verified /digest/status.scheduler_next_run is populated).",
+    "deps.py uses os.environ['MONGO_URL'] / os.environ['DB_NAME'] (fail-fast). Good.",
+    "_sanitize_nickname is stricter than needed for common non-ASCII nicknames (e.g. 'josé', '寿司') — silent coerce to null is friendly but users get no error feedback. Consider surfacing a client-side validation hint (already exists per data-testid=share-nickname-input) so the coercion isn't invisible.",
+    "GET /api/community/contributors aggregation has no limit — fine now (2 contributors), but at scale add a top-N cap similar to the analytics endpoint feedback in iter56.",
+    "ContributorWall.jsx: `key={c.nickname}` is fine since backend groups by nickname. `wall-contributor-<nickname>` testid could break if a nickname ever contained CSS-selector-special chars — but sanitization limits to [A-Za-z0-9_] so safe.",
+    "FeaturedTipStrip Heart link uses <a target=_blank rel=noopener noreferrer> — good; leaves the note app running.",
+    "TTL index on community_events (180d) is created idempotently in server.startup — good. Same TTL should be considered for community_tips.rejected but that's product-level policy.",
+    "iter56 recharts width(-1)/height(-1) warning likely still present on admin dashboard (unchanged in this iteration); not blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_refactor_regression.py (new — 30 tests, full regression + nickname + contributor)"
+  ],
+  "success_rate": { "backend": "100% (30/30)", "frontend": "100% (all data-testid'd flows verified on /contributors, /community/wall, and home FeaturedTipStrip)" },
+  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5. Admin UI unlock: localStorage.setItem('irr.admin_token', TOKEN) then load /admin/community.",
+  "seed_data_creation": "Test file inserts TEST_iter57 tips (nickname variants + a promoted + an anonymous promoted) and cleans up in test_zzz_cleanup. Pre-existing seed 'veggie_wizard' + 'cook_ninja' promoted tips left in place — they power the Contributor Wall UI verification.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_refactor_regression.py is idempotent & safe to re-run. Uses env: REACT_APP_BACKEND_URL, ADMIN_TOKEN (defaults to irr-admin-8f3a2b91c4d7e6f5). Categories endpoint returns dict, not list — assertion loosened to accept both. Nickname regex is ^[A-Za-z0-9_]{2,20}$ enforced server-side; the 7 invalid variants tested cover the boundaries (empty, whitespace, 1-char, space, symbol, 21-char, hyphen). The CommunityShareDialog (data-testid=share-nickname-input) client-side validation was NOT interactively exercised by Playwright in this run — verified via code review only (regex mirror + server-side is authoritative). If retesting UI, open /admin/community, promote a pending tip, then re-visit / to see FeaturedTipStrip byline change.",
+  "verified_flows": {
+    "regression_notes_crud_reorder": "POST/GET/PUT/DELETE/reorder all 200/201.",
+    "regression_templates_settings_categories": "All 200 (categories returns dict shape).",
+    "regression_admin_gate": "GET /community/tips 401 without header, 200 with; /admin/verify parity.",
+    "regression_scheduler": "GET /community/digest/status.scheduler_next_run is non-null → server.startup binding OK.",
+    "regression_analytics_events": "POST /community/events public, empty batch 200.",
+    "regression_product_barcode": "GET /product/3017620422003 reachable (200 in latest run).",
+    "nickname_valid_stored": "chef_max stored + case-preserved (Chef_Max_2 round-trip).",
+    "nickname_invalid_null": "'', '  ', 'a', 'with space', 'sym!bol', 21-char, 'hy-phen' → all null server-side.",
+    "nickname_downstream": "promote returns nickname; /community/promoted row has nickname; /community/featured tip schema includes nickname; /community/contributors aggregates non-null-only, sorted tip_count DESC + latest_promoted_at DESC.",
+    "contributor_wall_frontend": "/contributors renders 2 cards (veggie_wizard, cook_ninja) with wall-contributor-<nick> testids; /community/wall alias renders identically; wall-back-link navigates to /.",
+    "featured_strip_frontend": "FeaturedTipStrip mounts, Heart icon = /contributors target=_blank. (Today's featured tip 'Batch cook rice' has no nickname → byline correctly absent.)"
+  }
+}

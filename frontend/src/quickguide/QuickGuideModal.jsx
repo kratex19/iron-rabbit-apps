@@ -292,6 +292,7 @@ export default function QuickGuideModal({ isDark = true }) {
           theme: payload.theme || null,
           contributor_email: payload.contributor_email || undefined,
           contributor_opt_in: payload.contributor_opt_in || false,
+          nickname: payload.nickname || undefined,
         }),
       });
       if (!res.ok) throw new Error(`submit ${res.status}`);
@@ -768,9 +769,17 @@ export default function QuickGuideModal({ isDark = true }) {
                         </div>
                       )}
                       {isCommunity && (
-                        <div className={`absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wide ${
+                        <div className={`absolute bottom-1.5 right-2 text-[9px] uppercase tracking-wide flex items-center gap-1 ${
                           isDark ? "text-emerald-300/80" : "text-emerald-600"
                         }`} data-testid={`quickguide-community-badge-${c.__id}`}>
+                          {c.nickname ? (
+                            <>
+                              <span className="normal-case tracking-normal text-emerald-200/90" data-testid={`quickguide-community-nick-${c.__id}`}>
+                                @{c.nickname}
+                              </span>
+                              <span className="opacity-50">·</span>
+                            </>
+                          ) : null}
                           Community
                         </div>
                       )}

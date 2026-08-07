@@ -14,7 +14,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Sparkles, X, ArrowUpRight } from "lucide-react";
+import { Sparkles, X, ArrowUpRight, Heart } from "lucide-react";
 import { useQuickGuideContext } from "../quickguide/QuickGuideProvider";
 import { trackCommunityEvent } from "../utils/communityAnalytics";
 
@@ -84,6 +84,11 @@ export default function FeaturedTipStrip({ isDark = true }) {
         <div className="flex-1 min-w-0">
           <div className={`text-[10px] uppercase tracking-wider font-semibold ${isDark ? "text-emerald-300/90" : "text-emerald-700"}`}>
             Community · Tip of the day
+            {tip.nickname && (
+              <span className={`ml-2 normal-case tracking-normal ${isDark ? "text-emerald-200/70" : "text-emerald-600"}`} data-testid="featured-tip-nickname">
+                · shared by @{tip.nickname}
+              </span>
+            )}
           </div>
           <div className={`text-sm font-semibold mt-0.5 truncate ${isDark ? "text-white" : "text-gray-900"}`} data-testid="featured-tip-heading">
             {tip.heading}
@@ -112,6 +117,20 @@ export default function FeaturedTipStrip({ isDark = true }) {
               Open guide <ArrowUpRight className="w-3 h-3" />
             </button>
           )}
+          <a
+            href="/contributors"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`h-7 px-2 rounded-md text-xs inline-flex items-center gap-1 transition-colors ${
+              isDark
+                ? "text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/5"
+                : "text-gray-500 hover:text-emerald-700 hover:bg-emerald-50"
+            }`}
+            data-testid="featured-tip-meet"
+            title="Meet the tippers"
+          >
+            <Heart className="w-3 h-3" />
+          </a>
           <button
             type="button"
             onClick={dismiss}
