@@ -12,7 +12,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCcw, Link2, Loader2, KeyRound, MailCheck, ShieldAlert } from "lucide-react";
+import { RefreshCcw, Link2, Loader2, KeyRound, MailCheck, ShieldAlert, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const WINDOWS = [
@@ -44,6 +44,26 @@ export default function RecoveryFunnel({ apiFetch, token }) {
   const conversion = data && data.email_sent > 0
     ? Math.round((data.verify_success / data.email_sent) * 100)
     : 0;
+
+  // Threshold alert: flag any adjacent-week drop of >20 share points where
+  // BOTH weeks had opens (otherwise the swing is noise from a zero window).
+  // If multiple drops exist we report the largest one — that's the story
+  // the admin needs to hear on a Monday morning.
+  const dropAlert = React.useMemo(() => {
+    const series = data?.weekly_series || [];
+    let worst = null;
+    for (let i = 1; i < series.length; i++) {
+      const a = series[i - 1];
+      const b = series[i];
+      if (!a || !b) continue;
+      if (a.opens_total === 0 || b.opens_total === 0) continue;
+      const delta = Math.round((a.magic_link_share - b.magic_link_share) * 100);
+      if (delta > 20 && (!worst || delta > worst.delta)) {
+        worst = { delta, from: a, to: b };
+      }
+    }
+    return worst;
+  }, [data]);
 
   return (
     <div
@@ -95,6 +115,29 @@ export default function RecoveryFunnel({ apiFetch, token }) {
           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…
         </div>
       ) : (
+        <>
+          {dropAlert && (
+            <div
+              className="mb-3 rounded-lg border border-amber-400/40 bg-amber-500/[0.08] p-3 flex items-start gap-2"
+              role="alert"
+              data-testid="funnel-drop-alert"
+            >
+              <TrendingDown className="w-4 h-4 text-amber-300 flex-shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-100 leading-relaxed">
+                <div className="font-semibold">
+                  Magic-link share dropped {dropAlert.delta} points week-over-week
+                </div>
+                <div className="text-[11px] text-amber-200/80 mt-0.5">
+                  {dropAlert.from.week_start} → {dropAlert.from.week_end}:
+                  {" "}<span className="font-semibold">{Math.round(dropAlert.from.magic_link_share * 100)}%</span>
+                  {"  →  "}
+                  {dropAlert.to.week_start} → {dropAlert.to.week_end}:
+                  {" "}<span className="font-semibold">{Math.round(dropAlert.to.magic_link_share * 100)}%</span>.
+                  {" "}Check recent email deliverability or landing-page copy.
+                </div>
+              </div>
+            </div>
+          )}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           {/* Big number: magic-link share */}
           <div className="sm:col-span-1 rounded-lg bg-gradient-to-br from-indigo-500/20 to-fuchsia-500/10 border border-indigo-400/20 p-4 flex flex-col items-center justify-center" data-testid="funnel-magic-share">
@@ -127,6 +170,7 @@ export default function RecoveryFunnel({ apiFetch, token }) {
             <Stat label="Window" value={`${data.window_days}d`} testId="funnel-window" tone="slate" small />
           </div>
         </div>
+        </>
       )}
     </div>
   );

@@ -207,7 +207,24 @@ def main() -> int:
     parser.add_argument("--only", help="Base name without .png (e.g. 04-wall-top)")
     parser.add_argument("--raw-dir", type=Path, default=RAW_DIR)
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
+    parser.add_argument(
+        "--list-order",
+        action="store_true",
+        help="Print the Play carousel upload order from manifest.json and exit",
+    )
     args = parser.parse_args()
+
+    if args.list_order:
+        import json
+        manifest = args.out_dir / "manifest.json"
+        if not manifest.exists():
+            print(f"missing {manifest}")
+            return 1
+        m = json.loads(manifest.read_text())
+        print("Play carousel upload order:")
+        for row in m.get("carousel_order", []):
+            print(f"  {row['position']:>2}. {row['file']:<28} — {row['caption']}")
+        return 0
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     written = 0

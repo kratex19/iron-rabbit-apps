@@ -660,6 +660,20 @@ async def _send_thank_you(tip: Dict[str, Any]) -> None:
         f'<div style="margin-top:6px;font-size:12px;color:#64748B;">— @{esc(nickname)}</div>'
         if nickname else ""
     )
+    # Deep link to the Contributor Wall with this nickname pulsing. Only
+    # rendered when both PUBLIC_APP_URL is configured AND the contributor
+    # attached a nickname (anonymous tips have no card to land on).
+    wall_cta_html = ""
+    if nickname and PUBLIC_APP_URL:
+        from urllib.parse import quote
+        wall_url = f"{PUBLIC_APP_URL}/contributors?highlight=@{quote(nickname)}"
+        wall_cta_html = (
+            f'<div style="margin:20px 0 4px;text-align:center;">'
+            f'<a href="{wall_url}" style="display:inline-block;padding:12px 22px;'
+            f'background:#10B981;color:#FFF;text-decoration:none;border-radius:8px;'
+            f'font-weight:600;font-size:14px;">See your card on the wall</a>'
+            f'</div>'
+        )
     html = (
         '<!DOCTYPE html><html><body style="margin:0;padding:24px;'
         'background:#0B1221;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">'
@@ -681,6 +695,7 @@ async def _send_thank_you(tip: Dict[str, Any]) -> None:
         '</div>'
         'just went live in Iron Rabbit and is being seen by folks opening the '
         'Quick Guide right now. Thanks for making the app better for everyone.'
+        f'{wall_cta_html}'
         '<div style="margin-top:24px;font-size:13px;color:#64748B;">— The Iron Rabbit team</div>'
         '</td></tr>'
         '<tr><td style="padding:0 24px 20px;font-size:11px;color:#94A3B8;text-align:center;">'

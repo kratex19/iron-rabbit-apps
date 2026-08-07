@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "notes": "Iron Rabbit — Google Play carousel upload order. Files are listed in the exact sequence they should appear in the Play Store phone-screenshot carousel. The story arc: hook (Wall) → engage (Share) → reassure (Recovery/Magic Link) → deliver (Home/Notes) → depth (Quick Guide).",
+  "generated_by": "scripts/overlay_play_screenshots.py — narrative order defined by hand, not automated",
+  "carousel_order": [
+    {
+      "position": 1,
+      "file": "04-wall-top.png",
+      "caption": "Wall of thanks",
+      "role": "Hook — 'you can end up on this wall'"
+    },
+    {
+      "position": 2,
+      "file": "05-wall-recent-new.png",
+      "caption": "Fresh names, front and centre",
+      "role": "Momentum — 'new contributors are always arriving'"
+    },
+    {
+      "position": 3,
+      "file": "06-share-card.png",
+      "caption": "Share your card, your way",
+      "role": "Engagement — 'shareable, themed, one tap'"
+    },
+    {
+      "position": 4,
+      "file": "07-recover-dialog.png",
+      "caption": "Never lose your nickname",
+      "role": "Reassurance — 'your identity is safe'"
+    },
+    {
+      "position": 5,
+      "file": "08-magic-link.png",
+      "caption": "One-tap recovery",
+      "role": "Delight — 'and it's actually easy'"
+    },
+    {
+      "position": 6,
+      "file": "01-home.png",
+      "caption": "Notes that live on your phone",
+      "role": "Product core — 'this is the app itself'"
+    },
+    {
+      "position": 7,
+      "file": "02-note-fullscreen.png",
+      "caption": "Focus, then write",
+      "role": "Depth — 'the editor is actually powerful'"
+    },
+    {
+      "position": 8,
+      "file": "03-quick-guide.png",
+      "caption": "A Quick Guide, always at hand",
+      "role": "Closure — 'community-authored knowledge lives here'"
+    }
+  ]
+}
