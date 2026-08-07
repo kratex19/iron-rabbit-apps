@@ -25,6 +25,7 @@ import AppHeader from "./notes/AppHeader";
 import { QuickGuideProvider, QuickGuideModal } from "./quickguide";
 import WeeklyDigest from "./notes/WeeklyDigest";
 import AppSearchBar from "./notes/AppSearchBar";
+import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import AppModals from "./notes/AppModals";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
@@ -1369,6 +1370,7 @@ export default function NotesApp() {
         />
 
         {renderPinnedRail()}
+        <FeaturedTipStrip isDark={isDark} />
         {renderNotes()}
       </main>
 

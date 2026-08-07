@@ -1,0 +1,33 @@
+{
+  "summary": "Iteration 55 — Featured Tip Rotation + Weekly Digest Schedule (APScheduler) + Toggle + Unsubscribe. Full backend (9/9 pytest) and frontend (home strip + admin digest strip) verified end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_featured_and_scheduler.py",
+    "/app/test_reports/pytest/iter55.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is now ~1308 lines — still recommend splitting community/digest/parse into a `community` sub-router for maintainability (raised in iter54 too).",
+    "APScheduler creates a fresh AsyncIOScheduler on every FastAPI startup event; the double-register in logs (00:14:11 and 00:14:21) suggests startup runs twice (likely reload). Confirm production has reload disabled or guard with `if _scheduler is None` (currently only guards `.running`, so a shutdown/restart cycle is safe).",
+    "unsubscribe endpoint is declared with `response_class=FileResponse` but returns an `HTMLResponse` — cosmetic mismatch, works because FastAPI honours the actual response object, but the OpenAPI schema is misleading. Change to `HTMLResponse`."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_featured_and_scheduler.py (new)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all data-testid flows verified)"},
+  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from /app/backend/.env). Admin UI unlock: localStorage.setItem('irr.admin_token', <token>) then load /admin/community.",
+  "seed_data_creation": "Test tip 'TEST_iter55 seed featured' inserted + promoted + deleted (cleaned up via DELETE /api/community/tips/{id}). Anonymous-submit regression test also cleaned up.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest file `test_featured_and_scheduler.py` is idempotent and safe to re-run. It relies on env vars from frontend/.env (REACT_APP_BACKEND_URL) and backend/.env (MONGO_URL, DB_NAME) — export them before running pytest, e.g. `export $(grep -v '^#' frontend/.env backend/.env | xargs)`. There are already 2 promoted tips in prod DB seed; featured endpoint deterministically picks by `date.toordinal() % len(docs)`. The FirstRunTour + QuickGuideModal auto-open on Home block clicks — pre-set localStorage keys 'irr.firstRunTourDone' / 'irr.quickGuideSeen' before testing FeaturedTipStrip.",
+  "verified_flows": {
+    "backend_featured": "Public GET works no-auth, returns {tip,total_promoted}. Two consecutive calls return same tip.id (deterministic same-day).",
+    "backend_digest_status_auth": "Missing X-Admin-Token → 401; with token → 200 with all 6 fields incl. scheduler_next_run == next Monday 09:00 UTC (verified weekday=0 hour=9 minute=0).",
+    "backend_digest_toggle": "POST enabled:false → /digest/send returns {ok:false, reason:'digest disabled (unsubscribed)'}. Toggle back on → /digest/send returns {ok:false, reason:'RESEND_API_KEY not configured on server'}.",
+    "backend_unsubscribe": "Wrong token → HTML 'Link expired'. Correct token (fetched from mongo app_config.digest.unsubscribe_token) → HTML 'You are unsubscribed' AND status.enabled flips to false. Re-toggled on for cleanup.",
+    "backend_scheduler_logs": "'weekly_digest scheduler started (Mon 09:00 UTC)' present in backend.err.log.",
+    "frontend_featured_strip": "Renders above notes list with heading 'Batch cook rice' + body + 'Open guide' + dismiss X. Dismiss sets localStorage['irr.featured_tip_hidden_date']='2026-08-07' and hides strip immediately.",
+    "frontend_admin_digest": "digest-status-strip shows 'Weekly digest ON · Next: Mon, Aug 10, 09:00 AM · Never sent · RESEND_API_KEY missing'. Toggle button flips label ON↔OFF and updates strip text ('Weekly digest OFF (unsubscribed)') + toast 'Weekly digest turned ON/OFF'."
+  }
+}

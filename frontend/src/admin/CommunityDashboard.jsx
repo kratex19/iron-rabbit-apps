@@ -14,7 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  ShieldCheck, RefreshCcw, ThumbsUp, ThumbsDown, Trash2, Loader2, MessageSquareQuote, Rocket, Filter, X, ClipboardPaste, Mail,
+  ShieldCheck, RefreshCcw, ThumbsUp, ThumbsDown, Trash2, Loader2, MessageSquareQuote, Rocket, Filter, X, ClipboardPaste, Mail, Bell, BellOff, Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGate";
@@ -59,6 +59,7 @@ export default function CommunityDashboard() {
   const [query, setQuery] = useState("");
   const [pasteOpen, setPasteOpen] = useState(false);
   const [digestBusy, setDigestBusy] = useState(false);
+  const [digestStatus, setDigestStatus] = useState(null); // {enabled, last_sent_at, scheduler_next_run, ...}
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -82,6 +83,18 @@ export default function CommunityDashboard() {
   }, [token, status]);
 
   useEffect(() => { if (token) load(); }, [token, load]);
+
+  const loadStatus = useCallback(async () => {
+    if (!token) return;
+    try {
+      const s = await apiFetch(`/api/community/digest/status`, token);
+      setDigestStatus(s);
+    } catch (e) {
+      // Silent — status is a decoration, not blocking.
+    }
+  }, [token]);
+
+  useEffect(() => { if (token) loadStatus(); }, [token, loadStatus]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -150,6 +163,7 @@ export default function CommunityDashboard() {
       } else {
         toast.error(data?.reason || "Digest failed");
       }
+      loadStatus();
     } catch (e) {
       if (String(e.message) === "unauthorized") {
         toast.error("Admin token rejected");
@@ -158,6 +172,21 @@ export default function CommunityDashboard() {
       } else {
         toast.error("Digest send failed");
       }
+    } finally { setDigestBusy(false); }
+  };
+
+  const toggleDigest = async () => {
+    if (!digestStatus) return;
+    setDigestBusy(true);
+    try {
+      const s = await apiFetch(`/api/community/digest/toggle`, token, {
+        method: "POST",
+        body: JSON.stringify({ enabled: !digestStatus.enabled }),
+      });
+      setDigestStatus(s);
+      toast.success(s.enabled ? "Weekly digest turned ON" : "Weekly digest turned OFF");
+    } catch (e) {
+      toast.error("Couldn't toggle digest");
     } finally { setDigestBusy(false); }
   };
 
@@ -182,6 +211,49 @@ export default function CommunityDashboard() {
             Sign out
           </Button>
         </div>
+
+        {/* Digest schedule strip — quick at-a-glance state of the weekly cron.
+            Toggle here doubles as the "unsubscribe re-enable" surface. */}
+        {digestStatus && (
+          <div
+            className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 flex flex-wrap items-center gap-3"
+            data-testid="digest-status-strip"
+          >
+            <div className="flex items-center gap-2">
+              {digestStatus.enabled
+                ? <Bell className="w-4 h-4 text-emerald-400" />
+                : <BellOff className="w-4 h-4 text-slate-500" />
+              }
+              <div className="text-xs">
+                <div className={`font-semibold ${digestStatus.enabled ? "text-emerald-300" : "text-slate-400"}`}>
+                  Weekly digest {digestStatus.enabled ? "ON" : "OFF (unsubscribed)"}
+                </div>
+                <div className="text-[10px] text-slate-500">
+                  {digestStatus.enabled && digestStatus.scheduler_next_run
+                    ? <><Calendar className="w-3 h-3 inline mr-1 -mt-0.5" />Next: {new Date(digestStatus.scheduler_next_run).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · </>
+                    : null}
+                  {digestStatus.last_sent_at
+                    ? <>Last sent {new Date(digestStatus.last_sent_at).toLocaleDateString()}</>
+                    : "Never sent"}
+                  {!digestStatus.resend_key_configured && (
+                    <span className="text-amber-400 ml-2">· RESEND_API_KEY missing</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={toggleDigest}
+              disabled={digestBusy}
+              className="text-slate-300 border-white/10 hover:bg-white/5"
+              data-testid="digest-toggle"
+            >
+              {digestStatus.enabled ? "Turn OFF" : "Turn ON"}
+            </Button>
+          </div>
+        )}
 
         {/* Status tabs */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">

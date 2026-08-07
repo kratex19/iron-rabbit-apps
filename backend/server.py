@@ -705,7 +705,7 @@ class DigestSendResponse(BaseModel):
     reason: Optional[str] = None
 
 
-def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dict[str, Any]], generated_at: str) -> str:
+def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dict[str, Any]], generated_at: str, unsubscribe_url: Optional[str] = None) -> str:
     """Render a table-based HTML digest email. Inline styles only — the
     playbook rules for email HTML strictly forbid external CSS/fonts."""
     def esc(s: str) -> str:
@@ -729,6 +729,17 @@ def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dic
         'No new pending tips this week.</td></tr>'
     )
     promoted_rows = "".join(row(t) for t in promoted_recent) or ""
+
+    unsubscribe_html = ''
+    if unsubscribe_url:
+        unsubscribe_html = (
+            '<tr><td style="padding:8px 24px 20px;font-family:-apple-system,sans-serif;'
+            'font-size:11px;color:#94A3B8;text-align:center;border-top:1px solid #E5E7EB;">'
+            f'You are receiving this because you enabled weekly Iron Rabbit digests. '
+            f'<a href="{esc(unsubscribe_url)}" style="color:#6366F1;text-decoration:underline;">'
+            'Unsubscribe</a> to stop future emails. You can re-enable them anytime in the admin dashboard.'
+            '</td></tr>'
+        )
 
     return (
         '<!DOCTYPE html><html><body style="margin:0;padding:24px;'
@@ -758,37 +769,62 @@ def _render_digest_html(pending: List[Dict[str, Any]], promoted_recent: List[Dic
         'font-size:12px;color:#94A3B8;text-align:center;">'
         'Open the Community Dashboard to moderate.'
         '</td></tr>'
+        + unsubscribe_html +
         '</table></body></html>'
     )
 
 
-@api_router.post("/community/digest/send", response_model=DigestSendResponse)
-async def send_community_digest(
-    dry_run: bool = False,
-    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
-):
-    """Admin-only: compose + send a summary of pending tips + recently
-    promoted tips to ADMIN_DIGEST_EMAIL via Resend. Supports `?dry_run=1`
-    to preview the HTML without dispatching (useful for tests and for
-    running the endpoint before the Resend key is populated)."""
-    _require_admin(x_admin_token)
+# --- Digest config helpers -----------------------------------------------------
+# Config lives in a single-doc app_config collection keyed by _id='digest'.
+# Keeps things simple: no migrations, defaults fill in when the doc is missing.
+async def _load_digest_config() -> Dict[str, Any]:
+    doc = await db.app_config.find_one({"_id": "digest"}) or {}
+    return {
+        "enabled": bool(doc.get("enabled", True)),
+        "last_sent_at": doc.get("last_sent_at"),
+        "unsubscribe_token": doc.get("unsubscribe_token") or "",
+    }
 
-    # Fetch pending (incl. legacy null-status) + last-7-day promoted
-    pending_cursor = db.community_tips.find(
+
+async def _ensure_unsubscribe_token() -> str:
+    """Generate and store the unsubscribe token if missing. Idempotent."""
+    cfg = await _load_digest_config()
+    if cfg["unsubscribe_token"]:
+        return cfg["unsubscribe_token"]
+    tok = str(uuid.uuid4()).replace("-", "")
+    await db.app_config.update_one(
+        {"_id": "digest"}, {"$set": {"unsubscribe_token": tok}}, upsert=True,
+    )
+    return tok
+
+
+async def _send_digest_now(*, dry_run: bool = False, force_when_empty: bool = True) -> "DigestSendResponse":
+    """Core digest routine — shared by the admin API endpoint and the weekly
+    cron. Returns a DigestSendResponse-like dict; the API layer wraps it."""
+    cfg = await _load_digest_config()
+    pending = await db.community_tips.find(
         {"$or": [{"status": "pending"}, {"status": {"$exists": False}}]},
         {"_id": 0},
-    ).sort("created_at", -1)
-    pending = await pending_cursor.to_list(50)
-
-    promoted_cursor = db.community_tips.find(
-        {"status": "promoted"},
-        {"_id": 0},
-    ).sort("promoted_at", -1)
-    promoted_recent = await promoted_cursor.to_list(10)
+    ).sort("created_at", -1).to_list(50)
+    promoted_recent = await db.community_tips.find(
+        {"status": "promoted"}, {"_id": 0},
+    ).sort("promoted_at", -1).to_list(10)
 
     counts = {"pending": len(pending), "promoted": len(promoted_recent)}
+    if not force_when_empty and counts["pending"] == 0:
+        return DigestSendResponse(ok=True, counts=counts, dry_run=dry_run,
+                                  reason="skipped · no pending tips",
+                                  sent_to=ADMIN_DIGEST_EMAIL or None)
+
     generated_at = datetime.now(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
-    html = _render_digest_html(pending, promoted_recent, generated_at)
+    unsub_token = await _ensure_unsubscribe_token()
+    # Public unsubscribe link — safe to expose; the token is single-purpose.
+    public_base = os.environ.get("PUBLIC_APP_URL", "").rstrip("/")
+    if not public_base:
+        # Fallback: infer from CORS origin (first entry) so the link still works.
+        public_base = (os.environ.get("CORS_ORIGINS", "").split(",")[0] or "").strip().rstrip("/")
+    unsubscribe_url = f"{public_base}/api/community/digest/unsubscribe?token={unsub_token}" if public_base else None
+    html = _render_digest_html(pending, promoted_recent, generated_at, unsubscribe_url)
 
     if dry_run:
         return DigestSendResponse(
@@ -796,17 +832,15 @@ async def send_community_digest(
             sent_to=ADMIN_DIGEST_EMAIL or None,
             reason=f"dry_run · {len(html)} chars",
         )
-
+    if not cfg["enabled"]:
+        return DigestSendResponse(ok=False, counts=counts, dry_run=False,
+                                  reason="digest disabled (unsubscribed)")
     if not RESEND_API_KEY:
-        return DigestSendResponse(
-            ok=False, counts=counts, dry_run=False,
-            reason="RESEND_API_KEY not configured on server",
-        )
+        return DigestSendResponse(ok=False, counts=counts, dry_run=False,
+                                  reason="RESEND_API_KEY not configured on server")
     if not ADMIN_DIGEST_EMAIL or not SENDER_EMAIL:
-        return DigestSendResponse(
-            ok=False, counts=counts, dry_run=False,
-            reason="ADMIN_DIGEST_EMAIL or SENDER_EMAIL not configured on server",
-        )
+        return DigestSendResponse(ok=False, counts=counts, dry_run=False,
+                                  reason="ADMIN_DIGEST_EMAIL or SENDER_EMAIL not configured on server")
 
     import resend as _resend
     _resend.api_key = RESEND_API_KEY
@@ -820,13 +854,136 @@ async def send_community_digest(
         email = await asyncio.to_thread(_resend.Emails.send, params)
     except Exception as e:
         logger.exception("Resend send failed")
-        raise HTTPException(status_code=502, detail=f"Email failed: {str(e)[:200]}")
+        return DigestSendResponse(ok=False, counts=counts, dry_run=False,
+                                  reason=f"Resend error: {str(e)[:200]}")
 
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.app_config.update_one(
+        {"_id": "digest"}, {"$set": {"last_sent_at": now_iso}}, upsert=True,
+    )
     return DigestSendResponse(
         ok=True, counts=counts, dry_run=False,
         sent_to=ADMIN_DIGEST_EMAIL,
         email_id=(email or {}).get("id") if isinstance(email, dict) else None,
     )
+
+
+@api_router.post("/community/digest/send", response_model=DigestSendResponse)
+async def send_community_digest(
+    dry_run: bool = False,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: fire the digest immediately. Supports `?dry_run=1`."""
+    _require_admin(x_admin_token)
+    return await _send_digest_now(dry_run=dry_run, force_when_empty=True)
+
+
+class DigestStatusResponse(BaseModel):
+    enabled: bool
+    last_sent_at: Optional[str] = None
+    sender_email: str = ""
+    recipient_email: str = ""
+    resend_key_configured: bool = False
+    scheduler_next_run: Optional[str] = None
+
+
+@api_router.get("/community/digest/status", response_model=DigestStatusResponse)
+async def digest_status(x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token")):
+    """Admin-only: return the digest on/off flag + last-sent stamp so the
+    dashboard can show a chip. Also reports whether Resend is configured."""
+    _require_admin(x_admin_token)
+    cfg = await _load_digest_config()
+    next_run = None
+    try:
+        job = _scheduler.get_job("weekly_digest") if _scheduler else None
+        if job and job.next_run_time:
+            next_run = job.next_run_time.astimezone(timezone.utc).isoformat()
+    except Exception:
+        pass
+    return DigestStatusResponse(
+        enabled=cfg["enabled"],
+        last_sent_at=cfg["last_sent_at"],
+        sender_email=SENDER_EMAIL or "",
+        recipient_email=ADMIN_DIGEST_EMAIL or "",
+        resend_key_configured=bool(RESEND_API_KEY),
+        scheduler_next_run=next_run,
+    )
+
+
+class DigestToggleRequest(BaseModel):
+    enabled: bool
+
+
+@api_router.post("/community/digest/toggle", response_model=DigestStatusResponse)
+async def digest_toggle(
+    payload: DigestToggleRequest,
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+):
+    """Admin-only: flip the digest on/off flag from the dashboard."""
+    _require_admin(x_admin_token)
+    await db.app_config.update_one(
+        {"_id": "digest"}, {"$set": {"enabled": bool(payload.enabled)}}, upsert=True,
+    )
+    return await digest_status(x_admin_token=x_admin_token)
+
+
+@api_router.get("/community/digest/unsubscribe", response_class=FileResponse)
+async def digest_unsubscribe(token: str):
+    """Public: unsubscribe link inside the digest email. Compares against the
+    stored per-install token and disables future weekly sends when it matches.
+    Returns a simple HTML confirmation page either way (never leaks whether
+    the token was right)."""
+    from fastapi.responses import HTMLResponse
+    cfg = await _load_digest_config()
+    matched = bool(token) and token == cfg["unsubscribe_token"]
+    if matched:
+        await db.app_config.update_one(
+            {"_id": "digest"}, {"$set": {"enabled": False}}, upsert=True,
+        )
+    body = (
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Iron Rabbit — Digest paused</title></head>'
+        '<body style="margin:0;padding:48px 24px;background:#0B1221;color:#F1F5F9;'
+        'font-family:-apple-system,sans-serif;text-align:center;">'
+        '<div style="max-width:480px;margin:0 auto;background:#0F172A;border:1px solid rgba(255,255,255,0.1);'
+        'border-radius:20px;padding:32px;">'
+        '<div style="width:48px;height:48px;margin:0 auto 16px;border-radius:50%;'
+        'background:linear-gradient(135deg,#6366F1,#EC4899);"></div>'
+        '<div style="font-size:20px;font-weight:700;margin-bottom:8px;">'
+        + ('You are unsubscribed' if matched else 'Link expired')
+        + '</div>'
+        '<div style="font-size:14px;color:#94A3B8;line-height:1.6;">'
+        + ('Weekly Iron Rabbit digest emails have been paused. You can re-enable them anytime from the Community Dashboard.'
+           if matched else
+           'This unsubscribe link is no longer valid. If you meant to stop future digests, sign in to the admin dashboard and toggle "Weekly digest" off.')
+        + '</div></div></body></html>'
+    )
+    return HTMLResponse(content=body)
+
+
+# ================== FEATURED COMMUNITY TIP ==================
+class FeaturedTipResponse(BaseModel):
+    tip: Optional[PromotedTip] = None
+    total_promoted: int = 0
+
+
+@api_router.get("/community/featured", response_model=FeaturedTipResponse)
+async def featured_community_tip():
+    """Public: deterministic pick of one promoted tip based on today's date.
+    Returns `{tip: null, total_promoted: 0}` when nothing has been promoted
+    yet — the home screen can degrade gracefully without knowing the API."""
+    docs = await db.community_tips.find(
+        {"status": "promoted"},
+        {"_id": 0, "id": 1, "heading": 1, "body": 1, "resource_id": 1, "promoted_at": 1},
+    ).sort("promoted_at", -1).to_list(500)
+    if not docs:
+        return FeaturedTipResponse(tip=None, total_promoted=0)
+    # Deterministic index from today's UTC date — same tip all day, no jitter.
+    today = datetime.now(timezone.utc).date()
+    idx = today.toordinal() % len(docs)
+    chosen = docs[idx]
+    chosen.setdefault("resource_id", "")
+    chosen.setdefault("promoted_at", None)
+    return FeaturedTipResponse(tip=PromotedTip(**chosen), total_promoted=len(docs))
 
 
 # ================== DINING INSIGHTS ENDPOINT ==================
@@ -1103,4 +1260,48 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    try:
+        if _scheduler and _scheduler.running:
+            _scheduler.shutdown(wait=False)
+    except Exception:
+        pass
     client.close()
+
+
+# ================== WEEKLY DIGEST SCHEDULER ==================
+# Uses APScheduler in-process — no external cron needed. Job fires every
+# Monday at 09:00 UTC and calls _send_digest_now(dry_run=False,
+# force_when_empty=False) which skips silently when nothing is pending.
+# The digest_config's `enabled` flag gates real sends (unsubscribe respected).
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: E402
+from apscheduler.triggers.cron import CronTrigger  # noqa: E402
+
+_scheduler: Optional[AsyncIOScheduler] = None
+
+
+async def _weekly_digest_job():
+    """Cron entry-point. Silent when there's nothing to report so we never
+    spam an inbox with 'no news' messages."""
+    try:
+        result = await _send_digest_now(dry_run=False, force_when_empty=False)
+        logger.info("weekly_digest job result: %s", result.model_dump())
+    except Exception:
+        logger.exception("weekly_digest job crashed")
+
+
+@app.on_event("startup")
+async def _start_scheduler():
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        return
+    _scheduler = AsyncIOScheduler(timezone="UTC")
+    _scheduler.add_job(
+        _weekly_digest_job,
+        trigger=CronTrigger(day_of_week="mon", hour=9, minute=0, timezone="UTC"),
+        id="weekly_digest",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    _scheduler.start()
+    logger.info("weekly_digest scheduler started (Mon 09:00 UTC)")

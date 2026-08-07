@@ -20,6 +20,11 @@ Set in `/app/backend/.env` as `ADMIN_TOKEN`. Required to review, promote, or rej
 - `POST /api/admin/verify` (used by the AdminGate UI)
 - `POST /api/community/tips/parse` — public LLM parser for "Import from Text" (Emergent LLM key)
 - `POST /api/community/digest/send` — admin-only Resend email dispatch. Currently returns `{ok:false, reason:"RESEND_API_KEY not configured on server"}` until the user provides a Resend API key. Supports `?dry_run=1` to preview without sending.
+- `GET /api/community/digest/status` — admin-only. Returns `{enabled, last_sent_at, sender_email, recipient_email, resend_key_configured, scheduler_next_run}`.
+- `POST /api/community/digest/toggle` — admin-only. Body `{enabled: true|false}`.
+- `GET /api/community/digest/unsubscribe?token=...` — public. Unsubscribes when token matches the stored per-install token, returns a themed HTML confirmation page.
+- `GET /api/community/featured` — public. Returns one deterministically-picked promoted tip (rotates daily by UTC date) or `{tip: null}` if none exist.
+- **Weekly digest cron** fires Monday 09:00 UTC via APScheduler (in-process). Skips silently when no pending tips exist AND respects the `enabled` flag.
 
 ## Resend (pending user)
 - `RESEND_API_KEY` — empty in .env; user to provide (starts with `re_...`)
