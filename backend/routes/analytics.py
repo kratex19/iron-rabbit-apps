@@ -1,6 +1,8 @@
 """Community analytics events + admin summary endpoints."""
 from __future__ import annotations
 
+import asyncio
+import json as _json
 import logging
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -8,7 +10,7 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from deps import db, require_admin
+from deps import db, require_admin, SLACK_WEBHOOK_URL
 from models.analytics import (
     CommunityEventsRequest,
     AnalyticsResponse, AnalyticsTipRow,
@@ -185,3 +187,100 @@ async def recovery_funnel(days: int = 30):
         magic_link_share=share,
         weekly_series=weekly_series,
     )
+
+
+# =============================================================================
+# Drop-alert Slack ping — mirrors the client-side dashboard banner. Fires when
+# ANY adjacent-week magic_link_share drop exceeds 20 percentage points and
+# both weeks have opens. Idempotent per drop: keyed on `to.week_start` in the
+# `recovery_alerts` collection so the same drop doesn't spam.
+# =============================================================================
+_DROP_ALERT_THRESHOLD = 20  # percentage points
+
+
+async def _detect_and_ping_drop() -> Dict[str, Any]:
+    """Compute the worst adjacent-week share drop >20pts (both weeks non-zero).
+    If found and never previously pinged, POST to Slack + persist the marker.
+    Returns a summary dict so callers can log the outcome."""
+    now = datetime.now(timezone.utc)
+    series: List[Dict[str, Any]] = []
+    for i in range(4, 0, -1):
+        wstart = now - timedelta(days=7 * i)
+        wend = now - timedelta(days=7 * (i - 1))
+        wcounts: Dict[str, int] = {}
+        async for row in db.recovery_events.aggregate([
+            {"$match": {"at": {"$gte": wstart, "$lt": wend},
+                        "event": {"$in": ["magic_link_opened", "manual_entry_opened"]}}},
+            {"$group": {"_id": "$event", "n": {"$sum": 1}}},
+        ]):
+            wcounts[row["_id"]] = int(row["n"])
+        w_magic = wcounts.get("magic_link_opened", 0)
+        w_manual = wcounts.get("manual_entry_opened", 0)
+        w_total = w_magic + w_manual
+        w_share = round(w_magic / w_total, 3) if w_total else 0.0
+        series.append({
+            "week_start": wstart.date().isoformat(),
+            "week_end": (wend - timedelta(seconds=1)).date().isoformat(),
+            "magic_link_share": w_share,
+            "opens_total": w_total,
+        })
+
+    # Largest qualifying drop across adjacent pairs.
+    worst = None
+    for i in range(1, len(series)):
+        a, b = series[i - 1], series[i]
+        if a["opens_total"] == 0 or b["opens_total"] == 0:
+            continue
+        delta = round((a["magic_link_share"] - b["magic_link_share"]) * 100)
+        if delta > _DROP_ALERT_THRESHOLD and (not worst or delta > worst["delta"]):
+            worst = {"delta": delta, "from": a, "to": b}
+
+    if not worst:
+        return {"alerted": False, "reason": "no qualifying drop"}
+
+    # Dedupe: don't re-alert if we already pinged for this exact `to.week_start`.
+    marker_key = worst["to"]["week_start"]
+    existing = await db.recovery_alerts.find_one({"week_start": marker_key})
+    if existing:
+        return {"alerted": False, "reason": "already alerted", "week_start": marker_key}
+
+    posted = False
+    if SLACK_WEBHOOK_URL:
+        try:
+            import requests as _requests
+            text = (
+                f":warning: *Iron Rabbit — recovery funnel alert*\n"
+                f"Magic-link share dropped *{worst['delta']} points* week-over-week.\n"
+                f"• {worst['from']['week_start']} → {worst['from']['week_end']}: "
+                f"*{round(worst['from']['magic_link_share'] * 100)}%*\n"
+                f"• {worst['to']['week_start']} → {worst['to']['week_end']}: "
+                f"*{round(worst['to']['magic_link_share'] * 100)}%*\n"
+                f"Check recent email deliverability or landing-page copy."
+            )
+            await asyncio.to_thread(
+                _requests.post,
+                SLACK_WEBHOOK_URL,
+                json={"text": text},
+                timeout=8,
+            )
+            posted = True
+        except Exception:
+            logger.exception("slack drop-alert post failed")
+
+    await db.recovery_alerts.insert_one({
+        "week_start": marker_key,
+        "delta": worst["delta"],
+        "from_share": worst["from"]["magic_link_share"],
+        "to_share": worst["to"]["magic_link_share"],
+        "posted_to_slack": posted,
+        "alerted_at": datetime.now(timezone.utc),
+    })
+    return {"alerted": True, "posted_to_slack": posted, "delta": worst["delta"],
+            "week_start": marker_key}
+
+
+@router.post("/admin/recovery/check-drop", dependencies=[Depends(require_admin)])
+async def admin_check_drop_alert():
+    """Admin-only: force-run the drop detector. Same idempotency rules —
+    running twice for the same drop won't double-ping. Handy for testing."""
+    return await _detect_and_ping_drop()

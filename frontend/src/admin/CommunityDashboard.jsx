@@ -21,6 +21,7 @@ import AdminGate, { getStoredAdminToken, clearStoredAdminToken } from "./AdminGa
 import PasteTipsDialog from "./PasteTipsDialog";
 import AnalyticsChart from "./AnalyticsChart";
 import RecoveryFunnel from "./RecoveryFunnel";
+import ScreenshotFreshness from "./ScreenshotFreshness";
 
 const STATUS_TABS = [
   { key: "pending", label: "Pending" },
@@ -64,6 +65,10 @@ export default function CommunityDashboard() {
   const [digestStatus, setDigestStatus] = useState(null); // {enabled, last_sent_at, scheduler_next_run, ...}
   const [previewHtml, setPreviewHtml] = useState(null);   // string when open, null when closed
   const [previewSubject, setPreviewSubject] = useState("");
+  const [customPreviewOpen, setCustomPreviewOpen] = useState(false);
+  const [customHeading, setCustomHeading] = useState("");
+  const [customBody, setCustomBody] = useState("");
+  const [customNickname, setCustomNickname] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -139,6 +144,36 @@ export default function CommunityDashboard() {
     } catch (e) {
       toast.error("Couldn't render preview");
     } finally { setBusyId(null); }
+  };
+
+  // Ad-hoc custom preview: renders the email HTML for an arbitrary
+  // heading/body/nickname without touching any real tip. Reuses the same
+  // preview modal so the visual flow stays consistent.
+  const runCustomPreview = async () => {
+    const heading = customHeading.trim();
+    if (!heading && !customBody.trim()) {
+      toast.error("Add at least a heading or body to preview");
+      return;
+    }
+    try {
+      const base = process.env.REACT_APP_BACKEND_URL;
+      const res = await fetch(`${base}/api/community/thank-you/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+        body: JSON.stringify({
+          heading: heading || undefined,
+          body: customBody.trim() || undefined,
+          nickname: customNickname.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const html = await res.text();
+      setPreviewHtml(html);
+      setPreviewSubject(`Your Iron Rabbit tip is live — ${(heading || "preview").slice(0, 60)}`);
+      setCustomPreviewOpen(false);
+    } catch (e) {
+      toast.error("Couldn't render preview");
+    }
   };
 
   const reject = async (tip) => {
@@ -241,6 +276,9 @@ export default function CommunityDashboard() {
 
         {/* Recovery funnel — one number answers "is the magic link worth it?" */}
         <RecoveryFunnel apiFetch={apiFetch} token={token} />
+
+        {/* Play carousel freshness strip — one-click regen + last-run status */}
+        <ScreenshotFreshness apiFetch={apiFetch} token={token} />
 
         {/* Digest schedule strip — quick at-a-glance state of the weekly cron.
             Toggle here doubles as the "unsubscribe re-enable" surface. */}
@@ -349,6 +387,16 @@ export default function CommunityDashboard() {
           >
             {digestBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
             Send digest
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCustomPreviewOpen(true)}
+            className="text-slate-300 border-white/10 hover:bg-white/5"
+            title="Render the thank-you email with hypothetical copy — no tip mutation, no send"
+            data-testid="admin-custom-preview"
+          >
+            <Eye className="w-3.5 h-3.5 mr-1" /> Custom preview
           </Button>
         </div>
 
@@ -497,6 +545,88 @@ export default function CommunityDashboard() {
         adminToken={token}
         onFinished={load}
       />
+
+      {/* Custom-payload preview form — inline dialog with three fields and
+          a "Render preview" button that opens the shared preview modal. */}
+      {customPreviewOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"
+          data-testid="custom-preview-dialog"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-[#0F172A] border border-white/10 shadow-2xl">
+            <div className="flex items-center gap-2 p-4 border-b border-white/10">
+              <Eye className="w-4 h-4 text-indigo-300" />
+              <div className="text-sm font-semibold text-white flex-1">
+                Preview a custom thank-you email
+                <div className="text-[10px] text-slate-500 mt-0.5 font-normal">
+                  No tip mutation. No send. Just renders the HTML.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomPreviewOpen(false)}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Heading</label>
+                <input
+                  type="text"
+                  value={customHeading}
+                  onChange={(e) => setCustomHeading(e.target.value.slice(0, 120))}
+                  placeholder="Batch chop veggies on Sundays"
+                  className="w-full mt-1 h-9 rounded-md bg-white/5 border border-white/10 text-white text-sm px-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                  data-testid="custom-preview-heading"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Body</label>
+                <textarea
+                  value={customBody}
+                  onChange={(e) => setCustomBody(e.target.value.slice(0, 800))}
+                  placeholder="One or two friendly sentences that explain the tip…"
+                  rows={3}
+                  className="w-full mt-1 rounded-md bg-white/5 border border-white/10 text-white text-sm p-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 resize-none"
+                  data-testid="custom-preview-body"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Nickname (optional)</label>
+                <input
+                  type="text"
+                  value={customNickname}
+                  onChange={(e) => setCustomNickname(e.target.value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 20))}
+                  placeholder="veggie_wizard"
+                  className="w-full mt-1 h-9 rounded-md bg-white/5 border border-white/10 text-white text-sm px-3 focus:outline-none focus:ring-2 focus:ring-indigo-400/50"
+                  data-testid="custom-preview-nickname"
+                />
+                <div className="text-[10px] text-slate-500 mt-1">
+                  Drives the &ldquo;See your card on the wall&rdquo; CTA. Leave blank to preview an anonymous send.
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-4 border-t border-white/10">
+              <Button variant="outline" onClick={() => setCustomPreviewOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
+                Cancel
+              </Button>
+              <div className="flex-1" />
+              <Button
+                onClick={runCustomPreview}
+                className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                data-testid="custom-preview-render"
+              >
+                <Eye className="w-3.5 h-3.5 mr-1" />
+                Render preview
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Thank-you email preview modal — renders the raw HTML in a sandboxed
           iframe so we see exactly what would arrive in the inbox. */}

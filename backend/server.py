@@ -22,6 +22,7 @@ from routes.community import router as community_router
 from routes.digest import router as digest_router, send_digest_now
 from routes import digest as digest_module  # for scheduler handle binding
 from routes.analytics import router as analytics_router
+from routes.analytics import _detect_and_ping_drop
 from routes.misc import router as misc_router
 from routes.misc import _run_screenshot_regen
 
@@ -98,6 +99,24 @@ async def _start_scheduler():
         _weekly_digest_job,
         trigger=CronTrigger(day_of_week="mon", hour=9, minute=0, timezone="UTC"),
         id="weekly_digest",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    # Weekly recovery-funnel drop check — Monday 08:30 UTC, before the 09:00
+    # digest so the admin sees the alert alongside the digest send. Runs
+    # regardless of SLACK_WEBHOOK_URL: without one it still records the
+    # marker so a later config change doesn't re-fire old drops.
+    async def _drop_alert_job():
+        try:
+            result = await _detect_and_ping_drop()
+            logger.info("recovery drop-alert job result: %s", result)
+        except Exception:
+            logger.exception("recovery drop-alert job crashed")
+    _scheduler.add_job(
+        _drop_alert_job,
+        trigger=CronTrigger(day_of_week="mon", hour=8, minute=30, timezone="UTC"),
+        id="weekly_drop_alert",
         replace_existing=True,
         max_instances=1,
         coalesce=True,

@@ -154,21 +154,29 @@ async def list_community_tips(status_filter: Optional[str] = None):
 
 
 @router.post("/community/tips/{tip_id}/promote", dependencies=[Depends(require_admin)])
-async def promote_community_tip(tip_id: str, preview: int = 0):
+async def promote_community_tip(tip_id: str, preview: int = 0, overrides: Optional[Dict[str, Any]] = None):
     """Admin-only. Two modes:
     * Normal (`preview=0`): mark the tip promoted + fire the thank-you email.
       Returns the updated CommunityTip JSON.
     * Preview (`preview=1`): DO NOT mutate DB, DO NOT send email. Return the
       rendered thank-you HTML so the admin can eyeball the CTA + copy before
       committing. Returned with `Content-Type: text/html` so the response
-      can be opened directly in a browser tab.
+      can be opened directly in a browser tab. When a JSON body is provided
+      alongside `preview=1`, its fields (heading, body, nickname,
+      contributor_email) override the stored tip — useful for A/B copy
+      previews without editing the real submission.
     """
     doc = await db.community_tips.find_one({"id": tip_id}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Tip not found")
 
     if preview:
-        html = _render_thank_you_html(_normalize_tip_row(doc))
+        merged = _normalize_tip_row(doc)
+        if isinstance(overrides, dict) and overrides:
+            for k in ("heading", "body", "nickname", "contributor_email"):
+                if k in overrides and overrides[k] is not None:
+                    merged[k] = overrides[k]
+        html = _render_thank_you_html(merged)
         return Response(content=html, media_type="text/html")
 
     now = datetime.now(timezone.utc).isoformat()
@@ -219,6 +227,27 @@ async def list_promoted_tips():
 async def admin_verify():
     """Ping endpoint for the admin gate — 200 when the header token matches."""
     return {"ok": True}
+
+
+@router.post("/community/thank-you/preview", dependencies=[Depends(require_admin)])
+async def preview_thank_you_ad_hoc(payload: Optional[Dict[str, Any]] = None):
+    """Admin-only ad-hoc preview: renders the thank-you email HTML for a
+    hypothetical tip supplied entirely via JSON body. Never touches the DB.
+    Useful for eyeballing new copy without editing a real submission.
+
+    Accepted fields (all optional): heading, body, nickname,
+    contributor_email. Missing fields fall back to friendly demo values so
+    the resulting shot always looks presentable."""
+    p = payload or {}
+    tip = {
+        "id": "preview",
+        "heading": (p.get("heading") or "Your tip just went live").strip()[:120],
+        "body": (p.get("body") or "").strip()[:800],
+        "nickname": _sanitize_nickname(p.get("nickname")) or "veggie_wizard",
+        "contributor_email": (p.get("contributor_email") or "preview@example.com").strip().lower()[:200],
+        "contributor_opt_in": True,
+    }
+    return Response(content=_render_thank_you_html(tip), media_type="text/html")
 
 
 @router.get("/community/featured", response_model=FeaturedTipResponse)

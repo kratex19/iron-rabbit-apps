@@ -38,6 +38,9 @@ PUBLIC_APP_URL = os.environ.get("PUBLIC_APP_URL", "").rstrip("/")
 # Weekly Play-screenshot regen — guarded so preview env doesn't run it. Set
 # to "1"/"true"/"yes" in production to enable.
 SCREENSHOT_CRON_ENABLED = os.environ.get("SCREENSHOT_CRON_ENABLED", "").lower() in {"1", "true", "yes"}
+# Optional Slack incoming-webhook URL — recovery-funnel drop alerts POST here.
+# Missing/empty → alerts stay in-dashboard only.
+SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
 
 logger = logging.getLogger(__name__)
 
