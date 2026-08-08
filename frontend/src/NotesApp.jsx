@@ -137,16 +137,19 @@ export default function NotesApp() {
     return () => document.body.classList.remove('nx-light');
   }, [isDark]);
 
-  // Follow OS `prefers-color-scheme` on first visit (only when the user has
-  // never set their own preference in this app).
+  // Follow the user's explicit theme choice only. If they've never tapped
+  // the sun/moon toggle, we default to DARK mode (Iron Rabbit's brand
+  // aesthetic) rather than following the OS `prefers-color-scheme` —
+  // several UI surfaces (wallpaper, headers, note tiles) are hard-styled
+  // for dark backdrops, so honouring a light OS preference produced
+  // hybrid rendering (dark chrome + light-mode text colours on note
+  // expands). One source of truth: `settings.theme_preference`.
   useEffect(() => {
     if (settings?.theme_preference) {
       setIsDark(settings.theme_preference === 'dark');
-      return;
-    }
-    if (settings && !settings.theme_preference && window.matchMedia) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setIsDark(prefersDark);
+    } else if (settings) {
+      // Settings loaded but no explicit preference → force dark default.
+      setIsDark(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.theme_preference]);
