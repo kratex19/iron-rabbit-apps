@@ -107,17 +107,17 @@ export const NOTE_COLORS = [
  * return `{ background, borderColor }` so components can spread this
  * directly onto the container that already has `note-gradient` as a class.
  *
- * In dark mode the tint gradient is layered over a solid `#0B1221` base
- * so text (text-slate-100/white) always has a reliably dark backing
- * regardless of which gradient palette was picked — otherwise the
- * semi-transparent tint would blend with whatever's behind the card
- * and dim into low-contrast slush on some palettes (graphite, slate).
+ * In dark mode the tint gradient is layered over a translucent `#0B1221`
+ * base (55% alpha) so the wallpaper / app background shows through — while
+ * `text-slate-100`/`text-white` still has enough backing to stay readable
+ * on any palette. Fully-opaque `#0B1221` was making note cards feel like
+ * cutouts rather than glass on top of the wallpaper.
  */
 export function getNoteColorStyle(colorConfig, isDark = true) {
   if (!colorConfig || !colorConfig.gradient) return null;
   const tint = colorConfig.bg || colorConfig.gradient;
   return {
-    background: isDark ? `${tint}, #0B1221` : tint,
+    background: isDark ? `${tint}, rgba(11, 18, 33, 0.55)` : tint,
     borderColor: colorConfig.border || colorConfig.accent,
   };
 }

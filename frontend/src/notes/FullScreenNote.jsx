@@ -79,7 +79,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="fullscreen-note">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
       <div
-        className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]' : 'bg-white'} border ${colorConfig.class}`}
+        className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]/75 backdrop-blur-2xl' : 'bg-white'} border ${colorConfig.class}`}
         style={{
           borderWidth: '2px',
           // In dark mode we keep the tinted gradient background for atmosphere.
