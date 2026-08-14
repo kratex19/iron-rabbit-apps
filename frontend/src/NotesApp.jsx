@@ -1387,9 +1387,8 @@ export default function NotesApp() {
       <main
         className="px-4 py-3 max-w-4xl mx-auto ir-brightness-scope"
         style={{
-          "--ir-text": brightnessToText(settings?.ui_brightness?.text ?? 0.7),
-          "--ir-bg":   brightnessToBg(settings?.ui_brightness?.bg   ?? 0.3),
-          color: "var(--ir-text)",
+          background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
+          color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),
         }}
       >
         <AppSearchBar

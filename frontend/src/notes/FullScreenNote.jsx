@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { format } from "date-fns";
 import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages, ChevronDown, Paperclip, MoreHorizontal, FileDown, FileText } from "lucide-react";
@@ -34,6 +34,19 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const initialAttachmentCount = (note?.attachments || []).length;
   const [attachmentsOpen, setAttachmentsOpen] = useState(initialAttachmentCount === 0);
   const noteIdRef = useRef(note?.id);
+
+  // Belt-and-suspenders text color forcing. Applying `color` via inline
+  // style occasionally loses to `-webkit-text-fill-color` on iOS/Android
+  // webviews. Setting both properties with `!important` via a ref+layout
+  // effect guarantees the paint tracks the slider in real time.
+  const contentTextareaRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = contentTextareaRef.current;
+    if (!el) return;
+    const c = brightnessToText(uiBrightness?.text ?? 0.7);
+    el.style.setProperty("color", c, "important");
+    el.style.setProperty("-webkit-text-fill-color", c, "important");
+  }, [uiBrightness?.text]);
 
   // When note changes (new note opened, or synced from parent after edit), reset local state
   useEffect(() => {
@@ -177,6 +190,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           }}
         >
           <TextareaAutosize
+            ref={contentTextareaRef}
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"

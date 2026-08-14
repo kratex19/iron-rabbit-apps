@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -58,6 +58,19 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [recurring, setRecurring] = useState({ enabled: false, frequency: "weekly", days: [] });
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+
+  // Belt-and-suspenders text color forcing: the textarea's inline `color`
+  // style occasionally loses out to a UA / browser-extension `-webkit-text-
+  // fill-color` cascade. Setting the property with `!important` via ref
+  // guarantees the paint changes every time `uiBrightness.text` changes.
+  const contentTextareaRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = contentTextareaRef.current;
+    if (!el) return;
+    const c = brightnessToText(uiBrightness?.text ?? 0.7);
+    el.style.setProperty("color", c, "important");
+    el.style.setProperty("-webkit-text-fill-color", c, "important");
+  }, [uiBrightness?.text]);
   const [translateOpen, setTranslateOpen] = useState(false);
   const voice = useVoiceInput();
 
@@ -230,6 +243,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 </div>
               </div>
               <TextareaAutosize
+                ref={contentTextareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={t("note.content_placeholder")}
@@ -237,10 +251,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 maxRows={20}
                 className={`ir-brightness-scope w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
                 style={{
-                  "--ir-text": brightnessToText(uiBrightness?.text ?? 0.7),
-                  "--ir-bg":   brightnessToBg(uiBrightness?.bg   ?? 0.3),
-                  background: "var(--ir-bg)",
-                  color: "var(--ir-text)",
+                  background: brightnessToBg(uiBrightness?.bg ?? 0.3),
+                  color: brightnessToText(uiBrightness?.text ?? 0.7),
                 }}
                 data-testid="note-content-input"
               />

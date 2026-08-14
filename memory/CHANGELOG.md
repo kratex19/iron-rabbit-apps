@@ -1,6 +1,37 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 5) — Brightness sliders: full paint pipeline hardened
+
+### Additional bugs reported
+- **Home page**: sliders slid but changed NOTHING (no bg, no text repaint)
+- **Quick Edit**: bg went black → *white* (should be black → transparent)
+- **Full Screen text**: still didn't repaint even after direct inline color
+
+### Root causes
+1. Home `<main>` had no `background` style — only set the `color` inheritance
+2. Home + Quick Edit relied on CSS `var(--ir-*)` indirection, which was
+   sometimes ignored by the third-party `TextareaAutosize`
+3. iOS/Android WebViews and some mobile Chrome builds ignore `color` on
+   `<textarea>` in favor of `-webkit-text-fill-color`, which was never set
+
+### Fix
+- **`NotesApp.jsx`** — `<main>` now applies `background` + `color` as
+  directly computed inline values (`brightnessToBg` / `brightnessToText`)
+- **`NoteModal.jsx`** — same treatment on the Quick Edit textarea; added
+  `useRef` + `useLayoutEffect` that runs on every `uiBrightness.text`
+  change and imperatively sets both `color` and `-webkit-text-fill-color`
+  with `!important`
+- **`FullScreenNote.jsx`** — identical ref-based force-paint added
+
+### Verification
+- Bundle contains 10 `-webkit-text-fill-color` references (confirmed
+  deployed)
+- Lint clean on all touched files (pre-existing warnings only)
+- Color math still verified: text(0)=black, text(1)=white, bg(0)=solid
+  black, bg(1)=fully transparent
+
+
 ## 2026-02-14 (part 4) — Brightness sliders: real color paint + bright icon
 
 ### Bugs reported by user
