@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { Type, SquareDashed, RotateCcw } from "lucide-react";
 
 /**
  * BrightnessSliders — two ultra-compact horizontal sliders that let the
@@ -77,43 +78,81 @@ export default function BrightnessSliders({ value, onChange, isDark, testidPrefi
   };
 
   const trackCls = isDark
-    ? "w-full h-1 rounded-full bg-white/10 appearance-none cursor-pointer"
-    : "w-full h-1 rounded-full bg-gray-200 appearance-none cursor-pointer";
+    ? "flex-1 h-1.5 rounded-full bg-white/20 appearance-none cursor-pointer"
+    : "flex-1 h-1.5 rounded-full bg-gray-300 appearance-none cursor-pointer";
+
+  const labelCls = isDark ? "text-slate-300" : "text-gray-600";
+  const chipCls = isDark
+    ? "px-1.5 py-0.5 text-[10px] rounded bg-white/10 text-slate-200 min-w-[34px] text-center tabular-nums"
+    : "px-1.5 py-0.5 text-[10px] rounded bg-gray-200 text-gray-700 min-w-[34px] text-center tabular-nums";
+  const resetBtnCls = isDark
+    ? "p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+    : "p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors";
 
   return (
     <div
       ref={pulseRef}
-      className="w-full space-y-1.5 select-none"
+      className="w-full space-y-2 select-none"
       data-testid={`${testidPrefix}-sliders`}
     >
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.01}
-        value={textVal}
-        onChange={(e) => commit({ text: Number(e.target.value) })}
-        onDoubleClick={handleDoubleTap(textTapRef, DEFAULT_TEXT, "text")}
-        onTouchEnd={handleDoubleTap(textTapRef, DEFAULT_TEXT, "text")}
-        aria-label="Text brightness"
-        title="Text brightness (double-tap to reset)"
-        className={`ir-brightness-slider ${trackCls}`}
-        data-testid={`${testidPrefix}-text-slider`}
-      />
-      <input
-        type="range"
-        min={0}
-        max={1}
-        step={0.01}
-        value={bgVal}
-        onChange={(e) => commit({ bg: Number(e.target.value) })}
-        onDoubleClick={handleDoubleTap(bgTapRef, DEFAULT_BG, "bg")}
-        onTouchEnd={handleDoubleTap(bgTapRef, DEFAULT_BG, "bg")}
-        aria-label="Background brightness"
-        title="Background brightness (double-tap to reset)"
-        className={`ir-brightness-slider ${trackCls}`}
-        data-testid={`${testidPrefix}-bg-slider`}
-      />
+      <div className="flex items-center gap-2">
+        <Type className={`w-3.5 h-3.5 shrink-0 ${labelCls}`} aria-hidden="true" />
+        <span className={`text-[11px] w-8 shrink-0 ${labelCls}`}>Text</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={textVal}
+          onChange={(e) => commit({ text: Number(e.target.value) })}
+          onDoubleClick={handleDoubleTap(textTapRef, DEFAULT_TEXT, "text")}
+          onTouchEnd={handleDoubleTap(textTapRef, DEFAULT_TEXT, "text")}
+          aria-label="Text brightness"
+          title="Text brightness (double-tap to reset)"
+          className={`ir-brightness-slider ${trackCls}`}
+          data-testid={`${testidPrefix}-text-slider`}
+        />
+        <span className={chipCls} data-testid={`${testidPrefix}-text-value`}>{Math.round(textVal * 100)}%</span>
+        <button
+          type="button"
+          onClick={() => commit({ text: DEFAULT_TEXT })}
+          className={resetBtnCls}
+          title="Reset text brightness"
+          aria-label="Reset text brightness"
+          data-testid={`${testidPrefix}-text-reset`}
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <SquareDashed className={`w-3.5 h-3.5 shrink-0 ${labelCls}`} aria-hidden="true" />
+        <span className={`text-[11px] w-8 shrink-0 ${labelCls}`}>BG</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={bgVal}
+          onChange={(e) => commit({ bg: Number(e.target.value) })}
+          onDoubleClick={handleDoubleTap(bgTapRef, DEFAULT_BG, "bg")}
+          onTouchEnd={handleDoubleTap(bgTapRef, DEFAULT_BG, "bg")}
+          aria-label="Background brightness"
+          title="Background brightness (double-tap to reset)"
+          className={`ir-brightness-slider ${trackCls}`}
+          data-testid={`${testidPrefix}-bg-slider`}
+        />
+        <span className={chipCls} data-testid={`${testidPrefix}-bg-value`}>{Math.round(bgVal * 100)}%</span>
+        <button
+          type="button"
+          onClick={() => commit({ bg: DEFAULT_BG })}
+          className={resetBtnCls}
+          title="Reset background brightness"
+          aria-label="Reset background brightness"
+          data-testid={`${testidPrefix}-bg-reset`}
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      </div>
     </div>
   );
 }

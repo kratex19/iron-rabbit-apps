@@ -1,5 +1,33 @@
 # Iron Rabbit Changelog
 
+
+## 2026-02-14 — Brightness Sliders → Collapsible Display Panel
+
+### Problem
+Brightness sliders were rendering but invisible on dark backdrop:
+- 4px tall track at 10% white opacity
+- No labels, no value chips, no visible chrome
+- Users could not find them at all (reported by user)
+
+### Fix (Option C — hide behind icon toggle)
+1. **New component `notes/DisplayControlsButton.jsx`** — `SlidersHorizontal` icon opens a Radix Popover ("Display" panel) containing the sliders. Hidden by default.
+2. **Enhanced `notes/BrightnessSliders.jsx`** — added `Type` / `SquareDashed` label icons, "Text"/"BG" labels, `%` value chips, and per-slider `RotateCcw` reset buttons. Track bumped `h-1` → `h-1.5`, `bg-white/10` → `bg-white/20`.
+3. **Wiring**:
+   - `AppHeader.jsx` — receives `uiBrightness` + `onBrightnessChange` props; renders `DisplayControlsButton` between QuickGuide button and Settings.
+   - `NotesApp.jsx` — passes brightness props into `AppHeader`; removed the always-visible sliders block that lived above the search bar.
+   - `NoteModal.jsx` — `DisplayControlsButton` added next to QuickGuide button in the modal title row; removed inline sliders block from Photos/attachments row.
+   - `FullScreenNote.jsx` — `DisplayControlsButton` added in the top toolbar (between Delete and Close); removed inline sliders block above the footer.
+4. **Test IDs**:
+   - `home-brightness-display-toggle`, `home-brightness-display-panel`
+   - `quicktext-brightness-display-toggle`, `quicktext-brightness-display-panel`
+   - `fullscreen-brightness-display-toggle`, `fullscreen-brightness-display-panel`
+   - `{prefix}-text-slider`, `{prefix}-bg-slider`, `{prefix}-text-value`, `{prefix}-bg-value`, `{prefix}-text-reset`, `{prefix}-bg-reset`
+
+### Verification
+- Lint: clean on all 5 touched files (only pre-existing unused-disable warnings remain)
+- Playwright: `home-brightness-display-toggle` visible → clicked programmatically → `home-brightness-display-panel` reports visible
+
+
 ## 2026-02-08 (session 14 · part 7) — Quick Guide Phase 1.5 SHIPPED ✅
 
 ### Screen expansion (per user request)

@@ -19,7 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
 import Attachments from "../components/Attachments";
-import BrightnessSliders, { brightnessToText, brightnessToBg } from "./BrightnessSliders";
+import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
+import DisplayControlsButton from "./DisplayControlsButton";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import StorageService from "../storage/storageService";
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
@@ -174,6 +175,15 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 )}
                 <QuickGuideButton resourceId="IRR-1900" origin="note-editor" isDark={isDark} size="sm" />
+                {onBrightnessChange && (
+                  <DisplayControlsButton
+                    value={uiBrightness}
+                    onChange={onBrightnessChange}
+                    isDark={isDark}
+                    testidPrefix="quicktext-brightness"
+                    title="Display brightness (Text & Background)"
+                  />
+                )}
               </div>
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -473,17 +483,6 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 compact
                 onExtractText={(text) => setContent(prev => (prev || "") + `\n\n${text}`)}
               />
-              {/* Compact brightness sliders — scoped to Quick Text Area only */}
-              {onBrightnessChange && (
-                <div className="pt-1 pb-1">
-                  <BrightnessSliders
-                    value={uiBrightness}
-                    onChange={onBrightnessChange}
-                    isDark={isDark}
-                    testidPrefix="quicktext-brightness"
-                  />
-                </div>
-              )}
             </div>
 
 

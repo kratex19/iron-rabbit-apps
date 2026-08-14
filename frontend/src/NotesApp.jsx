@@ -28,7 +28,7 @@ import AppSearchBar from "./notes/AppSearchBar";
 import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import AppModals from "./notes/AppModals";
 import ThemeChooserModal from "./onboarding/ThemeChooserModal";
-import BrightnessSliders, { brightnessToText, brightnessToBg } from "./notes/BrightnessSliders";
+import { brightnessToText, brightnessToBg } from "./notes/BrightnessSliders";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
 import useAutoLock from "./security/useAutoLock";
@@ -1379,6 +1379,8 @@ export default function NotesApp() {
         onRestaurantsGalore={() => setRestaurantsGaloreOpen(true)}
         onArchiveTrash={() => setArchiveTrashOpen(true)}
         onSettings={() => setSettingsModalOpen(true)}
+        uiBrightness={settings?.ui_brightness}
+        onBrightnessChange={handleBrightnessChange}
       />
 
       {/* Main Content */}
@@ -1390,15 +1392,6 @@ export default function NotesApp() {
           color: "var(--ir-text)",
         }}
       >
-        {/* Home-page brightness sliders — above search box, scope: this <main> */}
-        <div className="mb-2">
-          <BrightnessSliders
-            value={settings?.ui_brightness}
-            onChange={handleBrightnessChange}
-            isDark={isDark}
-            testidPrefix="home-brightness"
-          />
-        </div>
         <AppSearchBar
           isDark={isDark}
           notes={notes}

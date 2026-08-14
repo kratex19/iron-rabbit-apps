@@ -13,7 +13,8 @@ import Attachments from "../components/Attachments";
 import TranslateModal from "./TranslateModal";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
-import BrightnessSliders, { brightnessToText, brightnessToBg } from "./BrightnessSliders";
+import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
+import DisplayControlsButton from "./DisplayControlsButton";
 
 /**
  * Full-screen note editor with inline auto-save.
@@ -152,6 +153,15 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
+            {onBrightnessChange && (
+              <DisplayControlsButton
+                value={uiBrightness}
+                onChange={onBrightnessChange}
+                isDark={isDark}
+                testidPrefix="fullscreen-brightness"
+                title="Display brightness (Text & Background)"
+              />
+            )}
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
@@ -265,17 +275,6 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               </div>
             )}
           </div>
-          {/* Compact brightness sliders — scoped to this Expanded Text Area only */}
-          {onBrightnessChange && (
-            <div className="px-1 pt-1">
-              <BrightnessSliders
-                value={uiBrightness}
-                onChange={onBrightnessChange}
-                isDark={isDark}
-                testidPrefix="fullscreen-brightness"
-              />
-            </div>
-          )}
         </div>
         {/* Footer */}
         <div className={`flex items-center justify-between p-4 border-t text-xs font-mono ${isDark ? 'border-white/10 text-slate-300' : 'border-gray-200 text-gray-400'}`}>

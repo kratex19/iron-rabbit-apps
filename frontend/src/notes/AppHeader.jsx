@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { haptic } from "../utils/haptic";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
+import DisplayControlsButton from "./DisplayControlsButton";
 
 /**
  * Top app header — logo/title on the left, action-button strip on the right.
@@ -41,6 +42,8 @@ export default function AppHeader({
   onRestaurantsGalore,
   onArchiveTrash,
   onSettings,
+  uiBrightness,
+  onBrightnessChange,
 }) {
   const { t, i18n } = useTranslation();
   const languageCode = (i18n.language || "en").split("-")[0];
@@ -122,6 +125,16 @@ export default function AppHeader({
           <Button variant="ghost" size="icon" onClick={tap(onRestaurantsGalore)} className={iconBtnCls} title="Restaurants Galore" data-testid="header-restaurants-galore"><Utensils className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={onArchiveTrash} className={iconBtnCls} title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
           <QuickGuideButton resourceId="IRR-1000" origin="home" isDark={isDark} className={iconBtnCls} />
+          {onBrightnessChange && (
+            <DisplayControlsButton
+              value={uiBrightness}
+              onChange={onBrightnessChange}
+              isDark={isDark}
+              testidPrefix="home-brightness"
+              className="text-white/70 hover:text-white hover:bg-white/10"
+              title="Display brightness (Text & Background)"
+            />
+          )}
           <Button variant="ghost" size="icon" onClick={onSettings} className={iconBtnCls} title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
         </div>
       </div>
