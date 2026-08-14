@@ -1,6 +1,58 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 8) — Icon + Screenshots + Play Docs + Security Audit
+
+### Delivered in this pass
+1. **iOS app icon** — composited existing brand foreground + background
+   into an opaque 1024×1024 (Iron Rabbit's exact Android look, corners
+   filled with brand indigo). Generated all iOS icon sizes via
+   `npx capacitor-assets generate --ios` (installed as devDep). Files
+   land in `frontend/ios/App/App/Assets.xcassets/AppIcon.appiconset/`.
+2. **iPhone 6.7" screenshots** — captured at exact `1290×2796` via new
+   Playwright script. Saved to
+   `frontend/public/screenshots/ios/iphone-6.7/`.
+3. **iPad Pro 12.9" screenshots** — captured at exact `2048×2732`.
+   Saved to `frontend/public/screenshots/ios/ipad-12.9/`.
+4. **Screenshot-mode URL flag** — new
+   `frontend/src/utils/screenshotMode.js` reads `?screenshot=1`
+   (or `?ss=1`). Wired into `QuickGuideButton` auto-open and NotesApp's
+   `ThemeChooserModal` + `QuickAccessModal` auto-open effects. When the
+   flag is set, all three suppress themselves for clean captures.
+   `capture_ios_screenshots.py` uses the flag by default.
+5. **`memory/PLAY_STORE_METADATA.md`** — mirror of the iOS metadata:
+   app name, short + full descriptions (4000 chars), category, tags,
+   contact, privacy-policy hosting note, graphics table, data-safety
+   answers, content rating notes, target audience, "no ads / no IAP"
+   answers, release-management recommendations.
+6. **`memory/PLAY_CONSOLE_CHECKLIST.md`** — 6-step checkbox playbook:
+   pre-console prep → create app → store listing → app content
+   declarations → internal testing → production rollout (10 % → 50 %
+   → 100 %). Includes common rejection reasons + fixes.
+7. **Security audit on the production build** —
+   - `/app/frontend/build` grepped for every secret pattern in
+     `SECURITY_POLICY §3.3`: **zero hits**
+   - `/app/frontend/ios` grepped: **zero hits**
+   - `capacitor.config.ts` grepped: **zero hits**
+   - Live values from `backend/.env` (ADMIN_TOKEN) do NOT appear in the
+     web bundle — verified by literal-value substring match
+   - `RESEND_API_KEY` and `SLACK_WEBHOOK_URL` are unset per Owner's
+     v1.0 launch decision — nothing to leak
+   - Only string mentions of env-var NAMES appear (as UI labels like
+     "RESEND_API_KEY missing") — safe, not leaked values
+   - Note (informational, not a policy violation): CRA source maps
+     (`main.*.js.map`) ship by default. To strip, set
+     `GENERATE_SOURCEMAP=false` in `frontend/.env` and rebuild
+
+### Preservation compliance
+- No UI change, no color change, no layout change, no functional change
+- Android setup untouched (still no `frontend/android/` folder — same
+  as before)
+- No third-party integrations activated
+- No credentials of the owner embedded in any surface
+
+
+
 ## 2026-02-14 (part 7) — iOS Platform Prep (Option E — Emergent-executed)
 
 ### Prepared inside this container

@@ -18,6 +18,7 @@
  */
 
 import React, { useCallback, useEffect, useRef } from "react";
+import { isScreenshotMode } from "../utils/screenshotMode";
 import { HelpCircle } from "lucide-react";
 import { useQuickGuideContext } from "./QuickGuideProvider";
 import { QG_TOKENS } from "./tokens";
@@ -48,6 +49,7 @@ export default function QuickGuideButton({
     if (disabled || !hydrated) return;
     if (!state.enabled || !state.auto_show) return;
     if (isSeen(resourceId)) return;
+    if (isScreenshotMode()) return;  // suppress auto-open for App/Play Store screenshot capture
     const t = setTimeout(() => {
       // Re-check inside the timeout — user may have opened it manually meanwhile
       if (!isSeen(resourceId)) {

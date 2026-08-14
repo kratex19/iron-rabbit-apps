@@ -29,6 +29,7 @@ import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import AppModals from "./notes/AppModals";
 import ThemeChooserModal from "./onboarding/ThemeChooserModal";
 import { brightnessToText, brightnessToBg } from "./notes/BrightnessSliders";
+import { isScreenshotMode } from "./utils/screenshotMode";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
 import useAutoLock from "./security/useAutoLock";
@@ -154,9 +155,9 @@ export default function NotesApp() {
     } else {
       // Settings loaded but no explicit preference → force dark default
       // AND surface the one-time Choose-Your-Theme picker (unless
-      // already dismissed).
+      // already dismissed or `?screenshot=1` is set).
       setIsDark(true);
-      if (!settings.theme_chooser_seen) {
+      if (!settings.theme_chooser_seen && !isScreenshotMode()) {
         setTimeout(() => setThemeChooserOpen(true), 400);
       }
     }
@@ -219,6 +220,7 @@ export default function NotesApp() {
   useEffect(() => {
     if (!settings) return;
     if (settings.quick_access_wizard_seen) return;
+    if (isScreenshotMode()) return;  // suppress for App/Play Store screenshot capture
     // Small delay so first-launch tour has priority over the wizard.
     const t = setTimeout(() => setQuickAccessOpen(true), 1200);
     return () => clearTimeout(t);
