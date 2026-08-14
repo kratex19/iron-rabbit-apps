@@ -83,6 +83,16 @@ export default function AppHeader({
         </div>
 
         <div className="flex items-center gap-1 flex-wrap justify-end ml-auto" data-testid="header-icon-row">
+          {onBrightnessChange && (
+            <DisplayControlsButton
+              value={uiBrightness}
+              onChange={onBrightnessChange}
+              isDark={isDark}
+              testidPrefix="home-brightness"
+              className="text-white/70 hover:text-white hover:bg-white/10"
+              title="Display brightness (Text & Background)"
+            />
+          )}
           <Button variant="ghost" size="icon" onClick={tap(onQuickAdd)} className={iconBtnCls} title={t("header.quick_add")} data-testid="header-quick-add"><Zap className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onTilePacks)} className={iconBtnCls} title={t("header.tile_packs")} data-testid="header-tile-packs"><Package className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={onExportPdf} className={iconBtnCls} title={t("header.export_pdf")}><Download className="w-4 h-4" /></Button>
@@ -125,16 +135,6 @@ export default function AppHeader({
           <Button variant="ghost" size="icon" onClick={tap(onRestaurantsGalore)} className={iconBtnCls} title="Restaurants Galore" data-testid="header-restaurants-galore"><Utensils className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={onArchiveTrash} className={iconBtnCls} title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
           <QuickGuideButton resourceId="IRR-1000" origin="home" isDark={isDark} className={iconBtnCls} />
-          {onBrightnessChange && (
-            <DisplayControlsButton
-              value={uiBrightness}
-              onChange={onBrightnessChange}
-              isDark={isDark}
-              testidPrefix="home-brightness"
-              className="text-white/70 hover:text-white hover:bg-white/10"
-              title="Display brightness (Text & Background)"
-            />
-          )}
           <Button variant="ghost" size="icon" onClick={onSettings} className={iconBtnCls} title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
         </div>
       </div>

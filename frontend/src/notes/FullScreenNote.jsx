@@ -160,19 +160,20 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                 isDark={isDark}
                 testidPrefix="fullscreen-brightness"
                 title="Display brightness (Text & Background)"
+                className={isDark ? "text-white hover:text-white hover:bg-white/10" : ""}
               />
             )}
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
-        {/* Editable content — user-brightness scope */}
+        {/* Editable content — user-brightness scope. We compute the text +
+            bg colors directly from `uiBrightness` on every render so the
+            slider paints instantly (no CSS-var indirection). */}
         <div
           className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 ir-brightness-scope"
           style={{
-            "--ir-text": brightnessToText(uiBrightness?.text ?? 0.7),
-            "--ir-bg":   brightnessToBg(uiBrightness?.bg   ?? 0.3),
-            background: "var(--ir-bg)",
-            color: "var(--ir-text)",
+            background: brightnessToBg(uiBrightness?.bg ?? 0.3),
+            color: brightnessToText(uiBrightness?.text ?? 0.7),
           }}
         >
           <TextareaAutosize
@@ -181,7 +182,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             placeholder="Start writing…"
             minRows={3}
             className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-60`}
-            style={{ color: "var(--ir-text)" }}
+            style={{ color: brightnessToText(uiBrightness?.text ?? 0.7) }}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />

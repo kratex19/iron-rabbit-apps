@@ -27,16 +27,16 @@ const FIRST_SEEN_KEY = "ir_brightness_sliders_seen";
  * These are the values the CSS variables consume.
  */
 export function brightnessToText(v) {
-  // v=0 → black, v=1 → white. Preserve full opacity so text is readable.
+  // v=0 → pure black; v=1 → pure white. Linear grayscale, opaque.
   const g = Math.round(v * 255);
   return `rgb(${g}, ${g}, ${g})`;
 }
 
 export function brightnessToBg(v) {
-  // v=0 → deep dark (#0B1221), v=1 → white; both semi-transparent so the
-  // wallpaper still shows through per the app's glass aesthetic.
-  const g = Math.round(v * 255);
-  return `rgba(${g}, ${g}, ${g}, ${0.55 + v * 0.15})`;
+  // v=0 → solid black (opaque); v=1 → fully transparent.
+  // The user wants a strictly-linear dimmer, not a "grayscale mix".
+  const alpha = Math.max(0, Math.min(1, 1 - v));
+  return `rgba(0, 0, 0, ${alpha.toFixed(3)})`;
 }
 
 export default function BrightnessSliders({ value, onChange, isDark, testidPrefix = "brightness" }) {

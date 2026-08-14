@@ -1,6 +1,38 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 4) — Brightness sliders: real color paint + bright icon
+
+### Bugs reported by user
+1. Text slider in the Expanded (FullScreen) view slid but never repainted the text
+2. Background slider didn't actually go from "solid black to fully transparent"
+3. The Sliders icon in the Expanded view was too dim — needed to be bright white
+
+### Root cause
+- `TextareaAutosize` inside `FullScreenNote` inherited its color via a CSS
+  variable (`--ir-text`). While that pipe technically worked, updating a CSS
+  variable on a parent doesn't always trigger a paint in React's inline-style
+  path (especially inside third-party wrappers that own their own textarea).
+- The old `brightnessToBg(v)` used `rgba(g,g,g, 0.55 + v*0.15)` — a grayscale
+  mix that neither hit true opaque black at v=0 nor true transparent at v=1.
+
+### Fix
+- **`BrightnessSliders.jsx`** — rewrote helpers:
+  - `brightnessToText(v)` → `rgb(v*255, v*255, v*255)` (unchanged output shape;
+    verified: v=0 → black, v=0.5 → gray, v=1 → white)
+  - `brightnessToBg(v)` → `rgba(0, 0, 0, 1 - v)` (verified: v=0 → solid black,
+    v=0.5 → half transparent, v=1 → fully transparent)
+- **`FullScreenNote.jsx`** — the container + textarea now receive their
+  colors as **directly computed inline values**, not CSS variables. Slider
+  moves paint instantly.
+- **`FullScreenNote.jsx`** — the Sliders icon in the expanded toolbar now
+  ships with `text-white` (fully bright) instead of the header's `text-white/70`.
+
+### Verification
+- Pure-JS unit run confirmed all 6 expected outputs
+- Lint clean (pre-existing warnings only)
+
+
 ## 2026-02-14 (part 3) — Display Controls Discoverability + Drive Privacy Draft
 
 ### Display Controls (`notes/DisplayControlsButton.jsx`)
