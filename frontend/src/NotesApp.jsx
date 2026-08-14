@@ -27,6 +27,7 @@ import WeeklyDigest from "./notes/WeeklyDigest";
 import AppSearchBar from "./notes/AppSearchBar";
 import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import AppModals from "./notes/AppModals";
+import ThemeChooserModal from "./onboarding/ThemeChooserModal";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
 import useAutoLock from "./security/useAutoLock";
@@ -116,6 +117,7 @@ export default function NotesApp() {
   const [securityOpen, setSecurityOpen] = useState(false);
   const [organizationOpen, setOrganizationOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [themeChooserOpen, setThemeChooserOpen] = useState(false);
   const [clearStep, setClearStep] = useState(0); // 0=closed, 1=first confirm, 2=second confirm
 
   // App-lock (uses SecurityService + visibilitychange)
@@ -145,14 +147,28 @@ export default function NotesApp() {
   // hybrid rendering (dark chrome + light-mode text colours on note
   // expands). One source of truth: `settings.theme_preference`.
   useEffect(() => {
-    if (settings?.theme_preference) {
+    if (!settings) return;
+    if (settings.theme_preference) {
       setIsDark(settings.theme_preference === 'dark');
-    } else if (settings) {
-      // Settings loaded but no explicit preference → force dark default.
+    } else {
+      // Settings loaded but no explicit preference → force dark default
+      // AND surface the one-time Choose-Your-Theme picker (unless
+      // already dismissed).
       setIsDark(true);
+      if (!settings.theme_chooser_seen) {
+        setTimeout(() => setThemeChooserOpen(true), 400);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.theme_preference]);
+  }, [settings?.theme_preference, settings?.theme_chooser_seen, !!settings]);
+
+  const handleThemeChooserPick = async (choice) => {
+    setThemeChooserOpen(false);
+    const next = { ...(settings || {}), theme_preference: choice, theme_chooser_seen: true };
+    await StorageService.saveSettings(next);
+    setSettings(next);
+    setIsDark(choice === "dark");
+  };
 
   // Keyboard shortcuts (desktop-only feel): n = new note, / = focus search,
   // g = toggle grid/list. Ignored when a form field is focused.
@@ -1389,6 +1405,10 @@ export default function NotesApp() {
       </button>
 
       {/* All modals, dialogs, sheets and floating pills (extracted) */}
+      <ThemeChooserModal
+        isOpen={themeChooserOpen}
+        onPick={handleThemeChooserPick}
+      />
       <AppModals
         // — data —
         notes={notes}
