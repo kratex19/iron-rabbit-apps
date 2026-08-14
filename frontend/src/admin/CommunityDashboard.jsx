@@ -66,6 +66,8 @@ export default function CommunityDashboard() {
   const [digestStatus, setDigestStatus] = useState(null); // {enabled, last_sent_at, scheduler_next_run, ...}
   const [previewHtml, setPreviewHtml] = useState(null);   // string when open, null when closed
   const [previewSubject, setPreviewSubject] = useState("");
+  const [previewKind, setPreviewKind] = useState("tip");   // "tip" | "digest" — controls modal footer
+  const [previewCounts, setPreviewCounts] = useState(null); // {pending, promoted, rejected} on digest preview
   const [customPreviewOpen, setCustomPreviewOpen] = useState(false);
   const [customHeading, setCustomHeading] = useState("");
   const [customBody, setCustomBody] = useState("");
@@ -142,6 +144,8 @@ export default function CommunityDashboard() {
       const html = await res.text();
       setPreviewHtml(html);
       setPreviewSubject(`Your Iron Rabbit tip is live — ${(tip.heading || "").slice(0, 60)}`);
+      setPreviewKind("tip");
+      setPreviewCounts(null);
     } catch (e) {
       toast.error("Couldn't render preview");
     } finally { setBusyId(null); }
@@ -171,6 +175,8 @@ export default function CommunityDashboard() {
       const html = await res.text();
       setPreviewHtml(html);
       setPreviewSubject(`Your Iron Rabbit tip is live — ${(heading || "preview").slice(0, 60)}`);
+      setPreviewKind("tip");
+      setPreviewCounts(null);
       setCustomPreviewOpen(false);
     } catch (e) {
       toast.error("Couldn't render preview");
@@ -217,6 +223,9 @@ export default function CommunityDashboard() {
           toast.success(`Digest preview OK · ${data.counts.pending} pending, ${data.counts.promoted} promoted`);
         } else if (data.sent_to) {
           toast.success(`Digest sent to ${data.sent_to}`);
+          // Close any open preview modal after a successful broadcast so the
+          // admin isn't looking at a stale preview.
+          setPreviewHtml(null);
         } else {
           toast.info(data.reason || "Digest processed");
         }
@@ -231,6 +240,33 @@ export default function CommunityDashboard() {
         setToken(null);
       } else {
         toast.error("Digest send failed");
+      }
+    } finally { setDigestBusy(false); }
+  };
+
+  // Preview-first flow: hit the digest send endpoint in dry_run mode, pull
+  // the rendered HTML + subject + counts back, and drop them into the shared
+  // preview modal. The modal footer picks up a "Send digest now" button when
+  // previewKind === "digest" so the admin can confirm before broadcasting.
+  const previewDigest = async () => {
+    setDigestBusy(true);
+    try {
+      const data = await apiFetch(`/api/community/digest/send?dry_run=1`, token, { method: "POST" });
+      if (!data?.ok || !data.html) {
+        toast.error(data?.reason || "Digest preview unavailable");
+        return;
+      }
+      setPreviewHtml(data.html);
+      setPreviewSubject(data.subject || "Iron Rabbit — Community Digest");
+      setPreviewKind("digest");
+      setPreviewCounts(data.counts || null);
+    } catch (e) {
+      if (String(e.message) === "unauthorized") {
+        toast.error("Admin token rejected");
+        clearStoredAdminToken();
+        setToken(null);
+      } else {
+        toast.error("Couldn't render digest preview");
       }
     } finally { setDigestBusy(false); }
   };
@@ -379,6 +415,18 @@ export default function CommunityDashboard() {
             data-testid="admin-bulk-paste"
           >
             <ClipboardPaste className="w-3.5 h-3.5 mr-1" /> Bulk paste
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={previewDigest}
+            disabled={digestBusy}
+            className="text-slate-300 border-white/10 hover:bg-white/5"
+            title="Render the weekly digest without sending it"
+            data-testid="admin-preview-digest"
+          >
+            {digestBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Eye className="w-3.5 h-3.5 mr-1" />}
+            Preview digest
           </Button>
           <Button
             size="sm"
@@ -632,21 +680,29 @@ export default function CommunityDashboard() {
         </div>
       )}
 
-      {/* Thank-you email preview modal — renders the raw HTML in a sandboxed
-          iframe so we see exactly what would arrive in the inbox. */}
+      {/* Preview modal — renders either the thank-you email (per-tip
+          promotion preview) or the weekly community digest (preview-first
+          send flow). `previewKind` decides the modal label + footer. */}
       {previewHtml !== null && (
         <div
           className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4"
-          data-testid="thankyou-preview-modal"
+          data-testid={previewKind === "digest" ? "digest-preview-modal" : "thankyou-preview-modal"}
         >
           <div className="w-full max-w-2xl h-[80vh] rounded-2xl bg-[#0F172A] border border-white/10 shadow-2xl flex flex-col">
             <div className="flex items-center gap-2 p-4 border-b border-white/10">
               <Eye className="w-4 h-4 text-indigo-300" />
               <div className="text-sm font-semibold text-white flex-1">
-                Thank-you email preview
+                {previewKind === "digest" ? "Weekly digest preview" : "Thank-you email preview"}
                 <div className="text-[10px] text-slate-500 mt-0.5 font-normal truncate" data-testid="preview-subject">
                   Subject: {previewSubject}
                 </div>
+                {previewKind === "digest" && previewCounts && (
+                  <div className="text-[10px] text-slate-400 mt-0.5 font-normal flex gap-3" data-testid="digest-preview-counts">
+                    <span><b className="text-amber-300">{previewCounts.pending ?? 0}</b> pending</span>
+                    <span><b className="text-emerald-300">{previewCounts.promoted ?? 0}</b> promoted</span>
+                    {typeof previewCounts.rejected === "number" && <span><b className="text-slate-300">{previewCounts.rejected}</b> rejected</span>}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
@@ -659,12 +715,36 @@ export default function CommunityDashboard() {
               </button>
             </div>
             <iframe
-              title="thank-you preview"
+              title={previewKind === "digest" ? "digest preview" : "thank-you preview"}
               srcDoc={previewHtml}
               sandbox=""
-              className="flex-1 w-full bg-white rounded-b-2xl"
+              className="flex-1 w-full bg-white"
               data-testid="preview-iframe"
             />
+            {previewKind === "digest" && (
+              <div className="flex items-center justify-end gap-2 p-3 border-t border-white/10 bg-[#0B1221] rounded-b-2xl">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewHtml(null)}
+                  className="border-white/10 text-slate-300 hover:bg-white/5"
+                  data-testid="digest-preview-cancel"
+                >
+                  Close
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => sendDigest(false)}
+                  disabled={digestBusy}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                  title="Broadcast the digest email now"
+                  data-testid="digest-preview-send"
+                >
+                  {digestBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
+                  Send digest now
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

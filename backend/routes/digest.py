@@ -206,12 +206,15 @@ async def send_digest_now(*, dry_run: bool = False, force_when_empty: bool = Tru
         public_base = (os.environ.get("CORS_ORIGINS", "").split(",")[0] or "").strip().rstrip("/")
     unsubscribe_url = f"{public_base}/api/community/digest/unsubscribe?token={unsub_token}" if public_base else None
     html = _render_digest_html(pending, promoted_recent, generated_at, unsubscribe_url, funnel_line=funnel_line)
+    subject = f"Iron Rabbit — Community Digest ({counts['pending']} pending)"
 
     if dry_run:
         return DigestSendResponse(
             ok=True, counts=counts, dry_run=True,
             sent_to=ADMIN_DIGEST_EMAIL or None,
             reason=f"dry_run · {len(html)} chars",
+            html=html,
+            subject=subject,
         )
     if not cfg["enabled"]:
         return DigestSendResponse(ok=False, counts=counts, dry_run=False,
@@ -228,7 +231,7 @@ async def send_digest_now(*, dry_run: bool = False, force_when_empty: bool = Tru
     params = {
         "from": f"Iron Rabbit <{SENDER_EMAIL}>",
         "to": [ADMIN_DIGEST_EMAIL],
-        "subject": f"Iron Rabbit — Community Digest ({counts['pending']} pending)",
+        "subject": subject,
         "html": html,
     }
     try:

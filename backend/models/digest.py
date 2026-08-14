@@ -13,6 +13,10 @@ class DigestSendResponse(BaseModel):
     email_id: Optional[str] = None
     dry_run: bool = False
     reason: Optional[str] = None
+    # Populated on dry_run so the admin dashboard can render a preview modal
+    # before broadcasting. Never returned on real sends.
+    html: Optional[str] = None
+    subject: Optional[str] = None
 
 
 class DigestStatusResponse(BaseModel):

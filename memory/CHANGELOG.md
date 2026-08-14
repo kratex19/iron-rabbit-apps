@@ -1,6 +1,36 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 2) — Admin Digest Preview-First Send Flow
+
+### Backend (`backend/routes/digest.py`, `backend/models/digest.py`)
+- `DigestSendResponse` gained two optional fields: `html: Optional[str]` and `subject: Optional[str]`
+- `send_digest_now(dry_run=True)` now returns the fully rendered HTML + subject line so the admin dashboard can render a live preview before broadcasting
+- Existing behavior (real send returns no html/subject) preserved
+- All 7 tests in `test_parse_and_digest.py` still pass
+- Verified via curl: `dry_run=1` → `ok=True`, `subject="Iron Rabbit — Community Digest (N pending)"`, `html_len=4257`
+
+### Frontend (`admin/CommunityDashboard.jsx`)
+- New state: `previewKind` (`"tip" | "digest"`) + `previewCounts` — the shared preview modal now adapts its header + footer based on kind
+- New `previewDigest()` — POSTs to `/api/community/digest/send?dry_run=1`, pulls html/subject/counts, opens the modal
+- New button `admin-preview-digest` (Eye icon) placed next to `admin-send-digest` — "Preview digest" reveals the modal without broadcasting
+- Preview modal (`digest-preview-modal`) upgrades:
+  - Header switches to "Weekly digest preview" with counts strip (pending / promoted / rejected)
+  - Adds footer bar with `digest-preview-cancel` (Close) and `digest-preview-send` (Send digest now) — one-click confirm-and-broadcast
+- Successful broadcast now auto-closes the preview modal so the admin isn't looking at stale content
+
+### Test IDs added
+- `admin-preview-digest` — top-bar toggle
+- `digest-preview-modal` — modal root
+- `digest-preview-counts` — pending/promoted/rejected chip strip
+- `digest-preview-cancel`, `digest-preview-send` — footer actions
+
+### Verification
+- Backend: pytest green, curl returns expected shape
+- Frontend: Playwright confirms `PREVIEW_BTN`, `MODAL`, `SEND_BTN` all visible; modal rendered the full digest email in an iframe with subject + counts
+
+
+
 ## 2026-02-14 — Brightness Sliders → Collapsible Display Panel
 
 ### Problem
