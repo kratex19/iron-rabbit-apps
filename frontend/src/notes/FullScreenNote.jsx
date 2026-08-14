@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import { format } from "date-fns";
-import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages, ChevronDown, Paperclip } from "lucide-react";
+import { Share2, Trash2, Clock, Bell, Repeat, Pencil, X, CheckSquare, Languages, ChevronDown, Paperclip, MoreHorizontal, FileDown, FileText } from "lucide-react";
 import ChoresPanel from "./ChoresPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import Attachments from "../components/Attachments";
 import TranslateModal from "./TranslateModal";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
+import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
 
 /**
  * Full-screen note editor with inline auto-save.
@@ -113,6 +118,38 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             </span>
             <Button variant="ghost" size="icon" onClick={() => setTranslateOpen(true)} disabled={!content?.trim()} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-translate-btn" aria-label="Translate" title="Translate note"><Languages className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-share-btn" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-more-btn" aria-label="More"><MoreHorizontal className="w-4 h-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={isDark ? "bg-slate-900 border-white/10 text-slate-100" : ""}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    try {
+                      const current = { ...note, title, content };
+                      downloadTextFile(noteToMarkdown(current), safeFilename(current.title || "note"));
+                      toast.success("Note exported as .md");
+                    } catch (e) { toast.error("Export failed"); }
+                  }}
+                  data-testid="fullscreen-export-md"
+                >
+                  <FileDown className="w-4 h-4 mr-2" /> Export as Markdown (.md)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      const current = { ...note, title, content };
+                      const result = await shareNoteAsMarkdown(current);
+                      if (result.shared) toast.success("Shared as .md");
+                      else if (result.downloaded) toast.success("Downloaded .md (share unsupported)");
+                    } catch (e) { toast.error("Share failed"); }
+                  }}
+                  data-testid="fullscreen-share-md"
+                >
+                  <FileText className="w-4 h-4 mr-2" /> Share as Markdown
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-white/70 hover:text-red-400' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>

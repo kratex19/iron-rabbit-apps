@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import StorageService from "../storage/storageService";
 import { haptic } from "../utils/haptic";
 import { NOTE_COLORS } from "../notes/constants";
+import { notesToZipBlob, downloadBlob } from "../utils/markdown";
 
 /**
  * Encapsulates every multi-select bulk action for the Notes app.
@@ -303,6 +304,26 @@ export default function useBulkActions({ settings, fetchData }) {
     toast.success(`Exported ${notesToExport.length} note${notesToExport.length === 1 ? "" : "s"} to PDF`);
   }, [selectedIds, settings, clearSelection]);
 
+  // ---- Export selected as Markdown (.md zip) ----
+  const bulkExportMarkdown = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const notesToExport = [];
+    for (const id of ids) {
+      const n = await StorageService.getNote(id);
+      if (n) notesToExport.push(n);
+    }
+    if (notesToExport.length === 0) { toast.error("Nothing to export"); return; }
+    try {
+      const blob = await notesToZipBlob(notesToExport);
+      downloadBlob(blob, `iron-rabbit-notes-${format(new Date(), "yyyy-MM-dd-HHmm")}.zip`);
+      clearSelection();
+      toast.success(`Exported ${notesToExport.length} note${notesToExport.length === 1 ? "" : "s"} to .md zip`);
+    } catch (e) {
+      toast.error(`Markdown export failed: ${e.message || "unknown error"}`);
+    }
+  }, [selectedIds, clearSelection]);
+
   return {
     // Selection state
     selectMode, setSelectMode,
@@ -326,5 +347,6 @@ export default function useBulkActions({ settings, fetchData }) {
     bulkSetAlarm,
     bulkClearAlarm,
     bulkExportPDF,
+    bulkExportMarkdown,
   };
 }

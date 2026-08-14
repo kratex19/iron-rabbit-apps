@@ -4,14 +4,22 @@
 ## 📌 Session state (2026-02-07, this session)
 
 ### 🎉 Shipped this session (fork continuation)
-- **Dark mode is now the true default** (2026-02-07) — Root cause of "list-view expand shows dark text while grid tiles show white": app was silently following the OS `prefers-color-scheme` media query when no explicit `theme_preference` was saved. Users on Light-mode OS'es got a hybrid render (dark wallpaper/tiles hard-coded, but accordion body used `text-gray-600` per light-mode branch). `NotesApp.jsx:140-155` — removed the `matchMedia` fallback; if no explicit theme is saved, we now force `isDark=true`. Explicit user toggle still wins. Verified via Playwright: OS emulated as light + no theme_preference → body class is empty (dark), accordion `<p>` computed color is `rgb(241, 245, 249)` (slate-100, near-white). ✓
-- **Note expand transparency polish** (2026-02-07) — Both note-expand surfaces now use glass-morphism in dark mode:
-  - `FullScreenNote.jsx`: `bg-[#0B1221]` → `bg-[#0B1221]/75 backdrop-blur-2xl`.
-  - `constants.js` `getNoteColorStyle()`: dark-mode base changed from solid `#0B1221` → `rgba(11, 18, 33, 0.55)`.
-- **Desktop website screenshots** (2026-02-07) — `scripts/capture_desktop_screenshots.py` (Playwright, 1920×1080) captures 9 landscape shots. Combined with 4 pre-existing → 13 total. Zip at `/downloads/ironrabbit-desktop-screenshots.zip`. Companion `email_desktop_screenshots.py` ready once `RESEND_API_KEY` populated.
-- **Notifications spacing polish** (2026-02-07) — `SettingsModal.jsx`: `gap-3 mb-3` + `ml-auto`.
-- **`/app/ENV_REFERENCE.md`** (2026-02-07) — Single-page env var catalog.
+- **Markdown (.md) portability** (2026-02-07) — Notes now import/export as portable Markdown while IndexedDB remains the internal storage. **New**:
+  - `frontend/src/utils/markdown.js` — pure-JS `noteToMarkdown` (YAML front-matter + body), `markdownToNote` (parses front-matter, falls back to filename), `notesToZipBlob` (uses **fflate** — chose fflate over jszip because jszip's transitive `pako.esm.mjs` reference broke webpack source-map-loader), `shareNoteAsMarkdown` (Web Share API level-2 with download fallback), `safeFilename` (cross-OS sanitisation), `downloadTextFile` / `downloadBlob` helpers.
+  - **Per-note actions** in `AccordionNoteItem.jsx` + `FullScreenNote.jsx`: new dropdown "⋮ More" menu with **Export as Markdown (.md)** and **Share as Markdown** items. Existing Share/Edit/Delete buttons untouched.
+  - **BackupRestoreModal.jsx**: new "Markdown portability" section below the JSON backup buttons — "Export All as .md (zip)" + "Import Markdown" (accepts `.md, .markdown, .txt`, multi-file, sanitised).
+  - **Bulk export**: `useBulkActions.js` gains `bulkExportMarkdown`; wired through `NotesApp` → `AppModals` → `BatchStudioSheet` as a new "Export .md (zip)" tile next to "Export PDF".
+  - **Round-trip verified** via Node test harness (plain, markdown-syntax, special-char titles, empty body, no-front-matter fallback, filename sanitisation — all pass) and browser UI test (downloaded file "Roundtrip note.md" with correct YAML front-matter + body preserved).
+  - **Sanitisation**: file whitelist (`.md/.markdown/.txt`) + only user text stored in `content` field. Never executed.
+- **Dark mode is the true default** (2026-02-07) — `NotesApp.jsx:140-155` no longer follows OS `prefers-color-scheme`; if no explicit theme is saved, forces `isDark=true`.
+- **Note expand transparency polish** (2026-02-07) — `FullScreenNote.jsx` `bg-[#0B1221]` → `bg-[#0B1221]/75 backdrop-blur-2xl`; `constants.js` `getNoteColorStyle()` dark-mode base → `rgba(11, 18, 33, 0.55)`.
+- **Desktop website screenshots** (2026-02-07) — `scripts/capture_desktop_screenshots.py` captures 9 landscape shots. 13 total in `/downloads/ironrabbit-desktop-screenshots.zip`.
+- **Notifications spacing polish** (2026-02-07) — `SettingsModal.jsx` `gap-3 mb-3` + `ml-auto`.
+- **`/app/ENV_REFERENCE.md`** (2026-02-07) — Env var catalog.
 - **Platform-support audit** (2026-02-07) — Android ✅, iOS ❌ pending Apple Dev enrollment.
+
+### 📦 New frontend deps
+- `fflate@0.8.3` — tiny zero-dep zip encoder used for bulk `.md` exports.
 - **`SLACK_SETUP.md`** (2026-02-07) — 1-page walkthrough at `/app/SLACK_SETUP.md`: create Slack app → activate incoming webhook → paste URL to `SLACK_WEBHOOK_URL` → enable Interactivity + set request URL to `${API}/api/slack/interactive` → copy signing secret → set `SLACK_SIGNING_SECRET` → verify end-to-end with the provided `curl` steps. Includes behavior details, secret-rotation, and uninstall steps.
 - **`AUTO_DISMISS_SHARE_THRESHOLD` env var** (2026-02-07) — Recovery-share threshold for auto-dismiss is now tunable via env (default 0.65, clamped to [0.0, 1.0], falls back to default on non-numeric). Verified: 0.80 read as-is, 1.5 clamps to 1.0, -0.5 clamps to 0.0, "not-a-number" falls back to 0.65. Referenced in `SLACK_SETUP.md` and `.env` template.
 - **Weekly Health Digest** (2026-02-07) — Monday 09:00 UTC digest email now includes a "Recovery funnel" section: `"**80%** magic-link share this week (8 magic + 2 manual) — no active drop alerts."` — emerald text on zero-alert weeks, amber "N active drop alert(s)" copy when there are open drops. Section is silent when no opens happened in the 7-day window so the digest stays clean during early launch. Query: single aggregation + one `count_documents` on `recovery_alerts`. Verified both green-day + bad-day copy paths.

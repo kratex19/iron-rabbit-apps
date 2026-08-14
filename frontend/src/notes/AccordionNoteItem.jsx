@@ -3,11 +3,17 @@ import { format } from "date-fns";
 import {
   Bell, Repeat, GripVertical, ChevronDown, Clock, Pencil,
   Maximize2, Edit3, Share2, Trash2, Paperclip, Pin, PinOff, CalendarDays, Flame,
+  MoreHorizontal, FileDown, FileText,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import { computeNoteStreak } from "./streakUtils";
+import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
 
 /**
  * A single collapsible note row for List view.
@@ -199,6 +205,46 @@ export default function AccordionNoteItem({
                   )}
                   <button onClick={() => onEdit(note)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}><Edit3 className="w-4 h-4" /></button>
                   <button onClick={() => onShare(note)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}><Share2 className="w-4 h-4" /></button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}
+                        title="More"
+                        data-testid={`note-more-${note.id}`}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className={isDark ? "bg-slate-900 border-white/10 text-slate-100" : ""}>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          try {
+                            downloadTextFile(noteToMarkdown(note), safeFilename(note.title || "note"));
+                            toast.success("Note exported as .md");
+                          } catch (e) {
+                            toast.error("Export failed");
+                          }
+                        }}
+                        data-testid={`note-export-md-${note.id}`}
+                      >
+                        <FileDown className="w-4 h-4 mr-2" /> Export as Markdown (.md)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          try {
+                            const result = await shareNoteAsMarkdown(note);
+                            if (result.shared) toast.success("Shared as .md");
+                            else if (result.downloaded) toast.success("Downloaded .md (share unsupported)");
+                          } catch (e) {
+                            toast.error("Share failed");
+                          }
+                        }}
+                        data-testid={`note-share-md-${note.id}`}
+                      >
+                        <FileText className="w-4 h-4 mr-2" /> Share as Markdown
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <button onClick={() => onDelete(note.id)} data-testid={`note-delete-${note.id}`} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-red-500/30 text-slate-400 hover:text-red-400' : 'hover:bg-red-50 text-gray-500 hover:text-red-600'}`}><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>

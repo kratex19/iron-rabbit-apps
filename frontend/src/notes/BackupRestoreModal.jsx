@@ -7,9 +7,11 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Download, Upload, DatabaseBackup, FileWarning, ArrowUpFromLine, Merge, Replace,
+  FileDown, FileUp, FileText,
 } from "lucide-react";
 import StorageService from "../storage/storageService";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
+import { markdownToNote, notesToZipBlob, downloadBlob } from "../utils/markdown";
 
 /**
  * Offline JSON backup / restore modal. Everything stays on-device:
@@ -18,6 +20,7 @@ import QuickGuideButton from "../quickguide/QuickGuideButton";
  */
 export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isDark }) {
   const fileInputRef = useRef(null);
+  const mdInputRef = useRef(null);
   const [pendingPayload, setPendingPayload] = useState(null); // parsed backup awaiting mode choice
   const [busy, setBusy] = useState(false);
 
@@ -80,6 +83,76 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
       onClose();
     } catch (e) {
       toast.error(`Import failed: ${e.message || "unknown error"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // -------- Markdown portability --------
+  const handleExportAllMarkdown = async () => {
+    try {
+      setBusy(true);
+      const notes = await StorageService.getAllNotes();
+      if (!notes.length) {
+        toast.error("No notes to export");
+        return;
+      }
+      const blob = await notesToZipBlob(notes);
+      downloadBlob(blob, `iron-rabbit-notes-${format(new Date(), "yyyy-MM-dd-HHmm")}.zip`);
+      toast.success(`Exported ${notes.length} note${notes.length === 1 ? "" : "s"} to .md zip`);
+    } catch (e) {
+      toast.error(`Export failed: ${e.message || "unknown error"}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleImportMarkdown = async (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (mdInputRef.current) mdInputRef.current.value = "";
+    if (!picked.length) return;
+
+    // Whitelist file types
+    const allowed = /\.(md|markdown|txt)$/i;
+    const valid = picked.filter((f) => allowed.test(f.name));
+    const rejected = picked.filter((f) => !allowed.test(f.name));
+
+    if (!valid.length) {
+      toast.error("No .md/.markdown/.txt files in selection");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      let ok = 0;
+      const failed = [];
+      for (const file of valid) {
+        try {
+          const text = await file.text();
+          const draft = markdownToNote(text, file.name);
+          const now = new Date().toISOString();
+          const noteId =
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `md-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          await StorageService.saveNote({
+            id: noteId,
+            ...draft,
+            attachments: [],
+            events: [],
+            checklist: [],
+            updated_at: draft.updated_at || now,
+            created_at: draft.created_at || now,
+          });
+          ok++;
+        } catch (err) {
+          failed.push(file.name);
+        }
+      }
+      onDataChanged && onDataChanged();
+      if (ok) toast.success(`Imported ${ok} Markdown note${ok === 1 ? "" : "s"}`);
+      if (failed.length) toast.error(`Failed: ${failed.join(", ")}`);
+      if (rejected.length) toast.error(`Skipped non-Markdown: ${rejected.map((f) => f.name).join(", ")}`);
     } finally {
       setBusy(false);
     }
@@ -152,6 +225,62 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
               onChange={handleFilePick}
               data-testid="backup-file-input"
             />
+
+            {/* --- Markdown portability --- */}
+            <div className={`mt-3 pt-3 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+              <div className={`flex items-center gap-2 text-[10px] uppercase tracking-wider mb-2 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                <FileText className="w-3 h-3" /> Markdown portability
+              </div>
+              <button
+                type="button"
+                onClick={handleExportAllMarkdown}
+                disabled={busy}
+                className={`w-full flex items-center gap-3 rounded-md p-3 mb-2 border transition-colors ${
+                  isDark
+                    ? "bg-amber-500/15 border-amber-400/40 hover:bg-amber-500/25 text-white"
+                    : "bg-amber-50 border-amber-200 hover:bg-amber-100 text-gray-900"
+                }`}
+                data-testid="backup-export-md-all-btn"
+              >
+                <span className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? "bg-amber-500/30 text-amber-200" : "bg-amber-500 text-white"}`}>
+                  <FileDown className="w-5 h-5" />
+                </span>
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-semibold">Export All as .md (zip)</div>
+                  <div className={`text-[11px] ${isDark ? "text-slate-400" : "text-gray-500"}`}>One .md file per note with YAML front-matter. Portable to Obsidian, Notion, etc.</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => mdInputRef.current?.click()}
+                disabled={busy}
+                className={`w-full flex items-center gap-3 rounded-md p-3 border transition-colors ${
+                  isDark
+                    ? "bg-sky-500/15 border-sky-400/40 hover:bg-sky-500/25 text-white"
+                    : "bg-sky-50 border-sky-200 hover:bg-sky-100 text-gray-900"
+                }`}
+                data-testid="backup-import-md-btn"
+              >
+                <span className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? "bg-sky-500/30 text-sky-200" : "bg-sky-500 text-white"}`}>
+                  <FileUp className="w-5 h-5" />
+                </span>
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-semibold">Import Markdown</div>
+                  <div className={`text-[11px] ${isDark ? "text-slate-400" : "text-gray-500"}`}>Pick one or more .md / .markdown / .txt files. Each becomes a note.</div>
+                </div>
+              </button>
+
+              <input
+                ref={mdInputRef}
+                type="file"
+                accept=".md,.markdown,.txt,text/markdown,text/plain"
+                multiple
+                className="hidden"
+                onChange={handleImportMarkdown}
+                data-testid="backup-md-file-input"
+              />
+            </div>
           </div>
         ) : (
           /* Import confirmation — richer summary card + Merge/Replace picker */

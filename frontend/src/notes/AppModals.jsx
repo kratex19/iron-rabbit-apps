@@ -464,6 +464,7 @@ export default function AppModals(p) {
         onSetAlarm={p.bulkSetAlarm}
         onClearAlarm={p.bulkClearAlarm}
         onExportPDF={p.bulkExportPDF}
+        onExportMarkdown={p.bulkExportMarkdown}
         onDelete={() => p.setDeleteChoice({ ids: Array.from(p.selectedIds), fromBulk: true })}
         isDark={p.isDark}
       />

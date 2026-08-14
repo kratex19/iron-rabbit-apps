@@ -666,6 +666,7 @@ export default function NotesApp() {
     bulkDuplicateInPlace,
     bulkTogglePin, bulkSetColor, bulkSetAlarm, bulkClearAlarm,
     bulkExportPDF,
+    bulkExportMarkdown,
   } = bulk;
   const inSelectMode = selectMode;
   // Swipe-to-select handler shared by every list-view row.
@@ -1482,6 +1483,7 @@ export default function NotesApp() {
         bulkSetAlarm={bulkSetAlarm}
         bulkClearAlarm={bulkClearAlarm}
         bulkExportPDF={bulkExportPDF}
+        bulkExportMarkdown={bulkExportMarkdown}
         performArchive={performArchive}
         performTrash={performTrash}
         performClearAllData={performClearAllData}

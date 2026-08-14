@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Sparkles, FolderInput, Copy, CopyPlus, Pin, Palette, BellRing, BellOff,
-  FileDown, Trash2, ChevronRight, X,
+  FileDown, FileText, Trash2, ChevronRight, X,
 } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
 
@@ -35,6 +35,7 @@ export default function BatchStudioSheet({
   onSetAlarm,                    // (isoDateTime, sound) => void
   onClearAlarm,                  // clear all alarms
   onExportPDF,                   // export selected to PDF
+  onExportMarkdown,              // export selected to .md zip
   onDelete,                      // delete selected
   isDark,
 }) {
@@ -146,6 +147,15 @@ export default function BatchStudioSheet({
             onClick={() => { handleClose(); onExportPDF && onExportPDF(); }}
             isDark={isDark}
             accent="slate"
+          />
+          <ActionTile
+            testid="bs-export-md"
+            icon={<FileText className="w-4 h-4" />}
+            label="Export .md (zip)"
+            hint="One file per note"
+            onClick={() => { handleClose(); onExportMarkdown && onExportMarkdown(); }}
+            isDark={isDark}
+            accent="amber"
           />
         </div>
 
