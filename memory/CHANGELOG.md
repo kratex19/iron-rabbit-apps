@@ -1,6 +1,17 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 6) — FullScreen toolbar palette unified
+
+- All top-toolbar icons in `FullScreenNote` (Translate, Share, More,
+  Delete, Display Controls, Close) now use `text-yellow-500` in dark mode
+  — matching the alarm bell in the footer (`#eab308`, warm amber-orange)
+- Hover states: `text-yellow-400` (a brighter tick), except Delete which
+  keeps `hover:text-red-400` to preserve the destructive-action signal
+- DisplayControlsButton `!seen` orange badge treatment still wins over the
+  yellow default so the NEW attention state remains distinguishable
+
+
 ## 2026-02-14 (part 5) — Brightness sliders: full paint pipeline hardened
 
 ### Additional bugs reported
