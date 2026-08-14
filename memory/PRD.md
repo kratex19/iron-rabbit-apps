@@ -4,10 +4,8 @@
 ## 📌 Session state (2026-02-07, this session)
 
 ### 🎉 Shipped this session (fork continuation)
-- **Two ways to reopen Choose Your Theme** (2026-02-07) — 
-  - **Header 🎨 Palette button** in `AppHeader.jsx` (right after sun/moon toggle) opens the same chooser on demand. `data-testid="header-change-theme"`.
-  - **Settings modal → new "Theme" section** with "Change theme" row opens it too. `data-testid="settings-theme-chooser-btn"`.
-  - Both wire through a single `onOpenThemeChooser` callback from `NotesApp` → `AppModals` → `SettingsModal` and `AppHeader`. Chooser modal already handles re-open (added `useEffect` to reset `pickedRef` on `isOpen=true`).
+- **Quick Guide swipe fix** (2026-02-07) — On mobile, swiping user cards in the Quick Guide carousel felt "locked" because HTML5 `draggable={isUser}` (for desktop drag-to-reorder) was intercepting touch gestures. Added `touchAction: "pan-x"` inline style on each card + on the scroll strip container in `QuickGuideModal.jsx` — tells the browser to prioritise horizontal touch-scrolling over drag initiation on touch devices. Desktop mouse drag-to-reorder still works normally (uses pointer events). Also added `WebkitOverflowScrolling: "touch"` on the strip for iOS momentum scrolling. Verified via Playwright mobile viewport: `scrollWidth=3748`, `clientWidth=324`, `touchAction=pan-x` on both strip and cards, programmatic scroll works.
+- **Two ways to reopen Choose Your Theme** — Header 🎨 Palette button + Settings "Change theme" row.
 - **Choose Your Theme onboarding** (2026-02-07) — First-launch modal in `frontend/src/onboarding/ThemeChooserModal.jsx`. ~45% translucent dark base + backdrop-blur, white text, two cards (Dark recommended + Light). Rendered as plain fixed overlay with explicit `pointer-events: auto` to bypass Radix body-lock issue.
 - **Markdown (.md) portability** (2026-02-07) — Per-note ⋮ Export/Share, Backup&Restore MD section, Batch Studio bulk MD. fflate@0.8.3 dep.
 - **Dark mode is the true default** — no OS follow.

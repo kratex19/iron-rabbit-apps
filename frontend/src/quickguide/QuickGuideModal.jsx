@@ -586,6 +586,7 @@ export default function QuickGuideModal({ isDark = true }) {
           <div
             ref={scrollerRef}
             className="qg-strip flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1"
+            style={{ touchAction: "pan-x", WebkitOverflowScrolling: "touch" }}
             data-testid="quickguide-scroll-strip"
           >
             {allCards.map((c) => {
@@ -604,7 +605,16 @@ export default function QuickGuideModal({ isDark = true }) {
                   onDragLeave={() => onDragLeave(c.__id)}
                   onDrop={(e) => onDrop(e, c.__id, isUser)}
                   onDragEnd={onDragEnd}
-                  style={isUser && !isEditing && c.theme ? { background: c.theme.value } : undefined}
+                  style={{
+                    ...(isUser && !isEditing && c.theme ? { background: c.theme.value } : {}),
+                    // touch-action: pan-x tells the browser to prioritise
+                    // horizontal touch-scrolling over drag initiation on
+                    // touch devices — without this the HTML5 `draggable`
+                    // attribute swallows the swipe and the carousel feels
+                    // locked on mobile. Desktop mouse-drag reorder still
+                    // works because it uses pointer events, not touch.
+                    touchAction: "pan-x",
+                  }}
                   className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 border relative transition-transform overflow-hidden ${
                     isUser && !isEditing && c.theme
                       ? "border-white/20 text-white"
