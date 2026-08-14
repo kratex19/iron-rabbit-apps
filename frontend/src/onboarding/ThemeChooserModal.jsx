@@ -1,9 +1,10 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Moon, Sun, Check, Sparkles, X } from "lucide-react";
 
 /**
- * First-launch theme picker. Shown once, only when the user has never
- * saved `theme_preference` and hasn't dismissed the chooser before.
+ * Theme picker. Auto-shown once on first launch when `theme_preference` is
+ * unset and `theme_chooser_seen` isn't true. Can also be re-opened later
+ * from the header "Change theme" button or Settings modal.
  *
  * Rendered as a plain fixed overlay (not Radix Dialog) so it always
  * wins z-order against the Quick Guide + first-launch wizard that may
@@ -13,6 +14,11 @@ import { Moon, Sun, Check, Sparkles, X } from "lucide-react";
  */
 export default function ThemeChooserModal({ isOpen, onPick }) {
   const pickedRef = useRef(false);
+  // Reset the double-click guard whenever the modal transitions to open,
+  // so users can re-pick if they open it a second time via the header.
+  useEffect(() => {
+    if (isOpen) pickedRef.current = false;
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const pick = (choice) => {

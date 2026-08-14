@@ -126,6 +126,7 @@ export default function AppModals(p) {
         onOpenOrganization={() => p.setOrganizationOpen(true)}
         onOpenQuickAccess={() => { p.setSettingsModalOpen(false); p.setQuickAccessOpen(true); }}
         onOpenBackup={() => { p.setSettingsModalOpen(false); p.setBackupOpen(true); }}
+        onOpenThemeChooser={() => { p.setSettingsModalOpen(false); p.onOpenThemeChooser && p.onOpenThemeChooser(); }}
         onSyncPackColors={p.handleSyncPackColors}
         isDark={p.isDark}
       />

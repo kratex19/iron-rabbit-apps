@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Settings, Calculator, ExternalLink, Sun, Moon, Download, Zap, Package,
+  Settings, Calculator, ExternalLink, Sun, Moon, Download, Zap, Package, Palette,
   CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt,
   Barcode, ChefHat, PackageOpen, Utensils,
 } from "lucide-react";
@@ -27,6 +27,7 @@ export default function AppHeader({
   onTilePacks,
   onExportPdf,
   onToggleTheme,
+  onOpenThemeChooser,
   onCalculator,
   onCalendar,
   onLanguagePicker,
@@ -85,6 +86,18 @@ export default function AppHeader({
           <Button variant="ghost" size="icon" onClick={onToggleTheme} className={iconBtnCls} title={t("header.toggle_theme")}>
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
+          {onOpenThemeChooser && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenThemeChooser}
+              className={iconBtnCls}
+              title="Change theme"
+              data-testid="header-change-theme"
+            >
+              <Palette className="w-4 h-4" />
+            </Button>
+          )}
           <Button variant="ghost" size="icon" onClick={onCalculator} className={iconBtnCls} title={t("header.calculator")}><Calculator className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onCalendar)} className={iconBtnCls} title={t("header.calendar")} data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
           <button

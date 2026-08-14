@@ -4,14 +4,16 @@
 ## 📌 Session state (2026-02-07, this session)
 
 ### 🎉 Shipped this session (fork continuation)
-- **Choose Your Theme onboarding** (2026-02-07) — New `frontend/src/onboarding/ThemeChooserModal.jsx` shown once on first launch when `settings.theme_preference` isn't set and `theme_chooser_seen` isn't true. Two cards (Dark recommended + Light) with the glass aesthetic user liked: `~45%` translucent dark base (`linear-gradient(180deg, rgba(15,23,42,0.55) 0%, rgba(11,18,33,0.65) 100%)`) + `backdrop-blur:24px` + white text. Rendered as a plain fixed overlay (not Radix Dialog) at `zIndex:9999` with explicit `pointer-events: auto` — necessary because Radix's overlay from Quick Guide / first-launch wizard set `pointer-events:none` on body, which was blocking clicks. Verified via Playwright: chooser opens → click Dark → `theme_preference='dark'` + `theme_chooser_seen=true` saved → reload → chooser stays closed. Handler in `NotesApp.jsx:handleThemeChooserPick`.
-- **Markdown (.md) portability** (2026-02-07) — Import/export/share as portable Markdown. Notes stay in IndexedDB. New util `frontend/src/utils/markdown.js` + per-note ⋮ menu (Export/Share) + Backup&Restore modal MD section + Batch Studio bulk MD export. fflate@0.8.3 for zip.
-- **Dark mode is the true default** (2026-02-07) — `NotesApp.jsx` no longer follows OS; forces dark unless explicit choice.
-- **Note expand transparency polish** (2026-02-07) — `FullScreenNote.jsx` + `constants.js` `getNoteColorStyle()` use glass-morphism (~55% dark base + backdrop-blur).
-- **Desktop screenshots** — 13 shots at `/downloads/ironrabbit-desktop-screenshots.zip`.
-- **Notifications spacing polish** — `SettingsModal.jsx` gap-3 mb-3 + ml-auto.
-- **`/app/ENV_REFERENCE.md`** — env var catalog.
-- **Platform-support audit** — Android ✅, iOS ❌ pending Apple Dev enrollment.
+- **Two ways to reopen Choose Your Theme** (2026-02-07) — 
+  - **Header 🎨 Palette button** in `AppHeader.jsx` (right after sun/moon toggle) opens the same chooser on demand. `data-testid="header-change-theme"`.
+  - **Settings modal → new "Theme" section** with "Change theme" row opens it too. `data-testid="settings-theme-chooser-btn"`.
+  - Both wire through a single `onOpenThemeChooser` callback from `NotesApp` → `AppModals` → `SettingsModal` and `AppHeader`. Chooser modal already handles re-open (added `useEffect` to reset `pickedRef` on `isOpen=true`).
+- **Choose Your Theme onboarding** (2026-02-07) — First-launch modal in `frontend/src/onboarding/ThemeChooserModal.jsx`. ~45% translucent dark base + backdrop-blur, white text, two cards (Dark recommended + Light). Rendered as plain fixed overlay with explicit `pointer-events: auto` to bypass Radix body-lock issue.
+- **Markdown (.md) portability** (2026-02-07) — Per-note ⋮ Export/Share, Backup&Restore MD section, Batch Studio bulk MD. fflate@0.8.3 dep.
+- **Dark mode is the true default** — no OS follow.
+- **Note expand transparency polish** — glass-morphism dark base.
+- **Desktop screenshots zip** — `/downloads/ironrabbit-desktop-screenshots.zip`.
+- **Notifications spacing polish** + **`ENV_REFERENCE.md`** + **Platform audit**.
 
 ### 📦 New frontend deps
 - `fflate@0.8.3` — tiny zero-dep zip encoder used for bulk `.md` exports.

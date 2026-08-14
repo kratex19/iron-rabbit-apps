@@ -1350,6 +1350,7 @@ export default function NotesApp() {
         onTilePacks={() => setTilePacksOpen(true)}
         onExportPdf={exportToPDF}
         onToggleTheme={handleToggleTheme}
+        onOpenThemeChooser={() => setThemeChooserOpen(true)}
         onCalculator={() => setCalculatorOpen(true)}
         onCalendar={() => setFloatingCalendarOpen(true)}
         onLanguagePicker={() => setLanguagePickerOpen(true)}
@@ -1429,6 +1430,7 @@ export default function NotesApp() {
         shareModalOpen={shareModalOpen} setShareModalOpen={setShareModalOpen}
         sharingNote={sharingNote} setSharingNote={setSharingNote}
         settingsModalOpen={settingsModalOpen} setSettingsModalOpen={setSettingsModalOpen}
+        onOpenThemeChooser={() => setThemeChooserOpen(true)}
         fullScreenNote={fullScreenNote} setFullScreenNote={setFullScreenNote}
         quickAddOpen={quickAddOpen} setQuickAddOpen={setQuickAddOpen}
         tilePacksOpen={tilePacksOpen} setTilePacksOpen={setTilePacksOpen}

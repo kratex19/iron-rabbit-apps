@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
   Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, MessageSquareQuote,
+  Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,7 @@ import QuickGuideSettingsSection from "../quickguide/QuickGuideSettingsSection";
  */
 export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
-  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onSyncPackColors, isDark,
+  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onSyncPackColors, isDark,
 }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
@@ -173,6 +174,34 @@ export default function SettingsModal({
               <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
             </button>
           </div>
+
+          {/* Theme picker row */}
+          {onOpenThemeChooser && (
+            <div>
+              <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                <Palette className="w-3.5 h-3.5" /> Theme
+              </label>
+              <button
+                type="button"
+                onClick={() => { onClose(); setTimeout(() => onOpenThemeChooser && onOpenThemeChooser(), 200); }}
+                className={`w-full flex items-center gap-3 rounded-md h-11 px-3 transition-colors ${
+                  isDark
+                    ? "bg-black/20 border border-white/10 hover:bg-white/5 text-white"
+                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800"
+                }`}
+                data-testid="settings-theme-chooser-btn"
+              >
+                <Palette className="w-4 h-4 text-indigo-400" />
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-medium">Change theme</div>
+                  <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                    Dark or Light — with translucent glass style
+                  </div>
+                </div>
+                <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+              </button>
+            </div>
+          )}
 
           {/* Quick Access row */}
           <div>
