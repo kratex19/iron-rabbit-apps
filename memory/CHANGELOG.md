@@ -1,6 +1,23 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 3) — Display Controls Discoverability + Drive Privacy Draft
+
+### Display Controls (`notes/DisplayControlsButton.jsx`)
+- Added a one-time animated **orange NEW badge** (pinging dot) rendered on top-right of the `SlidersHorizontal` icon
+- Auto-dismisses when the user opens the panel for the first time
+- Persisted via `localStorage.ir_display_controls_seen`
+- Also shows a small `NEW` word inside the popover header until seen
+- Test-id: `{prefix}-display-new-badge` on all three surfaces (home, quicktext, fullscreen)
+- Verified: Playwright reports `badge_present: True, badge_visible: True`
+
+### Google Drive Privacy Draft (`/app/memory/GOOGLE_DRIVE_PRIVACY.md`)
+- New one-pager covering: exact scope requested (`drive.appdata` only), what's uploaded, what isn't, who has access, revocation paths, Play Store Data Safety table, App Store nutrition label, consent-modal copy, and internal implementation notes (PKCE, no server-side token storage, no telemetry)
+- Intended for: in-app consent modal, Play Store listing, App Privacy Nutrition Label
+- Explicit clarifications: end-users never touch the developer's Google account; scope is the most restricted Drive scope; no Iron Rabbit backend involvement
+
+
+
 ## 2026-02-14 (part 2) — Admin Digest Preview-First Send Flow
 
 ### Backend (`backend/routes/digest.py`, `backend/models/digest.py`)
