@@ -88,6 +88,32 @@ export default function QuickGuideModal({ isDark = true }) {
     if (searchOpen && searchInputRef.current) searchInputRef.current.focus();
   }, [searchOpen]);
 
+  // When this modal is opened on top of a Radix Dialog (Settings, Kid Mode,
+  // Pantry, Meal Planner, Calendar, Barcode Scanner, Backup), Radix's
+  // `react-remove-scroll` attaches a `touchmove` / `wheel` listener on
+  // `document` (passive:false) that `preventDefault()`s any scroll outside
+  // its own DialogContent. Our QG lives at the app root (sibling of
+  // DialogContent), so its horizontal carousel gets cancelled. React's
+  // synthetic `onTouchMove` runs *after* the document listener has already
+  // preventDefault'd — so we have to attach a *native* listener directly on
+  // the strip element that stops propagation before the doc-level listener
+  // ever sees the event. Home QG (opened from AppHeader) has no Radix
+  // parent, which is why swiping worked there but not on the other guides.
+  useEffect(() => {
+    if (!openId) return undefined;
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    const stop = (e) => e.stopPropagation();
+    el.addEventListener("touchstart", stop, { passive: true });
+    el.addEventListener("touchmove", stop, { passive: false });
+    el.addEventListener("wheel", stop, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", stop, { passive: true });
+      el.removeEventListener("touchmove", stop, { passive: false });
+      el.removeEventListener("wheel", stop, { passive: false });
+    };
+  }, [openId]);
+
   // Ranked results — excludes the currently open guide from suggestions
   const searchResults = useMemo(
     () => searchArticles(getAllArticles(), searchQuery, 6, { excludeId: openId }),
