@@ -28,6 +28,7 @@ import AppSearchBar from "./notes/AppSearchBar";
 import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import AppModals from "./notes/AppModals";
 import ThemeChooserModal from "./onboarding/ThemeChooserModal";
+import BrightnessSliders, { brightnessToText, brightnessToBg } from "./notes/BrightnessSliders";
 import { TILE_PACKS } from "./data/tilePacks";
 import useBulkActions from "./hooks/useBulkActions";
 import useAutoLock from "./security/useAutoLock";
@@ -168,6 +169,20 @@ export default function NotesApp() {
     await StorageService.saveSettings(next);
     setSettings(next);
     setIsDark(choice === "dark");
+  };
+
+  // Persist BrightnessSliders values to settings. Called by all three
+  // scoped surfaces (Home body, NoteModal quick-text, FullScreenNote
+  // expanded-text). Uses a debounce via requestAnimationFrame so drag
+  // updates don't hammer StorageService.
+  const brightnessSaveTimer = useRef(null);
+  const handleBrightnessChange = (next) => {
+    const merged = { ...(settings || {}), ui_brightness: next };
+    setSettings(merged);
+    if (brightnessSaveTimer.current) clearTimeout(brightnessSaveTimer.current);
+    brightnessSaveTimer.current = setTimeout(() => {
+      StorageService.saveSettings(merged).catch(() => {});
+    }, 250);
   };
 
   // Keyboard shortcuts (desktop-only feel): n = new note, / = focus search,
@@ -1367,7 +1382,23 @@ export default function NotesApp() {
       />
 
       {/* Main Content */}
-      <main className="px-4 py-3 max-w-4xl mx-auto">
+      <main
+        className="px-4 py-3 max-w-4xl mx-auto ir-brightness-scope"
+        style={{
+          "--ir-text": brightnessToText(settings?.ui_brightness?.text ?? 0.7),
+          "--ir-bg":   brightnessToBg(settings?.ui_brightness?.bg   ?? 0.3),
+          color: "var(--ir-text)",
+        }}
+      >
+        {/* Home-page brightness sliders — above search box, scope: this <main> */}
+        <div className="mb-2">
+          <BrightnessSliders
+            value={settings?.ui_brightness}
+            onChange={handleBrightnessChange}
+            isDark={isDark}
+            testidPrefix="home-brightness"
+          />
+        </div>
         <AppSearchBar
           isDark={isDark}
           notes={notes}
@@ -1431,6 +1462,8 @@ export default function NotesApp() {
         sharingNote={sharingNote} setSharingNote={setSharingNote}
         settingsModalOpen={settingsModalOpen} setSettingsModalOpen={setSettingsModalOpen}
         onOpenThemeChooser={() => setThemeChooserOpen(true)}
+        uiBrightness={settings?.ui_brightness}
+        onBrightnessChange={handleBrightnessChange}
         fullScreenNote={fullScreenNote} setFullScreenNote={setFullScreenNote}
         quickAddOpen={quickAddOpen} setQuickAddOpen={setQuickAddOpen}
         tilePacksOpen={tilePacksOpen} setTilePacksOpen={setTilePacksOpen}

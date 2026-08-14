@@ -918,3 +918,55 @@
     .kid-celebrate-banner { animation: none; opacity: 1; transform: none; }
     .kid-chore-pop { animation: none; }
 }
+
+/* ---- BrightnessSliders (compact, no chrome) ---- */
+.ir-brightness-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  outline: none;
+}
+.ir-brightness-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+.ir-brightness-slider::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.ir-brightness-slider:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.ir-brightness-slider:focus { outline: none; }
+.nx-light .ir-brightness-slider::-webkit-slider-thumb {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+.nx-light .ir-brightness-slider::-moz-range-thumb {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+/* One-time pulse on first render (2.4s) for discoverability */
+@keyframes ir-brightness-thumb-pulse {
+  0%,   100% { box-shadow: 0 1px 3px rgba(99, 102, 241, 0.0); transform: scale(1); }
+  25%,  75%  { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.25); transform: scale(1.2); }
+  50%        { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0.0); transform: scale(1.05); }
+}
+.ir-brightness-pulse .ir-brightness-slider::-webkit-slider-thumb {
+  animation: ir-brightness-thumb-pulse 2.4s ease-out 1 both;
+}
+.ir-brightness-pulse .ir-brightness-slider::-moz-range-thumb {
+  animation: ir-brightness-thumb-pulse 2.4s ease-out 1 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ir-brightness-pulse .ir-brightness-slider::-webkit-slider-thumb,
+  .ir-brightness-pulse .ir-brightness-slider::-moz-range-thumb { animation: none; }
+}
+

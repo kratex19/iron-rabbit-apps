@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
 import Attachments from "../components/Attachments";
+import BrightnessSliders, { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import StorageService from "../storage/storageService";
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
@@ -33,7 +34,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
-export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, categories, templates, allTags = [] }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, categories, templates, allTags = [], uiBrightness, onBrightnessChange }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -218,7 +219,21 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 </div>
               </div>
-              <TextareaAutosize value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("note.content_placeholder")} minRows={3} maxRows={20} className={`w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`} data-testid="note-content-input" />
+              <TextareaAutosize
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder={t("note.content_placeholder")}
+                minRows={3}
+                maxRows={20}
+                className={`ir-brightness-scope w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+                style={{
+                  "--ir-text": brightnessToText(uiBrightness?.text ?? 0.7),
+                  "--ir-bg":   brightnessToBg(uiBrightness?.bg   ?? 0.3),
+                  background: "var(--ir-bg)",
+                  color: "var(--ir-text)",
+                }}
+                data-testid="note-content-input"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -458,6 +473,17 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 compact
                 onExtractText={(text) => setContent(prev => (prev || "") + `\n\n${text}`)}
               />
+              {/* Compact brightness sliders — scoped to Quick Text Area only */}
+              {onBrightnessChange && (
+                <div className="pt-1 pb-1">
+                  <BrightnessSliders
+                    value={uiBrightness}
+                    onChange={onBrightnessChange}
+                    isDark={isDark}
+                    testidPrefix="quicktext-brightness"
+                  />
+                </div>
+              )}
             </div>
 
 

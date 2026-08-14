@@ -97,6 +97,8 @@ export default function AppModals(p) {
         categories={p.categories}
         templates={p.templates}
         allTags={p.allTags}
+        uiBrightness={p.uiBrightness}
+        onBrightnessChange={p.onBrightnessChange}
       />
       <CalculatorWidget
         isOpen={p.calculatorOpen}
@@ -138,6 +140,8 @@ export default function AppModals(p) {
         onDelete={p.handleDeleteNote}
         onShare={p.openShareModal}
         isDark={p.isDark}
+        uiBrightness={p.uiBrightness}
+        onBrightnessChange={p.onBrightnessChange}
       />
       <IconPicker
         isOpen={p.quickAddOpen}

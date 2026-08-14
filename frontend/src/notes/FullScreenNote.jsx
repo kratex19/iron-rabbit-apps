@@ -13,12 +13,13 @@ import Attachments from "../components/Attachments";
 import TranslateModal from "./TranslateModal";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
+import BrightnessSliders, { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 
 /**
  * Full-screen note editor with inline auto-save.
  * Debounces title/content changes and flushes on close.
  */
-export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, onDelete, onShare, isDark }) {
+export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, onDelete, onShare, isDark, uiBrightness, onBrightnessChange }) {
   const [title, setTitle] = useState(note?.title || "");
   const [content, setContent] = useState(note?.content || "");
   const [dirty, setDirty] = useState(false);
@@ -154,14 +155,23 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-white/70 hover:text-white' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
-        {/* Editable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4">
+        {/* Editable content — user-brightness scope */}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 ir-brightness-scope"
+          style={{
+            "--ir-text": brightnessToText(uiBrightness?.text ?? 0.7),
+            "--ir-bg":   brightnessToBg(uiBrightness?.bg   ?? 0.3),
+            background: "var(--ir-bg)",
+            color: "var(--ir-text)",
+          }}
+        >
           <TextareaAutosize
             value={content}
             onChange={(e) => { setContent(e.target.value); setDirty(true); }}
             placeholder="Start writing…"
             minRows={3}
-            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? 'text-slate-100 placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-60`}
+            style={{ color: "var(--ir-text)" }}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
@@ -255,6 +265,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               </div>
             )}
           </div>
+          {/* Compact brightness sliders — scoped to this Expanded Text Area only */}
+          {onBrightnessChange && (
+            <div className="px-1 pt-1">
+              <BrightnessSliders
+                value={uiBrightness}
+                onChange={onBrightnessChange}
+                isDark={isDark}
+                testidPrefix="fullscreen-brightness"
+              />
+            </div>
+          )}
         </div>
         {/* Footer */}
         <div className={`flex items-center justify-between p-4 border-t text-xs font-mono ${isDark ? 'border-white/10 text-slate-300' : 'border-gray-200 text-gray-400'}`}>
