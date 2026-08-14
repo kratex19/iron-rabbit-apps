@@ -1,6 +1,61 @@
 # Iron Rabbit Changelog
 
 
+## 2026-02-14 (part 7) — iOS Platform Prep (Option E — Emergent-executed)
+
+### Prepared inside this container
+- **iOS platform added** via `npx cap add ios` (Capacitor 7)
+- **`frontend/capacitor.config.ts`** — `appId` set to `com.ironrabbit.app`
+  as requested; Android will inherit this on next `cap add android`
+- **`frontend/ios/App/App.xcworkspace`** — full Xcode project generated
+  (`.xcodeproj`, `.pbxproj`, `Podfile`, `AppDelegate.swift`, storyboards)
+- **Bundle Identifier** confirmed `com.ironrabbit.app` in both Debug +
+  Release build configs of `project.pbxproj`
+- **`TARGETED_DEVICE_FAMILY = "1,2"`** — both iPhone and iPad enabled
+- **`frontend/ios/App/App/Info.plist`** — Iron Rabbit permission strings
+  added in plain English (camera, photo library, photo-add, Face ID);
+  `NSUserActivityTypes` for future deep-link support
+- **`frontend/assets/`** — source PNGs prepared for later asset
+  generation: `splash.png` (2732², opaque, from existing 2048² brand
+  splash upscaled with LANCZOS), `splash-dark.png` (same source),
+  `icon-foreground.png` (1024², existing brand foreground upscaled),
+  `icon-background.png` (1024², existing brand indigo bg upscaled)
+- Owner declined auto-generation of icons (Option D). Default
+  Capacitor placeholders remain; a two-command handoff is documented in
+  `memory/IOS_BUILD_GUIDE.md` for the owner to run when a final opaque
+  1024×1024 is ready
+
+### New documentation
+- **`memory/IOS_BUILD_GUIDE.md`** — compact 6-step build & submit guide
+  (Prereqs, Xcode setup, on-device test, TestFlight, App Store review,
+  troubleshooting cheatsheet, "what Emergent already did" recap)
+- **`memory/APP_STORE_METADATA.md`** — fill-in template with pre-written
+  copy for every App Store Connect field (name, subtitle, description,
+  keywords, privacy answers matching the Security Policy, screenshot
+  spec, review notes, phased-release recommendation)
+
+### Security audit
+- Grepped `/app/frontend/ios` for every secret pattern in
+  `SECURITY_POLICY §3.3` — **zero hits**
+- Bundle ID matches owner's request exactly; no personal Apple ID,
+  Google credential, Resend key, admin token, or Slack secret embedded
+- `Info.plist` contains only permission descriptions, no identifiers
+
+### What the owner still needs (unavoidable Apple side)
+1. Apple Developer Program membership ($99/yr)
+2. macOS + Xcode 15.3+
+3. Open workspace, pick their Team, hit Run
+4. Archive → upload to TestFlight → submit for review
+
+### Not done in this pass (deferred)
+- App icons — owner opted D (hold off); placeholder in place
+- Splash finalize — bundled inside the same `npx @capacitor/assets`
+  command that will run when icons are ready
+- Google Drive / Resend integrations — locked behind explicit approval
+  per `SECURITY_POLICY.md`
+
+
+
 ## 2026-02-14 (part 6) — FullScreen toolbar palette unified
 
 - All top-toolbar icons in `FullScreenNote` (Translate, Share, More,

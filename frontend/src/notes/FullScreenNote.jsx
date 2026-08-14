@@ -11,7 +11,7 @@ import {
 import { toast } from "sonner";
 import Attachments from "../components/Attachments";
 import TranslateModal from "./TranslateModal";
-import { NOTE_COLORS, getNoteColorStyle } from "./constants";
+import { NOTE_COLORS } from "./constants";
 import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
 import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 import DisplayControlsButton from "./DisplayControlsButton";
@@ -99,17 +99,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="fullscreen-note">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
       <div
-        className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'bg-[#0B1221]/75 backdrop-blur-2xl' : 'bg-white'} border ${colorConfig.class}`}
+        className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'backdrop-blur-2xl' : ''} border ${colorConfig.class}`}
         style={{
           borderWidth: '2px',
-          // In dark mode we keep the tinted gradient background for atmosphere.
-          // In light mode we *only* borrow the border accent — the colored
-          // gradient over white was overriding `bg-white` and dropping text
-          // contrast for `text-gray-700` body copy. Plain white background
-          // makes every heading / body / list / caret readable while the
-          // 2px accent border still identifies the note's color.
+          // Brightness BG applies at the OUTER container so "fully transparent"
+          // truly reveals the page beneath (works identically in light + dark
+          // themes). In dark mode we still get the backdrop-blur glass look;
+          // in light mode the plain white default is now driven by the
+          // brightness slider itself.
+          background: brightnessToBg(uiBrightness?.bg ?? 0.3),
           ...(isDark
-            ? (getNoteColorStyle(colorConfig, true) || {})
+            ? {}
             : { borderColor: colorConfig.border || colorConfig.accent }),
         }}
       >
@@ -179,13 +179,13 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
-        {/* Editable content — user-brightness scope. We compute the text +
-            bg colors directly from `uiBrightness` on every render so the
-            slider paints instantly (no CSS-var indirection). */}
+        {/* Editable content — brightness scope. Text color is applied
+            directly on the textarea (with ref-forced !important for iOS/
+            Android WebViews). Background is driven by the outer modal
+            container so "fully transparent" truly reveals the page. */}
         <div
           className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 ir-brightness-scope"
           style={{
-            background: brightnessToBg(uiBrightness?.bg ?? 0.3),
             color: brightnessToText(uiBrightness?.text ?? 0.7),
           }}
         >

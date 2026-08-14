@@ -195,10 +195,17 @@ appear in the PR / commit message / hand-off note:
 | Google Drive Client Secret | **Will never exist** — PKCE flow only | — |
 | Google Drive scope | Will request only `drive.appdata` when approved | Awaiting approval |
 | Google Drive integration code | **NOT written** — awaiting §1.7 approval | Awaiting approval |
-| Resend API key | **NOT configured** — see §2.4 | Awaiting decision |
-| Resend usage | Backend-only, admin/scheduled paths only | — |
+| Resend API key | **NOT configured** for v1.0 launch — owner approved skip on 2026-02-14 | Skipped for v1.0 |
+| Resend usage | Backend-only, admin/scheduled paths only (deferred to v1.1+) | Deferred |
 | Admin token in bundle? | **No** — server-side only, per §3 | Verified |
 | Any owner-personal credential in the app? | **No** — verified | Verified |
+
+**v1.0 launch decision (2026-02-14):** Owner explicitly approved shipping
+the first production release **without** the Resend API key configured.
+The community digest still works fully via the in-dashboard preview modal
+(§ CHANGELOG 2026-02-14 part 2); no user-facing email is required at
+launch. Adding Resend later is a config-only change (drop the key in
+`backend/.env`, restart) — no code change is required.
 
 ## 5. Enforcement
 

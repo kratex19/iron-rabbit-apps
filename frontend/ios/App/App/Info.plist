@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+        <string>Iron Rabbit</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+	<!--
+	  Iron Rabbit permission strings. Every one of these appears in the
+	  iOS permission prompt at first use. Copy is written in plain English
+	  so users understand exactly why we're asking. Wording matches Apple
+	  App Review's guideline 5.1.1 — describe the feature, not just the
+	  sensor.
+	-->
+	<key>NSCameraUsageDescription</key>
+	<string>Iron Rabbit uses the camera only when you tap the Barcode button so you can scan product barcodes into your pantry list. The camera is never used in the background.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Iron Rabbit accesses your photo library only when you attach a photo to a note. Selected photos stay on this device unless you choose to share them.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Iron Rabbit saves images to your photo library only when you tap the "Save to Photos" option on a note attachment.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Iron Rabbit uses Face ID to unlock the app when you turn on App Lock in Security settings. Your biometric data never leaves this device.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.ironrabbit.app.openNote</string>
+	</array>
+	<!-- Local notifications (reminders/alarms) are prompted at runtime -->
+</dict>
+</plist>

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ironrabbitapps.notes',
+  appId: 'com.ironrabbit.app',
   appName: 'Iron Rabbit',
   webDir: 'build',
   bundledWebRuntime: false,
