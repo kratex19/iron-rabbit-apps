@@ -131,11 +131,11 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-slate-500' : 'text-gray-400'}`} data-testid="fullscreen-save-status" aria-live="polite">
               {saving ? "Saving…" : dirty ? "Editing…" : savedRecently ? "Saved" : ""}
             </span>
-            <Button variant="ghost" size="icon" onClick={() => setTranslateOpen(true)} disabled={!content?.trim()} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : ''} data-testid="fullscreen-translate-btn" aria-label="Translate" title="Translate note"><Languages className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : ''} data-testid="fullscreen-share-btn" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setTranslateOpen(true)} disabled={!content?.trim()} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-translate-btn" aria-label="Translate" title="Translate note"><Languages className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-share-btn" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : ''} data-testid="fullscreen-more-btn" aria-label="More"><MoreHorizontal className="w-4 h-4" /></Button>
+                <Button variant="ghost" size="icon" className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-more-btn" aria-label="More"><MoreHorizontal className="w-4 h-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={isDark ? "bg-slate-900 border-white/10 text-slate-100" : ""}>
                 <DropdownMenuItem
@@ -165,7 +165,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-yellow-500 hover:text-red-400 hover:bg-white/5' : 'hover:text-red-600'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-yellow-500 hover:text-red-400 hover:bg-white/5' : 'text-yellow-600 hover:text-red-500 hover:bg-red-50'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
             {onBrightnessChange && (
               <DisplayControlsButton
                 value={uiBrightness}
@@ -173,10 +173,10 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                 isDark={isDark}
                 testidPrefix="fullscreen-brightness"
                 title="Display brightness (Text & Background)"
-                className={isDark ? "text-yellow-500 hover:text-yellow-400 hover:bg-white/5" : ""}
+                className={isDark ? "text-yellow-500 hover:text-yellow-400 hover:bg-white/5" : "text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50"}
               />
             )}
-            <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : ''} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
         {/* Editable content — user-brightness scope. We compute the text +
