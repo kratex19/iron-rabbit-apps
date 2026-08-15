@@ -257,20 +257,38 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 </div>
               </div>
-              <TextareaAutosize
-                ref={contentTextareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={t("note.content_placeholder")}
-                minRows={3}
-                maxRows={20}
-                className={`ir-brightness-scope w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
-                style={{
-                  background: brightnessToBg(noteBrightness?.bg ?? 0.3),
-                  color: brightnessToText(noteBrightness?.text ?? 0.7),
-                }}
-                data-testid="note-content-input"
-              />
+              {/* Text content area only. The BG slider must go from
+                  100% opaque black → 0% transparent (completely clear).
+                  Because the textarea sits on a very dark modal card,
+                  "transparent" alone looks identical to "opaque black" —
+                  so we place a light underlay directly behind it. The
+                  textarea's own inline `background: brightnessToBg(bg)`
+                  keeps the exact user-requested math: BG=0 → opaque
+                  black covers the underlay; BG=100% → textarea fully
+                  transparent, underlay shows through and the area
+                  reads as "clear". Scoped to the text content area
+                  only — nothing else in the modal changes. */}
+              <div className="relative rounded-md overflow-hidden">
+                <div
+                  aria-hidden="true"
+                  className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-white/[0.10]' : 'bg-black/[0.05]'}`}
+                  data-testid="note-content-underlay"
+                />
+                <TextareaAutosize
+                  ref={contentTextareaRef}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder={t("note.content_placeholder")}
+                  minRows={3}
+                  maxRows={20}
+                  className={`ir-brightness-scope relative w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+                  style={{
+                    background: brightnessToBg(noteBrightness?.bg ?? 0.3),
+                    color: brightnessToText(noteBrightness?.text ?? 0.7),
+                  }}
+                  data-testid="note-content-input"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
