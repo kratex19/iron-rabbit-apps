@@ -228,10 +228,15 @@ input:-webkit-autofill:focus {
 }
 
 /* Any element that inherits `color: initial` (e.g., legacy tables,
-   raw text nodes) still falls back to a theme-correct color. */
-body:not(.nx-light) [style*="color: rgb(0"],
-body:not(.nx-light) [style*="color:#000"],
-body:not(.nx-light) [style*="color: #000"] {
+   raw text nodes) still falls back to a theme-correct color.
+   Exception: `.ir-brightness-scope` and its descendants — those surfaces
+   are user-driven via the brightness sliders, and their inline `color:
+   rgb(0,0,0)` (text-slider = 0) must be honored. Match a wider selector
+   for the exception so it wins on specificity, and use `revert` to drop
+   back to the inline cascade layer. */
+body:not(.nx-light) [style*="color: rgb(0"]:not(.ir-brightness-scope):not(.ir-brightness-scope *),
+body:not(.nx-light) [style*="color:#000"]:not(.ir-brightness-scope):not(.ir-brightness-scope *),
+body:not(.nx-light) [style*="color: #000"]:not(.ir-brightness-scope):not(.ir-brightness-scope *) {
     color: hsl(var(--foreground)) !important;
     -webkit-text-fill-color: hsl(var(--foreground)) !important;
 }

@@ -259,8 +259,8 @@ export default function NotesApp() {
       if (templatesData.length > 0) setTemplates(templatesData);
 
       // First-run tour: show once, when there are no notes AND user has never
-      // completed/dismissed the tour.
-      if (settingsData && !settingsData.tour_completed && notesData.length === 0) {
+      // completed/dismissed the tour. Suppressed by `?screenshot=1`.
+      if (settingsData && !settingsData.tour_completed && notesData.length === 0 && !isScreenshotMode()) {
         setTimeout(() => setTourOpen(true), 800);
       }
 
