@@ -92,8 +92,6 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     if (note.id !== noteIdRef.current || !dirty) {
       setTitle(note.title || "");
       setContent(note.content || "");
-      // Restore per-note brightness for the new note
-      setNoteBrightness(note.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 });
       setDirty(false);
       // Reset accordion state for the new note based on its attachment count.
       setAttachmentsOpen((note.attachments || []).length === 0);
@@ -101,6 +99,22 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, note?.updated_at]);
+
+  // 🔒 LOCKED (star-mode expanded text) — see /app/memory/LOCKED_SURFACES.md
+  // Password required to modify: 2020 (used to fix the mid-drag reset bug)
+  // Brightness restore is intentionally keyed on `note?.id` ONLY — NOT on
+  // `note?.updated_at`. Same-note `updated_at` bumps come from our own
+  // debounced auto-save; the local `noteBrightness` is either already at
+  // the saved value or ahead of it because the user is still dragging.
+  // Re-running this on `updated_at` used to yank the slider back to the
+  // just-saved value mid-drag (user reported "goes lighter then darker
+  // as you drag toward the other end"). Only restore when a genuinely
+  // different note is opened.
+  useEffect(() => {
+    if (!note) return;
+    setNoteBrightness(note.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id]);
 
   // Auto-save when title/content change (debounced 700ms)
   useEffect(() => {

@@ -56,6 +56,10 @@ perfectly:
 - The **textarea colour-forcing** `useLayoutEffect` that sets `color` and
   `-webkit-text-fill-color` with `!important` via ref.
 - The `noteBrightness` state initialisation from `note.ui_brightness`.
+- **Brightness restore is keyed on `note?.id` ONLY.** Do NOT re-add
+  `note?.updated_at` to its dependency array — that caused the mid-drag
+  reset bug where the slider snapped back to the last-saved value while
+  the user was still dragging (fixed with password `2020` on 2026-02-15).
 - The `handleBrightnessChange` wrapper that flags the note dirty and lets the
   debounced auto-save fold `ui_brightness` back into the note.
 - The auto-save `useEffect` that includes `ui_brightness: noteBrightness` in
