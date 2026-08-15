@@ -381,8 +381,19 @@ export default function SettingsModal({
             <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>Header Background</label>
             <div className="space-y-2">
               {formData.header_bg && (
-                <div className="w-full h-16 rounded-lg overflow-hidden border border-white/20">
+                <div className="relative w-full h-16 rounded-lg overflow-hidden border border-white/20">
                   <img src={formData.header_bg} alt="Header preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, header_bg: "" }))}
+                    className="absolute top-1.5 right-1.5 h-7 px-2 rounded-md text-[11px] font-medium flex items-center gap-1 bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition-colors"
+                    data-testid="settings-header-clear"
+                    aria-label="Clear header background"
+                    title="Clear header background"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Clear
+                  </button>
                 </div>
               )}
               <Input
