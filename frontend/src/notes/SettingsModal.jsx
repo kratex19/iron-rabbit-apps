@@ -643,7 +643,7 @@ function NotificationsPanel({ isDark }) {
           </button>
         )}
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2.5">
         <NotifToggle
           label="Weekly week-in-review"
           hint="Sundays · summary of notes created + edits + categories"
@@ -678,7 +678,7 @@ function NotificationsPanel({ isDark }) {
 
 function NotifToggle({ label, hint, checked, onChange, isDark, testid }) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer" data-testid={testid}>
+    <label className="flex items-center gap-4 cursor-pointer py-1" data-testid={testid}>
       <button
         type="button"
         onClick={() => onChange(!checked)}
@@ -689,7 +689,7 @@ function NotifToggle({ label, hint, checked, onChange, isDark, testid }) {
       </button>
       <div className="flex-1 min-w-0">
         <div className={`text-xs font-medium ${isDark ? "text-white" : "text-gray-900"}`}>{label}</div>
-        <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-500"}`}>{hint}</div>
+        <div className={`text-[10px] mt-0.5 ${isDark ? "text-slate-500" : "text-gray-500"}`}>{hint}</div>
       </div>
     </label>
   );
