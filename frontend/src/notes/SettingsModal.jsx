@@ -535,7 +535,7 @@ export default function SettingsModal({
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
-            <Button onClick={handleSave} disabled={saving} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
+            <Button onClick={handleSave} disabled={saving} data-testid="settings-save-btn" className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
               {saving ? "..." : t("action.save")}
             </Button>
           </div>
