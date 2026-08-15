@@ -1,245 +1,547 @@
 {
-  "version": 1,
+  "version": 2,
+  "categories": [
+    {
+      "key": "Nature",
+      "count": 13
+    },
+    {
+      "key": "Wildlife",
+      "count": 8
+    },
+    {
+      "key": "Sunset",
+      "count": 7
+    },
+    {
+      "key": "Water",
+      "count": 5
+    },
+    {
+      "key": "Sky",
+      "count": 4
+    },
+    {
+      "key": "Patriotic",
+      "count": 3
+    }
+  ],
   "presets": [
     {
       "id": "01",
       "file": "header-01.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "forest",
+        "mist",
+        "trees",
+        "evergreen"
+      ]
     },
     {
       "id": "02",
       "file": "header-02.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "lake",
+        "mountains",
+        "calm",
+        "golden"
+      ]
     },
     {
       "id": "03",
       "file": "header-03.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "mountains",
+        "silhouette",
+        "deer"
+      ]
     },
     {
       "id": "04",
       "file": "header-04.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Patriotic",
+      "tags": [
+        "eagle",
+        "flag",
+        "bird"
+      ]
     },
     {
       "id": "05",
       "file": "header-05.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Patriotic",
+      "tags": [
+        "flag",
+        "wood",
+        "vintage"
+      ]
     },
     {
       "id": "06",
       "file": "header-06.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "mountains",
+        "lake",
+        "snow",
+        "evergreen"
+      ]
     },
     {
       "id": "07",
       "file": "header-07.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "fishing",
+        "rod",
+        "lake",
+        "reflection"
+      ]
     },
     {
       "id": "08",
       "file": "header-08.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Water",
+      "tags": [
+        "river",
+        "stream",
+        "rocks",
+        "forest"
+      ]
     },
     {
       "id": "09",
       "file": "header-09.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "deer",
+        "meadow",
+        "sunrise",
+        "field"
+      ]
     },
     {
       "id": "10",
       "file": "header-10.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "desert",
+        "rock",
+        "mesa",
+        "canyon"
+      ]
     },
     {
       "id": "11",
       "file": "header-11.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "horse",
+        "silhouette",
+        "field",
+        "sunset"
+      ]
     },
     {
       "id": "12",
       "file": "header-12.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "fish",
+        "bass",
+        "jumping",
+        "water",
+        "fishing"
+      ]
     },
     {
       "id": "13",
       "file": "header-13.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sky",
+      "tags": [
+        "stars",
+        "night",
+        "lake",
+        "forest"
+      ]
     },
     {
       "id": "14",
       "file": "header-14.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sky",
+      "tags": [
+        "fireworks",
+        "lake",
+        "night"
+      ]
     },
     {
       "id": "15",
       "file": "header-15.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "mountains",
+        "camping",
+        "tent",
+        "lake"
+      ]
     },
     {
       "id": "16",
       "file": "header-16.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "leaves",
+        "camouflage",
+        "pattern",
+        "texture"
+      ]
     },
     {
       "id": "17",
       "file": "header-17.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "trees",
+        "clouds",
+        "warm",
+        "sky"
+      ]
     },
     {
       "id": "18",
       "file": "header-18.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "turkey",
+        "bird",
+        "silhouette",
+        "sunset"
+      ]
     },
     {
       "id": "19",
       "file": "header-19.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "wolf",
+        "face",
+        "closeup",
+        "eyes"
+      ]
     },
     {
       "id": "20",
       "file": "header-20.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "compass",
+        "map",
+        "mountains",
+        "texture"
+      ]
     },
     {
       "id": "21",
       "file": "header-21.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "ocean",
+        "waves",
+        "shore",
+        "golden"
+      ]
     },
     {
       "id": "22",
       "file": "header-22.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Water",
+      "tags": [
+        "forest",
+        "mist",
+        "stream",
+        "trees"
+      ]
     },
     {
       "id": "23",
       "file": "header-23.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Patriotic",
+      "tags": [
+        "flag",
+        "waving",
+        "fabric"
+      ]
     },
     {
       "id": "24",
       "file": "header-24.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "mountains",
+        "valley",
+        "sunset",
+        "landscape"
+      ]
     },
     {
       "id": "25",
       "file": "header-25.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "barn",
+        "windmill",
+        "scenic",
+        "field"
+      ]
     },
     {
       "id": "26",
       "file": "header-26.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "bear",
+        "face",
+        "closeup",
+        "forest"
+      ]
     },
     {
       "id": "27",
       "file": "header-27.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Water",
+      "tags": [
+        "mountains",
+        "lake",
+        "reflection",
+        "peaks"
+      ]
     },
     {
       "id": "28",
       "file": "header-28.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "boat",
+        "water",
+        "reflection",
+        "fishing"
+      ]
     },
     {
       "id": "29",
       "file": "header-29.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "barbed",
+        "wire",
+        "sunset",
+        "field"
+      ]
     },
     {
       "id": "30",
       "file": "header-30.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "arches",
+        "rock",
+        "desert",
+        "sunset"
+      ]
     },
     {
       "id": "31",
       "file": "header-31.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "winter",
+        "snow",
+        "forest",
+        "trees"
+      ]
     },
     {
       "id": "32",
       "file": "header-32.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "deer",
+        "family",
+        "silhouette",
+        "snow",
+        "winter"
+      ]
     },
     {
       "id": "33",
       "file": "header-33.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sky",
+      "tags": [
+        "aurora",
+        "northern",
+        "lights",
+        "water"
+      ]
     },
     {
       "id": "34",
       "file": "header-34.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "road",
+        "field",
+        "landscape",
+        "dirt"
+      ]
     },
     {
       "id": "35",
       "file": "header-35.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Nature",
+      "tags": [
+        "antlers",
+        "wood",
+        "stilllife"
+      ]
     },
     {
       "id": "36",
       "file": "header-36.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Wildlife",
+      "tags": [
+        "antlers",
+        "skull",
+        "wood",
+        "closeup"
+      ]
     },
     {
       "id": "37",
       "file": "header-37.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Water",
+      "tags": [
+        "lighthouse",
+        "coast",
+        "ocean",
+        "sunset"
+      ]
     },
     {
       "id": "38",
       "file": "header-38.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Water",
+      "tags": [
+        "lake",
+        "reflection",
+        "trees",
+        "fog"
+      ]
     },
     {
       "id": "39",
       "file": "header-39.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sky",
+      "tags": [
+        "storm",
+        "clouds",
+        "lightning",
+        "sky"
+      ]
     },
     {
       "id": "40",
       "file": "header-40.webp",
       "width": 1600,
-      "height": 500
+      "height": 500,
+      "category": "Sunset",
+      "tags": [
+        "birds",
+        "rocks",
+        "water",
+        "landscape"
+      ]
     }
   ]
 }
