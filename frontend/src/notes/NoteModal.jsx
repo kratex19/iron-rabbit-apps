@@ -72,6 +72,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   // style occasionally loses out to a UA / browser-extension `-webkit-text-
   // fill-color` cascade. Setting the property with `!important` via ref
   // guarantees the paint changes every time `noteBrightness.text` changes.
+  // 🔒 LOCKED (Quick Edit brightness) — see /app/memory/LOCKED_SURFACES.md
+  // Password required to modify: 2020
+  // Do not alter the colour-forcing useLayoutEffect, the debounced
+  // brightness auto-save useEffect, `brightnessAutoSaveRef`, or the
+  // TextareaAutosize + light-underlay wrapper (search for
+  // `note-content-underlay`) without an explicit unlock from the user.
+  // The top bar and other form fields of this dialog are NOT locked.
   const contentTextareaRef = useRef(null);
   useLayoutEffect(() => {
     const el = contentTextareaRef.current;

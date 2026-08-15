@@ -1387,14 +1387,32 @@ export default function NotesApp() {
         onBrightnessChange={handleBrightnessChange}
       />
 
-      {/* Main Content */}
-      <main
-        className="px-4 py-3 max-w-4xl mx-auto ir-brightness-scope"
-        style={{
-          background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
-          color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),
-        }}
-      >
+      {/* Main Content — brightness sliders on the home page.
+          The `<main>` sits on the near-black app-container so a raw
+          "transparent" state looked identical to opaque black. We wrap
+          it in a positioned container with a subtle light underlay
+          (visible in dark mode only) so BG=0 → main paints opaque black
+          over the underlay, and BG=100% → main goes transparent and the
+          underlay shows through. Result: a visible dim→bright fade
+          scoped to the notes area, not the surrounding chrome.
+          The text colour is exposed as the `--ir-text` CSS custom
+          property so a targeted rule in `index.css` can force it onto
+          note titles / meta text that would otherwise be locked to
+          their Tailwind colour classes. */}
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-white/[0.08]' : 'bg-black/[0.03]'}`}
+          data-testid="home-brightness-underlay"
+        />
+        <main
+          className="relative px-4 py-3 max-w-4xl mx-auto ir-brightness-scope"
+          style={{
+            background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
+            color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),
+            "--ir-text": brightnessToText(settings?.ui_brightness?.text ?? 0.7),
+          }}
+        >
         <AppSearchBar
           isDark={isDark}
           notes={notes}
@@ -1421,6 +1439,7 @@ export default function NotesApp() {
         <FeaturedTipStrip isDark={isDark} />
         {renderNotes()}
       </main>
+      </div>
 
       {/* FAB */}
       <button

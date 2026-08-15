@@ -241,6 +241,26 @@ body:not(.nx-light) [style*="color: #000"]:not(.ir-brightness-scope):not(.ir-bri
     -webkit-text-fill-color: hsl(var(--foreground)) !important;
 }
 
+/* Home page brightness — text slider needs to reach note titles / meta
+   text that carry their own Tailwind color classes (text-white,
+   text-slate-*, text-gray-*). We expose the slider colour on
+   `main.ir-brightness-scope` as `--ir-text` and then override those
+   common neutral classes inside the scope so they fall back to the
+   slider colour. Coloured semantic text (text-red-*, text-indigo-*,
+   badges, accent buttons) is intentionally left alone so the UI's
+   status/accent colours stay recognisable.
+   Scoped to `main.ir-brightness-scope` so this ONLY affects the home
+   page notes area — NoteModal and FullScreenNote have their own
+   locked colour-forcing paths and are unaffected. */
+main.ir-brightness-scope [class*="text-white"],
+main.ir-brightness-scope [class*="text-slate-"],
+main.ir-brightness-scope [class*="text-gray-"],
+main.ir-brightness-scope [class*="text-neutral-"],
+main.ir-brightness-scope [class*="text-zinc-"] {
+    color: var(--ir-text, inherit) !important;
+    -webkit-text-fill-color: var(--ir-text, inherit) !important;
+}
+
 /* Utility classes for grid control */
 .grid-cols-1-custom { grid-template-columns: repeat(1, minmax(0, 1fr)); }
 .grid-cols-2-custom { grid-template-columns: repeat(2, minmax(0, 1fr)); }

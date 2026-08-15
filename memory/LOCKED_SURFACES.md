@@ -18,15 +18,26 @@ formatter run, dedupe pass, or auto-cleanup. Deletion, renaming, refactoring,
 ## What is locked
 
 The user has verified in **Star Mode (Dark Theme)** that the following work
-perfectly in both **List View** and **Grid View** when opening a note into
-**Expanded Text (FullScreenNote)**:
+perfectly:
 
+### A. Expanded Text (FullScreenNote) — List View + Grid View
 1. **Brightness Sliders** — text slider and background slider behaviour
 2. **Per-note Persistence** — `note.ui_brightness` save/restore round-trip
 3. **Background Opacity** — BG=0% → solid black, BG=100% → fully transparent
    (page beneath shows through)
 4. **Text Color Painting** — Text slider linearly maps 0..1 to
    black..white and paints without cascade issues
+
+### B. Quick Edit (NoteModal) — List View + Grid View
+5. **Text Slider** — text lightens to bright white / darkens to black
+6. **Background Slider** — text content area only, 100% opaque black → 0%
+   opacity (clear). Uses a light underlay to make transparency visible.
+7. **Persistence (Auto-save)** — dragging sliders on an existing note
+   silently saves `ui_brightness` via `onSaveInline` (debounced 250 ms).
+   Survives Cancel/close. New-note flow still uses the normal Save path.
+8. **All existing CSS / layout / other form fields / top bar buttons** of
+   the Quick Edit dialog — the user may adjust the top bar later, but the
+   sliders, content textarea styling, and their auto-save wiring are locked.
 
 ## Locked files & regions
 
@@ -52,6 +63,21 @@ perfectly in both **List View** and **Grid View** when opening a note into
 - The note-change `useEffect` that restores `noteBrightness` from
   `note.ui_brightness` on note switch.
 
+### 2b. `/app/frontend/src/notes/NoteModal.jsx` (Quick Edit)
+- The **content textarea + light underlay** block (`<div className="relative
+  rounded-md overflow-hidden">` wrapping the underlay div + `TextareaAutosize`
+  with `data-testid="note-content-input"`). The underlay is what makes BG=100%
+  visibly clear on the dark modal card.
+- The **textarea colour-forcing** `useLayoutEffect` that sets `color` +
+  `-webkit-text-fill-color` with `!important` on the ref.
+- The **`brightnessAutoSaveRef` + debounced auto-save `useEffect`** that
+  fires `onSaveInline(id, { ui_brightness })` on slider drag for existing
+  notes only. Do not remove the dirty-flag gating or the initial-mount skip.
+- The `noteBrightness` state initialisation from `note.ui_brightness` and
+  the note-change `useEffect` at ~line 95 that restores it on note switch.
+- The `ui_brightness: noteBrightness` field inside `handleSave`'s payload.
+- The `onSaveInline` prop passed from `AppModals.jsx` (`p.handleSaveInline`).
+
 ### 3. `/app/frontend/src/NotesApp.jsx`
 - `handleSaveInline(noteId, patch)` — the passthrough that merges
   `ui_brightness` into the existing note without stripping it.
@@ -66,8 +92,11 @@ perfectly in both **List View** and **Grid View** when opening a note into
 
 ## What is NOT locked (i.e. still open for work)
 
-- Home Page brightness behaviour (user will address separately)
-- Quick Edit (NoteModal) brightness behaviour (user will address separately)
+- Home Page brightness behaviour (user will address next)
+- **Quick Edit dialog top bar / non-slider chrome** — the user may still
+  tweak the header buttons and the surrounding form fields; those are NOT
+  covered by the Quick Edit lock. Only the sliders, content textarea +
+  underlay, and the auto-save wiring are locked.
 - **Light Mode (Moon Mode)** behaviour of any of the above
 - New notes' default global brightness (`settings.ui_brightness`)
 - The `DisplayControlsButton` popover chrome (only the sliders inside are
