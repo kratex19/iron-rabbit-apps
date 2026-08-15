@@ -138,17 +138,21 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="fullscreen-note">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
+      {/* Dim/transparent backdrop. Alpha is now driven by the per-note BG
+          brightness slider so BG=0 → solid black and BG=1 → fully
+          transparent (page shows through). The card itself no longer
+          paints its own black layer — otherwise the two stacks would
+          double-darken and the slider would appear to "do nothing". */}
+      <div
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: brightnessToBg(noteBrightness?.bg ?? 0.3) }}
+        onClick={handleClose}
+        data-testid="fullscreen-backdrop"
+      />
       <div
         className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'backdrop-blur-2xl' : ''} border ${colorConfig.class}`}
         style={{
           borderWidth: '2px',
-          // Brightness BG applies at the OUTER container so "fully transparent"
-          // truly reveals the page beneath (works identically in light + dark
-          // themes). In dark mode we still get the backdrop-blur glass look;
-          // in light mode the plain white default is now driven by the
-          // brightness slider itself.
-          background: brightnessToBg(noteBrightness?.bg ?? 0.3),
           ...(isDark
             ? {}
             : { borderColor: colorConfig.border || colorConfig.accent }),
