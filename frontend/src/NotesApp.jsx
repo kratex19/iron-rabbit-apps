@@ -617,6 +617,8 @@ export default function NotesApp() {
     }
   };
 
+  // 🔒 LOCKED (star-mode expanded text) — see /app/memory/LOCKED_SURFACES.md
+  // Password required to modify: 2020
   // Silent auto-save from the full-screen editor
   const handleSaveInline = async (noteId, patch) => {
     try {

@@ -21,6 +21,11 @@ const DEFAULT_TEXT = 0.7;
 const DEFAULT_BG = 0.3;
 const FIRST_SEEN_KEY = "ir_brightness_sliders_seen";
 
+// 🔒 LOCKED (star-mode expanded text) — see /app/memory/LOCKED_SURFACES.md
+// Password required to modify: 2020
+// Do NOT change the math, defaults, or return format of these two functions
+// without an explicit unlock from the user. The Star-mode Expanded Text view
+// depends on this exact linear mapping.
 /**
  * Turn a 0..1 slider position into an rgba() colour for text/background
  * on a dark base. `mix` = 0 → almost black, `mix` = 1 → almost white.

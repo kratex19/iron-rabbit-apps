@@ -59,6 +59,12 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // Auto-close the panel when the user switches to a different note.
   useEffect(() => { setTitlePanelOpen(false); }, [note?.id]);
 
+  // 🔒 LOCKED (star-mode expanded text) — see /app/memory/LOCKED_SURFACES.md
+  // Password required to modify: 2020
+  // The following blocks — per-note brightness state init, note-change
+  // restore, textarea colour-forcing useLayoutEffect, handleBrightnessChange,
+  // and the auto-save that folds ui_brightness into the note — are locked.
+  // Do not alter without an explicit unlock from the user.
   // Per-note brightness. Initialized from the note's own saved
   // `ui_brightness` (if any); falls back to the global default. Local
   // edits stay scoped to this expanded view and get folded back into the
@@ -138,6 +144,13 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="fullscreen-note">
+      {/* 🔒 LOCKED (star-mode expanded text) — see /app/memory/LOCKED_SURFACES.md
+          Password required to modify: 2020
+          The backdrop's alpha MUST stay driven by brightnessToBg(bg) so BG=0
+          → solid black and BG=1 → fully transparent. The card itself must NOT
+          paint its own black layer (would re-introduce the double-darken bug).
+          Do not add/remove/rename these divs or their style without an
+          explicit unlock from the user. */}
       {/* Dim/transparent backdrop. Alpha is now driven by the per-note BG
           brightness slider so BG=0 → solid black and BG=1 → fully
           transparent (page shows through). The card itself no longer

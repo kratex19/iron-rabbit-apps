@@ -53,6 +53,10 @@ export const StorageService = {
   },
 
   async saveNote(note) {
+    // 🔒 LOCKED (star-mode expanded text persistence) — see /app/memory/LOCKED_SURFACES.md
+    // Password required to modify: 2020
+    // Must remain a full-object passthrough so `ui_brightness` and any other
+    // per-note fields survive save/restore. Do NOT filter or whitelist fields.
     await notesStore.setItem(note.id, note);
     return note;
   },
