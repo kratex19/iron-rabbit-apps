@@ -50,20 +50,20 @@ export default function DisplayControlsButton({
         <Button
           variant="ghost"
           size="icon"
-          className={`relative h-8 w-8 ${!seen ? "bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/50 ring-2 ring-orange-300 animate-pulse" : (isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")} ${className}`}
+          className={`relative h-5 w-5 ${!seen ? "bg-orange-500 hover:bg-orange-600 text-white shadow-md shadow-orange-500/50 ring-1 ring-orange-300 animate-pulse" : (isDark ? "text-white/70 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")} ${className}`}
           title={title}
           aria-label={title}
           data-testid={`${testidPrefix}-display-toggle`}
         >
-          <SlidersHorizontal className="w-4 h-4" />
+          <SlidersHorizontal className="w-3 h-3" />
           {!seen && (
             <span
-              className="absolute -top-1 -right-1 flex h-3.5 w-3.5"
+              className="absolute -top-0.5 -right-0.5 flex h-2 w-2"
               aria-hidden="true"
               data-testid={`${testidPrefix}-display-new-badge`}
             >
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 ring-2 ring-white"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 ring-1 ring-white"></span>
             </span>
           )}
         </Button>
