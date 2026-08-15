@@ -35,7 +35,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
-export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalculator, isDark, categories, templates, allTags = [], uiBrightness, onBrightnessChange }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, templates, allTags = [], uiBrightness, onBrightnessChange }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -80,6 +80,35 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
     el.style.setProperty("color", c, "important");
     el.style.setProperty("-webkit-text-fill-color", c, "important");
   }, [noteBrightness?.text]);
+
+  // Debounced brightness auto-save for EXISTING notes. Mirrors the
+  // FullScreenNote behavior so slider drags persist immediately without
+  // requiring the user to hit "Update". Skips the initial mount and
+  // any note-switch reset so we don't re-save just-loaded values, and
+  // only fires when the user has actually touched the sliders in this
+  // modal instance. New notes (no id yet) still fall through to the
+  // normal Save path so nothing persists on Cancel.
+  const brightnessAutoSaveRef = useRef({ noteId: null, dirty: false });
+  useEffect(() => {
+    // Reset the dirty flag whenever the note being edited changes.
+    brightnessAutoSaveRef.current = { noteId: note?.id || null, dirty: false };
+  }, [note?.id]);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const state = brightnessAutoSaveRef.current;
+    // The initial render sets noteBrightness from note.ui_brightness;
+    // ignore that pass. Subsequent changes (real user drags) flip dirty.
+    if (!state.dirty) {
+      state.dirty = true;
+      return undefined;
+    }
+    if (!note?.id || !onSaveInline) return undefined;
+    const t = setTimeout(() => {
+      onSaveInline(note.id, { ui_brightness: noteBrightness });
+    }, 250);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteBrightness?.text, noteBrightness?.bg, isOpen, note?.id]);
   const [translateOpen, setTranslateOpen] = useState(false);
   const voice = useVoiceInput();
 

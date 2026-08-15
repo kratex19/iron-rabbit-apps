@@ -92,6 +92,7 @@ export default function AppModals(p) {
         onClose={() => { p.setNoteModalOpen(false); p.setEditingNote(null); }}
         note={p.editingNote}
         onSave={p.handleSaveNote}
+        onSaveInline={p.handleSaveInline}
         onOpenCalculator={p.openCalculatorWithCallback}
         isDark={p.isDark}
         categories={p.categories}
