@@ -35,6 +35,30 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const [attachmentsOpen, setAttachmentsOpen] = useState(initialAttachmentCount === 0);
   const noteIdRef = useRef(note?.id);
 
+  // Title reveal panel — slides down from beneath the header when the user
+  // taps the top-left circular color button. Kept BELOW the header row so
+  // existing icons remain visually/functionally on top without any z-index
+  // wrestling. Closes on second tap of the color button OR on outside click.
+  const [titlePanelOpen, setTitlePanelOpen] = useState(false);
+  const titlePanelRef = useRef(null);
+  const colorButtonRef = useRef(null);
+  useEffect(() => {
+    if (!titlePanelOpen) return;
+    const handler = (e) => {
+      if (titlePanelRef.current?.contains(e.target)) return;
+      if (colorButtonRef.current?.contains(e.target)) return;
+      setTitlePanelOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [titlePanelOpen]);
+  // Auto-close the panel when the user switches to a different note.
+  useEffect(() => { setTitlePanelOpen(false); }, [note?.id]);
+
   // Per-note brightness. Initialized from the note's own saved
   // `ui_brightness` (if any); falls back to the global default. Local
   // edits stay scoped to this expanded view and get folded back into the
@@ -133,14 +157,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         {/* Header */}
         <div className={`flex items-center justify-between gap-3 p-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: colorConfig.gradient || colorConfig.accent }} />
-            <input
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
-              placeholder="Untitled"
-              className={`fs-title-input flex-1 min-w-0 bg-transparent border-0 outline-none text-xl font-bold ${isDark ? 'text-white placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400'}`}
-              data-testid="fullscreen-title-input"
-              aria-label="Note title"
+            <button
+              ref={colorButtonRef}
+              type="button"
+              onClick={() => setTitlePanelOpen(v => !v)}
+              className="w-4 h-4 rounded-full flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500/50 focus:ring-offset-transparent transition-transform active:scale-95"
+              style={{ background: colorConfig.gradient || colorConfig.accent }}
+              aria-expanded={titlePanelOpen}
+              aria-controls="fullscreen-title-panel"
+              aria-label={titlePanelOpen ? "Hide title" : "Show title"}
+              title={titlePanelOpen ? "Hide title" : "Show title"}
+              data-testid="fullscreen-title-toggle"
             />
             {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
           </div>
@@ -194,6 +221,32 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               />
             )}
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
+          </div>
+        </div>
+        {/* Slide-down title panel — sits BELOW the protected header so
+            existing icons always remain visually above it (no z-index
+            changes anywhere). Collapsed by default; toggled by the top-
+            left circular color button and closed on outside click. */}
+        <div
+          ref={titlePanelRef}
+          id="fullscreen-title-panel"
+          className={`overflow-hidden border-b transition-[max-height,opacity] duration-300 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'} ${titlePanelOpen ? 'opacity-100' : 'opacity-0'}`}
+          style={{ maxHeight: titlePanelOpen ? '260px' : '0px' }}
+          aria-hidden={!titlePanelOpen}
+          data-testid="fullscreen-title-panel"
+        >
+          <div className="px-4 py-3">
+            <TextareaAutosize
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); setDirty(true); }}
+              placeholder="Untitled"
+              minRows={1}
+              maxRows={6}
+              tabIndex={titlePanelOpen ? 0 : -1}
+              className={`fs-title-input w-full bg-transparent border-0 outline-none text-xl font-bold resize-none leading-snug ${isDark ? 'text-white placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400'}`}
+              data-testid="fullscreen-title-input"
+              aria-label="Note title"
+            />
           </div>
         </div>
         {/* Editable content — brightness scope. Text color is applied
