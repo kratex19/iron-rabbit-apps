@@ -59,18 +59,27 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
   const [saving, setSaving] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
 
+  // Per-note brightness. Initialized from the note's own saved
+  // `ui_brightness` (if any); falls back to the global default while the
+  // user hasn't touched the sliders on this note yet. Local edits stay
+  // scoped to this modal instance and are persisted to the note on save,
+  // so re-opening the same note restores the same slider positions.
+  const [noteBrightness, setNoteBrightness] = useState(
+    note?.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 }
+  );
+
   // Belt-and-suspenders text color forcing: the textarea's inline `color`
   // style occasionally loses out to a UA / browser-extension `-webkit-text-
   // fill-color` cascade. Setting the property with `!important` via ref
-  // guarantees the paint changes every time `uiBrightness.text` changes.
+  // guarantees the paint changes every time `noteBrightness.text` changes.
   const contentTextareaRef = useRef(null);
   useLayoutEffect(() => {
     const el = contentTextareaRef.current;
     if (!el) return;
-    const c = brightnessToText(uiBrightness?.text ?? 0.7);
+    const c = brightnessToText(noteBrightness?.text ?? 0.7);
     el.style.setProperty("color", c, "important");
     el.style.setProperty("-webkit-text-fill-color", c, "important");
-  }, [uiBrightness?.text]);
+  }, [noteBrightness?.text]);
   const [translateOpen, setTranslateOpen] = useState(false);
   const voice = useVoiceInput();
 
@@ -103,6 +112,9 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
         }
       }
       if (note.recurring) setRecurring(note.recurring);
+      // Restore this note's own saved brightness — falls back to the
+      // current global default if the note has never had sliders touched.
+      setNoteBrightness(note.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 });
     } else {
       setTitle(""); setContent(""); setColor("purple"); setIcon(null); setBackground(null);
       setPinned(false);
@@ -114,6 +126,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       setAlarm({ enabled: false, datetime: null, sound: "bell", haptic: false });
       setAlarmDate(null); setAlarmTime("12:00");
       setRecurring({ enabled: false, frequency: "weekly", days: [] });
+      // Brand-new note: start at the current global brightness.
+      setNoteBrightness(uiBrightness || { text: 0.7, bg: 0.3 });
     }
   }, [note, isOpen]);
 
@@ -155,6 +169,9 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
       checklist,
       category: category.trim(), subcategory: subcategory.trim(),
       alarm: { ...alarm, datetime: alarmDateTime }, recurring,
+      // Persist per-note brightness so re-opening this note restores its
+      // exact slider positions regardless of grid/list view or theme.
+      ui_brightness: noteBrightness,
     };
     await onSave(noteData, note?.id);
     setSaving(false);
@@ -188,15 +205,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                   </Button>
                 )}
                 <QuickGuideButton resourceId="IRR-1900" origin="note-editor" isDark={isDark} size="sm" />
-                {onBrightnessChange && (
-                  <DisplayControlsButton
-                    value={uiBrightness}
-                    onChange={onBrightnessChange}
-                    isDark={isDark}
-                    testidPrefix="quicktext-brightness"
-                    title="Display brightness (Text & Background)"
-                  />
-                )}
+                <DisplayControlsButton
+                  value={noteBrightness}
+                  onChange={setNoteBrightness}
+                  isDark={isDark}
+                  testidPrefix="quicktext-brightness"
+                  title="Display brightness (Text & Background) — saved per note"
+                />
               </div>
             </DialogTitle>
             <DialogDescription className="sr-only">
@@ -251,8 +266,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onOpenCalcula
                 maxRows={20}
                 className={`ir-brightness-scope w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
                 style={{
-                  background: brightnessToBg(uiBrightness?.bg ?? 0.3),
-                  color: brightnessToText(uiBrightness?.text ?? 0.7),
+                  background: brightnessToBg(noteBrightness?.bg ?? 0.3),
+                  color: brightnessToText(noteBrightness?.text ?? 0.7),
                 }}
                 data-testid="note-content-input"
               />

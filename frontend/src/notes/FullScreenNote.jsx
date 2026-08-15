@@ -35,6 +35,14 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const [attachmentsOpen, setAttachmentsOpen] = useState(initialAttachmentCount === 0);
   const noteIdRef = useRef(note?.id);
 
+  // Per-note brightness. Initialized from the note's own saved
+  // `ui_brightness` (if any); falls back to the global default. Local
+  // edits stay scoped to this expanded view and get folded back into the
+  // note on the next auto-save.
+  const [noteBrightness, setNoteBrightness] = useState(
+    note?.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 }
+  );
+
   // Belt-and-suspenders text color forcing. Applying `color` via inline
   // style occasionally loses to `-webkit-text-fill-color` on iOS/Android
   // webviews. Setting both properties with `!important` via a ref+layout
@@ -43,10 +51,10 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   useLayoutEffect(() => {
     const el = contentTextareaRef.current;
     if (!el) return;
-    const c = brightnessToText(uiBrightness?.text ?? 0.7);
+    const c = brightnessToText(noteBrightness?.text ?? 0.7);
     el.style.setProperty("color", c, "important");
     el.style.setProperty("-webkit-text-fill-color", c, "important");
-  }, [uiBrightness?.text]);
+  }, [noteBrightness?.text]);
 
   // When note changes (new note opened, or synced from parent after edit), reset local state
   useEffect(() => {
@@ -54,6 +62,8 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     if (note.id !== noteIdRef.current || !dirty) {
       setTitle(note.title || "");
       setContent(note.content || "");
+      // Restore per-note brightness for the new note
+      setNoteBrightness(note.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 });
       setDirty(false);
       // Reset accordion state for the new note based on its attachment count.
       setAttachmentsOpen((note.attachments || []).length === 0);
@@ -67,14 +77,14 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     if (!dirty || !note) return;
     const t = setTimeout(async () => {
       setSaving(true);
-      await onSaveInline(note.id, { title: title.trim() || "Untitled", content });
+      await onSaveInline(note.id, { title: title.trim() || "Untitled", content, ui_brightness: noteBrightness });
       setSaving(false);
       setSavedAt(Date.now());
       setDirty(false);
     }, 700);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, content, dirty]);
+  }, [title, content, noteBrightness, dirty]);
 
   if (!isOpen || !note) return null;
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
@@ -87,10 +97,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const handleClose = async () => {
     if (dirty) {
       setSaving(true);
-      await onSaveInline(note.id, { title: title.trim() || "Untitled", content });
+      await onSaveInline(note.id, { title: title.trim() || "Untitled", content, ui_brightness: noteBrightness });
       setSaving(false);
     }
     onClose();
+  };
+
+  // Wrap the brightness setter so any slider move flags the note dirty and
+  // gets picked up by the debounced auto-save above.
+  const handleBrightnessChange = (next) => {
+    setNoteBrightness(next);
+    setDirty(true);
   };
 
   const savedRecently = savedAt && (Date.now() - savedAt < 2500);
@@ -107,7 +124,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           // themes). In dark mode we still get the backdrop-blur glass look;
           // in light mode the plain white default is now driven by the
           // brightness slider itself.
-          background: brightnessToBg(uiBrightness?.bg ?? 0.3),
+          background: brightnessToBg(noteBrightness?.bg ?? 0.3),
           ...(isDark
             ? {}
             : { borderColor: colorConfig.border || colorConfig.accent }),
@@ -168,11 +185,11 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <Button variant="ghost" size="icon" onClick={() => { onClose(); onDelete(note.id); }} className={isDark ? 'text-yellow-500 hover:text-red-400 hover:bg-white/5' : 'text-yellow-600 hover:text-red-500 hover:bg-red-50'} data-testid="fullscreen-delete-btn" aria-label="Delete"><Trash2 className="w-4 h-4" /></Button>
             {onBrightnessChange && (
               <DisplayControlsButton
-                value={uiBrightness}
-                onChange={onBrightnessChange}
+                value={noteBrightness}
+                onChange={handleBrightnessChange}
                 isDark={isDark}
                 testidPrefix="fullscreen-brightness"
-                title="Display brightness (Text & Background)"
+                title="Display brightness (Text & Background) — saved per note"
                 className={isDark ? "text-yellow-500 hover:text-yellow-400 hover:bg-white/5" : "text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50"}
               />
             )}
@@ -186,7 +203,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         <div
           className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 ir-brightness-scope"
           style={{
-            color: brightnessToText(uiBrightness?.text ?? 0.7),
+            color: brightnessToText(noteBrightness?.text ?? 0.7),
           }}
         >
           <TextareaAutosize
@@ -196,7 +213,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             placeholder="Start writing…"
             minRows={3}
             className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-60`}
-            style={{ color: brightnessToText(uiBrightness?.text ?? 0.7) }}
+            style={{ color: brightnessToText(noteBrightness?.text ?? 0.7) }}
             data-testid="fullscreen-content-input"
             aria-label="Note content"
           />
