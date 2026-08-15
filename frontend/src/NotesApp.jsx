@@ -1387,6 +1387,12 @@ export default function NotesApp() {
         onBrightnessChange={handleBrightnessChange}
       />
 
+      {/* 🔒 LOCKED (Home Page brightness) — see /app/memory/LOCKED_SURFACES.md
+          Password required to modify: 2020
+          Do NOT alter the wrapper div, the underlay div, the <main>'s
+          `background`/`color`/`--ir-text` inline style, or the
+          `ir-brightness-scope` class without an explicit unlock. The
+          matching CSS rule lives in `index.css` under the same lock. */}
       {/* Main Content — brightness sliders on the home page.
           The `<main>` sits on the near-black app-container so a raw
           "transparent" state looked identical to opaque black. We wrap

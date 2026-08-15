@@ -39,6 +39,22 @@ perfectly:
    the Quick Edit dialog — the user may adjust the top bar later, but the
    sliders, content textarea styling, and their auto-save wiring are locked.
 
+### C. Home Page — List View + Grid View
+9. **Text Slider** — linearly maps 0..1 to pure black..pure white on note
+   titles / meta / category headers / sort + filter labels. Star mode at
+   0% intentionally renders text invisible (black on dark) per user spec.
+10. **Background Slider** — `<main>`'s inline `background` goes from
+    opaque black to fully transparent (`brightnessToBg`). A subtle light
+    underlay behind `<main>` gives transparency something visible to
+    reveal against the dark app container.
+11. **`--ir-text` CSS custom property** exposed on `main.ir-brightness-scope`
+    and the `index.css` targeted rule that neutralises the common Tailwind
+    neutral text colour classes (`text-white`, `text-slate-*`, `text-gray-*`,
+    `text-neutral-*`, `text-zinc-*`) inside the scope so the text slider
+    actually reaches note titles. Coloured semantic classes are intentionally
+    left alone.
+12. **Persistence** — `settings.ui_brightness` save/restore round-trip.
+
 ## Locked files & regions
 
 ### 1. `/app/frontend/src/notes/BrightnessSliders.jsx`
@@ -82,6 +98,23 @@ perfectly:
 - The `ui_brightness: noteBrightness` field inside `handleSave`'s payload.
 - The `onSaveInline` prop passed from `AppModals.jsx` (`p.handleSaveInline`).
 
+### 2c. `/app/frontend/src/NotesApp.jsx` (Home Page)
+- The **home underlay + `<main>` wrapper** block (`<div className="relative">`
+  containing `[data-testid="home-brightness-underlay"]` and the `<main>` with
+  `ir-brightness-scope` class). The underlay is what makes BG=100% visibly
+  clear against the near-black app container.
+- The **inline `style` on `<main>`** that sets `background`, `color`, AND the
+  `--ir-text` CSS custom property from the brightness slider values. All three
+  must remain; the custom property is what lets the targeted CSS rule reach
+  child text with Tailwind neutral classes.
+
+### 2d. `/app/frontend/src/index.css` (Home Page targeted rule)
+- The `main.ir-brightness-scope [class*="text-white"], … [class*="text-zinc-"]`
+  rule that overrides Tailwind neutral text colours to `var(--ir-text, inherit)`.
+  Do not broaden the selector beyond neutrals — coloured semantic classes
+  (`text-red-*`, `text-emerald-*`, `text-indigo-*`, etc.) must stay untouched
+  so status/accent colours remain recognisable.
+
 ### 3. `/app/frontend/src/NotesApp.jsx`
 - `handleSaveInline(noteId, patch)` — the passthrough that merges
   `ui_brightness` into the existing note without stripping it.
@@ -96,13 +129,11 @@ perfectly:
 
 ## What is NOT locked (i.e. still open for work)
 
-- Home Page brightness behaviour (user will address next)
+- **Light Mode (Moon Mode)** behaviour of any of the above
 - **Quick Edit dialog top bar / non-slider chrome** — the user may still
   tweak the header buttons and the surrounding form fields; those are NOT
   covered by the Quick Edit lock. Only the sliders, content textarea +
   underlay, and the auto-save wiring are locked.
-- **Light Mode (Moon Mode)** behaviour of any of the above
-- New notes' default global brightness (`settings.ui_brightness`)
 - The `DisplayControlsButton` popover chrome (only the sliders inside are
   locked, not the popover wrapper's position/appearance)
 

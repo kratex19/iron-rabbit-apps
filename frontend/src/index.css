@@ -241,6 +241,11 @@ body:not(.nx-light) [style*="color: #000"]:not(.ir-brightness-scope):not(.ir-bri
     -webkit-text-fill-color: hsl(var(--foreground)) !important;
 }
 
+/* 🔒 LOCKED (Home Page brightness) — see /app/memory/LOCKED_SURFACES.md
+   Password required to modify: 2020
+   Do not broaden the selector beyond the neutral Tailwind classes below,
+   and do not remove the `!important` — coloured semantic classes
+   (text-red-*, text-emerald-*, text-indigo-*, etc.) must stay untouched. */
 /* Home page brightness — text slider needs to reach note titles / meta
    text that carry their own Tailwind color classes (text-white,
    text-slate-*, text-gray-*). We expose the slider colour on
