@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "01",
+      "file": "header-01.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "02",
+      "file": "header-02.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "03",
+      "file": "header-03.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "04",
+      "file": "header-04.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "05",
+      "file": "header-05.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "06",
+      "file": "header-06.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "07",
+      "file": "header-07.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "08",
+      "file": "header-08.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "09",
+      "file": "header-09.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "10",
+      "file": "header-10.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "11",
+      "file": "header-11.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "12",
+      "file": "header-12.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "13",
+      "file": "header-13.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "14",
+      "file": "header-14.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "15",
+      "file": "header-15.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "16",
+      "file": "header-16.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "17",
+      "file": "header-17.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "18",
+      "file": "header-18.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "19",
+      "file": "header-19.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "20",
+      "file": "header-20.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "21",
+      "file": "header-21.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "22",
+      "file": "header-22.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "23",
+      "file": "header-23.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "24",
+      "file": "header-24.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "25",
+      "file": "header-25.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "26",
+      "file": "header-26.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "27",
+      "file": "header-27.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "28",
+      "file": "header-28.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "29",
+      "file": "header-29.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "30",
+      "file": "header-30.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "31",
+      "file": "header-31.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "32",
+      "file": "header-32.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "33",
+      "file": "header-33.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "34",
+      "file": "header-34.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "35",
+      "file": "header-35.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "36",
+      "file": "header-36.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "37",
+      "file": "header-37.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "38",
+      "file": "header-38.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "39",
+      "file": "header-39.webp",
+      "width": 1600,
+      "height": 500
+    },
+    {
+      "id": "40",
+      "file": "header-40.webp",
+      "width": 1600,
+      "height": 500
+    }
+  ]
+}

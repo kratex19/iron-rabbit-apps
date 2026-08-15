@@ -17,6 +17,7 @@ import { SUPPORTED_LANGUAGES } from "../i18n";
 import LanguagePicker from "./LanguagePicker";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import QuickGuideSettingsSection from "../quickguide/QuickGuideSettingsSection";
+import HeaderPresetPicker from "./HeaderPresetPicker";
 
 /**
  * App-level settings — brand (name/logo/header), backup/restore,
@@ -390,6 +391,11 @@ export default function SettingsModal({
                 placeholder="Paste URL or upload below"
                 className={`h-9 text-xs ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-500' : ''}`}
                 data-testid="settings-header-bg"
+              />
+              <HeaderPresetPicker
+                value={formData.header_bg}
+                onChange={(url) => setFormData(prev => ({ ...prev, header_bg: url }))}
+                isDark={isDark}
               />
               <label className={`flex items-center justify-center gap-2 h-9 rounded-md cursor-pointer transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600'}`}>
                 <input type="file" accept="image/*" onChange={handleHeaderUpload} className="hidden" disabled={uploadingHeader} />
