@@ -203,7 +203,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-slate-500' : 'text-gray-400'}`} data-testid="fullscreen-save-status" aria-live="polite">
+            <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-yellow-500' : 'text-yellow-600'}`} data-testid="fullscreen-save-status" aria-live="polite">
               {saving ? "Saving…" : dirty ? "Editing…" : savedRecently ? "Saved" : ""}
             </span>
             <Button variant="ghost" size="icon" onClick={() => setTranslateOpen(true)} disabled={!content?.trim()} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-translate-btn" aria-label="Translate" title="Translate note"><Languages className="w-4 h-4" /></Button>
