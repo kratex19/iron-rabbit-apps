@@ -17,6 +17,14 @@ import NotesApp from "./NotesApp";
 import CommunityDashboard from "./admin/CommunityDashboard";
 import ContributorWall from "./community/ContributorWall";
 import RecoverLandingPage from "./community/RecoverLandingPage";
+// Isolated Weather & Calendar Dashboard module
+import DashboardLayout from "./dashboard/DashboardLayout";
+import Dashboard from "./dashboard/pages/Dashboard";
+import WeatherDetails from "./dashboard/pages/WeatherDetails";
+import SavedWeather from "./dashboard/pages/SavedWeather";
+import EventsPage from "./dashboard/pages/Events";
+import Traffic from "./dashboard/pages/Traffic";
+import DashboardSettings from "./dashboard/pages/DashboardSettings";
 
 function NotFound() {
   return (
@@ -46,6 +54,16 @@ export default function App() {
         <Route path="/community/wall" element={<ContributorWall />} />
         {/* Magic-link recovery landing */}
         <Route path="/recover" element={<RecoverLandingPage />} />
+
+        {/* Weather & Calendar Dashboard (isolated module) */}
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="weather" element={<WeatherDetails />} />
+          <Route path="saved-weather" element={<SavedWeather />} />
+          <Route path="events" element={<EventsPage />} />
+          <Route path="traffic" element={<Traffic />} />
+          <Route path="settings" element={<DashboardSettings />} />
+        </Route>
 
         {/* Company Website — nested under /site (will move to ironrabbitapps.com) */}
         <Route path="/site" element={<HomePage />} />

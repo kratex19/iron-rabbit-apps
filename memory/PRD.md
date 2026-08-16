@@ -1,9 +1,38 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
-## 📌 Session state (2026-02-07, this session)
+## 📌 Session state (2026-02-16, this session)
 
-### 🎉 Shipped this session (fork continuation)
+### 🎉 Shipped this session (Weather & Calendar Dashboard — isolated module)
+- **NEW: Weather & Calendar Dashboard** (2026-02-16) — A fully **isolated** module living at `/dashboard` (+ `/dashboard/weather`, `/saved-weather`, `/events`, `/traffic`, `/settings`). Built to the user's mockup: large hero clock, transparent glass panels over a photographic sunset background, weather on the left, upcoming events on the right, compact traffic + alert + next-event blocks, bottom tab bar for the 5 sub-pages. Responsive (mobile stacked → desktop 2-column). **Zero changes to any existing Iron Rabbit code, CSS, IndexedDB, settings, or components.** The module lives under `/app/frontend/src/dashboard/` with its own scoped CSS (`ir-dashboard-root`), its own `IronRabbitDashboard` localforage namespace, its own hooks, utilities and state. Two 1-icon entry points only: (1) new `header-dashboard` CloudSun icon on the Home page top bar; (2) new `calendar-open-dashboard` icon at the top of the existing `FloatingCalendarModal`. Events pulled READ-ONLY from `StorageService.getAllNotes()` (flattens `note.events[]`, same shape used by `FloatingCalendarModal.jsx`). Weather data via **Open-Meteo** (free, no key, offline-cacheable). Weather-icon-tap opens the user's preferred provider website (AccuWeather default, WeatherBug, Weather.com, Weather Underground, NWS, or Custom URL) — chosen in Dashboard Settings. Traffic intentionally left as a "not configured" placeholder for V1 per user's spec. Location via browser geolocation or Open-Meteo geocoding search. Background image picks from the existing 130 header presets (auto-rotates by location) — user can override in Settings. **Cache-first weather** so offline devices show the last saved forecast + an "Offline · showing saved" pill. Cache SW bump already covers manifest reloads.
+- **Cache purge for 130 header presets** (2026-02-16) — Bumped service-worker `CACHE_NAME` v13 → v14 and `RUNTIME` v10 → v11 so devices stop serving the stale v2 manifest (40 entries) and load the fresh v3 manifest (130 entries across 8 categories: Work 27, Nature 24, Water 18, Sky 17, Faith 16, Sunset 11, Wildlife 10, Patriotic 7). File: `/app/frontend/public/service-worker.js`.
+
+### 📁 New files (dashboard module)
+- `frontend/src/dashboard/DashboardLayout.jsx` (layout + provider + background + top bar + tab bar)
+- `frontend/src/dashboard/dashboard.css` (all styles scoped under `.ir-dashboard-root` — no global rule changes)
+- `frontend/src/dashboard/state/dashboardStore.js` (isolated localforage namespace `IronRabbitDashboard`)
+- `frontend/src/dashboard/hooks/useClock.js`
+- `frontend/src/dashboard/hooks/useWeather.js` (Open-Meteo fetch + cache)
+- `frontend/src/dashboard/hooks/useEvents.js` (READ-ONLY over existing notes)
+- `frontend/src/dashboard/utils/wmo.js` (WMO code → label + icon key)
+- `frontend/src/dashboard/utils/geocode.js` (Open-Meteo geocoding search + reverse)
+- `frontend/src/dashboard/components/WeatherIcon.jsx`
+- `frontend/src/dashboard/components/DashboardTabBar.jsx`
+- `frontend/src/dashboard/components/LocationPickerModal.jsx`
+- `frontend/src/dashboard/pages/Dashboard.jsx` (main)
+- `frontend/src/dashboard/pages/WeatherDetails.jsx`
+- `frontend/src/dashboard/pages/SavedWeather.jsx`
+- `frontend/src/dashboard/pages/Events.jsx`
+- `frontend/src/dashboard/pages/Traffic.jsx` (V1 placeholder)
+- `frontend/src/dashboard/pages/DashboardSettings.jsx`
+
+### ✏️ Minimal edits to existing files (as approved, isolation-focused)
+- `frontend/src/App.js` — added nested route `/dashboard/*` alongside existing routes.
+- `frontend/src/notes/AppHeader.jsx` — added ONE optional `onDashboard` prop + CloudSun icon (only renders if prop passed). No other change.
+- `frontend/src/NotesApp.jsx` — added `useNavigate` import and one prop `onDashboard={() => navigate("/dashboard")}` in the `<AppHeader />` invocation. No other change.
+- `frontend/src/notes/FloatingCalendarModal.jsx` — added tiny CloudSun icon button in existing header title row (next to Quick Guide). No other change.
+
+### 🎉 Shipped this session (2026-02-07, prior)
 - **Brightness Sliders** (2026-02-07) — Two compact horizontal sliders scoped to exactly three surfaces (per user's strict scope spec): Home body region, NoteModal Quick-Text content, FullScreenNote Expanded-Text content. Text default 70%, Bg default 30% (keeps current dark look). Persists to `settings.ui_brightness = { text, bg }` with 250ms debounce. Double-tap thumb resets to default. One-time subtle indigo pulse on first render (via localStorage flag `ir_brightness_sliders_seen`), respects `prefers-reduced-motion`. Implementation uses CSS custom properties (`--ir-text`, `--ir-bg`) scoped to the wrapping div so effect stays local — zero global bleed. No tile colors, buttons, icons, menus, borders, or fonts changed. Files: `BrightnessSliders.jsx` (new), `NotesApp.jsx`, `NoteModal.jsx`, `FullScreenNote.jsx`, `AppModals.jsx`, `App.css` (~50 CSS lines).
 - **Quick Guide swipe fix, take 2** — native `stopPropagation` listener defeats Radix `react-remove-scroll`.
 - **Two ways to reopen Choose Your Theme** — Header 🎨 + Settings row.

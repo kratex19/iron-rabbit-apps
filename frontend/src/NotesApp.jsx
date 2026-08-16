@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import "@/App.css";
+import { useNavigate } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
@@ -52,6 +53,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
  */
 export default function NotesApp() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   // Suggest device language on first launch (once per device)
   useLanguageSuggest();
   // Data
@@ -1383,6 +1385,7 @@ export default function NotesApp() {
         onRestaurantsGalore={() => setRestaurantsGaloreOpen(true)}
         onArchiveTrash={() => setArchiveTrashOpen(true)}
         onSettings={() => setSettingsModalOpen(true)}
+        onDashboard={() => navigate("/dashboard")}
         uiBrightness={settings?.ui_brightness}
         onBrightnessChange={handleBrightnessChange}
       />

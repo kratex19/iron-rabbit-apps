@@ -1,0 +1,386 @@
+/* ============================================================
+   Iron Rabbit — Weather & Calendar Dashboard (isolated module)
+   All rules are scoped under .ir-dashboard-root so they cannot
+   leak into the existing Iron Rabbit app.
+   ============================================================ */
+
+.ir-dashboard-root {
+  position: fixed;
+  inset: 0;
+  color: #ffffff;
+  font-family: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  background: #0b0f14;
+  z-index: 1;
+}
+
+/* Photographic background layer */
+.ir-dashboard-root .ir-dash-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.02); /* subtle bleed prevents dark edges from dim overlay */
+}
+.ir-dashboard-root .ir-dash-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,var(--ir-dash-dim-top, 0.15)) 0%, rgba(0,0,0,var(--ir-dash-dim-bottom, 0.55)) 100%);
+}
+
+/* Foreground container */
+.ir-dashboard-root .ir-dash-fg {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  padding: clamp(16px, 3vw, 32px);
+  padding-bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vw, 22px);
+}
+
+/* Top bar */
+.ir-dashboard-root .ir-dash-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+}
+.ir-dashboard-root .ir-dash-topbar .ir-dash-location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffffffcc;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.28);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.ir-dashboard-root .ir-dash-topbar .ir-dash-location:hover {
+  background: rgba(0,0,0,0.4);
+  border-color: rgba(255,255,255,0.28);
+}
+.ir-dashboard-root .ir-dash-topbar .ir-dash-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffffcc;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.ir-dashboard-root .ir-dash-topbar .ir-dash-icon-btn:hover { background: rgba(0,0,0,0.42); color: #fff; }
+.ir-dashboard-root .ir-dash-topbar .ir-dash-icon-btn:active { transform: scale(0.96); }
+
+/* Hero clock block */
+.ir-dashboard-root .ir-dash-hero {
+  text-align: center;
+  padding: clamp(4px, 2vw, 12px) 0 clamp(8px, 2vw, 20px);
+  text-shadow: 0 2px 16px rgba(0,0,0,0.55);
+}
+.ir-dashboard-root .ir-dash-time {
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  font-size: clamp(72px, 16vw, 168px);
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.ir-dashboard-root .ir-dash-date {
+  margin-top: 6px;
+  font-size: clamp(15px, 2.2vw, 22px);
+  color: #ffffffe6;
+  letter-spacing: 0.02em;
+}
+
+/* Grid: mobile stacks; desktop = 2 columns */
+.ir-dashboard-root .ir-dash-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(14px, 2vw, 20px);
+}
+@media (min-width: 900px) {
+  .ir-dashboard-root .ir-dash-grid {
+    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.15fr);
+    align-items: start;
+  }
+}
+
+/* Card — semi-transparent panel */
+.ir-dashboard-root .ir-dash-card {
+  background: rgba(10, 14, 20, 0.55);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #f4f6f9;
+  padding: clamp(14px, 1.8vw, 20px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.28);
+}
+.ir-dashboard-root .ir-dash-card--compact { padding: 14px 16px; }
+.ir-dashboard-root .ir-dash-card--alert {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(10,14,20,0.55));
+}
+
+.ir-dashboard-root .ir-dash-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+}
+
+/* Weather hero */
+.ir-dashboard-root .ir-dash-weather-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.ir-dashboard-root .ir-dash-temp {
+  font-weight: 200;
+  font-size: clamp(56px, 8vw, 92px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.ir-dashboard-root .ir-dash-weather-icon {
+  color: #fbbf24;
+  width: 68px;
+  height: 68px;
+}
+.ir-dashboard-root .ir-dash-weather-statement {
+  color: #e5e7eb;
+  font-size: 15px;
+  line-height: 1.35;
+  margin-top: 10px;
+}
+.ir-dashboard-root .ir-dash-weather-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+.ir-dashboard-root .ir-dash-weather-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+  color: #f4f6f9;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.ir-dashboard-root .ir-dash-weather-action:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.28);
+}
+.ir-dashboard-root .ir-dash-weather-action-title { font-size: 13px; font-weight: 600; }
+.ir-dashboard-root .ir-dash-weather-action-sub { font-size: 11px; color: #cbd5e1; }
+
+/* Traffic */
+.ir-dashboard-root .ir-dash-traffic-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ir-dashboard-root .ir-dash-traffic-main { font-weight: 600; font-size: 15px; }
+.ir-dashboard-root .ir-dash-traffic-sub { font-size: 12px; color: #cbd5e1; margin-top: 2px; }
+.ir-dashboard-root .ir-dash-badge-up { color: #fca5a5; font-weight: 600; }
+.ir-dashboard-root .ir-dash-badge-ok { color: #86efac; font-weight: 600; }
+
+/* Events list */
+.ir-dashboard-root .ir-dash-events { max-height: min(60vh, 640px); overflow-y: auto; padding-right: 6px; }
+.ir-dashboard-root .ir-dash-event-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: #fbbf24;
+  padding: 12px 0 6px;
+}
+.ir-dashboard-root .ir-dash-event-group-title .ir-dash-event-group-date {
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+}
+.ir-dashboard-root .ir-dash-event-row {
+  display: grid;
+  grid-template-columns: 72px 8px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+  align-items: flex-start;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 8px;
+}
+.ir-dashboard-root .ir-dash-event-row:hover { background: rgba(255,255,255,0.04); }
+.ir-dashboard-root .ir-dash-event-row:first-child { border-top: 0; }
+.ir-dashboard-root .ir-dash-event-time { color: #cbd5e1; font-size: 12px; font-weight: 600; padding-top: 2px; text-align: right; }
+.ir-dashboard-root .ir-dash-event-bar { width: 3px; border-radius: 2px; background: #fbbf24; margin: 4px 0; align-self: stretch; }
+.ir-dashboard-root .ir-dash-event-title { font-size: 14px; font-weight: 600; color: #f4f6f9; }
+.ir-dashboard-root .ir-dash-event-loc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.ir-dashboard-root .ir-dash-event-more { padding: 8px 0 2px; color: #cbd5e1; font-size: 12px; }
+
+/* Next event & Alert compact panels */
+.ir-dashboard-root .ir-dash-inline-icon { color: #fbbf24; }
+
+/* Bottom nav (mobile) */
+.ir-dashboard-root .ir-dash-tabbar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 24px;
+  display: flex;
+  justify-content: space-around;
+  gap: 4px;
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: rgba(0,0,0,0.55);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  border-radius: 16px 16px 0 0;
+}
+.ir-dashboard-root .ir-dash-tabbar a {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  color: #cbd5e1;
+  font-size: 10px;
+  text-decoration: none;
+  border-radius: 10px;
+}
+.ir-dashboard-root .ir-dash-tabbar a.active { color: #fbbf24; }
+.ir-dashboard-root .ir-dash-tabbar a:hover { background: rgba(255,255,255,0.05); }
+
+/* Sub-page header */
+.ir-dashboard-root .ir-dash-subhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ir-dashboard-root .ir-dash-subhead-title { font-size: 18px; font-weight: 600; }
+
+/* Forms / list rows */
+.ir-dashboard-root .ir-dash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.ir-dashboard-root .ir-dash-row:first-child { border-top: 0; }
+.ir-dashboard-root .ir-dash-row-label { color: #e5e7eb; font-size: 14px; }
+.ir-dashboard-root .ir-dash-row-sub { color: #94a3b8; font-size: 12px; }
+
+.ir-dashboard-root .ir-dash-input,
+.ir-dashboard-root .ir-dash-select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #f4f6f9;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+}
+.ir-dashboard-root .ir-dash-input:focus,
+.ir-dashboard-root .ir-dash-select:focus {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(255,255,255,0.08);
+}
+.ir-dashboard-root .ir-dash-btn {
+  background: #fbbf24;
+  color: #111827;
+  border: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.ir-dashboard-root .ir-dash-btn:hover { background: #f59e0b; }
+.ir-dashboard-root .ir-dash-btn:active { transform: scale(0.97); }
+.ir-dashboard-root .ir-dash-btn--ghost {
+  background: rgba(255,255,255,0.06);
+  color: #f4f6f9;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+.ir-dashboard-root .ir-dash-btn--ghost:hover { background: rgba(255,255,255,0.12); }
+
+/* Offline pill */
+.ir-dashboard-root .ir-dash-offline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Forecast tables (Weather Details / Saved Weather) */
+.ir-dashboard-root .ir-dash-hourly {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+  text-align: center;
+  font-size: 12px;
+  color: #e5e7eb;
+}
+.ir-dashboard-root .ir-dash-hourly > div { padding: 6px 0; border-radius: 10px; background: rgba(255,255,255,0.03); }
+.ir-dashboard-root .ir-dash-hourly-lbl { color: #94a3b8; font-size: 11px; }
+.ir-dashboard-root .ir-dash-hourly-icon { display: flex; justify-content: center; padding: 4px 0; color: #fbbf24; }
+
+.ir-dashboard-root .ir-dash-daily-row {
+  display: grid;
+  grid-template-columns: 90px 40px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 13px;
+}
+.ir-dashboard-root .ir-dash-daily-row:first-of-type { border-top: 0; }
+.ir-dashboard-root .ir-dash-daily-icon { color: #fbbf24; }
+.ir-dashboard-root .ir-dash-daily-hi { color: #f4f6f9; font-weight: 600; }
+.ir-dashboard-root .ir-dash-daily-lo { color: #94a3b8; }
+.ir-dashboard-root .ir-dash-daily-pop { color: #93c5fd; font-size: 12px; }
+
+.ir-dashboard-root a { color: inherit; }
+
+/* Tablet portrait tweaks */
+@media (min-width: 600px) and (max-width: 899px) {
+  .ir-dashboard-root .ir-dash-events { max-height: 40vh; }
+}

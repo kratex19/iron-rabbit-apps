@@ -2,7 +2,7 @@ import React from "react";
 import {
   Settings, Calculator, ExternalLink, Sun, Moon, Download, Zap, Package, Palette,
   CalendarDays, Globe, Archive, BarChart3, Baby, ShoppingCart, Receipt,
-  Barcode, ChefHat, PackageOpen, Utensils,
+  Barcode, ChefHat, PackageOpen, Utensils, CloudSun,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export default function AppHeader({
   onRestaurantsGalore,
   onArchiveTrash,
   onSettings,
+  onDashboard,
   uiBrightness,
   onBrightnessChange,
 }) {
@@ -113,6 +114,18 @@ export default function AppHeader({
           )}
           <Button variant="ghost" size="icon" onClick={onCalculator} className={iconBtnCls} title={t("header.calculator")}><Calculator className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onCalendar)} className={iconBtnCls} title={t("header.calendar")} data-testid="header-calendar"><CalendarDays className="w-4 h-4" /></Button>
+          {onDashboard && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={tap(onDashboard)}
+              className={iconBtnCls}
+              title="Weather & Calendar Dashboard"
+              data-testid="header-dashboard"
+            >
+              <CloudSun className="w-4 h-4" />
+            </Button>
+          )}
           <button
             type="button"
             onClick={tap(onLanguagePicker)}

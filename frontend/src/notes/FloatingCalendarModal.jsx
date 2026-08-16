@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { format, isSameDay, startOfDay } from "date-fns";
-import { CalendarDays, Bell, ArrowRight, Plus, X, Check } from "lucide-react";
+import { CalendarDays, Bell, ArrowRight, Plus, X, Check, CloudSun } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ export default function FloatingCalendarModal({
   onCreateEvent,
   isDark,
 }) {
+  const navigate = useNavigate();
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
   const [addingEvent, setAddingEvent] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -116,7 +118,18 @@ export default function FloatingCalendarModal({
             }`}
           >
             <CalendarDays className="w-5 h-5 text-indigo-500" /> Calendar
-            <span className="ml-auto"><QuickGuideButton resourceId="IRR-1700" origin="calendar" isDark={isDark} size="sm" /></span>
+            <span className="ml-auto inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => { onClose(); navigate("/dashboard"); }}
+                title="Open Weather & Calendar Dashboard"
+                data-testid="calendar-open-dashboard"
+                className={`h-8 w-8 inline-flex items-center justify-center rounded-md transition-colors ${isDark ? "text-slate-300 hover:text-white hover:bg-white/10" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"}`}
+              >
+                <CloudSun className="w-4 h-4" />
+              </button>
+              <QuickGuideButton resourceId="IRR-1700" origin="calendar" isDark={isDark} size="sm" />
+            </span>
           </DialogTitle>
           <DialogDescription
             className={isDark ? "text-slate-400" : "text-gray-500"}
