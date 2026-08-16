@@ -32,6 +32,10 @@ export const DEFAULT_SETTINGS = {
   // Update behaviour
   auto_update: true,
   update_interval_minutes: 60,
+  // Widget order (LEFT column of the main dashboard)
+  widget_order: ["weather", "traffic", "alert", "next"],
+  // Widget visibility — user can hide any widget except "weather"
+  widget_hidden: [],
 };
 
 // Well-known weather provider URL builders (opened externally on icon tap)
