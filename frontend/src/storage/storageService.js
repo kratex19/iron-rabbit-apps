@@ -311,6 +311,61 @@ export const StorageService = {
     return true;
   },
 
+  // Returns metadata for every stored attachment blob, sorted largest first.
+  // Optionally cross-references with the notes list to attach a
+  // { note_id, note_title } pair for each entry so the cleanup wizard can
+  // show which note the attachment belongs to.
+  async listAllAttachments({ notes } = {}) {
+    const rows = [];
+    await filesStore.iterate((entry, key) => {
+      rows.push({
+        id: key,
+        name: entry?.name || 'file',
+        type: entry?.type || 'application/octet-stream',
+        size: Number(entry?.size) || 0,
+        created_at: entry?.created_at || null,
+      });
+    });
+    if (Array.isArray(notes) && notes.length) {
+      const byAttId = new Map();
+      for (const n of notes) {
+        for (const a of (n.attachments || [])) {
+          byAttId.set(a.id, { note_id: n.id, note_title: n.title || 'Untitled', archived: !!n.archived_at, deleted: !!n.deleted_at });
+        }
+      }
+      for (const r of rows) {
+        const link = byAttId.get(r.id);
+        if (link) Object.assign(r, link);
+        else Object.assign(r, { note_id: null, note_title: null, orphan: true });
+      }
+    }
+    rows.sort((a, b) => b.size - a.size);
+    return rows;
+  },
+
+  // Remove attachment blobs by id AND detach them from their host notes.
+  // Passes notes-modified back so UI can refresh.
+  async removeAttachmentsByIds(ids, { notes, saveNote } = {}) {
+    if (!Array.isArray(ids) || ids.length === 0) return { removed: 0, notesUpdated: 0 };
+    const idSet = new Set(ids);
+    let removed = 0;
+    for (const id of ids) {
+      try { await filesStore.removeItem(id); removed++; } catch { /* ignore */ }
+    }
+    let notesUpdated = 0;
+    if (Array.isArray(notes) && typeof saveNote === 'function') {
+      for (const n of notes) {
+        if (!Array.isArray(n.attachments) || n.attachments.length === 0) continue;
+        const filtered = n.attachments.filter(a => !idSet.has(a.id));
+        if (filtered.length !== n.attachments.length) {
+          await saveNote({ ...n, attachments: filtered });
+          notesUpdated++;
+        }
+      }
+    }
+    return { removed, notesUpdated };
+  },
+
   // Called when a note is deleted so we don't orphan blobs
   async deleteAttachmentsForNote(note) {
     if (!note?.attachments?.length) return;

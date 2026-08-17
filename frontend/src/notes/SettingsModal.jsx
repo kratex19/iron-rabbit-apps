@@ -25,7 +25,7 @@ import HeaderPresetPicker from "./HeaderPresetPicker";
  */
 export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
-  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onSyncPackColors, isDark,
+  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onOpenStorageCleanup, onSyncPackColors, isDark,
 }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
@@ -485,6 +485,17 @@ export default function SettingsModal({
               <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
                 {storageInfo.percentUsed}% used · All data stored locally on your device
               </p>
+              {onOpenStorageCleanup && (
+                <Button
+                  onClick={onOpenStorageCleanup}
+                  variant="outline"
+                  size="sm"
+                  className={`w-full h-8 mt-2 text-xs ${isDark ? "border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10" : "border-indigo-200 text-indigo-700 hover:bg-indigo-50"}`}
+                  data-testid="settings-open-storage-cleanup"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Free up space
+                </Button>
+              )}
             </div>
           )}
 

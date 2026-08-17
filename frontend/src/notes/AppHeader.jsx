@@ -138,9 +138,18 @@ export default function AppHeader({
           </button>
           <Button variant="ghost" size="icon" onClick={tap(onInsights)} className={iconBtnCls} title="Insights" data-testid="header-insights"><BarChart3 className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onKidMode)} className={iconBtnCls} title="Kid Mode" data-testid="header-kid-mode"><Baby className="w-4 h-4" /></Button>
-          {hasActiveGrocery && (
-            <Button variant="ghost" size="icon" onClick={tap(onShoppingMode)} className={iconBtnCls} title="Shopping Mode" data-testid="header-shopping-mode"><ShoppingCart className="w-4 h-4" /></Button>
-          )}
+          {/* Shopping Mode — always visible so it can never "disappear"; the
+              modal itself shows a friendly empty state when no active list. */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={tap(onShoppingMode)}
+            className={`${iconBtnCls} ${hasActiveGrocery ? "" : "opacity-60"}`}
+            title={hasActiveGrocery ? "Shopping Mode" : "Shopping Mode · No active grocery list"}
+            data-testid="header-shopping-mode"
+          >
+            <ShoppingCart className="w-4 h-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={tap(onMealPlanner)} className={iconBtnCls} title="Meal Planner" data-testid="header-meal-planner"><ChefHat className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onPantry)} className={iconBtnCls} title="Pantry Inventory" data-testid="header-pantry"><PackageOpen className="w-4 h-4" /></Button>
           <Button variant="ghost" size="icon" onClick={tap(onBarcode)} className={iconBtnCls} title="Barcode Scanner" data-testid="header-barcode"><Barcode className="w-4 h-4" /></Button>

@@ -16,6 +16,7 @@ import FirstRunTour from "./FirstRunTour";
 import InsightsModal from "./InsightsModal";
 import KidDashboardModal from "./KidDashboardModal";
 import ShoppingModeModal from "./ShoppingModeModal";
+import StorageCleanupModal from "./StorageCleanupModal";
 import TripJournalModal from "./TripJournalModal";
 import BarcodeScannerModal from "./BarcodeScannerModal";
 import MealPlannerModal from "./MealPlannerModal";
@@ -130,8 +131,17 @@ export default function AppModals(p) {
         onOpenQuickAccess={() => { p.setSettingsModalOpen(false); p.setQuickAccessOpen(true); }}
         onOpenBackup={() => { p.setSettingsModalOpen(false); p.setBackupOpen(true); }}
         onOpenThemeChooser={() => { p.setSettingsModalOpen(false); p.onOpenThemeChooser && p.onOpenThemeChooser(); }}
+        onOpenStorageCleanup={() => { p.setSettingsModalOpen(false); p.setStorageCleanupOpen(true); }}
         onSyncPackColors={p.handleSyncPackColors}
         isDark={p.isDark}
+      />
+      <StorageCleanupModal
+        isOpen={p.storageCleanupOpen}
+        onClose={() => p.setStorageCleanupOpen(false)}
+        isDark={p.isDark}
+        notes={p.notes}
+        onSaveNote={p.handleSaveInline}
+        onAfterChange={p.handleReloadNotes}
       />
       <FullScreenNote
         note={p.fullScreenNote}

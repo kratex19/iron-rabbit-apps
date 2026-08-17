@@ -83,6 +83,7 @@ export default function NotesApp() {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [sharingNote, setSharingNote] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [storageCleanupOpen, setStorageCleanupOpen] = useState(false);
   const [fullScreenNote, setFullScreenNote] = useState(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
@@ -1491,6 +1492,8 @@ export default function NotesApp() {
         shareModalOpen={shareModalOpen} setShareModalOpen={setShareModalOpen}
         sharingNote={sharingNote} setSharingNote={setSharingNote}
         settingsModalOpen={settingsModalOpen} setSettingsModalOpen={setSettingsModalOpen}
+        storageCleanupOpen={storageCleanupOpen} setStorageCleanupOpen={setStorageCleanupOpen}
+        handleReloadNotes={fetchData}
         onOpenThemeChooser={() => setThemeChooserOpen(true)}
         uiBrightness={settings?.ui_brightness}
         onBrightnessChange={handleBrightnessChange}
