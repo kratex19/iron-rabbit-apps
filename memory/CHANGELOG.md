@@ -1,3 +1,20 @@
+## 2026-02-17 — Smart Cleanup Streak Nudge ✅
+
+- **`utils/cleanupStreak.js`** — New pure-JS helper. `currentWeekKey()`
+  emits ISO-week keys ("2026-W07"), `appendCurrentWeek(history)` adds
+  the current week (deduped, capped at 26 weeks), and
+  `computeStreak(history)` returns the count of consecutive weeks
+  ending at the current or previous week.
+- **`notes/StorageCleanupModal.jsx`** — After a successful Smart
+  Cleanup delete, appends the current ISO-week to
+  `settings.cleanup_history` and writes the computed `streak` into
+  `settings.last_cleanup.streak`.
+- **`notes/SettingsModal.jsx`** — When `streak >= 2` the recap card
+  now shows a small orange pill "🔥 N-week streak" (lucide `Flame`).
+- Verified end-to-end via IndexedDB injection: 3-week streak renders
+  the pill correctly.
+
+
 ## 2026-02-17 — Smart Cleanup Recap Card ✅
 
 - **`notes/StorageCleanupModal.jsx`** — After a successful Smart Cleanup

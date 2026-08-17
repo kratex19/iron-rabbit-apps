@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import StorageService from "../storage/storageService";
 import { checkStorageQuota, _resetStorageWarnings } from "../storage/storageWarnings";
 import { dHashFromBlob, groupSimilar } from "../utils/imageHash";
+import { appendCurrentWeek, computeStreak } from "../utils/cleanupStreak";
 
 const formatMB = (bytes) => (bytes / (1024 * 1024)).toFixed(bytes < 1024 * 1024 ? 3 : 2);
 
@@ -295,12 +296,17 @@ export default function StorageCleanupModal({
       // shown in Settings match what the toast promised.
       if (smartPreselect && removed > 0) {
         try {
+          const currentSettings = await StorageService.getSettings();
+          const nextHistory = appendCurrentWeek(currentSettings?.cleanup_history);
+          const streak = computeStreak(nextHistory);
           await StorageService.saveSettings({
+            cleanup_history: nextHistory,
             last_cleanup: {
               freed_bytes: bytesFreed,
               files_count: removed,
               at: new Date().toISOString(),
               dismissed_at: null,
+              streak,
             },
           });
         } catch { /* non-fatal */ }

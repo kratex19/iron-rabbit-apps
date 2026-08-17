@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
   Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, MessageSquareQuote,
-  Palette, Paperclip,
+  Palette, Paperclip, Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import LanguagePicker from "./LanguagePicker";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import QuickGuideSettingsSection from "../quickguide/QuickGuideSettingsSection";
 import HeaderPresetPicker from "./HeaderPresetPicker";
+import { computeStreak } from "../utils/cleanupStreak";
 
 /**
  * App-level settings — brand (name/logo/header), backup/restore,
@@ -136,8 +137,27 @@ export default function SettingsModal({
             >
               <Sparkles className={`w-5 h-5 shrink-0 ${isDark ? "text-emerald-300" : "text-emerald-600"}`} />
               <div className="flex-1 min-w-0">
-                <div className={`text-sm font-semibold ${isDark ? "text-emerald-100" : "text-emerald-900"}`}>
-                  Freed {(recap.freed_bytes / (1024 * 1024)).toFixed(recap.freed_bytes < 1024 * 1024 ? 3 : 2)} MB · {recap.files_count} file{recap.files_count === 1 ? "" : "s"} today
+                <div className={`text-sm font-semibold flex items-center gap-1.5 flex-wrap ${isDark ? "text-emerald-100" : "text-emerald-900"}`}>
+                  <span>
+                    Freed {(recap.freed_bytes / (1024 * 1024)).toFixed(recap.freed_bytes < 1024 * 1024 ? 3 : 2)} MB · {recap.files_count} file{recap.files_count === 1 ? "" : "s"} today
+                  </span>
+                  {(() => {
+                    const streak = recap.streak ?? computeStreak(settings?.cleanup_history);
+                    if (streak < 2) return null;
+                    return (
+                      <span
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          isDark
+                            ? "bg-orange-500/25 text-orange-200 border border-orange-400/50"
+                            : "bg-orange-100 text-orange-700 border border-orange-300"
+                        }`}
+                        title={`${streak} weeks in a row — keep it up!`}
+                        data-testid="settings-cleanup-recap-streak"
+                      >
+                        <Flame className="w-3 h-3" /> {streak}-week streak
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className={`text-[11px] ${isDark ? "text-emerald-200/70" : "text-emerald-800/70"}`}>
                   Nice sweep — Smart Cleanup keeps your device breathing.
