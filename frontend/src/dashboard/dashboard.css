@@ -16,15 +16,16 @@
   z-index: 1;
 }
 
-/* Photographic background layer */
+/* Photographic background layer — fixed to the viewport so it never
+   scrolls with content and never repeats. */
 .ir-dashboard-root .ir-dash-bg {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   background-size: cover;
-  background-position: center;
+  background-position: center center;
   background-repeat: no-repeat;
-  transform: scale(1.02); /* subtle bleed prevents dark edges from dim overlay */
+  pointer-events: none;
 }
 .ir-dashboard-root .ir-dash-bg::after {
   content: "";

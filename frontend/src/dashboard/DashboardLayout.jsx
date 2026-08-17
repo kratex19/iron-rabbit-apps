@@ -9,17 +9,19 @@ import { getBrowserPosition, reverseGeocode } from "./utils/geocode";
 import useWeather from "./hooks/useWeather";
 import useEvents from "./hooks/useEvents";
 
-// Small pool of default backgrounds pulled from the existing 130 header presets
-// (nature / sunset flavored to match the mockup). Never mutated; just referenced.
+// Small pool of default backgrounds — points at the dashboard's OWN
+// clean-cropped preset folder (`/dash-backgrounds`), which is derived from
+// the existing 130 header presets but with contact-sheet artifacts stripped.
+// The existing Iron Rabbit `/header-presets` folder is left untouched.
 export const DEFAULT_BACKGROUND_POOL = [
-  "/header-presets/header-02.webp",
-  "/header-presets/header-03.webp",
-  "/header-presets/header-05.webp",
-  "/header-presets/header-08.webp",
-  "/header-presets/header-11.webp",
-  "/header-presets/header-16.webp",
-  "/header-presets/header-21.webp",
-  "/header-presets/header-24.webp",
+  "/dash-backgrounds/header-002.webp",
+  "/dash-backgrounds/header-003.webp",
+  "/dash-backgrounds/header-011.webp",
+  "/dash-backgrounds/header-016.webp",
+  "/dash-backgrounds/header-021.webp",
+  "/dash-backgrounds/header-024.webp",
+  "/dash-backgrounds/header-050.webp",
+  "/dash-backgrounds/header-080.webp",
 ];
 
 // Shared context for all sub-pages

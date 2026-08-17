@@ -12,11 +12,13 @@ export default function DashboardSettings() {
   const [locOpen, setLocOpen] = useState(false);
   const [presets, setPresets] = useState([]);
 
-  // Load full manifest for the background picker (safe read-only fetch).
+  // Load the dashboard's own clean-cropped preset manifest (safe read-only
+  // fetch). This is a separate folder from Iron Rabbit's `/header-presets`
+  // so the existing app is untouched.
   useEffect(() => {
-    fetch("/header-presets/manifest.json")
+    fetch("/dash-backgrounds/manifest.json")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
-      .then((m) => setPresets(Array.isArray(m.presets) ? m.presets.slice(0, 24) : []))
+      .then((m) => setPresets(Array.isArray(m.presets) ? m.presets : []))
       .catch(() => setPresets([]));
   }, []);
 
@@ -124,8 +126,8 @@ export default function DashboardSettings() {
           }}
           data-testid="dash-settings-bg-grid"
         >
-          {(presets.length ? presets : DEFAULT_BACKGROUND_POOL.map((f, i) => ({ id: String(i), file: f.replace("/header-presets/", "") }))).map((p) => {
-            const url = `/header-presets/${p.file}`;
+          {(presets.length ? presets : DEFAULT_BACKGROUND_POOL.map((f, i) => ({ id: String(i), file: f.replace("/dash-backgrounds/", "") }))).map((p) => {
+            const url = `/dash-backgrounds/${p.file}`;
             const selected = settings.background_preset === url;
             return (
               <button
