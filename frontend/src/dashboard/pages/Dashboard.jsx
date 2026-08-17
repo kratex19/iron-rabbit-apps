@@ -173,9 +173,10 @@ function EventsWidget({ eventGroups, navigate }) {
 export default function Dashboard() {
   const navigate = useNavigate();
   const now = useClock();
-  const { settings, updateSettings, weather, events, openLocationPicker, cycleBackground } = useDashboard();
+  const { settings, updateSettings, weather, events, openLocationPicker, cycleBackground, nameForBackground } = useDashboard();
   const [editMode, setEditMode] = useState(false);
   const [swipeHint, setSwipeHint] = useState(null); // "prev" | "next" | null
+  const [previewName, setPreviewName] = useState(null);
 
   // Ensure both columns together contain every widget exactly once
   const { leftIds, rightIds } = useMemo(() => {
@@ -297,6 +298,21 @@ export default function Dashboard() {
     setTimeout(() => setSwipeHint(null), 700);
   }, [cycleBackground]);
 
+  // Show the incoming background's friendly name for ~1.4s whenever the
+  // background_preset changes (works for swipe AND arrow/keyboard triggers).
+  const lastBgRef = useRef(settings.background_preset);
+  React.useEffect(() => {
+    if (settings.background_preset && settings.background_preset !== lastBgRef.current) {
+      lastBgRef.current = settings.background_preset;
+      const name = nameForBackground(settings.background_preset);
+      if (name) {
+        setPreviewName(name);
+        const t = setTimeout(() => setPreviewName(null), 1400);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [settings.background_preset, nameForBackground]);
+
   // Column renderer helper
   const renderColumn = (droppableId, ids) => (
     <Droppable droppableId={droppableId}>
@@ -402,8 +418,34 @@ export default function Dashboard() {
         <div className="ir-dash-time" data-testid="dash-clock">{format(now, "h:mm")}</div>
         <div className="ir-dash-date" data-testid="dash-date">{format(now, "EEEE, MMMM d")}</div>
         <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          Swipe to change background
+          Swipe to change background{Array.isArray(settings.favorites) && settings.favorites.length ? ` · ${settings.favorites.length} ★ favorite${settings.favorites.length === 1 ? "" : "s"}` : ""}
         </div>
+        {previewName && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: -14,
+              transform: "translateX(-50%)",
+              background: "rgba(0,0,0,0.65)",
+              border: "1px solid rgba(255,255,255,0.16)",
+              backdropFilter: "blur(10px)",
+              color: "#fef3c7",
+              padding: "6px 12px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              whiteSpace: "nowrap",
+              animation: "ir-dash-preview-toast 1400ms ease-out forwards",
+              pointerEvents: "none",
+              zIndex: 3,
+            }}
+            data-testid="dash-bg-preview-name"
+          >
+            {previewName}
+          </div>
+        )}
         {swipeHint && (
           <div
             aria-hidden="true"

@@ -34,18 +34,37 @@ export default function DashboardLayout() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
-  const [availableBackgrounds, setAvailableBackgrounds] = useState(DEFAULT_BACKGROUND_POOL);
+  // Full preset manifest (with category + tags for the swipe preview toast)
+  const [presetManifest, setPresetManifest] = useState([]);
 
   // Load the full clean-background pool once (used by the swipe cycler)
   useEffect(() => {
     fetch("/dash-backgrounds/manifest.json")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
       .then((m) => {
-        const list = (m.presets || []).map((p) => `/dash-backgrounds/${p.file}`);
-        if (list.length) setAvailableBackgrounds(list);
+        if (Array.isArray(m?.presets) && m.presets.length) setPresetManifest(m.presets);
       })
       .catch(() => { /* fall back to DEFAULT_BACKGROUND_POOL */ });
   }, []);
+
+  const availableBackgrounds = useMemo(() => (
+    presetManifest.length
+      ? presetManifest.map((p) => `/dash-backgrounds/${p.file}`)
+      : DEFAULT_BACKGROUND_POOL
+  ), [presetManifest]);
+
+  // Helper: friendly display name for a background URL, e.g. "Nature · Forest"
+  const presetInfoByUrl = useMemo(() => {
+    const map = new Map();
+    for (const p of presetManifest) {
+      const url = `/dash-backgrounds/${p.file}`;
+      const tag = (p.tags && p.tags[0]) ? p.tags[0].replace(/\b\w/g, (c) => c.toUpperCase()) : "";
+      const label = [p.category, tag].filter(Boolean).join(" · ");
+      map.set(url, { label: label || p.file.replace(/\.webp$/, ""), category: p.category, tags: p.tags || [] });
+    }
+    return map;
+  }, [presetManifest]);
+  const nameForBackground = useCallback((url) => presetInfoByUrl.get(url)?.label || null, [presetInfoByUrl]);
 
   // Hydrate settings and, if requested and possible, initial geolocation
   useEffect(() => {
@@ -73,11 +92,27 @@ export default function DashboardLayout() {
     });
   }, []);
 
+  const toggleFavorite = useCallback((url) => {
+    setSettings((prev) => {
+      const favs = Array.isArray(prev.favorites) ? prev.favorites : [];
+      const has = favs.includes(url);
+      const nextFavs = has ? favs.filter((u) => u !== url) : [...favs, url];
+      const next = { ...prev, favorites: nextFavs };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
+
   const cycleBackground = useCallback((direction = 1) => {
     setSettings((prev) => {
-      const pool = availableBackgrounds.length ? availableBackgrounds : DEFAULT_BACKGROUND_POOL;
-      const currentIdx = Math.max(0, pool.indexOf(prev.background_preset));
-      const nextIdx = ((currentIdx + direction) % pool.length + pool.length) % pool.length;
+      const fullPool = availableBackgrounds;
+      const favs = Array.isArray(prev.favorites) ? prev.favorites.filter((u) => fullPool.includes(u)) : [];
+      const pool = favs.length ? favs : fullPool;
+      if (!pool.length) return prev;
+      const currentIdx = pool.indexOf(prev.background_preset);
+      // If current bg isn't in the active pool (favorites), jump to the first favorite
+      const startIdx = currentIdx === -1 ? (direction > 0 ? -1 : 0) : currentIdx;
+      const nextIdx = ((startIdx + direction) % pool.length + pool.length) % pool.length;
       const next = { ...prev, background_preset: pool[nextIdx] };
       saveSettings(next);
       return next;
@@ -103,8 +138,11 @@ export default function DashboardLayout() {
     backgroundUrl,
     defaultBackgrounds: DEFAULT_BACKGROUND_POOL,
     availableBackgrounds,
+    presetManifest,
+    nameForBackground,
+    toggleFavorite,
     cycleBackground,
-  }), [settings, updateSettings, weather, eventsData, backgroundUrl, availableBackgrounds, cycleBackground]);
+  }), [settings, updateSettings, weather, eventsData, backgroundUrl, availableBackgrounds, presetManifest, nameForBackground, toggleFavorite, cycleBackground]);
 
   return (
     <div

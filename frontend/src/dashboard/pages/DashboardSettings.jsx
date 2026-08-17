@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, MapPin, Star } from "lucide-react";
 import { useDashboard } from "../DashboardLayout";
 import { PROVIDERS } from "../state/dashboardStore";
 import LocationPickerModal from "../components/LocationPickerModal";
@@ -8,9 +8,13 @@ import { DEFAULT_BACKGROUND_POOL } from "../DashboardLayout";
 
 export default function DashboardSettings() {
   const navigate = useNavigate();
-  const { settings, updateSettings } = useDashboard();
+  const { settings, updateSettings, toggleFavorite } = useDashboard();
   const [locOpen, setLocOpen] = useState(false);
   const [presets, setPresets] = useState([]);
+  const [favOnly, setFavOnly] = useState(false);
+
+  const favorites = Array.isArray(settings.favorites) ? settings.favorites : [];
+  const favSet = useMemo(() => new Set(favorites), [favorites]);
 
   // Load the dashboard's own clean-cropped preset manifest (safe read-only
   // fetch). This is a separate folder from Iron Rabbit's `/header-presets`
@@ -103,15 +107,30 @@ export default function DashboardSettings() {
         <div className="ir-dash-row" style={{ alignItems: "flex-start" }}>
           <div>
             <div className="ir-dash-row-label">Background Image</div>
-            <div className="ir-dash-row-sub">Pick from your existing header presets</div>
+            <div className="ir-dash-row-sub">
+              Tap ★ to favorite — swipe cycles favorites when any are starred
+              {favorites.length ? ` · ${favorites.length} starred` : ""}
+            </div>
           </div>
-          <button
-            className="ir-dash-btn ir-dash-btn--ghost"
-            onClick={() => updateSettings({ background_preset: null })}
-            data-testid="dash-settings-bg-reset"
-          >
-            Auto
-          </button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              className="ir-dash-btn ir-dash-btn--ghost"
+              onClick={() => setFavOnly((v) => !v)}
+              data-testid="dash-settings-bg-fav-only"
+              style={{ background: favOnly ? "#fbbf24" : undefined, color: favOnly ? "#111827" : undefined, display: "inline-flex", alignItems: "center", gap: 4 }}
+              disabled={favorites.length === 0}
+              title={favorites.length === 0 ? "No favorites yet" : (favOnly ? "Show all" : "Show favorites only")}
+            >
+              <Star size={12} fill={favOnly ? "#111827" : "none"} /> Favorites
+            </button>
+            <button
+              className="ir-dash-btn ir-dash-btn--ghost"
+              onClick={() => updateSettings({ background_preset: null })}
+              data-testid="dash-settings-bg-reset"
+            >
+              Auto
+            </button>
+          </div>
         </div>
 
         <div
@@ -126,32 +145,75 @@ export default function DashboardSettings() {
           }}
           data-testid="dash-settings-bg-grid"
         >
-          {(presets.length ? presets : DEFAULT_BACKGROUND_POOL.map((f, i) => ({ id: String(i), file: f.replace("/dash-backgrounds/", "") }))).map((p) => {
-            const url = `/dash-backgrounds/${p.file}`;
-            const selected = settings.background_preset === url;
-            return (
-              <button
-                key={p.id || p.file}
-                type="button"
-                onClick={() => updateSettings({ background_preset: url })}
-                style={{
-                  aspectRatio: "16 / 5",
-                  border: `1px solid ${selected ? "#fbbf24" : "rgba(255,255,255,0.18)"}`,
-                  outline: selected ? "2px solid #fbbf24" : "none",
-                  outlineOffset: -2,
-                  borderRadius: 8,
-                  overflow: "hidden",
-                  cursor: "pointer",
-                  padding: 0,
-                  background: "transparent",
-                }}
-                data-testid={`dash-settings-bg-${p.id || p.file}`}
-                aria-pressed={selected}
-              >
-                <img src={url} alt="preset" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
-              </button>
-            );
-          })}
+          {(() => {
+            const source = presets.length
+              ? presets
+              : DEFAULT_BACKGROUND_POOL.map((f, i) => ({ id: String(i), file: f.replace("/dash-backgrounds/", "") }));
+            // Star favorites first for easier browsing
+            const withStar = source.map((p) => ({ ...p, _url: `/dash-backgrounds/${p.file}` }));
+            withStar.sort((a, b) => (favSet.has(b._url) ? 1 : 0) - (favSet.has(a._url) ? 1 : 0));
+            const visible = favOnly ? withStar.filter((p) => favSet.has(p._url)) : withStar;
+            if (visible.length === 0) {
+              return <div style={{ color: "#94a3b8", fontSize: 12, padding: 10 }}>No favorites yet — tap the ★ on any preset to add one.</div>;
+            }
+            return visible.map((p) => {
+              const url = p._url;
+              const selected = settings.background_preset === url;
+              const starred = favSet.has(url);
+              return (
+                <div key={p.id || p.file} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ background_preset: url })}
+                    style={{
+                      aspectRatio: "16 / 5",
+                      border: `1px solid ${selected ? "#fbbf24" : "rgba(255,255,255,0.18)"}`,
+                      outline: selected ? "2px solid #fbbf24" : "none",
+                      outlineOffset: -2,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      padding: 0,
+                      background: "transparent",
+                      width: "100%",
+                      display: "block",
+                    }}
+                    data-testid={`dash-settings-bg-${p.id || p.file}`}
+                    aria-pressed={selected}
+                    title={p.category ? `${p.category}${p.tags?.[0] ? " · " + p.tags[0] : ""}` : ""}
+                  >
+                    <img src={url} alt="preset" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(url); }}
+                    aria-label={starred ? "Remove favorite" : "Add favorite"}
+                    title={starred ? "Remove favorite" : "Add favorite"}
+                    data-testid={`dash-settings-bg-fav-${p.id || p.file}`}
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      width: 22,
+                      height: 22,
+                      borderRadius: 999,
+                      background: "rgba(0,0,0,0.55)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      color: starred ? "#fbbf24" : "#e5e7eb",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      padding: 0,
+                      backdropFilter: "blur(4px)",
+                    }}
+                  >
+                    <Star size={12} fill={starred ? "#fbbf24" : "none"} />
+                  </button>
+                </div>
+              );
+            });
+          })()}
         </div>
 
         <div className="ir-dash-row" style={{ marginTop: 16 }}>

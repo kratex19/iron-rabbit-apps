@@ -37,6 +37,10 @@ export const DEFAULT_SETTINGS = {
   widgets_right: ["events"],
   // Widget visibility — user can hide any widget except "weather"
   widget_hidden: [],
+  // Starred favorite backgrounds — URLs under /dash-backgrounds/*.webp.
+  // When at least one is starred, swipe-to-cycle uses this subset instead
+  // of the full 83-image pool.
+  favorites: [],
 };
 
 // Well-known weather provider URL builders (opened externally on icon tap)

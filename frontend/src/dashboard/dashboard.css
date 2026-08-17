@@ -392,3 +392,11 @@
   35%  { opacity: 1; transform: translateY(-50%) scale(1.0); }
   100% { opacity: 0; transform: translateY(-50%) scale(1.15); }
 }
+
+/* Preview-name toast */
+@keyframes ir-dash-preview-toast {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+}
