@@ -1,3 +1,19 @@
+## 2026-02-17 — Root Cause: SW Cached Deleted Presets 🔧
+
+- Server-side had **zero** files above id 40 — verified via direct
+  curl against the preview URL. Files were fully deleted last cycle.
+  Users still saw them because the service worker's **cache-first
+  rule with no revalidation** was serving deleted webp files from
+  `iron-rabbit-runtime-v14` forever.
+- **`service-worker.js`** — Bumped RUNTIME cache **v14 → v15** so
+  every device flushes the stale preset webp files on next SW
+  activation. Also added a dedicated **network-first** rule for
+  `/header-presets/*` so future preset add/remove/rename operations
+  propagate immediately instead of relying on a cache-version bump.
+- After the update, hard-refreshing (or reinstalling the PWA) will
+  show only the 40 clean presets, no ghost tiles.
+
+
 ## 2026-02-17 — Reverted 41-56 (Contact-Sheet Composites Again) 🔄
 
 - The "hi-res" 41-56 batch turned out to be **2×2 / 3-panel contact

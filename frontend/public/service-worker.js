@@ -1,8 +1,10 @@
 // Service Worker for Iron Rabbit — Offline-first PWA
 // v2: network-first for HTML (so users always get the latest bundle),
-//     cache-first for hashed static assets.
+//     cache-first for hashed static assets,
+//     network-first for the header-presets manifest + preset images so
+//     the picker never shows stale/deleted backgrounds.
 const CACHE_NAME = 'iron-rabbit-v21';
-const RUNTIME = 'iron-rabbit-runtime-v14';
+const RUNTIME = 'iron-rabbit-runtime-v15';
 
 // App shell — precached on install
 const PRECACHE_URLS = [
@@ -64,6 +66,25 @@ self.addEventListener('fetch', event => {
         .catch(() =>
           caches.match(request).then(cached => cached || caches.match('/index.html'))
         )
+    );
+    return;
+  }
+
+  // ---- Header presets: network-first, so removed presets & updated
+  //      manifest.json propagate to users immediately. Falls back to
+  //      cache when offline. ----
+  const url = new URL(request.url);
+  if (url.pathname.startsWith('/header-presets/')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(RUNTIME).then(cache => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
