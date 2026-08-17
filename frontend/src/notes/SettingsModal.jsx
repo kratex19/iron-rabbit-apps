@@ -25,7 +25,7 @@ import HeaderPresetPicker from "./HeaderPresetPicker";
  */
 export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
-  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onOpenStorageCleanup, onSyncPackColors, isDark,
+  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onOpenStorageCleanup, onOpenSmartCleanup, onSyncPackColors, isDark,
 }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
@@ -471,6 +471,16 @@ export default function SettingsModal({
               <div className="flex items-center justify-between mb-1.5">
                 <span className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
                   <HardDrive className="w-3.5 h-3.5" /> Storage Used
+                  {Number(storageInfo.percentUsed) >= 90 && (
+                    <span
+                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                        isDark ? "bg-red-500/20 text-red-300 border border-red-500/40" : "bg-red-100 text-red-700 border border-red-200"
+                      }`}
+                      data-testid="settings-storage-critical-badge"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" /> {storageInfo.percentUsed}% full
+                    </span>
+                  )}
                 </span>
                 <span className={`text-xs font-mono ${isDark ? 'text-slate-300' : 'text-gray-700'}`} data-testid="storage-usage">
                   {storageInfo.usageMB} MB / {storageInfo.quotaMB} MB
@@ -485,6 +495,16 @@ export default function SettingsModal({
               <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>
                 {storageInfo.percentUsed}% used · All data stored locally on your device
               </p>
+              {Number(storageInfo.percentUsed) >= 90 && onOpenSmartCleanup && (
+                <Button
+                  onClick={onOpenSmartCleanup}
+                  size="sm"
+                  className="w-full h-8 mt-2 text-xs bg-emerald-500 hover:bg-emerald-600 text-white"
+                  data-testid="settings-open-smart-cleanup"
+                >
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Smart Cleanup — free space now
+                </Button>
+              )}
               {onOpenStorageCleanup && (
                 <Button
                   onClick={onOpenStorageCleanup}

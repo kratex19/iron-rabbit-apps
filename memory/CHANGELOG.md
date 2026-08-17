@@ -1,3 +1,14 @@
+## 2026-02-17 — Smart Cleanup Nudge (Settings Storage Row) ✅
+
+- **`notes/SettingsModal.jsx`** — When device storage ≥ 90%, the Storage
+  row now shows a red "N% full" badge next to the label and a prominent
+  emerald **"Smart Cleanup — free space now"** button above the regular
+  "Free up space" button. Users can trigger Smart Cleanup even after
+  dismissing the toast.
+- **`notes/AppModals.jsx`** — Wires the new `onOpenSmartCleanup` prop to
+  the existing `storageCleanupSmart` + `storageCleanupOpen` state.
+
+
 ## 2026-02-17 — Auto-Cleanup Suggestion (90% Storage) ✅
 
 - **`storage/storageWarnings.js`** — Added a 90% "Smart Cleanup" toast tier

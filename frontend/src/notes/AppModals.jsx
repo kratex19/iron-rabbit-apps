@@ -132,6 +132,7 @@ export default function AppModals(p) {
         onOpenBackup={() => { p.setSettingsModalOpen(false); p.setBackupOpen(true); }}
         onOpenThemeChooser={() => { p.setSettingsModalOpen(false); p.onOpenThemeChooser && p.onOpenThemeChooser(); }}
         onOpenStorageCleanup={() => { p.setSettingsModalOpen(false); p.setStorageCleanupOpen(true); }}
+        onOpenSmartCleanup={() => { p.setSettingsModalOpen(false); p.setStorageCleanupSmart?.(true); p.setStorageCleanupOpen(true); }}
         onSyncPackColors={p.handleSyncPackColors}
         isDark={p.isDark}
       />
