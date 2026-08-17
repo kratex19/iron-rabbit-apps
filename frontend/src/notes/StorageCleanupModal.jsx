@@ -256,14 +256,62 @@ export default function StorageCleanupModal({
 
   const removeSelected = async () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`Remove ${selected.size} attachment${selected.size === 1 ? "" : "s"} (${formatMB(totals.selectedBytes)} MB)? This can't be undone.`)) return;
+    if (!window.confirm(`Remove ${selected.size} attachment${selected.size === 1 ? "" : "s"} (${formatMB(totals.selectedBytes)} MB)?\n\nYou'll have 10 seconds to Undo.`)) return;
     setBusy(true);
+    const ids = [...selected];
+    const bytesFreed = totals.selectedBytes;
     try {
-      const { removed, notesUpdated } = await StorageService.removeAttachmentsByIds([...selected], { notes, saveNote: onSaveNote });
-      toast.success(`Freed ${formatMB(totals.selectedBytes)} MB · removed ${removed} attachment${removed === 1 ? "" : "s"}${notesUpdated ? ` across ${notesUpdated} note${notesUpdated === 1 ? "" : "s"}` : ""}`);
+      // Capture undo snapshots BEFORE deletion so a 10s Undo toast can
+      // put every blob (and its note back-references) back exactly.
+      const snapshots = [];
+      for (const id of ids) {
+        try {
+          const blob = await StorageService.getAttachmentBlob(id);
+          if (!blob) continue;
+          const meta = rowsById.get(id) || {};
+          const hostAttachments = {};
+          for (const n of notes) {
+            const rec = n.attachments?.find(a => a.id === id);
+            if (rec) hostAttachments[n.id] = rec;
+          }
+          snapshots.push({
+            id,
+            blob,
+            name: meta.name,
+            type: meta.type,
+            size: meta.size,
+            created_at: meta.created_at,
+            hostAttachments,
+          });
+        } catch { /* skip bad blob */ }
+      }
+
+      const { removed, notesUpdated } = await StorageService.removeAttachmentsByIds(ids, { notes, saveNote: onSaveNote });
       _resetStorageWarnings();
       await refresh();
       onAfterChange?.();
+
+      toast.success(`Freed ${formatMB(bytesFreed)} MB · removed ${removed} attachment${removed === 1 ? "" : "s"}${notesUpdated ? ` across ${notesUpdated} note${notesUpdated === 1 ? "" : "s"}` : ""}`, {
+        duration: 10000,
+        id: `storage-cleanup-undo-${Date.now()}`,
+        action: snapshots.length ? {
+          label: "Undo",
+          onClick: async () => {
+            const loadingId = toast.loading(`Restoring ${snapshots.length} attachment${snapshots.length === 1 ? "" : "s"}…`);
+            try {
+              const res = await StorageService.restoreAttachments(snapshots, { saveNote: onSaveNote });
+              toast.dismiss(loadingId);
+              toast.success(`Restored ${res.restored} attachment${res.restored === 1 ? "" : "s"}${res.notesUpdated ? ` to ${res.notesUpdated} note${res.notesUpdated === 1 ? "" : "s"}` : ""}`);
+              await refresh();
+              onAfterChange?.();
+            } catch (err) {
+              toast.dismiss(loadingId);
+              toast.error(err.message || "Failed to restore attachments");
+            }
+          },
+        } : undefined,
+      });
+
       // Re-check quota so any subsequent 80% warning stays accurate
       checkStorageQuota().catch(() => {});
     } catch (err) {

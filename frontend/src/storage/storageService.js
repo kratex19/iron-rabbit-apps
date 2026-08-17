@@ -366,6 +366,52 @@ export const StorageService = {
     return { removed, notesUpdated };
   },
 
+  // Restore previously-removed attachments. Each snapshot must contain
+  // { id, blob, name, type, size, created_at, hostAttachments } where
+  // hostAttachments is a { [noteId]: attachmentRecord } map captured
+  // BEFORE removal. Re-writes blobs directly to filesStore (bypassing
+  // the MIME/size validators) and re-attaches to each host note using
+  // the note's CURRENT state (freshly read) so we don't clobber other
+  // edits made during the undo window.
+  async restoreAttachments(snapshots, { saveNote } = {}) {
+    if (!Array.isArray(snapshots) || snapshots.length === 0) return { restored: 0, notesUpdated: 0 };
+    let restored = 0;
+    for (const s of snapshots) {
+      if (!s?.id || !s?.blob) continue;
+      try {
+        await filesStore.setItem(s.id, {
+          blob: s.blob,
+          name: s.name,
+          type: s.type,
+          size: s.size,
+          created_at: s.created_at || new Date().toISOString(),
+        });
+        restored++;
+      } catch { /* ignore */ }
+    }
+    let notesUpdated = 0;
+    if (typeof saveNote === 'function') {
+      const additionsByNote = new Map(); // noteId -> [attachmentRecord, ...]
+      for (const s of snapshots) {
+        for (const [noteId, rec] of Object.entries(s.hostAttachments || {})) {
+          if (!additionsByNote.has(noteId)) additionsByNote.set(noteId, []);
+          additionsByNote.get(noteId).push(rec);
+        }
+      }
+      for (const [noteId, additions] of additionsByNote) {
+        const fresh = await notesStore.getItem(noteId);
+        if (!fresh) continue;
+        const existing = Array.isArray(fresh.attachments) ? fresh.attachments : [];
+        const existingIds = new Set(existing.map(a => a.id));
+        const additionsToApply = additions.filter(a => !existingIds.has(a.id));
+        if (additionsToApply.length === 0) continue;
+        await saveNote({ ...fresh, attachments: [...existing, ...additionsToApply] });
+        notesUpdated++;
+      }
+    }
+    return { restored, notesUpdated };
+  },
+
   // Called when a note is deleted so we don't orphan blobs
   async deleteAttachmentsForNote(note) {
     if (!note?.attachments?.length) return;

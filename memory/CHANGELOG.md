@@ -1,3 +1,10 @@
+## 2026-02-17 — Smart Cleanup Undo Toast ✅
+
+- **`storage/storageService.js`** — Added `restoreAttachments(snapshots, { saveNote })`. Re-writes blobs directly to `filesStore` (bypasses MIME/size validators for a restore) and re-attaches to each host note using the note's freshly-read state so concurrent edits during the undo window aren't clobbered.
+- **`notes/StorageCleanupModal.jsx`** — `removeSelected()` now captures a `{ id, blob, meta, hostAttachments }` snapshot for every selected id BEFORE deletion. After deletion the success toast carries a 10-second **Undo** action that re-writes blobs and re-attaches them to their original notes, then refreshes.
+- Confirm-dialog copy updated from *"This can't be undone"* to *"You'll have 10 seconds to Undo."*
+
+
 ## 2026-02-17 — Smart Cleanup Dry-Run Preview ✅
 
 - **`notes/StorageCleanupModal.jsx`** — Inside the Smart Cleanup banner
