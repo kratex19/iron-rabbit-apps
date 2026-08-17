@@ -47,6 +47,11 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, onTipD
   const stopCamera = () => {
     try {
       if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      // Stop zxing decoding if running
+      if (detectorRef.current?.zxingControls) {
+        try { detectorRef.current.zxingControls.stop(); } catch { /* ignore */ }
+        detectorRef.current = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
@@ -116,10 +121,45 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, onTipD
       return;
     }
 
-    // WEB → BarcodeDetector API when available
-    if (typeof window === "undefined" || !("BarcodeDetector" in window)) {
-      setStatus("unsupported");
-      return;
+    // WEB → BarcodeDetector API when available, otherwise fall back to
+    // @zxing/browser (works on iOS Safari, Firefox, older browsers).
+    const hasBarcodeDetector = typeof window !== "undefined" && "BarcodeDetector" in window;
+    if (!hasBarcodeDetector) {
+      // ZXing fallback — pure JS, no browser support required
+      try {
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        const reader = new BrowserMultiFormatReader();
+        detectorRef.current = { zxing: reader };
+        const controls = await reader.decodeFromVideoDevice(
+          undefined, // let library pick back camera when available
+          videoRef.current,
+          (result, _err) => {
+            if (result) {
+              const raw = String(result.getText() || "").trim();
+              if (raw) {
+                const tip = decodeTipPayload(raw);
+                if (tip && onTipDetected) {
+                  haptic("success"); stopCamera(); setStatus("idle"); onTipDetected(tip); onClose(); return;
+                }
+                haptic("tap");
+                setScanned({ code: raw });
+                stopCamera();
+                setStatus("idle");
+              }
+            }
+          }
+        );
+        detectorRef.current.zxingControls = controls;
+        // grab the raw stream so stopCamera() can .stop() its tracks too
+        if (videoRef.current?.srcObject) streamRef.current = videoRef.current.srcObject;
+        setStatus("scanning");
+        return;
+      } catch (err) {
+        console.error("ZXing fallback error:", err);
+        setError(err?.message || "Could not start camera");
+        setStatus("error");
+        return;
+      }
     }
     try {
       const formats = await window.BarcodeDetector.getSupportedFormats?.().catch(() => null);
@@ -197,14 +237,9 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, onTipD
 
   useEffect(() => {
     if (isOpen) {
-      // auto-start scanner: ML Kit on native, BarcodeDetector on web
-      if (IS_NATIVE) {
-        startCamera();
-      } else if (typeof window !== "undefined" && "BarcodeDetector" in window) {
-        startCamera();
-      } else {
-        setStatus("unsupported");
-      }
+      // Auto-start scanner: ML Kit on native, BarcodeDetector on Chrome/Edge,
+      // @zxing/browser fallback for iOS Safari / Firefox / older browsers.
+      startCamera();
     } else {
       // cleanup on close
       stopCamera();
@@ -270,9 +305,23 @@ export default function BarcodeScannerModal({ isOpen, onClose, onCapture, onTipD
           <div className="space-y-3">
             {/* Video / status area */}
             <div className={`relative aspect-video rounded-xl overflow-hidden border ${isDark ? "border-white/10 bg-black" : "border-gray-200 bg-gray-900"}`}>
+              {/* Video element is ALWAYS mounted so videoRef.current stays
+                  stable — otherwise startCamera() would attach the stream
+                  to a null ref and the camera would never appear. Its
+                  visibility is toggled by CSS while status !== "scanning". */}
+              {!IS_NATIVE && (
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ opacity: status === "scanning" ? 1 : 0, transition: "opacity 0.15s" }}
+                  playsInline
+                  muted
+                  autoPlay
+                  data-testid="barcode-video"
+                />
+              )}
               {status === "scanning" && !IS_NATIVE && (
                 <>
-                  <video ref={videoRef} className="w-full h-full object-cover" playsInline muted data-testid="barcode-video" />
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                     <div className="w-3/4 h-1/3 border-4 border-emerald-400/70 rounded-lg" />
                   </div>
