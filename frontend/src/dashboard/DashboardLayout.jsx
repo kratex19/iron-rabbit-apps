@@ -34,6 +34,18 @@ export default function DashboardLayout() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [hydrated, setHydrated] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [availableBackgrounds, setAvailableBackgrounds] = useState(DEFAULT_BACKGROUND_POOL);
+
+  // Load the full clean-background pool once (used by the swipe cycler)
+  useEffect(() => {
+    fetch("/dash-backgrounds/manifest.json")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
+      .then((m) => {
+        const list = (m.presets || []).map((p) => `/dash-backgrounds/${p.file}`);
+        if (list.length) setAvailableBackgrounds(list);
+      })
+      .catch(() => { /* fall back to DEFAULT_BACKGROUND_POOL */ });
+  }, []);
 
   // Hydrate settings and, if requested and possible, initial geolocation
   useEffect(() => {
@@ -61,6 +73,17 @@ export default function DashboardLayout() {
     });
   }, []);
 
+  const cycleBackground = useCallback((direction = 1) => {
+    setSettings((prev) => {
+      const pool = availableBackgrounds.length ? availableBackgrounds : DEFAULT_BACKGROUND_POOL;
+      const currentIdx = Math.max(0, pool.indexOf(prev.background_preset));
+      const nextIdx = ((currentIdx + direction) % pool.length + pool.length) % pool.length;
+      const next = { ...prev, background_preset: pool[nextIdx] };
+      saveSettings(next);
+      return next;
+    });
+  }, [availableBackgrounds]);
+
   const weather = useWeather(settings.location, settings.units);
   const eventsData = useEvents();
 
@@ -79,7 +102,9 @@ export default function DashboardLayout() {
     openLocationPicker: () => setLocationPickerOpen(true),
     backgroundUrl,
     defaultBackgrounds: DEFAULT_BACKGROUND_POOL,
-  }), [settings, updateSettings, weather, eventsData, backgroundUrl]);
+    availableBackgrounds,
+    cycleBackground,
+  }), [settings, updateSettings, weather, eventsData, backgroundUrl, availableBackgrounds, cycleBackground]);
 
   return (
     <div

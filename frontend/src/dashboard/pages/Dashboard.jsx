@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState, useCallback } from "react";
 import { format, isToday, isTomorrow, startOfDay } from "date-fns";
-import { Cloud, ChevronRight, AlarmClock, TriangleAlert, ExternalLink, HardDriveDownload, GripVertical, Eye, EyeOff, LayoutGrid, Check } from "lucide-react";
+import { Cloud, ChevronRight, AlarmClock, TriangleAlert, ExternalLink, HardDriveDownload, GripVertical, Eye, EyeOff, LayoutGrid, Check, ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import useClock from "../hooks/useClock";
@@ -8,6 +8,15 @@ import { useDashboard } from "../DashboardLayout";
 import WeatherIcon from "../components/WeatherIcon";
 import { shortWeatherStatement } from "../utils/wmo";
 import { providerUrlFor, PROVIDERS } from "../state/dashboardStore";
+
+const ALL_WIDGETS = ["weather", "traffic", "alert", "next", "events"];
+const WIDGET_LABELS = {
+  weather: "Weather",
+  traffic: "Traffic",
+  alert: "Alert",
+  next: "Next Event",
+  events: "Events",
+};
 
 function EventGroup({ label, sub, events, onOpen }) {
   return (
@@ -33,7 +42,6 @@ function EventGroup({ label, sub, events, onOpen }) {
   );
 }
 
-// Individual widget renderers — kept small so the reorder wrapper stays clean.
 function WeatherWidget({ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate }) {
   return (
     <div className="ir-dash-card" data-testid="dash-weather-panel">
@@ -42,18 +50,14 @@ function WeatherWidget({ weather, settings, tempUnit, currentTemp, wmoCode, isDa
         <div className="ir-dash-temp" data-testid="dash-weather-temp">
           {currentTemp != null ? Math.round(currentTemp) : "--"}{tempUnit}
         </div>
-        <button
-          aria-label="Open online weather"
-          title={`Open ${PROVIDERS[settings.provider]?.label || "weather"}`}
+        <button aria-label="Open online weather" title={`Open ${PROVIDERS[settings.provider]?.label || "weather"}`}
           onClick={openWeatherProvider}
           style={{ background: "transparent", border: 0, cursor: "pointer" }}
-          data-testid="dash-weather-icon-open-provider"
-        >
+          data-testid="dash-weather-icon-open-provider">
           <WeatherIcon code={wmoCode} isDay={isDay} className="ir-dash-weather-icon" />
         </button>
       </div>
       <div className="ir-dash-weather-statement">{statement}</div>
-
       <div className="ir-dash-weather-actions">
         <button className="ir-dash-weather-action" onClick={openWeatherProvider} data-testid="dash-weather-live-btn">
           <Cloud size={18} />
@@ -73,7 +77,6 @@ function WeatherWidget({ weather, settings, tempUnit, currentTemp, wmoCode, isDa
           </div>
         </button>
       </div>
-
       {weather.offline && (
         <div style={{ marginTop: 10 }}>
           <span className="ir-dash-offline-pill">Offline · showing saved</span>
@@ -92,12 +95,8 @@ function TrafficWidget() {
   return (
     <div className="ir-dash-card ir-dash-card--compact" data-testid="dash-traffic-panel">
       <div className="ir-dash-label">Traffic</div>
-      <div className="ir-dash-traffic-row" style={{ color: "#cbd5e1", fontSize: 13 }}>
-        Traffic not configured yet.
-      </div>
-      <div className="ir-dash-traffic-sub" style={{ marginTop: 4 }}>
-        A provider can be enabled in a future update.
-      </div>
+      <div className="ir-dash-traffic-row" style={{ color: "#cbd5e1", fontSize: 13 }}>Traffic not configured yet.</div>
+      <div className="ir-dash-traffic-sub" style={{ marginTop: 4 }}>A provider can be enabled in a future update.</div>
     </div>
   );
 }
@@ -134,31 +133,66 @@ function NextEventWidget({ nextEvent }) {
   );
 }
 
-const WIDGET_LABELS = {
-  weather: "Weather",
-  traffic: "Traffic",
-  alert: "Alert",
-  next: "Next Event",
-};
+function EventsWidget({ eventGroups, navigate }) {
+  return (
+    <div className="ir-dash-card" data-testid="dash-events-panel">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <div className="ir-dash-label" style={{ marginBottom: 0 }}>Upcoming</div>
+        <button
+          className="ir-dash-btn ir-dash-btn--ghost"
+          style={{ padding: "4px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
+          onClick={() => navigate("/dashboard/events")}
+          data-testid="dash-events-open-all"
+        >
+          All events <ChevronRight size={14} />
+        </button>
+      </div>
+      <div className="ir-dash-events">
+        {eventGroups.length === 0 && (
+          <div style={{ color: "#94a3b8", fontSize: 13, padding: "16px 0" }}>
+            No upcoming events. Add events to any Iron Rabbit note and they'll appear here.
+          </div>
+        )}
+        {eventGroups.slice(0, 5).map((g) => (
+          <EventGroup
+            key={g.date.toISOString()}
+            label={isToday(g.date) ? "Today" : isTomorrow(g.date) ? "Tomorrow" : format(g.date, "EEEE").toUpperCase()}
+            sub={format(g.date, "EEEE, MMMM d")}
+            events={g.list}
+            onOpen={() => navigate("/dashboard/events")}
+          />
+        ))}
+        {eventGroups.length > 5 && (
+          <div className="ir-dash-event-more">+ {eventGroups.slice(5).reduce((n, g) => n + g.list.length, 0)} more events</div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const now = useClock();
-  const { settings, updateSettings, weather, events, openLocationPicker } = useDashboard();
+  const { settings, updateSettings, weather, events, openLocationPicker, cycleBackground } = useDashboard();
   const [editMode, setEditMode] = useState(false);
+  const [swipeHint, setSwipeHint] = useState(null); // "prev" | "next" | null
 
-  // Ensure widget_order always has all 4 keys (in case settings were saved
-  // before a widget was introduced).
-  const widgetOrder = useMemo(() => {
-    const wanted = ["weather", "traffic", "alert", "next"];
-    const saved = Array.isArray(settings.widget_order) ? settings.widget_order.filter((k) => wanted.includes(k)) : [];
-    const missing = wanted.filter((k) => !saved.includes(k));
-    return [...saved, ...missing];
-  }, [settings.widget_order]);
+  // Ensure both columns together contain every widget exactly once
+  const { leftIds, rightIds } = useMemo(() => {
+    const left = Array.isArray(settings.widgets_left) ? settings.widgets_left.filter((k) => ALL_WIDGETS.includes(k)) : [];
+    const right = Array.isArray(settings.widgets_right) ? settings.widgets_right.filter((k) => ALL_WIDGETS.includes(k)) : [];
+    const seen = new Set([...left, ...right]);
+    const missing = ALL_WIDGETS.filter((k) => !seen.has(k));
+    // Default routing for previously-missing widgets: events → right, others → left
+    for (const k of missing) {
+      if (k === "events") right.push(k);
+      else left.push(k);
+    }
+    return { leftIds: left, rightIds: right };
+  }, [settings.widgets_left, settings.widgets_right]);
 
   const widgetHidden = Array.isArray(settings.widget_hidden) ? settings.widget_hidden : [];
 
-  // Group events into Today / Tomorrow / Future dates
   const eventGroups = useMemo(() => {
     const todayStart = startOfDay(now);
     const upcoming = events.filter((e) => e.datetime >= todayStart);
@@ -201,11 +235,11 @@ export default function Dashboard() {
 
   const renderWidgetBody = (key) => {
     switch (key) {
-      case "weather":
-        return <WeatherWidget {...{ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate }} />;
+      case "weather": return <WeatherWidget {...{ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate }} />;
       case "traffic": return <TrafficWidget />;
       case "alert":   return <AlertWidget alert={severeAlert} />;
       case "next":    return <NextEventWidget nextEvent={nextEvent} />;
+      case "events":  return <EventsWidget eventGroups={eventGroups} navigate={navigate} />;
       default: return null;
     }
   };
@@ -216,28 +250,179 @@ export default function Dashboard() {
     return false;
   };
 
+  // Cross-column DnD
   const onDragEnd = (result) => {
-    if (!result.destination) return;
-    const next = Array.from(widgetOrder);
-    const [moved] = next.splice(result.source.index, 1);
-    next.splice(result.destination.index, 0, moved);
-    updateSettings({ widget_order: next });
+    const { source, destination } = result;
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+    const from = source.droppableId === "col-left" ? [...leftIds] : [...rightIds];
+    const to = destination.droppableId === "col-left" ? (source.droppableId === "col-left" ? from : [...leftIds]) : (source.droppableId === "col-right" ? from : [...rightIds]);
+    const [moved] = from.splice(source.index, 1);
+    if (source.droppableId === destination.droppableId) {
+      from.splice(destination.index, 0, moved);
+      if (destination.droppableId === "col-left") updateSettings({ widgets_left: from });
+      else                                        updateSettings({ widgets_right: from });
+    } else {
+      to.splice(destination.index, 0, moved);
+      if (destination.droppableId === "col-left") updateSettings({ widgets_left: to,   widgets_right: from });
+      else                                        updateSettings({ widgets_right: to,  widgets_left:  from });
+    }
   };
 
   const toggleHidden = (key) => {
-    if (key === "weather") return; // weather can never be hidden
-    const nextHidden = widgetHidden.includes(key)
-      ? widgetHidden.filter((k) => k !== key)
-      : [...widgetHidden, key];
+    if (key === "weather") return;
+    const nextHidden = widgetHidden.includes(key) ? widgetHidden.filter((k) => k !== key) : [...widgetHidden, key];
     updateSettings({ widget_hidden: nextHidden });
   };
 
+  // ---- Swipe on hero clock area to cycle backgrounds ----
+  const swipeStart = useRef(null);
+  const onSwipeStart = useCallback((e) => {
+    const t = e.touches ? e.touches[0] : e;
+    swipeStart.current = { x: t.clientX, y: t.clientY, at: Date.now() };
+  }, []);
+  const onSwipeEnd = useCallback((e) => {
+    const s = swipeStart.current;
+    if (!s) return;
+    const t = e.changedTouches ? e.changedTouches[0] : e;
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    const elapsed = Date.now() - s.at;
+    swipeStart.current = null;
+    // Require a mostly-horizontal, > 60px, < 800ms swipe
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2 || elapsed > 800) return;
+    const dir = dx < 0 ? 1 : -1;
+    cycleBackground(dir);
+    setSwipeHint(dir > 0 ? "next" : "prev");
+    setTimeout(() => setSwipeHint(null), 700);
+  }, [cycleBackground]);
+
+  // Column renderer helper
+  const renderColumn = (droppableId, ids) => (
+    <Droppable droppableId={droppableId}>
+      {(dropProvided, dropSnap) => (
+        <div
+          ref={dropProvided.innerRef}
+          {...dropProvided.droppableProps}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+            minHeight: editMode ? 80 : undefined,
+            borderRadius: 14,
+            padding: editMode ? 8 : 0,
+            border: editMode ? `1px dashed ${dropSnap.isDraggingOver ? "#fbbf24" : "rgba(255,255,255,0.15)"}` : undefined,
+            background: editMode ? (dropSnap.isDraggingOver ? "rgba(251,191,36,0.06)" : "rgba(0,0,0,0.15)") : undefined,
+            transition: "background 0.15s ease, border-color 0.15s ease",
+          }}
+          data-testid={`dash-column-${droppableId}`}
+        >
+          {ids.map((key, idx) => {
+            const hidden = widgetHidden.includes(key);
+            const empty = isEmpty(key);
+            if (!editMode && (hidden || empty)) return null;
+            return (
+              <Draggable key={key} draggableId={key} index={idx} isDragDisabled={!editMode}>
+                {(dragProvided, snap) => (
+                  <div
+                    ref={dragProvided.innerRef}
+                    {...dragProvided.draggableProps}
+                    style={{ ...dragProvided.draggableProps.style, opacity: hidden ? 0.4 : 1 }}
+                    data-testid={`dash-widget-${key}`}
+                  >
+                    {editMode && (
+                      <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                        padding: "6px 10px", marginBottom: 6, borderRadius: 10,
+                        background: "rgba(0,0,0,0.42)", border: "1px dashed rgba(255,255,255,0.18)",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span {...dragProvided.dragHandleProps} style={{ cursor: "grab", color: "#cbd5e1" }} data-testid={`dash-widget-handle-${key}`}>
+                            <GripVertical size={16} />
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#e5e7eb" }}>
+                            {WIDGET_LABELS[key]}
+                            {empty && <span style={{ marginLeft: 6, color: "#94a3b8", fontWeight: 400 }}>(nothing to show right now)</span>}
+                          </span>
+                        </div>
+                        {key !== "weather" && (
+                          <button
+                            className="ir-dash-icon-btn"
+                            onClick={() => toggleHidden(key)}
+                            aria-label={hidden ? "Show" : "Hide"}
+                            data-testid={`dash-widget-hide-${key}`}
+                            style={{ width: 28, height: 28, background: "transparent", border: 0 }}
+                          >
+                            {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    <div style={{
+                      boxShadow: snap.isDragging ? "0 12px 40px rgba(0,0,0,0.5)" : undefined,
+                      transform: snap.isDragging ? "scale(1.01)" : undefined,
+                      transition: "transform 0.15s ease",
+                    }}>
+                      {(hidden || empty) ? (
+                        editMode ? (
+                          <div className="ir-dash-card ir-dash-card--compact" style={{ opacity: 0.5, fontSize: 12, color: "#94a3b8" }}>
+                            {hidden ? "Hidden" : "No content"}
+                          </div>
+                        ) : null
+                      ) : renderWidgetBody(key)}
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            );
+          })}
+          {dropProvided.placeholder}
+          {editMode && ids.length === 0 && (
+            <div style={{ color: "#94a3b8", fontSize: 12, padding: 12, textAlign: "center" }}>
+              Drop widgets here
+            </div>
+          )}
+        </div>
+      )}
+    </Droppable>
+  );
+
   return (
     <>
-      {/* Hero — clock */}
-      <div className="ir-dash-hero">
+      {/* Hero — clock with swipe-to-cycle-background */}
+      <div
+        className="ir-dash-hero"
+        onTouchStart={onSwipeStart}
+        onTouchEnd={onSwipeEnd}
+        onPointerDown={onSwipeStart}
+        onPointerUp={onSwipeEnd}
+        style={{ touchAction: "pan-y", userSelect: "none", position: "relative" }}
+        data-testid="dash-hero"
+      >
         <div className="ir-dash-time" data-testid="dash-clock">{format(now, "h:mm")}</div>
         <div className="ir-dash-date" data-testid="dash-date">{format(now, "EEEE, MMMM d")}</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          Swipe to change background
+        </div>
+        {swipeHint && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "50%",
+              [swipeHint === "next" ? "right" : "left"]: 20,
+              transform: "translateY(-50%)",
+              width: 48, height: 48, borderRadius: 999,
+              background: "rgba(0,0,0,0.5)", color: "#fbbf24",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              animation: "ir-dash-swipe-pulse 700ms ease-out forwards",
+              pointerEvents: "none",
+            }}
+            data-testid={`dash-swipe-indicator-${swipeHint}`}
+          >
+            {swipeHint === "next" ? <ChevronRight size={26} /> : <ChevronLeft size={26} />}
+          </div>
+        )}
       </div>
 
       {/* Edit widgets toggle */}
@@ -247,7 +432,7 @@ export default function Dashboard() {
           onClick={() => setEditMode((v) => !v)}
           data-testid="dash-toggle-edit-widgets"
           style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px", fontSize: 12 }}
-          title="Reorder and show/hide dashboard widgets"
+          title="Reorder, move between columns, or hide widgets"
         >
           {editMode ? <Check size={14} /> : <LayoutGrid size={14} />}
           {editMode ? "Done" : "Edit widgets"}
@@ -255,127 +440,10 @@ export default function Dashboard() {
       </div>
 
       <div className="ir-dash-grid">
-        {/* LEFT column — reorderable widgets */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="left-widgets">
-            {(dropProvided) => (
-              <div
-                ref={dropProvided.innerRef}
-                {...dropProvided.droppableProps}
-                style={{ display: "flex", flexDirection: "column", gap: 16 }}
-                data-testid="dash-left-column"
-              >
-                {widgetOrder.map((key, idx) => {
-                  const hidden = widgetHidden.includes(key);
-                  const empty = isEmpty(key);
-
-                  // In non-edit mode: skip hidden and skip empty conditional
-                  if (!editMode && (hidden || empty)) return null;
-
-                  return (
-                    <Draggable key={key} draggableId={key} index={idx} isDragDisabled={!editMode}>
-                      {(dragProvided, snapshot) => (
-                        <div
-                          ref={dragProvided.innerRef}
-                          {...dragProvided.draggableProps}
-                          style={{
-                            ...dragProvided.draggableProps.style,
-                            opacity: hidden ? 0.4 : 1,
-                          }}
-                          data-testid={`dash-widget-${key}`}
-                        >
-                          {editMode && (
-                            <div style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 8,
-                              padding: "6px 10px",
-                              marginBottom: 6,
-                              borderRadius: 10,
-                              background: "rgba(0,0,0,0.35)",
-                              border: "1px dashed rgba(255,255,255,0.18)",
-                            }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <span {...dragProvided.dragHandleProps} style={{ cursor: "grab", color: "#cbd5e1" }} data-testid={`dash-widget-handle-${key}`}>
-                                  <GripVertical size={16} />
-                                </span>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: "#e5e7eb" }}>
-                                  {WIDGET_LABELS[key]}
-                                  {empty && <span style={{ marginLeft: 6, color: "#94a3b8", fontWeight: 400 }}>(nothing to show right now)</span>}
-                                </span>
-                              </div>
-                              {key !== "weather" && (
-                                <button
-                                  className="ir-dash-icon-btn"
-                                  onClick={() => toggleHidden(key)}
-                                  aria-label={hidden ? "Show" : "Hide"}
-                                  data-testid={`dash-widget-hide-${key}`}
-                                  style={{ width: 28, height: 28, background: "transparent", border: 0 }}
-                                >
-                                  {hidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          <div style={{
-                            boxShadow: snapshot.isDragging ? "0 12px 40px rgba(0,0,0,0.5)" : undefined,
-                            transform: snapshot.isDragging ? "scale(1.01)" : undefined,
-                            transition: "transform 0.15s ease",
-                          }}>
-                            {(hidden || empty) ? (
-                              editMode ? (
-                                <div className="ir-dash-card ir-dash-card--compact" style={{ opacity: 0.5, fontSize: 12, color: "#94a3b8" }}>
-                                  {hidden ? "Hidden" : "No content"}
-                                </div>
-                              ) : null
-                            ) : renderWidgetBody(key)}
-                          </div>
-                        </div>
-                      )}
-                    </Draggable>
-                  );
-                })}
-                {dropProvided.placeholder}
-              </div>
-            )}
-          </Droppable>
+          {renderColumn("col-left", leftIds)}
+          {renderColumn("col-right", rightIds)}
         </DragDropContext>
-
-        {/* RIGHT column — events list */}
-        <div className="ir-dash-card" data-testid="dash-events-panel">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-            <div className="ir-dash-label" style={{ marginBottom: 0 }}>Upcoming</div>
-            <button
-              className="ir-dash-btn ir-dash-btn--ghost"
-              style={{ padding: "4px 10px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-              onClick={() => navigate("/dashboard/events")}
-              data-testid="dash-events-open-all"
-            >
-              All events <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="ir-dash-events">
-            {eventGroups.length === 0 && (
-              <div style={{ color: "#94a3b8", fontSize: 13, padding: "16px 0" }}>
-                No upcoming events. Add events to any Iron Rabbit note and they'll appear here.
-              </div>
-            )}
-            {eventGroups.slice(0, 5).map((g) => (
-              <EventGroup
-                key={g.date.toISOString()}
-                label={isToday(g.date) ? "Today" : isTomorrow(g.date) ? "Tomorrow" : format(g.date, "EEEE").toUpperCase()}
-                sub={format(g.date, "EEEE, MMMM d")}
-                events={g.list}
-                onOpen={() => navigate("/dashboard/events")}
-              />
-            ))}
-            {eventGroups.length > 5 && (
-              <div className="ir-dash-event-more">+ {eventGroups.slice(5).reduce((n, g) => n + g.list.length, 0)} more events</div>
-            )}
-          </div>
-        </div>
       </div>
     </>
   );

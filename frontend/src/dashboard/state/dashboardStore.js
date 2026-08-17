@@ -17,7 +17,7 @@ const weatherCacheStore = localforage.createInstance({
 
 // ---- Default settings ----
 export const DEFAULT_SETTINGS = {
-  version: 1,
+  version: 2,
   // Location
   location: null, // { name, latitude, longitude, admin1, country_code }
   use_geolocation: true,
@@ -27,13 +27,14 @@ export const DEFAULT_SETTINGS = {
   provider: "accuweather", // accuweather | weatherbug | weather_com | wunderground | nws | custom
   provider_custom_url: "",
   // Appearance
-  background_preset: null, // relative URL under /header-presets/*.webp
+  background_preset: null, // relative URL under /dash-backgrounds/*.webp
   background_dim: 0.35, // 0-1 dark overlay strength
   // Update behaviour
   auto_update: true,
   update_interval_minutes: 60,
-  // Widget order (LEFT column of the main dashboard)
-  widget_order: ["weather", "traffic", "alert", "next"],
+  // Widget layout — split across two columns so users can drag between them
+  widgets_left: ["weather", "traffic", "alert", "next"],
+  widgets_right: ["events"],
   // Widget visibility — user can hide any widget except "weather"
   widget_hidden: [],
 };

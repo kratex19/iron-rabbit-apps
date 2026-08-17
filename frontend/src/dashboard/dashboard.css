@@ -385,3 +385,10 @@
 @media (min-width: 600px) and (max-width: 899px) {
   .ir-dashboard-root .ir-dash-events { max-height: 40vh; }
 }
+
+/* Swipe indicator pulse */
+@keyframes ir-dash-swipe-pulse {
+  0%   { opacity: 0; transform: translateY(-50%) scale(0.6); }
+  35%  { opacity: 1; transform: translateY(-50%) scale(1.0); }
+  100% { opacity: 0; transform: translateY(-50%) scale(1.15); }
+}
