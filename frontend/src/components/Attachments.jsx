@@ -105,15 +105,31 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
 
   const performUpload = async (files) => {
     if (files.length === 0) return;
-    const cap = StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10;
-    const remaining = Math.max(0, cap - (attachments?.length || 0));
-    if (remaining === 0) {
-      toast.error(`Max ${cap} files per note. Remove one to add another.`);
-      return;
+    const imgCap = StorageService.MAX_IMAGES_PER_NOTE ?? 10;
+    const fileCap = StorageService.MAX_FILES_PER_NOTE ?? 10;
+    const currentImages = (attachments || []).filter(a => isImage(a.type)).length;
+    const currentFiles  = (attachments || []).filter(a => !isImage(a.type)).length;
+
+    // Split incoming batch by type so each cap is enforced independently
+    const imgFiles = files.filter(f => (f.type || "").startsWith("image/"));
+    const otherFiles = files.filter(f => !((f.type || "").startsWith("image/")));
+
+    const imgRemaining = Math.max(0, imgCap - currentImages);
+    const fileRemaining = Math.max(0, fileCap - currentFiles);
+
+    const acceptedImgs = imgFiles.slice(0, imgRemaining);
+    const acceptedFiles = otherFiles.slice(0, fileRemaining);
+
+    if (imgFiles.length > acceptedImgs.length) {
+      toast.warning(`Only ${acceptedImgs.length} of ${imgFiles.length} images added — ${imgCap}-image cap reached.`);
     }
-    const toUpload = files.slice(0, remaining);
-    if (files.length > remaining) {
-      toast.warning(`Only ${remaining} of ${files.length} added — ${cap}-file cap reached.`);
+    if (otherFiles.length > acceptedFiles.length) {
+      toast.warning(`Only ${acceptedFiles.length} of ${otherFiles.length} files added — ${fileCap}-file cap reached.`);
+    }
+    const toUpload = [...acceptedImgs, ...acceptedFiles];
+    if (toUpload.length === 0) {
+      toast.error(`Attachment limit reached (${imgCap} images / ${fileCap} files per note).`);
+      return;
     }
     setUploading(true);
     try {
@@ -157,8 +173,12 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
   };
 
   const currentLightboxAtt = lightboxIdx !== null ? imageAttachments[lightboxIdx] : null;
-  const cap = StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10;
-  const atCap = (attachments?.length || 0) >= cap;
+  const imgCap = StorageService.MAX_IMAGES_PER_NOTE ?? 10;
+  const fileCap = StorageService.MAX_FILES_PER_NOTE ?? 10;
+  const cap = imgCap + fileCap;
+  const currentImages = (attachments || []).filter(a => isImage(a.type)).length;
+  const currentFiles  = (attachments || []).filter(a => !isImage(a.type)).length;
+  const atCap = currentImages >= imgCap && currentFiles >= fileCap;
 
   return (
     <div className={`attachments ${isDark ? "dark" : ""} ${compact ? "compact" : ""}`} data-testid="attachments">
@@ -280,8 +300,8 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
             {uploading
               ? "Uploading…"
               : atCap
-                ? `Max ${cap} reached`
-                : `Attach · ${attachments?.length || 0}/${cap}`}
+                ? `Max reached · ${currentImages}/${imgCap} img · ${currentFiles}/${fileCap} files`
+                : `Attach · ${currentImages}/${imgCap} img · ${currentFiles}/${fileCap} files`}
           </span>
         </button>
       </div>

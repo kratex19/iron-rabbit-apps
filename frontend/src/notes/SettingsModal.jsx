@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
   Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, MessageSquareQuote,
-  Palette,
+  Palette, Paperclip,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,11 @@ export default function SettingsModal({
 
   const handleSave = async () => {
     setSaving(true);
+    // Apply attachment limits to StorageService immediately so the change
+    // is live without needing a page reload.
+    if (formData?.attachment_limits) {
+      StorageService.configureAttachmentLimits(formData.attachment_limits);
+    }
     await onSave(formData);
     setSaving(false);
     onClose();
@@ -515,6 +520,66 @@ export default function SettingsModal({
               <option value={365}>1 year</option>
               <option value={0}>Forever (never auto-purge)</option>
             </select>
+          </div>
+
+          {/* Photo & File attachment limits */}
+          <div className={`p-3 rounded-md ${isDark ? "bg-white/5" : "bg-gray-50"}`} data-testid="settings-attachment-limits">
+            <div className={`text-sm mb-0.5 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-800"}`}>
+              <Paperclip className="w-4 h-4" /> Photos & Files per Note
+            </div>
+            <div className={`text-[11px] mb-2 ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+              How many attachments Quick Edit / Expanded Text allow, and the max size per file.
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <label className={`text-[10px] ${isDark ? "text-slate-400" : "text-gray-500"} flex flex-col gap-1`}>
+                <span>Max images</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={formData.attachment_limits?.max_images ?? 10}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    attachment_limits: { ...(prev.attachment_limits || {}), max_images: parseInt(e.target.value, 10) || 1 }
+                  }))}
+                  className={`h-8 text-xs ${isDark ? "bg-black/20 border-white/10 text-white" : ""}`}
+                  data-testid="settings-max-images"
+                />
+              </label>
+              <label className={`text-[10px] ${isDark ? "text-slate-400" : "text-gray-500"} flex flex-col gap-1`}>
+                <span>Max files</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={formData.attachment_limits?.max_files ?? 10}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    attachment_limits: { ...(prev.attachment_limits || {}), max_files: parseInt(e.target.value, 10) || 0 }
+                  }))}
+                  className={`h-8 text-xs ${isDark ? "bg-black/20 border-white/10 text-white" : ""}`}
+                  data-testid="settings-max-files"
+                />
+              </label>
+              <label className={`text-[10px] ${isDark ? "text-slate-400" : "text-gray-500"} flex flex-col gap-1`}>
+                <span>Max MB each</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={formData.attachment_limits?.max_mb ?? 10}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    attachment_limits: { ...(prev.attachment_limits || {}), max_mb: parseInt(e.target.value, 10) || 1 }
+                  }))}
+                  className={`h-8 text-xs ${isDark ? "bg-black/20 border-white/10 text-white" : ""}`}
+                  data-testid="settings-max-mb"
+                />
+              </label>
+            </div>
+            <p className={`text-[10px] mt-2 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+              Images: 1–50 · Files: 0–50 · Size: 1–100 MB
+            </p>
           </div>
 
           {/* Clear All Data */}

@@ -256,6 +256,10 @@ export default function NotesApp() {
       setNotes(notesData);
       setSettings(settingsData);
       if (settingsData?.view_mode) setViewMode(settingsData.view_mode);
+      // Apply user-adjusted attachment limits (images/files/MB) at boot
+      if (settingsData?.attachment_limits) {
+        StorageService.configureAttachmentLimits(settingsData.attachment_limits);
+      }
       setCategories(catsData);
       setStorageInfo(storageData);
       if (templatesData.length > 0) setTemplates(templatesData);

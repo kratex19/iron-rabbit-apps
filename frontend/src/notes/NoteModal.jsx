@@ -554,7 +554,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
               <label className={`text-xs mb-2 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
                 <LucideIcons.Image className="w-3.5 h-3.5" /> Photos & files
                 <span className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-gray-400'}`}>
-                  · up to {StorageService.MAX_ATTACHMENTS_PER_NOTE ?? 10} per note · 10 MB each · JPG/PNG/GIF/WebP/PDF · hover image → 🔍 to OCR
+                  · up to {StorageService.MAX_IMAGES_PER_NOTE ?? 10} images + {StorageService.MAX_FILES_PER_NOTE ?? 10} files · {Math.round((StorageService.MAX_ATTACHMENT_BYTES ?? 10485760) / (1024 * 1024))} MB each · JPG/PNG/GIF/WebP/PDF · hover image → 🔍 to OCR
                 </span>
               </label>
               <Attachments

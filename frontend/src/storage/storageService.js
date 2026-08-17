@@ -186,6 +186,7 @@ export const StorageService = {
         website_url: 'https://ironrabbitapps.com',
         company_name: 'Iron Rabbit',
         view_mode: 'list',
+        attachment_limits: { max_images: 10, max_files: 10, max_mb: 10 },
       };
       await settingsStore.setItem('app_settings', defaults);
       return defaults;
@@ -237,15 +238,44 @@ export const StorageService = {
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'application/pdf'
   ],
-  MAX_ATTACHMENT_BYTES: 10 * 1024 * 1024, // 10 MB
-  MAX_ATTACHMENTS_PER_NOTE: 10,
+  // Attachment limits — kept as regular properties so callers (Attachments,
+  // NoteModal) can read them, but they can be updated at runtime by
+  // configureAttachmentLimits() from persisted app settings.
+  MAX_ATTACHMENT_BYTES: 10 * 1024 * 1024, // 10 MB per file
+  MAX_ATTACHMENTS_PER_NOTE: 20,            // total cap (images + files) — legacy
+  MAX_IMAGES_PER_NOTE: 10,                 // configurable image cap
+  MAX_FILES_PER_NOTE: 10,                  // configurable non-image (PDF) cap
+
+  isImageMimeType(type) {
+    return typeof type === 'string' && type.startsWith('image/');
+  },
+
+  // Apply user-adjusted limits (from Settings). Falls back to defaults for
+  // any value missing/invalid. Called on app boot and whenever the user
+  // saves the numbers in the Settings modal.
+  configureAttachmentLimits(limits = {}) {
+    const clamp = (v, min, max, fallback) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, Math.floor(n)));
+    };
+    const images = clamp(limits.max_images, 1, 50, 10);
+    const files  = clamp(limits.max_files,  0, 50, 10);
+    const mb     = clamp(limits.max_mb,     1, 100, 10);
+    this.MAX_IMAGES_PER_NOTE = images;
+    this.MAX_FILES_PER_NOTE = files;
+    this.MAX_ATTACHMENT_BYTES = mb * 1024 * 1024;
+    this.MAX_ATTACHMENTS_PER_NOTE = images + files;
+    return { max_images: images, max_files: files, max_mb: mb };
+  },
 
   async saveAttachment(file) {
     if (!this.ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
       throw new Error(`Unsupported file type: ${file.type || 'unknown'}. Allowed: images (JPG, PNG, GIF, WebP) and PDF.`);
     }
     if (file.size > this.MAX_ATTACHMENT_BYTES) {
-      throw new Error(`File too large. Max 10 MB per attachment.`);
+      const mb = (this.MAX_ATTACHMENT_BYTES / (1024 * 1024)).toFixed(0);
+      throw new Error(`File too large. Max ${mb} MB per attachment.`);
     }
     const id = 'att_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
     // Store the Blob directly — localforage handles it natively
