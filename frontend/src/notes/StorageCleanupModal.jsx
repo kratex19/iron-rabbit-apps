@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { X, HardDrive, Trash2, RefreshCcw, ImageIcon, FileText, AlertCircle, Loader2, Copy } from "lucide-react";
+import { X, HardDrive, Trash2, RefreshCcw, ImageIcon, FileText, AlertCircle, Loader2, Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -17,6 +17,11 @@ const formatMB = (bytes) => (bytes / (1024 * 1024)).toFixed(bytes < 1024 * 1024 
  *
  * Additive component — used from the existing SettingsModal via a small
  * "Free up space" button. Does not alter any other Iron Rabbit screen.
+ *
+ * `smartPreselect` (bool): when true (e.g. opened from the 90%-storage
+ * toast) the modal auto-selects the top-5 largest attachments plus the
+ * extra copies of the top-3 duplicate groups (keeping the oldest copy),
+ * and shows a one-tap Confirm banner.
  */
 export default function StorageCleanupModal({
   isOpen,
@@ -25,6 +30,7 @@ export default function StorageCleanupModal({
   notes = [],
   onSaveNote,      // async (updatedNote) => void — from NotesApp
   onAfterChange,   // () => void — refresh callers' storage/notes cache
+  smartPreselect = false,
 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +42,8 @@ export default function StorageCleanupModal({
   const [dupeScanState, setDupeScanState] = useState("idle"); // idle | scanning | done
   const [dupeProgress, setDupeProgress] = useState({ done: 0, total: 0 });
   const [thumbUrls, setThumbUrls] = useState({}); // id -> object URL for preview strip
+  const [smartRunState, setSmartRunState] = useState("idle"); // idle | running | done
+  const [smartSummary, setSmartSummary] = useState(null); // { bytes, count, largestCount, dupeCount }
 
   const refresh = React.useCallback(async () => {
     setLoading(true);
@@ -63,6 +71,8 @@ export default function StorageCleanupModal({
       setThumbUrls({});
       setDupeGroups([]);
       setDupeScanState("idle");
+      setSmartRunState("idle");
+      setSmartSummary(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -125,6 +135,89 @@ export default function StorageCleanupModal({
       scanDuplicates();
     }
   }, [isOpen, filter, dupeScanState, loading, rows.length, scanDuplicates]);
+
+  // Smart Cleanup preselect — triggered when the modal opens with
+  // `smartPreselect` (e.g. from the 90% storage toast). Hashes all images,
+  // finds the top-3 duplicate groups (keeping the oldest copy of each),
+  // then adds the top-5 largest attachments overall to the selection.
+  const runSmartPreselect = React.useCallback(async () => {
+    setSmartRunState("running");
+    // Top-5 largest attachments overall
+    const topLargest = rows.slice(0, 5); // rows are already sorted desc by size
+    const largestIds = new Set(topLargest.map((r) => r.id));
+    const largestBytes = topLargest.reduce((n, r) => n + r.size, 0);
+
+    // Hash images to find duplicates
+    const images = rows.filter((r) => r.type?.startsWith("image/"));
+    const entries = [];
+    const newThumbs = {};
+    for (const r of images) {
+      try {
+        const blob = await StorageService.getAttachmentBlob(r.id);
+        if (blob) {
+          const hash = await dHashFromBlob(blob);
+          if (hash) entries.push({ id: r.id, hash });
+          if (!newThumbs[r.id]) newThumbs[r.id] = URL.createObjectURL(blob);
+        }
+      } catch { /* skip bad blob */ }
+    }
+    const groups = groupSimilar(entries, 8);
+
+    // For each group: sort by created_at ASC (oldest first) so we keep the
+    // original and mark newer copies as extras.
+    for (const g of groups) {
+      g.sort((a, b) => {
+        const ta = Date.parse(rowsById.get(a)?.created_at || "") || 0;
+        const tb = Date.parse(rowsById.get(b)?.created_at || "") || 0;
+        return ta - tb;
+      });
+    }
+    // Sort groups by potential savings (bytes of all-but-first)
+    groups.sort((a, b) => {
+      const sa = a.slice(1).reduce((n, id) => n + (rowsById.get(id)?.size || 0), 0);
+      const sb = b.slice(1).reduce((n, id) => n + (rowsById.get(id)?.size || 0), 0);
+      return sb - sa;
+    });
+
+    // Take the top-3 groups; extras = every id except the first (oldest).
+    const dupeIds = new Set();
+    let dupeBytes = 0;
+    for (const g of groups.slice(0, 3)) {
+      for (let i = 1; i < g.length; i++) {
+        if (!dupeIds.has(g[i])) {
+          dupeIds.add(g[i]);
+          dupeBytes += rowsById.get(g[i])?.size || 0;
+        }
+      }
+    }
+
+    // Merge — largest ∪ dupes. Bytes: recompute so overlap isn't double-counted.
+    const merged = new Set([...largestIds, ...dupeIds]);
+    let mergedBytes = 0;
+    for (const id of merged) mergedBytes += rowsById.get(id)?.size || 0;
+
+    setThumbUrls((prev) => ({ ...prev, ...newThumbs }));
+    setDupeGroups(groups);          // so Duplicates tab shows same groups if user browses
+    setDupeScanState("done");
+    setSelected(merged);
+    setSmartSummary({
+      bytes: mergedBytes,
+      count: merged.size,
+      largestCount: largestIds.size,
+      dupeCount: dupeIds.size,
+      largestBytes,
+      dupeBytes,
+    });
+    setSmartRunState("done");
+  }, [rows, rowsById]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!smartPreselect) return;
+    if (loading || rows.length === 0) return;
+    if (smartRunState !== "idle") return;
+    runSmartPreselect();
+  }, [isOpen, smartPreselect, loading, rows.length, smartRunState, runSmartPreselect]);
 
   const visible = useMemo(() => {
     if (filter === "all") return rows;
@@ -223,6 +316,42 @@ export default function StorageCleanupModal({
             <div className="text-sm font-mono">{formatMB(totals.total)} MB · {rows.length} files</div>
           </div>
         </div>
+
+        {/* Smart Cleanup banner — only shown when opened from the 90% toast */}
+        {smartPreselect && (smartRunState === "running" || (smartRunState === "done" && smartSummary)) && (
+          <div
+            className={`rounded-lg p-3 border-2 ${isDark ? "border-emerald-400/50 bg-emerald-500/10" : "border-emerald-400 bg-emerald-50"}`}
+            data-testid="storage-cleanup-smart-banner"
+          >
+            {smartRunState === "running" ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                <span className="font-semibold">Analyzing your files…</span>
+                <span className="opacity-70">Finding your biggest attachments and duplicate photos.</span>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Sparkles className="w-5 h-5 text-emerald-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold">Smart Cleanup ready</div>
+                  <div className="text-xs opacity-80">
+                    {smartSummary.count} item{smartSummary.count === 1 ? "" : "s"} pre-selected · free up ~{formatMB(smartSummary.bytes)} MB
+                    {" "}<span className="opacity-70">({smartSummary.largestCount} largest + {smartSummary.dupeCount} duplicate cop{smartSummary.dupeCount === 1 ? "y" : "ies"})</span>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={removeSelected}
+                  disabled={busy || selected.size === 0}
+                  className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white"
+                  data-testid="storage-cleanup-smart-confirm"
+                >
+                  {busy ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Freeing…</> : <>Free {formatMB(smartSummary.bytes)} MB</>}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex gap-2 items-center pt-2 overflow-x-auto pb-1" data-testid="storage-cleanup-filters">

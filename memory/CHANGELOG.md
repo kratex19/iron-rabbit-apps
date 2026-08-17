@@ -1,3 +1,22 @@
+## 2026-02-17 — Auto-Cleanup Suggestion (90% Storage) ✅
+
+- **`storage/storageWarnings.js`** — Added a 90% "Smart Cleanup" toast tier
+  between the existing 80% warning and 92% critical toasts. Toast carries
+  an action button that opens the Storage Cleanup Wizard in pre-selected
+  mode. Critical (92%) toast now also carries the same action. New
+  `registerSmartCleanupHandler(fn)` API decouples the toast from React.
+- **`NotesApp.jsx`** — Registers the smart-cleanup handler on mount;
+  handler opens the cleanup modal with `smartPreselect=true`.
+- **`notes/StorageCleanupModal.jsx`** — New `smartPreselect` prop. On open
+  it perceptually hashes all images, picks the top-3 duplicate groups
+  keeping the OLDEST copy in each, and merges those extras with the
+  top-5 largest attachments overall into one selection. A green banner
+  shows "Free X MB" with a one-tap Confirm button (final delete confirm
+  is unchanged).
+- **`notes/AppModals.jsx`** — Threads the new smart flag through and
+  resets it on close.
+
+
 # Iron Rabbit Changelog
 
 

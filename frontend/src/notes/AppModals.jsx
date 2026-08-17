@@ -137,11 +137,12 @@ export default function AppModals(p) {
       />
       <StorageCleanupModal
         isOpen={p.storageCleanupOpen}
-        onClose={() => p.setStorageCleanupOpen(false)}
+        onClose={() => { p.setStorageCleanupOpen(false); p.setStorageCleanupSmart?.(false); }}
         isDark={p.isDark}
         notes={p.notes}
         onSaveNote={p.handleSaveInline}
         onAfterChange={p.handleReloadNotes}
+        smartPreselect={!!p.storageCleanupSmart}
       />
       <FullScreenNote
         note={p.fullScreenNote}

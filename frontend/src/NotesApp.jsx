@@ -84,6 +84,7 @@ export default function NotesApp() {
   const [sharingNote, setSharingNote] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [storageCleanupOpen, setStorageCleanupOpen] = useState(false);
+  const [storageCleanupSmart, setStorageCleanupSmart] = useState(false);
   const [fullScreenNote, setFullScreenNote] = useState(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [tilePacksOpen, setTilePacksOpen] = useState(false);
@@ -238,6 +239,25 @@ export default function NotesApp() {
       setSettings(next);
     }
   };
+
+  // Wire the 90% "Smart Cleanup" toast action to open the Storage Cleanup
+  // Wizard in smart-preselect mode. Registered once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    import("./storage/storageWarnings").then((m) => {
+      if (cancelled) return;
+      m.registerSmartCleanupHandler(() => {
+        setStorageCleanupSmart(true);
+        setStorageCleanupOpen(true);
+      });
+    }).catch(() => { /* ignore */ });
+    return () => {
+      cancelled = true;
+      import("./storage/storageWarnings")
+        .then((m) => m.registerSmartCleanupHandler(null))
+        .catch(() => { /* ignore */ });
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -1493,6 +1513,7 @@ export default function NotesApp() {
         sharingNote={sharingNote} setSharingNote={setSharingNote}
         settingsModalOpen={settingsModalOpen} setSettingsModalOpen={setSettingsModalOpen}
         storageCleanupOpen={storageCleanupOpen} setStorageCleanupOpen={setStorageCleanupOpen}
+        storageCleanupSmart={storageCleanupSmart} setStorageCleanupSmart={setStorageCleanupSmart}
         handleReloadNotes={fetchData}
         onOpenThemeChooser={() => setThemeChooserOpen(true)}
         uiBrightness={settings?.ui_brightness}
