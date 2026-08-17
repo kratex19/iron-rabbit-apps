@@ -6,6 +6,18 @@
       "count": 13
     },
     {
+      "key": "Wildlife",
+      "count": 8
+    },
+    {
+      "key": "Sunset",
+      "count": 7
+    },
+    {
+      "key": "Trades",
+      "count": 7
+    },
+    {
       "key": "Water",
       "count": 5
     },
@@ -14,16 +26,12 @@
       "count": 4
     },
     {
-      "key": "Sunset",
-      "count": 7
-    },
-    {
-      "key": "Wildlife",
-      "count": 8
-    },
-    {
       "key": "Patriotic",
       "count": 3
+    },
+    {
+      "key": "Tech",
+      "count": 1
     }
   ],
   "presets": [

@@ -15,6 +15,24 @@ export default function DashboardSettings() {
 
   const favorites = Array.isArray(settings.favorites) ? settings.favorites : [];
   const favSet = useMemo(() => new Set(favorites), [favorites]);
+  const [activeCat, setActiveCat] = useState("All");
+
+  // Compute category chips from the loaded presets (rebuilt fresh each
+  // load so new categories from the manifest show up automatically).
+  const categoryChips = useMemo(() => {
+    if (!presets.length) return [];
+    const counts = new Map();
+    for (const p of presets) {
+      if (!p.category) continue;
+      counts.set(p.category, (counts.get(p.category) || 0) + 1);
+    }
+    return [
+      { key: "All", count: presets.length },
+      ...[...counts.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([key, count]) => ({ key, count })),
+    ];
+  }, [presets]);
 
   // Load the shared Iron Rabbit header preset manifest so the Dashboard
   // and the Home Page pick from the same pool. Safe read-only fetch.
@@ -132,6 +150,51 @@ export default function DashboardSettings() {
           </div>
         </div>
 
+        {categoryChips.length > 1 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              marginTop: 10,
+              padding: "6px 0",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              paddingBottom: 10,
+            }}
+            data-testid="dash-settings-bg-chips"
+          >
+            {categoryChips.map((c) => {
+              const active = activeCat === c.key;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => setActiveCat(c.key)}
+                  data-testid={`dash-settings-bg-chip-${c.key.toLowerCase()}`}
+                  aria-pressed={active}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    height: 26,
+                    padding: "0 10px",
+                    borderRadius: 999,
+                    border: `1px solid ${active ? "#fbbf24" : "rgba(255,255,255,0.15)"}`,
+                    background: active ? "#fbbf24" : "rgba(255,255,255,0.05)",
+                    color: active ? "#111827" : "#e2e8f0",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  {c.key}
+                  <span style={{ fontSize: 10, opacity: active ? 0.6 : 0.55 }}>({c.count})</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div
           style={{
             display: "grid",
@@ -151,9 +214,12 @@ export default function DashboardSettings() {
             // Star favorites first for easier browsing
             const withStar = source.map((p) => ({ ...p, _url: `/header-presets/${p.file}` }));
             withStar.sort((a, b) => (favSet.has(b._url) ? 1 : 0) - (favSet.has(a._url) ? 1 : 0));
-            const visible = favOnly ? withStar.filter((p) => favSet.has(p._url)) : withStar;
+            let visible = favOnly ? withStar.filter((p) => favSet.has(p._url)) : withStar;
+            if (activeCat !== "All") visible = visible.filter((p) => p.category === activeCat);
             if (visible.length === 0) {
-              return <div style={{ color: "#94a3b8", fontSize: 12, padding: 10 }}>No favorites yet — tap the ★ on any preset to add one.</div>;
+              return <div style={{ color: "#94a3b8", fontSize: 12, padding: 10 }}>
+                {favOnly ? "No favorites yet — tap the ★ on any preset to add one." : `No presets in ${activeCat}.`}
+              </div>;
             }
             return visible.map((p) => {
               const url = p._url;

@@ -1,3 +1,25 @@
+## 2026-02-17 — Category Filter Chips ✅
+
+- **`header-presets/manifest.json`** — Regenerated the top-level
+  `categories` array (was stale and missing Trades/Tech). Now derived
+  from the actual presets and sorted by count desc: **All (48) · Nature
+  (13) · Wildlife (8) · Sunset (7) · Trades (7) · Water (5) · Sky (4) ·
+  Patriotic (3) · Tech (1)**. The Home Header picker
+  (`HeaderPresetPicker.jsx`) already had chip UI wired to
+  `manifest.categories` — it now shows all 9 chips automatically.
+- **`dashboard/pages/DashboardSettings.jsx`** — Added a chip row above
+  the background grid. State: `activeCat` (default "All"). Chips are
+  computed at render time from loaded presets so any future category
+  additions surface automatically. Chip taps filter the grid; the empty
+  state distinguishes between "no favorites" and "no presets in this
+  category". Test IDs: `dash-settings-bg-chips`,
+  `dash-settings-bg-chip-<lowercase>`.
+- **`service-worker.js`** — CACHE_NAME v19 → v20 so devices refetch the
+  updated manifest.
+- Verified: Dashboard Settings renders 9 chips; tapping "Trades" filters
+  the grid to exactly 7 tiles with zero console errors.
+
+
 ## 2026-02-17 — Shared Preset Pool & Trades/Tech Backgrounds ✅
 
 - **`dashboard/DashboardLayout.jsx` + `pages/DashboardSettings.jsx`** —
