@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 6,
   "categories": [
     {
       "key": "Work",
@@ -38,8 +38,8 @@
     {
       "id": "01",
       "file": "header-01.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1526,
+      "height": 419,
       "category": "Nature",
       "tags": [
         "forest",
@@ -52,7 +52,7 @@
       "id": "02",
       "file": "header-02.webp",
       "width": 1600,
-      "height": 500,
+      "height": 420,
       "category": "Sunset",
       "tags": [
         "lake",
@@ -65,7 +65,7 @@
       "id": "03",
       "file": "header-03.webp",
       "width": 1600,
-      "height": 500,
+      "height": 419,
       "category": "Sunset",
       "tags": [
         "mountains",
@@ -77,7 +77,7 @@
       "id": "04",
       "file": "header-04.webp",
       "width": 1600,
-      "height": 500,
+      "height": 422,
       "category": "Patriotic",
       "tags": [
         "eagle",
@@ -88,8 +88,8 @@
     {
       "id": "05",
       "file": "header-05.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1576,
+      "height": 422,
       "category": "Patriotic",
       "tags": [
         "flag",
@@ -101,7 +101,7 @@
       "id": "06",
       "file": "header-06.webp",
       "width": 1600,
-      "height": 500,
+      "height": 350,
       "category": "Nature",
       "tags": [
         "mountains",
@@ -114,7 +114,7 @@
       "id": "07",
       "file": "header-07.webp",
       "width": 1600,
-      "height": 500,
+      "height": 346,
       "category": "Sunset",
       "tags": [
         "fishing",
@@ -127,7 +127,7 @@
       "id": "08",
       "file": "header-08.webp",
       "width": 1600,
-      "height": 500,
+      "height": 346,
       "category": "Water",
       "tags": [
         "river",
@@ -140,7 +140,7 @@
       "id": "09",
       "file": "header-09.webp",
       "width": 1600,
-      "height": 500,
+      "height": 348,
       "category": "Wildlife",
       "tags": [
         "deer",
@@ -153,7 +153,7 @@
       "id": "10",
       "file": "header-10.webp",
       "width": 1600,
-      "height": 500,
+      "height": 346,
       "category": "Nature",
       "tags": [
         "desert",
@@ -166,7 +166,7 @@
       "id": "11",
       "file": "header-11.webp",
       "width": 1600,
-      "height": 500,
+      "height": 221,
       "category": "Wildlife",
       "tags": [
         "horse",
@@ -179,7 +179,7 @@
       "id": "12",
       "file": "header-12.webp",
       "width": 1600,
-      "height": 500,
+      "height": 293,
       "category": "Wildlife",
       "tags": [
         "fish",
@@ -193,7 +193,7 @@
       "id": "13",
       "file": "header-13.webp",
       "width": 1600,
-      "height": 500,
+      "height": 293,
       "category": "Sky",
       "tags": [
         "stars",
@@ -205,8 +205,8 @@
     {
       "id": "14",
       "file": "header-14.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1420,
+      "height": 247,
       "category": "Sky",
       "tags": [
         "fireworks",
@@ -218,7 +218,7 @@
       "id": "15",
       "file": "header-15.webp",
       "width": 1600,
-      "height": 500,
+      "height": 294,
       "category": "Nature",
       "tags": [
         "mountains",
@@ -231,7 +231,7 @@
       "id": "16",
       "file": "header-16.webp",
       "width": 1600,
-      "height": 500,
+      "height": 308,
       "category": "Nature",
       "tags": [
         "leaves",
@@ -244,7 +244,7 @@
       "id": "17",
       "file": "header-17.webp",
       "width": 1600,
-      "height": 500,
+      "height": 308,
       "category": "Sunset",
       "tags": [
         "trees",
@@ -257,7 +257,7 @@
       "id": "18",
       "file": "header-18.webp",
       "width": 1600,
-      "height": 500,
+      "height": 308,
       "category": "Wildlife",
       "tags": [
         "turkey",
@@ -269,8 +269,8 @@
     {
       "id": "19",
       "file": "header-19.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1420,
+      "height": 278,
       "category": "Wildlife",
       "tags": [
         "wolf",
@@ -283,7 +283,7 @@
       "id": "20",
       "file": "header-20.webp",
       "width": 1600,
-      "height": 500,
+      "height": 308,
       "category": "Nature",
       "tags": [
         "compass",
@@ -296,7 +296,7 @@
       "id": "21",
       "file": "header-21.webp",
       "width": 1600,
-      "height": 500,
+      "height": 292,
       "category": "Sunset",
       "tags": [
         "ocean",
@@ -309,7 +309,7 @@
       "id": "22",
       "file": "header-22.webp",
       "width": 1600,
-      "height": 500,
+      "height": 292,
       "category": "Water",
       "tags": [
         "forest",
@@ -322,7 +322,7 @@
       "id": "23",
       "file": "header-23.webp",
       "width": 1600,
-      "height": 500,
+      "height": 292,
       "category": "Patriotic",
       "tags": [
         "flag",
@@ -334,7 +334,7 @@
       "id": "24",
       "file": "header-24.webp",
       "width": 1600,
-      "height": 500,
+      "height": 191,
       "category": "Nature",
       "tags": [
         "mountains",
@@ -347,7 +347,7 @@
       "id": "25",
       "file": "header-25.webp",
       "width": 1600,
-      "height": 500,
+      "height": 292,
       "category": "Nature",
       "tags": [
         "barn",
@@ -360,7 +360,7 @@
       "id": "26",
       "file": "header-26.webp",
       "width": 1600,
-      "height": 500,
+      "height": 324,
       "category": "Wildlife",
       "tags": [
         "bear",
@@ -372,8 +372,8 @@
     {
       "id": "27",
       "file": "header-27.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1515,
+      "height": 324,
       "category": "Water",
       "tags": [
         "mountains",
@@ -386,7 +386,7 @@
       "id": "28",
       "file": "header-28.webp",
       "width": 1600,
-      "height": 500,
+      "height": 324,
       "category": "Sunset",
       "tags": [
         "boat",
@@ -399,7 +399,7 @@
       "id": "29",
       "file": "header-29.webp",
       "width": 1600,
-      "height": 500,
+      "height": 216,
       "category": "Nature",
       "tags": [
         "barbed",
@@ -412,7 +412,7 @@
       "id": "30",
       "file": "header-30.webp",
       "width": 1600,
-      "height": 500,
+      "height": 324,
       "category": "Nature",
       "tags": [
         "arches",
@@ -425,7 +425,7 @@
       "id": "31",
       "file": "header-31.webp",
       "width": 1600,
-      "height": 500,
+      "height": 392,
       "category": "Nature",
       "tags": [
         "winter",
@@ -437,8 +437,8 @@
     {
       "id": "32",
       "file": "header-32.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1503,
+      "height": 282,
       "category": "Wildlife",
       "tags": [
         "deer",
@@ -452,7 +452,7 @@
       "id": "33",
       "file": "header-33.webp",
       "width": 1600,
-      "height": 500,
+      "height": 392,
       "category": "Sky",
       "tags": [
         "aurora",
@@ -465,7 +465,7 @@
       "id": "34",
       "file": "header-34.webp",
       "width": 1600,
-      "height": 500,
+      "height": 393,
       "category": "Nature",
       "tags": [
         "road",
@@ -478,7 +478,7 @@
       "id": "35",
       "file": "header-35.webp",
       "width": 1600,
-      "height": 500,
+      "height": 394,
       "category": "Nature",
       "tags": [
         "antlers",
@@ -542,7 +542,7 @@
       "id": "40",
       "file": "header-40.webp",
       "width": 1600,
-      "height": 500,
+      "height": 348,
       "category": "Sunset",
       "tags": [
         "birds",
@@ -555,7 +555,7 @@
       "id": "41",
       "file": "header-041.webp",
       "width": 1600,
-      "height": 500,
+      "height": 426,
       "category": "Work",
       "tags": [
         "construction",
@@ -566,8 +566,8 @@
     {
       "id": "42",
       "file": "header-042.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1078,
+      "height": 471,
       "category": "Work",
       "tags": [
         "mechanics",
@@ -578,8 +578,8 @@
     {
       "id": "43",
       "file": "header-043.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 760,
+      "height": 465,
       "category": "Work",
       "tags": [
         "car",
@@ -590,8 +590,8 @@
     {
       "id": "44",
       "file": "header-044.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 749,
+      "height": 497,
       "category": "Work",
       "tags": [
         "truck",
@@ -602,8 +602,8 @@
     {
       "id": "45",
       "file": "header-045.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 791,
+      "height": 471,
       "category": "Work",
       "tags": [
         "truck",
@@ -614,8 +614,8 @@
     {
       "id": "46",
       "file": "header-046.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 860,
+      "height": 494,
       "category": "Work",
       "tags": [
         "wrench",
@@ -626,8 +626,8 @@
     {
       "id": "47",
       "file": "header-047.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 730,
+      "height": 470,
       "category": "Work",
       "tags": [
         "blueprint",
@@ -638,8 +638,8 @@
     {
       "id": "48",
       "file": "header-048.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 973,
+      "height": 471,
       "category": "Work",
       "tags": [
         "wood",
@@ -650,8 +650,8 @@
     {
       "id": "49",
       "file": "header-049.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 845,
+      "height": 441,
       "category": "Work",
       "tags": [
         "welding",
@@ -662,8 +662,8 @@
     {
       "id": "50",
       "file": "header-050.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1477,
+      "height": 471,
       "category": "Work",
       "tags": [
         "solar",
@@ -674,8 +674,8 @@
     {
       "id": "51",
       "file": "header-051.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1520,
+      "height": 414,
       "category": "Work",
       "tags": [
         "electrician",
@@ -687,7 +687,7 @@
       "id": "52",
       "file": "header-052.webp",
       "width": 1600,
-      "height": 500,
+      "height": 433,
       "category": "Work",
       "tags": [
         "tractor",
@@ -699,7 +699,7 @@
       "id": "53",
       "file": "header-053.webp",
       "width": 1600,
-      "height": 500,
+      "height": 418,
       "category": "Work",
       "tags": [
         "oil",
@@ -711,7 +711,7 @@
       "id": "54",
       "file": "header-054.webp",
       "width": 1600,
-      "height": 500,
+      "height": 442,
       "category": "Work",
       "tags": [
         "excavator",
@@ -721,8 +721,8 @@
     {
       "id": "55",
       "file": "header-055.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 797,
+      "height": 442,
       "category": "Work",
       "tags": [
         "refinery",
@@ -734,7 +734,7 @@
       "id": "56",
       "file": "header-056.webp",
       "width": 1600,
-      "height": 500,
+      "height": 442,
       "category": "Work",
       "tags": [
         "refinery",
@@ -746,7 +746,7 @@
       "id": "57",
       "file": "header-057.webp",
       "width": 1600,
-      "height": 500,
+      "height": 443,
       "category": "Work",
       "tags": [
         "forklift",
@@ -756,8 +756,8 @@
     {
       "id": "58",
       "file": "header-058.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1479,
+      "height": 443,
       "category": "Work",
       "tags": [
         "tools",
@@ -768,8 +768,8 @@
     {
       "id": "59",
       "file": "header-059.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1479,
+      "height": 443,
       "category": "Work",
       "tags": [
         "laptop",
@@ -780,8 +780,8 @@
     {
       "id": "60",
       "file": "header-060.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1356,
+      "height": 420,
       "category": "Work",
       "tags": [
         "lightbulb",
@@ -792,8 +792,8 @@
     {
       "id": "61",
       "file": "header-061.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1469,
+      "height": 387,
       "category": "Sky",
       "tags": [
         "rocket",
@@ -804,8 +804,8 @@
     {
       "id": "62",
       "file": "header-062.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1358,
+      "height": 387,
       "category": "Sky",
       "tags": [
         "rocket",
@@ -816,8 +816,8 @@
     {
       "id": "63",
       "file": "header-063.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1420,
+      "height": 387,
       "category": "Sky",
       "tags": [
         "rocket",
@@ -829,7 +829,7 @@
       "id": "64",
       "file": "header-064.webp",
       "width": 1600,
-      "height": 500,
+      "height": 387,
       "category": "Sky",
       "tags": [
         "space",
@@ -842,7 +842,7 @@
       "id": "65",
       "file": "header-065.webp",
       "width": 1600,
-      "height": 500,
+      "height": 387,
       "category": "Sky",
       "tags": [
         "astronaut",
@@ -853,8 +853,8 @@
     {
       "id": "66",
       "file": "header-066.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1539,
+      "height": 363,
       "category": "Sky",
       "tags": [
         "rover",
@@ -865,8 +865,8 @@
     {
       "id": "67",
       "file": "header-067.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1420,
+      "height": 380,
       "category": "Sky",
       "tags": [
         "earth",
@@ -877,8 +877,8 @@
     {
       "id": "68",
       "file": "header-068.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1332,
+      "height": 358,
       "category": "Sky",
       "tags": [
         "satellite",
@@ -889,8 +889,8 @@
     {
       "id": "69",
       "file": "header-069.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1355,
+      "height": 362,
       "category": "Sky",
       "tags": [
         "nebula",
@@ -901,8 +901,8 @@
     {
       "id": "70",
       "file": "header-070.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1421,
+      "height": 299,
       "category": "Sky",
       "tags": [
         "galaxy",
@@ -913,8 +913,8 @@
     {
       "id": "71",
       "file": "header-071.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1461,
+      "height": 377,
       "category": "Water",
       "tags": [
         "ocean",
@@ -925,8 +925,8 @@
     {
       "id": "72",
       "file": "header-072.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1354,
+      "height": 377,
       "category": "Water",
       "tags": [
         "beach",
@@ -937,8 +937,8 @@
     {
       "id": "73",
       "file": "header-073.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1351,
+      "height": 378,
       "category": "Water",
       "tags": [
         "sailboat",
@@ -950,7 +950,7 @@
       "id": "74",
       "file": "header-074.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Water",
       "tags": [
         "boat",
@@ -962,7 +962,7 @@
       "id": "75",
       "file": "header-075.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Water",
       "tags": [
         "yacht",
@@ -974,7 +974,7 @@
       "id": "76",
       "file": "header-076.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Water",
       "tags": [
         "boat",
@@ -986,7 +986,7 @@
       "id": "77",
       "file": "header-077.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Water",
       "tags": [
         "boat",
@@ -998,7 +998,7 @@
       "id": "78",
       "file": "header-078.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Wildlife",
       "tags": [
         "marlin",
@@ -1010,7 +1010,7 @@
       "id": "79",
       "file": "header-079.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Sunset",
       "tags": [
         "lake",
@@ -1022,7 +1022,7 @@
       "id": "80",
       "file": "header-080.webp",
       "width": 1600,
-      "height": 500,
+      "height": 377,
       "category": "Water",
       "tags": [
         "coral",
@@ -1033,8 +1033,8 @@
     {
       "id": "81",
       "file": "header-081.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1463,
+      "height": 395,
       "category": "Nature",
       "tags": [
         "mountains",
@@ -1046,7 +1046,7 @@
       "id": "82",
       "file": "header-082.webp",
       "width": 1600,
-      "height": 500,
+      "height": 395,
       "category": "Water",
       "tags": [
         "stream",
@@ -1058,7 +1058,7 @@
       "id": "83",
       "file": "header-083.webp",
       "width": 1600,
-      "height": 500,
+      "height": 395,
       "category": "Water",
       "tags": [
         "waterfall",
@@ -1070,7 +1070,7 @@
       "id": "84",
       "file": "header-084.webp",
       "width": 1600,
-      "height": 500,
+      "height": 395,
       "category": "Water",
       "tags": [
         "tropical",
@@ -1081,8 +1081,8 @@
     {
       "id": "85",
       "file": "header-085.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1053,
+      "height": 395,
       "category": "Water",
       "tags": [
         "beach",
@@ -1093,8 +1093,8 @@
     {
       "id": "86",
       "file": "header-086.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 976,
+      "height": 395,
       "category": "Nature",
       "tags": [
         "beach",
@@ -1106,7 +1106,7 @@
       "id": "87",
       "file": "header-087.webp",
       "width": 1600,
-      "height": 500,
+      "height": 395,
       "category": "Sunset",
       "tags": [
         "ocean",
@@ -1118,7 +1118,7 @@
       "id": "88",
       "file": "header-088.webp",
       "width": 1600,
-      "height": 500,
+      "height": 395,
       "category": "Sky",
       "tags": [
         "stars",
@@ -1129,8 +1129,8 @@
     {
       "id": "89",
       "file": "header-089.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1429,
+      "height": 395,
       "category": "Nature",
       "tags": [
         "cliffs",
@@ -1142,7 +1142,7 @@
       "id": "90",
       "file": "header-090.webp",
       "width": 1600,
-      "height": 500,
+      "height": 395,
       "category": "Water",
       "tags": [
         "sailboat",
@@ -1154,7 +1154,7 @@
       "id": "91",
       "file": "header-091.webp",
       "width": 1600,
-      "height": 500,
+      "height": 418,
       "category": "Sunset",
       "tags": [
         "road",
@@ -1165,8 +1165,8 @@
     {
       "id": "92",
       "file": "header-092.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1289,
+      "height": 418,
       "category": "Work",
       "tags": [
         "motorcycle",
@@ -1177,8 +1177,8 @@
     {
       "id": "93",
       "file": "header-093.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1421,
+      "height": 418,
       "category": "Work",
       "tags": [
         "jeep",
@@ -1189,8 +1189,8 @@
     {
       "id": "94",
       "file": "header-094.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1449,
+      "height": 389,
       "category": "Work",
       "tags": [
         "car",
@@ -1201,8 +1201,8 @@
     {
       "id": "95",
       "file": "header-095.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1073,
+      "height": 389,
       "category": "Work",
       "tags": [
         "speedometer",
@@ -1213,8 +1213,8 @@
     {
       "id": "96",
       "file": "header-096.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 993,
+      "height": 389,
       "category": "Work",
       "tags": [
         "checkered",
@@ -1226,7 +1226,7 @@
       "id": "97",
       "file": "header-097.webp",
       "width": 1600,
-      "height": 500,
+      "height": 404,
       "category": "Work",
       "tags": [
         "airplane",
@@ -1238,7 +1238,7 @@
       "id": "98",
       "file": "header-098.webp",
       "width": 1600,
-      "height": 500,
+      "height": 418,
       "category": "Nature",
       "tags": [
         "mountains",
@@ -1250,7 +1250,7 @@
       "id": "99",
       "file": "header-099.webp",
       "width": 1600,
-      "height": 500,
+      "height": 418,
       "category": "Nature",
       "tags": [
         "village",
@@ -1261,8 +1261,8 @@
     {
       "id": "100",
       "file": "header-100.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1312,
+      "height": 389,
       "category": "Faith",
       "tags": [
         "scripture",
@@ -1274,7 +1274,7 @@
       "id": "101",
       "file": "header-101.webp",
       "width": 1600,
-      "height": 500,
+      "height": 424,
       "category": "Faith",
       "tags": [
         "cross",
@@ -1286,7 +1286,7 @@
       "id": "102",
       "file": "header-102.webp",
       "width": 1600,
-      "height": 500,
+      "height": 413,
       "category": "Faith",
       "tags": [
         "bible",
@@ -1298,7 +1298,7 @@
       "id": "103",
       "file": "header-103.webp",
       "width": 1600,
-      "height": 500,
+      "height": 411,
       "category": "Faith",
       "tags": [
         "church",
@@ -1310,7 +1310,7 @@
       "id": "104",
       "file": "header-104.webp",
       "width": 1600,
-      "height": 500,
+      "height": 411,
       "category": "Faith",
       "tags": [
         "crosses",
@@ -1322,7 +1322,7 @@
       "id": "105",
       "file": "header-105.webp",
       "width": 1600,
-      "height": 500,
+      "height": 439,
       "category": "Faith",
       "tags": [
         "jesus",
@@ -1334,7 +1334,7 @@
       "id": "106",
       "file": "header-106.webp",
       "width": 1600,
-      "height": 500,
+      "height": 439,
       "category": "Sky",
       "tags": [
         "clouds",
@@ -1346,7 +1346,7 @@
       "id": "107",
       "file": "header-107.webp",
       "width": 1600,
-      "height": 500,
+      "height": 440,
       "category": "Nature",
       "tags": [
         "road",
@@ -1357,8 +1357,8 @@
     {
       "id": "108",
       "file": "header-108.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1504,
+      "height": 435,
       "category": "Sunset",
       "tags": [
         "road",
@@ -1369,8 +1369,8 @@
     {
       "id": "109",
       "file": "header-109.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1343,
+      "height": 440,
       "category": "Faith",
       "tags": [
         "tomb",
@@ -1381,8 +1381,8 @@
     {
       "id": "110",
       "file": "header-110.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1593,
+      "height": 429,
       "category": "Faith",
       "tags": [
         "scripture",
@@ -1393,8 +1393,8 @@
     {
       "id": "111",
       "file": "header-111.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1460,
+      "height": 409,
       "category": "Sky",
       "tags": [
         "lighthouse",
@@ -1406,7 +1406,7 @@
       "id": "112",
       "file": "header-112.webp",
       "width": 1600,
-      "height": 500,
+      "height": 438,
       "category": "Faith",
       "tags": [
         "hands",
@@ -1418,7 +1418,7 @@
       "id": "113",
       "file": "header-113.webp",
       "width": 1600,
-      "height": 500,
+      "height": 438,
       "category": "Faith",
       "tags": [
         "wood",
@@ -1430,7 +1430,7 @@
       "id": "114",
       "file": "header-114.webp",
       "width": 1600,
-      "height": 500,
+      "height": 437,
       "category": "Patriotic",
       "tags": [
         "american",
@@ -1442,7 +1442,7 @@
       "id": "115",
       "file": "header-115.webp",
       "width": 1600,
-      "height": 500,
+      "height": 438,
       "category": "Faith",
       "tags": [
         "dove",
@@ -1454,7 +1454,7 @@
       "id": "116",
       "file": "header-116.webp",
       "width": 1600,
-      "height": 500,
+      "height": 409,
       "category": "Faith",
       "tags": [
         "crown",
@@ -1465,8 +1465,8 @@
     {
       "id": "117",
       "file": "header-117.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1584,
+      "height": 409,
       "category": "Faith",
       "tags": [
         "landscape",
@@ -1477,8 +1477,8 @@
     {
       "id": "118",
       "file": "header-118.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1582,
+      "height": 409,
       "category": "Faith",
       "tags": [
         "scripture",
@@ -1490,7 +1490,7 @@
       "id": "119",
       "file": "header-119.webp",
       "width": 1600,
-      "height": 500,
+      "height": 438,
       "category": "Faith",
       "tags": [
         "scripture",
@@ -1502,7 +1502,7 @@
       "id": "120",
       "file": "header-120.webp",
       "width": 1600,
-      "height": 500,
+      "height": 437,
       "category": "Faith",
       "tags": [
         "hands",
@@ -1513,8 +1513,8 @@
     {
       "id": "121",
       "file": "header-121.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1460,
+      "height": 486,
       "category": "Nature",
       "tags": [
         "forest",
@@ -1538,7 +1538,7 @@
       "id": "123",
       "file": "header-123.webp",
       "width": 1600,
-      "height": 500,
+      "height": 471,
       "category": "Patriotic",
       "tags": [
         "american",
@@ -1550,7 +1550,7 @@
       "id": "124",
       "file": "header-124.webp",
       "width": 1600,
-      "height": 500,
+      "height": 492,
       "category": "Wildlife",
       "tags": [
         "eagle",
@@ -1562,7 +1562,7 @@
       "id": "125",
       "file": "header-125.webp",
       "width": 1600,
-      "height": 500,
+      "height": 471,
       "category": "Patriotic",
       "tags": [
         "america",
@@ -1574,7 +1574,7 @@
       "id": "126",
       "file": "header-126.webp",
       "width": 1600,
-      "height": 500,
+      "height": 461,
       "category": "Nature",
       "tags": [
         "cowboy",
@@ -1586,7 +1586,7 @@
       "id": "127",
       "file": "header-127.webp",
       "width": 1600,
-      "height": 500,
+      "height": 461,
       "category": "Nature",
       "tags": [
         "mesa",
@@ -1598,7 +1598,7 @@
       "id": "128",
       "file": "header-128.webp",
       "width": 1600,
-      "height": 500,
+      "height": 488,
       "category": "Patriotic",
       "tags": [
         "barn",
@@ -1609,7 +1609,7 @@
     {
       "id": "129",
       "file": "header-129.webp",
-      "width": 1600,
+      "width": 1432,
       "height": 500,
       "category": "Work",
       "tags": [
@@ -1621,8 +1621,8 @@
     {
       "id": "130",
       "file": "header-130.webp",
-      "width": 1600,
-      "height": 500,
+      "width": 1241,
+      "height": 148,
       "category": "Nature",
       "tags": [
         "campfire",
