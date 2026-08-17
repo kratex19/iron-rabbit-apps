@@ -207,6 +207,8 @@ export default function StorageCleanupModal({
       dupeCount: dupeIds.size,
       largestBytes,
       dupeBytes,
+      largestIds: [...largestIds],
+      dupeIds: [...dupeIds],
     });
     setSmartRunState("done");
   }, [rows, rowsById]);
@@ -330,25 +332,74 @@ export default function StorageCleanupModal({
                 <span className="opacity-70">Finding your biggest attachments and duplicate photos.</span>
               </div>
             ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-500 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold">Smart Cleanup ready</div>
-                  <div className="text-xs opacity-80">
-                    {smartSummary.count} item{smartSummary.count === 1 ? "" : "s"} pre-selected · free up ~{formatMB(smartSummary.bytes)} MB
-                    {" "}<span className="opacity-70">({smartSummary.largestCount} largest + {smartSummary.dupeCount} duplicate cop{smartSummary.dupeCount === 1 ? "y" : "ies"})</span>
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold">Smart Cleanup ready</div>
+                    <div className="text-xs opacity-80">
+                      {selected.size} item{selected.size === 1 ? "" : "s"} to remove · free up ~{formatMB(totals.selectedBytes)} MB
+                      {" "}<span className="opacity-70">({smartSummary.largestCount} largest + {smartSummary.dupeCount} duplicate cop{smartSummary.dupeCount === 1 ? "y" : "ies"})</span>
+                    </div>
                   </div>
+                  <Button
+                    size="sm"
+                    onClick={removeSelected}
+                    disabled={busy || selected.size === 0}
+                    className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white"
+                    data-testid="storage-cleanup-smart-confirm"
+                  >
+                    {busy ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Freeing…</> : <>Free {formatMB(totals.selectedBytes)} MB</>}
+                  </Button>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={removeSelected}
-                  disabled={busy || selected.size === 0}
-                  className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 text-white"
-                  data-testid="storage-cleanup-smart-confirm"
-                >
-                  {busy ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Freeing…</> : <>Free {formatMB(smartSummary.bytes)} MB</>}
-                </Button>
-              </div>
+
+                {/* Dry-run preview strip — tap any tile to keep it (deselect) */}
+                {selected.size > 0 && (
+                  <div className="mt-2.5" data-testid="storage-cleanup-smart-preview">
+                    <div className="text-[10px] uppercase tracking-wide opacity-60 mb-1 flex items-center gap-1">
+                      <span>What will be removed</span>
+                      <span className="opacity-70 normal-case tracking-normal">· tap to keep</span>
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5">
+                      {[...selected].map((id) => {
+                        const r = rowsById.get(id);
+                        if (!r) return null;
+                        const isImg = r.type?.startsWith("image/");
+                        const isDupe = smartSummary.dupeIds.includes(id);
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => toggle(id)}
+                            className={`relative shrink-0 rounded-md overflow-hidden border ${
+                              isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-white"
+                            } hover:opacity-80 transition-opacity`}
+                            style={{ width: 72, height: 72 }}
+                            title={`${r.name} · ${formatMB(r.size)} MB — tap to keep`}
+                            data-testid={`storage-cleanup-smart-preview-${id}`}
+                          >
+                            {isImg && thumbUrls[id] ? (
+                              <img src={thumbUrls[id]} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center opacity-70">
+                                {isImg ? <ImageIcon className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                              </div>
+                            )}
+                            <div className={`absolute top-0.5 left-0.5 text-[8px] font-bold px-1 py-0.5 rounded ${
+                              isDupe ? "bg-amber-500 text-white" : "bg-red-500 text-white"
+                            }`}>
+                              {isDupe ? "DUPE" : "BIG"}
+                            </div>
+                            <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] font-mono px-1 py-0.5 text-center">
+                              {formatMB(r.size)} MB
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

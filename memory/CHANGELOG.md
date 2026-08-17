@@ -1,3 +1,16 @@
+## 2026-02-17 — Smart Cleanup Dry-Run Preview ✅
+
+- **`notes/StorageCleanupModal.jsx`** — Inside the Smart Cleanup banner
+  the "done" state now includes a horizontal thumbnail strip titled
+  *"What will be removed — tap to keep"*. Each tile shows the image
+  preview (or a file/image icon), a `BIG`/`DUPE` corner tag, and the
+  size overlay. Tapping any tile deselects it (keeps that file) and the
+  banner's header count + "Free X MB" button update live from
+  `totals.selectedBytes`.
+- `smartSummary` now carries `largestIds` and `dupeIds` arrays so the
+  strip can label each tile without recomputing.
+
+
 ## 2026-02-17 — Smart Cleanup Nudge (Settings Storage Row) ✅
 
 - **`notes/SettingsModal.jsx`** — When device storage ≥ 90%, the Storage
