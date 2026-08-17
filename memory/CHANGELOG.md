@@ -1,3 +1,21 @@
+## 2026-02-17 — Reverted 41-56 (Contact-Sheet Composites Again) 🔄
+
+- The "hi-res" 41-56 batch turned out to be **2×2 / 3-panel contact
+  sheets with number labels burned in** (same problem as the deleted
+  41-130 set before). Agent's earlier grid inspection missed it —
+  apology issued.
+- **Deleted** all 90 leftover `.webp` files with id ≥ 41 from
+  `/app/frontend/public/header-presets/` (8 from this batch + 82 old
+  broken files still lying around from the 41-130 mess).
+- **`manifest.json`** — Reverted presets 41-48; regenerated categories
+  from the remaining 40 entries. Back to: **All 40 · Nature 13 ·
+  Wildlife 8 · Sunset 7 · Water 5 · Sky 4 · Patriotic 3**.
+- **`service-worker.js`** — CACHE_NAME v20 → v21 so devices flush the
+  removed assets.
+- Verified `/dashboard/settings`: chip row shows the original 7 chips;
+  grid renders exactly 40 clean single-scene tiles.
+
+
 ## 2026-02-17 — Category Filter Chips ✅
 
 - **`header-presets/manifest.json`** — Regenerated the top-level

@@ -14,10 +14,6 @@
       "count": 7
     },
     {
-      "key": "Trades",
-      "count": 7
-    },
-    {
       "key": "Water",
       "count": 5
     },
@@ -28,10 +24,6 @@
     {
       "key": "Patriotic",
       "count": 3
-    },
-    {
-      "key": "Tech",
-      "count": 1
     }
   ],
   "presets": [
@@ -550,111 +542,7 @@
         "water",
         "landscape"
       ]
-    },
-    {
-      "id": "41",
-      "file": "header-41.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "construction",
-        "excavator",
-        "site",
-        "sunset"
-      ]
-    },
-    {
-      "id": "42",
-      "file": "header-42.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "tools",
-        "toolbelt",
-        "blueprint",
-        "workshop"
-      ]
-    },
-    {
-      "id": "43",
-      "file": "header-43.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Tech",
-      "tags": [
-        "office",
-        "laptop",
-        "city",
-        "skyline"
-      ]
-    },
-    {
-      "id": "44",
-      "file": "header-44.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "welding",
-        "sparks",
-        "metalwork"
-      ]
-    },
-    {
-      "id": "45",
-      "file": "header-45.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "gears",
-        "industrial",
-        "steampunk",
-        "machinery"
-      ]
-    },
-    {
-      "id": "46",
-      "file": "header-46.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "blueprints",
-        "schematics",
-        "engineering",
-        "drafting"
-      ]
-    },
-    {
-      "id": "47",
-      "file": "header-47.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "linemen",
-        "utility",
-        "silhouette",
-        "sunset",
-        "power"
-      ]
-    },
-    {
-      "id": "48",
-      "file": "header-48.webp",
-      "width": 1526,
-      "height": 419,
-      "category": "Trades",
-      "tags": [
-        "hvac",
-        "commercial",
-        "rooftop",
-        "storm"
-      ]
     }
   ],
-  "count": 48
+  "count": 40
 }
