@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Paperclip, X, Image as ImageIcon, FileText, Download, ScanText, Loader2, Camera, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import StorageService from "../storage/storageService";
+import { checkStorageQuota } from "../storage/storageWarnings";
 import { toast } from "sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -145,6 +146,9 @@ export default function Attachments({ attachments = [], onChange, isDark, compac
       if (newRefs.length > 0) {
         onChange([...(attachments || []), ...newRefs]);
         toast.success(`Attached ${newRefs.length} file${newRefs.length === 1 ? "" : "s"}`);
+        // Nudge the storage warning check — surfaces a toast once the
+        // user crosses 80% of their device quota. Deduped per session.
+        checkStorageQuota().catch(() => {});
       }
     } finally {
       setUploading(false);

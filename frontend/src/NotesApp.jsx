@@ -262,6 +262,8 @@ export default function NotesApp() {
       }
       setCategories(catsData);
       setStorageInfo(storageData);
+      // Warn once per session if we're already at 80%+ of device quota
+      import("./storage/storageWarnings").then(m => m.checkStorageQuota()).catch(() => {});
       if (templatesData.length > 0) setTemplates(templatesData);
 
       // First-run tour: show once, when there are no notes AND user has never
