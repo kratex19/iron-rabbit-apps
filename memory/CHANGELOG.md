@@ -1,3 +1,19 @@
+## 2026-02-17 — Smart Cleanup Recap Card ✅
+
+- **`notes/StorageCleanupModal.jsx`** — After a successful Smart Cleanup
+  delete, persists `settings.last_cleanup = { freed_bytes, files_count,
+  at, dismissed_at }`. If the user taps Undo within the 10-second
+  window, the recap is cleared so we don't claim savings that were
+  reversed.
+- **`notes/SettingsModal.jsx`** — When `last_cleanup.at` is within 24h
+  and not dismissed, a small emerald *"Freed X MB · Y files today"*
+  card renders at the top of Settings. Dismiss "×" persists to
+  `dismissed_at` so it stays hidden. Test IDs
+  `settings-cleanup-recap` and `settings-cleanup-recap-dismiss`.
+- Verified end-to-end via IndexedDB injection + reload: recap card
+  renders with correct copy, no console errors.
+
+
 ## 2026-02-17 — Smart Cleanup Undo Toast ✅
 
 - **`storage/storageService.js`** — Added `restoreAttachments(snapshots, { saveNote })`. Re-writes blobs directly to `filesStore` (bypasses MIME/size validators for a restore) and re-attaches to each host note using the note's freshly-read state so concurrent edits during the undo window aren't clobbered.

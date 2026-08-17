@@ -33,11 +33,35 @@ export default function SettingsModal({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [langPickerOpen, setLangPickerOpen] = useState(false);
+  // Recap card: mirror of settings.last_cleanup, cleared locally when the
+  // user dismisses so the card disappears without waiting for a parent
+  // settings-prop refresh.
+  const [recap, setRecap] = useState(null);
   const currentLng = SUPPORTED_LANGUAGES.find(
     (l) => l.code === (i18n.language || "en").split("-")[0]
   );
 
   useEffect(() => { if (settings) setFormData(settings); }, [settings]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const lc = settings?.last_cleanup;
+    if (!lc?.at || lc?.dismissed_at) { setRecap(null); return; }
+    const ageMs = Date.now() - Date.parse(lc.at);
+    if (isFinite(ageMs) && ageMs >= 0 && ageMs < 24 * 60 * 60 * 1000) {
+      setRecap(lc);
+    } else {
+      setRecap(null);
+    }
+  }, [isOpen, settings]);
+
+  const dismissRecap = async () => {
+    setRecap(null);
+    try {
+      await StorageService.saveSettings({
+        last_cleanup: { ...(settings?.last_cleanup || {}), dismissed_at: new Date().toISOString() },
+      });
+    } catch { /* non-fatal */ }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -103,6 +127,35 @@ export default function SettingsModal({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {recap && (
+            <div
+              className={`relative rounded-lg p-3 border-2 flex items-center gap-2.5 ${
+                isDark ? "border-emerald-400/50 bg-emerald-500/10" : "border-emerald-400 bg-emerald-50"
+              }`}
+              data-testid="settings-cleanup-recap"
+            >
+              <Sparkles className={`w-5 h-5 shrink-0 ${isDark ? "text-emerald-300" : "text-emerald-600"}`} />
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-semibold ${isDark ? "text-emerald-100" : "text-emerald-900"}`}>
+                  Freed {(recap.freed_bytes / (1024 * 1024)).toFixed(recap.freed_bytes < 1024 * 1024 ? 3 : 2)} MB · {recap.files_count} file{recap.files_count === 1 ? "" : "s"} today
+                </div>
+                <div className={`text-[11px] ${isDark ? "text-emerald-200/70" : "text-emerald-800/70"}`}>
+                  Nice sweep — Smart Cleanup keeps your device breathing.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={dismissRecap}
+                className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                  isDark ? "text-emerald-200/70 hover:bg-white/10" : "text-emerald-700/70 hover:bg-emerald-100"
+                }`}
+                title="Hide"
+                data-testid="settings-cleanup-recap-dismiss"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            </div>
+          )}
           <QuickGuideSettingsSection isDark={isDark} />
           <div>
             <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>

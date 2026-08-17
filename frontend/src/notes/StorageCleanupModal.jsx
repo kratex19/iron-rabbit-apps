@@ -291,6 +291,21 @@ export default function StorageCleanupModal({
       await refresh();
       onAfterChange?.();
 
+      // Recap card: only surfaced for Smart Cleanup runs so the "wins"
+      // shown in Settings match what the toast promised.
+      if (smartPreselect && removed > 0) {
+        try {
+          await StorageService.saveSettings({
+            last_cleanup: {
+              freed_bytes: bytesFreed,
+              files_count: removed,
+              at: new Date().toISOString(),
+              dismissed_at: null,
+            },
+          });
+        } catch { /* non-fatal */ }
+      }
+
       toast.success(`Freed ${formatMB(bytesFreed)} MB · removed ${removed} attachment${removed === 1 ? "" : "s"}${notesUpdated ? ` across ${notesUpdated} note${notesUpdated === 1 ? "" : "s"}` : ""}`, {
         duration: 10000,
         id: `storage-cleanup-undo-${Date.now()}`,
@@ -300,6 +315,11 @@ export default function StorageCleanupModal({
             const loadingId = toast.loading(`Restoring ${snapshots.length} attachment${snapshots.length === 1 ? "" : "s"}…`);
             try {
               const res = await StorageService.restoreAttachments(snapshots, { saveNote: onSaveNote });
+              // The delete was reversed — clear the recap so we don't
+              // claim savings that no longer exist.
+              if (smartPreselect) {
+                try { await StorageService.saveSettings({ last_cleanup: null }); } catch { /* ignore */ }
+              }
               toast.dismiss(loadingId);
               toast.success(`Restored ${res.restored} attachment${res.restored === 1 ? "" : "s"}${res.notesUpdated ? ` to ${res.notesUpdated} note${res.notesUpdated === 1 ? "" : "s"}` : ""}`);
               await refresh();
