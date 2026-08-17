@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS = {
   provider: "accuweather", // accuweather | weatherbug | weather_com | wunderground | nws | custom
   provider_custom_url: "",
   // Appearance
-  background_preset: null, // relative URL under /dash-backgrounds/*.webp
+  background_preset: null, // relative URL under /header-presets/*.webp
   background_dim: 0.35, // 0-1 dark overlay strength
   // Update behaviour
   auto_update: true,
@@ -37,9 +37,9 @@ export const DEFAULT_SETTINGS = {
   widgets_right: ["events"],
   // Widget visibility — user can hide any widget except "weather"
   widget_hidden: [],
-  // Starred favorite backgrounds — URLs under /dash-backgrounds/*.webp.
+  // Starred favorite backgrounds — URLs under /header-presets/*.webp.
   // When at least one is starred, swipe-to-cycle uses this subset instead
-  // of the full 83-image pool.
+  // of the full preset pool.
   favorites: [],
 };
 
@@ -83,10 +83,34 @@ export function providerUrlFor(providerKey, location, customUrl) {
   try { return entry.url(location, customUrl); } catch { return "https://www.accuweather.com/"; }
 }
 
+// Migrate any URLs still pointing at the deprecated `/dash-backgrounds/`
+// pool (with 3-digit filenames) to the shared Iron Rabbit `/header-presets/`
+// pool (with 2-digit filenames). Idempotent — safe to run every hydrate.
+function migrateBgUrl(url) {
+  if (typeof url !== "string") return url;
+  if (!url.startsWith("/dash-backgrounds/")) return url;
+  return url
+    .replace("/dash-backgrounds/", "/header-presets/")
+    .replace(/header-0*(\d+)\.webp$/, (_, n) => `header-${String(n).padStart(2, "0")}.webp`);
+}
+
 // ---- Settings API ----
 export async function loadSettings() {
   const saved = (await settingsStore.getItem("main")) || {};
-  return { ...DEFAULT_SETTINGS, ...saved };
+  const merged = { ...DEFAULT_SETTINGS, ...saved };
+  const migratedPreset = migrateBgUrl(merged.background_preset);
+  const migratedFavs = Array.isArray(merged.favorites)
+    ? merged.favorites.map(migrateBgUrl)
+    : [];
+  const needsWrite =
+    migratedPreset !== merged.background_preset ||
+    migratedFavs.some((u, i) => u !== merged.favorites[i]);
+  if (needsWrite) {
+    const next = { ...merged, background_preset: migratedPreset, favorites: migratedFavs };
+    await settingsStore.setItem("main", next);
+    return next;
+  }
+  return merged;
 }
 export async function saveSettings(next) {
   await settingsStore.setItem("main", next);

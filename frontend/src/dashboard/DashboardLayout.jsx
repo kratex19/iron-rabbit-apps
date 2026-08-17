@@ -9,19 +9,18 @@ import { getBrowserPosition, reverseGeocode } from "./utils/geocode";
 import useWeather from "./hooks/useWeather";
 import useEvents from "./hooks/useEvents";
 
-// Small pool of default backgrounds — points at the dashboard's OWN
-// clean-cropped preset folder (`/dash-backgrounds`), which is derived from
-// the existing 130 header presets but with contact-sheet artifacts stripped.
-// The existing Iron Rabbit `/header-presets` folder is left untouched.
+// Small pool of default backgrounds — shared with Iron Rabbit's header
+// preset folder (`/header-presets`), so both the Home Page header picker
+// and the Dashboard swipe cycler stay in sync as new presets are added.
 export const DEFAULT_BACKGROUND_POOL = [
-  "/dash-backgrounds/header-002.webp",
-  "/dash-backgrounds/header-003.webp",
-  "/dash-backgrounds/header-011.webp",
-  "/dash-backgrounds/header-016.webp",
-  "/dash-backgrounds/header-021.webp",
-  "/dash-backgrounds/header-024.webp",
-  "/dash-backgrounds/header-050.webp",
-  "/dash-backgrounds/header-080.webp",
+  "/header-presets/header-02.webp",
+  "/header-presets/header-03.webp",
+  "/header-presets/header-11.webp",
+  "/header-presets/header-16.webp",
+  "/header-presets/header-21.webp",
+  "/header-presets/header-24.webp",
+  "/header-presets/header-30.webp",
+  "/header-presets/header-38.webp",
 ];
 
 // Shared context for all sub-pages
@@ -39,7 +38,7 @@ export default function DashboardLayout() {
 
   // Load the full clean-background pool once (used by the swipe cycler)
   useEffect(() => {
-    fetch("/dash-backgrounds/manifest.json")
+    fetch("/header-presets/manifest.json")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
       .then((m) => {
         if (Array.isArray(m?.presets) && m.presets.length) setPresetManifest(m.presets);
@@ -49,7 +48,7 @@ export default function DashboardLayout() {
 
   const availableBackgrounds = useMemo(() => (
     presetManifest.length
-      ? presetManifest.map((p) => `/dash-backgrounds/${p.file}`)
+      ? presetManifest.map((p) => `/header-presets/${p.file}`)
       : DEFAULT_BACKGROUND_POOL
   ), [presetManifest]);
 
@@ -57,7 +56,7 @@ export default function DashboardLayout() {
   const presetInfoByUrl = useMemo(() => {
     const map = new Map();
     for (const p of presetManifest) {
-      const url = `/dash-backgrounds/${p.file}`;
+      const url = `/header-presets/${p.file}`;
       const tag = (p.tags && p.tags[0]) ? p.tags[0].replace(/\b\w/g, (c) => c.toUpperCase()) : "";
       const label = [p.category, tag].filter(Boolean).join(" · ");
       map.set(url, { label: label || p.file.replace(/\.webp$/, ""), category: p.category, tags: p.tags || [] });

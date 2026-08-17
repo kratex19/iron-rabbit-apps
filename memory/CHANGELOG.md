@@ -1,3 +1,27 @@
+## 2026-02-17 — Shared Preset Pool & Trades/Tech Backgrounds ✅
+
+- **`dashboard/DashboardLayout.jsx` + `pages/DashboardSettings.jsx`** —
+  Dashboard now reads `/header-presets/manifest.json` (shared with the
+  Home header picker) instead of the separate `/dash-backgrounds/` pool.
+  Both surfaces now render the same 48 backgrounds. Fixes the "Weather
+  app only shows 10 presets" bug.
+- **`dashboard/state/dashboardStore.js`** — Added `migrateBgUrl()` in
+  `loadSettings()` so existing users with stored
+  `background_preset: "/dash-backgrounds/header-002.webp"` (3-digit) get
+  transparently rewritten to `/header-presets/header-02.webp` (2-digit)
+  on next hydrate. Same migration applies to the `favorites[]` array.
+- **`public/header-presets/`** — Added 8 new WebP presets (41-48) at
+  1526×419 with the "Trades & Tech" theme: excavator, tools+blueprint,
+  laptop+city, welding, gears, blueprints, linemen at sunset, HVAC.
+- **`manifest.json`** — Grew from 40 → 48 entries. New categories:
+  **Trades** (7) and **Tech** (1). Full breakdown: Nature 13, Wildlife
+  8, Sunset 7, Trades 7, Water 5, Sky 4, Patriotic 3, Tech 1.
+- **`service-worker.js`** — CACHE_NAME bumped v17 → v18 → v19 so
+  devices pull the new manifest + webp assets on next open.
+- Verified: `/dashboard/settings` now renders 48 preview tiles (was 10)
+  with both `header-41.webp` and `header-48.webp` in the pool.
+
+
 ## 2026-02-17 — Smart Cleanup Streak Nudge ✅
 
 - **`utils/cleanupStreak.js`** — New pure-JS helper. `currentWeekKey()`

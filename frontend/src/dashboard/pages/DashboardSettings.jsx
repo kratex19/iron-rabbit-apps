@@ -16,11 +16,10 @@ export default function DashboardSettings() {
   const favorites = Array.isArray(settings.favorites) ? settings.favorites : [];
   const favSet = useMemo(() => new Set(favorites), [favorites]);
 
-  // Load the dashboard's own clean-cropped preset manifest (safe read-only
-  // fetch). This is a separate folder from Iron Rabbit's `/header-presets`
-  // so the existing app is untouched.
+  // Load the shared Iron Rabbit header preset manifest so the Dashboard
+  // and the Home Page pick from the same pool. Safe read-only fetch.
   useEffect(() => {
-    fetch("/dash-backgrounds/manifest.json")
+    fetch("/header-presets/manifest.json")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("no manifest"))))
       .then((m) => setPresets(Array.isArray(m.presets) ? m.presets : []))
       .catch(() => setPresets([]));
@@ -148,9 +147,9 @@ export default function DashboardSettings() {
           {(() => {
             const source = presets.length
               ? presets
-              : DEFAULT_BACKGROUND_POOL.map((f, i) => ({ id: String(i), file: f.replace("/dash-backgrounds/", "") }));
+              : DEFAULT_BACKGROUND_POOL.map((f, i) => ({ id: String(i), file: f.replace("/header-presets/", "") }));
             // Star favorites first for easier browsing
-            const withStar = source.map((p) => ({ ...p, _url: `/dash-backgrounds/${p.file}` }));
+            const withStar = source.map((p) => ({ ...p, _url: `/header-presets/${p.file}` }));
             withStar.sort((a, b) => (favSet.has(b._url) ? 1 : 0) - (favSet.has(a._url) ? 1 : 0));
             const visible = favOnly ? withStar.filter((p) => favSet.has(p._url)) : withStar;
             if (visible.length === 0) {
