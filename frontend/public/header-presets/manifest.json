@@ -6,20 +6,20 @@
       "count": 13
     },
     {
+      "key": "Sunset",
+      "count": 13
+    },
+    {
+      "key": "Water",
+      "count": 8
+    },
+    {
       "key": "Wildlife",
       "count": 8
     },
     {
-      "key": "Sunset",
-      "count": 7
-    },
-    {
-      "key": "Water",
-      "count": 5
-    },
-    {
       "key": "Sky",
-      "count": 4
+      "count": 5
     },
     {
       "key": "Patriotic",
@@ -542,7 +542,146 @@
         "water",
         "landscape"
       ]
+    },
+    {
+      "id": "41",
+      "file": "header-41.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "mountain",
+        "lake",
+        "sunset",
+        "reflection"
+      ]
+    },
+    {
+      "id": "42",
+      "file": "header-42.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "beach",
+        "tropical",
+        "palm",
+        "ocean",
+        "sunset"
+      ]
+    },
+    {
+      "id": "43",
+      "file": "header-43.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "alpine",
+        "lake",
+        "mountains",
+        "reflection",
+        "calm"
+      ]
+    },
+    {
+      "id": "44",
+      "file": "header-44.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "tuscany",
+        "countryside",
+        "hills",
+        "sunset",
+        "villa"
+      ]
+    },
+    {
+      "id": "45",
+      "file": "header-45.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "coast",
+        "cliffs",
+        "ocean",
+        "bridge",
+        "coastline"
+      ]
+    },
+    {
+      "id": "46",
+      "file": "header-46.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "waterfall",
+        "forest",
+        "stream",
+        "moss",
+        "creek"
+      ]
+    },
+    {
+      "id": "47",
+      "file": "header-47.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "desert",
+        "monument",
+        "valley",
+        "buttes",
+        "sunset"
+      ]
+    },
+    {
+      "id": "48",
+      "file": "header-48.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "pier",
+        "lake",
+        "dock",
+        "sunset",
+        "reflection"
+      ]
+    },
+    {
+      "id": "49",
+      "file": "header-49.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "lavender",
+        "field",
+        "sunset",
+        "tree",
+        "purple"
+      ]
+    },
+    {
+      "id": "50",
+      "file": "header-50.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sky",
+      "tags": [
+        "aurora",
+        "northern-lights",
+        "arctic",
+        "night",
+        "snow"
+      ]
     }
   ],
-  "count": 40
+  "count": 50
 }

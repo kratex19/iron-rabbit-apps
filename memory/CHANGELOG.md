@@ -1,3 +1,26 @@
+## 2026-02-18 — Presets 41-50 (True Single-Scene Landscapes) ✅
+
+- Received `IronRabbit_Headers_41-50_Fresh.zip` — 10 legitimate
+  single-scene landscape images at 1600×500. Opened **each file
+  individually** in the viewer (per new process) to verify: no
+  composites, no dividers, no burned-in labels.
+- **`public/header-presets/`** — Added 10 new WebPs (41-50) resized
+  from 1600×500 → 1526×419 (match existing 1-40 dimensions),
+  quality 82, method 6. File sizes 27-60 KB each.
+- Content: mountain-lake sunset (41), tropical beach (42), alpine
+  reflection (43), Tuscan hills (44), coastal cliffs (45), forest
+  waterfall (46), Monument Valley (47), pier at pink sunset (48),
+  lavender field (49), aurora borealis (50).
+- **`manifest.json`** — 40 → 50 presets. Category counts refreshed:
+  **Nature 13 · Sunset 13 · Water 8 · Wildlife 8 · Sky 5 · Patriotic 3**
+  (was Sunset 7 / Water 5 / Sky 4).
+- **`service-worker.js`** — CACHE_NAME v21 → v22 so devices grab the
+  new manifest + assets; network-first rule for `/header-presets/*`
+  from yesterday keeps refresh instant.
+- Verified at `/dashboard/settings`: 50 preview tiles, chip row shows
+  updated counts, "Sunset" chip filters to exactly 13 tiles.
+
+
 ## 2026-02-17 — Root Cause: SW Cached Deleted Presets 🔧
 
 - Server-side had **zero** files above id 40 — verified via direct
