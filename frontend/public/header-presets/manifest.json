@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "categories": [
     {
       "key": "Southern",
@@ -87,7 +87,7 @@
     },
     {
       "key": "Adventure",
-      "count": 1
+      "count": 17
     },
     {
       "key": "Canyon",
@@ -2626,7 +2626,215 @@
         "manhattan",
         "1930s"
       ]
+    },
+    {
+      "id": "184",
+      "file": "header-184.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "himalaya",
+        "peak",
+        "snow",
+        "clouds"
+      ]
+    },
+    {
+      "id": "185",
+      "file": "header-185.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "climbers",
+        "roped",
+        "ascent",
+        "ridge"
+      ]
+    },
+    {
+      "id": "186",
+      "file": "header-186.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "snowstorm",
+        "tents",
+        "blizzard",
+        "expedition"
+      ]
+    },
+    {
+      "id": "187",
+      "file": "header-187.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "alpenglow",
+        "sunset",
+        "peaks",
+        "clouds"
+      ]
+    },
+    {
+      "id": "188",
+      "file": "header-188.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "base-camp",
+        "prayer-flags",
+        "signpost",
+        "trek"
+      ]
+    },
+    {
+      "id": "189",
+      "file": "header-189.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "traverse",
+        "narrow-ridge",
+        "climbers",
+        "himalaya"
+      ]
+    },
+    {
+      "id": "190",
+      "file": "header-190.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "trekkers",
+        "moraine",
+        "backpacks",
+        "himalaya"
+      ]
+    },
+    {
+      "id": "191",
+      "file": "header-191.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "night-climb",
+        "steep",
+        "ice",
+        "starry"
+      ]
+    },
+    {
+      "id": "192",
+      "file": "header-192.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "everest",
+        "summit",
+        "goggles",
+        "climber"
+      ]
+    },
+    {
+      "id": "193",
+      "file": "header-193.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "night-camp",
+        "orange-tents",
+        "glacier",
+        "stars"
+      ]
+    },
+    {
+      "id": "194",
+      "file": "header-194.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "sunrise-climb",
+        "headlamp",
+        "solo",
+        "ascent"
+      ]
+    },
+    {
+      "id": "195",
+      "file": "header-195.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "steep-ice",
+        "line",
+        "ascent",
+        "wind"
+      ]
+    },
+    {
+      "id": "196",
+      "file": "header-196.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "climbers",
+        "snow-face",
+        "distant-peaks",
+        "vista"
+      ]
+    },
+    {
+      "id": "197",
+      "file": "header-197.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "sea-of-clouds",
+        "sunrise",
+        "peaks",
+        "himalaya"
+      ]
+    },
+    {
+      "id": "198",
+      "file": "header-198.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "resting-climbers",
+        "snow-slope",
+        "expedition",
+        "team"
+      ]
+    },
+    {
+      "id": "199",
+      "file": "header-199.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "stupa",
+        "prayer-flags",
+        "village",
+        "nepal"
+      ]
     }
   ],
-  "count": 183
+  "count": 199
 }
