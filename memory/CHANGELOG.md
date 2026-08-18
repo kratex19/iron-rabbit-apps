@@ -1,3 +1,18 @@
+## 2026-02-18 — Hunting/Fishing Upgrade (ChatGPT Extractions) 🎣
+
+- User re-sent the same 3x3 hunting/fishing themes as a higher-quality
+  ChatGPT-generated preview grid.
+- Detected grid layout via pixel analysis: vertical dividers at
+  x=511/1024, horizontal dividers at y=340/682. Each cell ~510×340.
+- Extracted 9 panels, upscaled 1526px wide, center-cropped to 419 tall,
+  re-saved as WebP quality 88 — replacing the Nano Banana versions of
+  header-131 through header-139.
+- Notable upgrades: 132 (deer with autumn tree stand + bokeh), 135
+  (fly reel macro with rushing river background), 138 (marlin mid-leap
+  with dramatic water splash).
+- **`service-worker.js`** — v29 → v30.
+
+
 ## 2026-02-18 — Presets 131-139 (Hunting & Fishing) 🎣🏹
 
 - User sent 2 preview grid screenshots. First grid (053-057, 059) held
