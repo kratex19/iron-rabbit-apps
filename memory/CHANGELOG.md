@@ -1,3 +1,22 @@
+## 2026-02-18 — Presets 55-64 (Manhattan + Nano Banana Generated) 🎨
+
+- **55 Manhattan Skyline** — user-supplied via `IronRabbit_Header_055_FINAL.zip`. Source was 800×500 content padded to 1600×500 with black; cropped center band to header aspect (3.64:1), resized, saved as WebP. Category: **Urban**.
+- **56-64 generated via Gemini Nano Banana** (`gemini-3.1-flash-image-preview`) since ChatGPT's image gen was flaky for the user. Prompts crafted to lock single-scene panoramic composition. Cropped each result to 1526×419 header aspect.
+  - 56 Cathedral · **Faith** · gothic interior with rose window
+  - 57 Baseball Stadium · **Sports** · MLB night game panoramic
+  - 58 Snowy Village · **Winter** · alpine chalets under starry mountain sky
+  - 59 Coral Reef · **Underwater** · turtle + fish + sunbeams
+  - 60 SpaceX Launch · **Space** · rocket at dusk with exhaust plume
+  - 61 Hunting Cabin · **Nature** · Tetons behind log cabin & campfire
+  - 62 Sci-Fi Alien City · **Sci-Fi** · glowing spires under ringed planet
+  - 63 Trades Workshop · **Trades** · rustic craftsman shop w/ US flag
+  - 64 Milky Way · **Sky** · Delicate Arch under galactic band
+- **`manifest.json`** grew 55 → 64 presets. Category count doubled from 7 → **15**: Sunset 16 · Nature 14 · Water 8 · Wildlife 8 · Sky 7 · Patriotic 3 · **Faith 1 · Sci-Fi 1 · Space 1 · Sports 1 · Trades 1 · Underwater 1 · Urban 1 · Winter 1**.
+- **`service-worker.js`** — CACHE_NAME v23 → v25.
+- **`/tmp/gen_headers.py`** — Reusable generator script if user wants more.
+- Verified at `/dashboard/settings`: 64 tiles render, 15 chips display correct counts.
+
+
 ## 2026-02-18 — Presets 51-54 (Partial Batch, 6 Held for Re-Export) ✅
 
 - Received `IronRabbit_Headers_51-60_Verified.zip` — 10 files. After

@@ -7,7 +7,7 @@
     },
     {
       "key": "Nature",
-      "count": 13
+      "count": 14
     },
     {
       "key": "Water",
@@ -19,11 +19,43 @@
     },
     {
       "key": "Sky",
-      "count": 6
+      "count": 7
     },
     {
       "key": "Patriotic",
       "count": 3
+    },
+    {
+      "key": "Faith",
+      "count": 1
+    },
+    {
+      "key": "Sci-Fi",
+      "count": 1
+    },
+    {
+      "key": "Space",
+      "count": 1
+    },
+    {
+      "key": "Sports",
+      "count": 1
+    },
+    {
+      "key": "Trades",
+      "count": 1
+    },
+    {
+      "key": "Underwater",
+      "count": 1
+    },
+    {
+      "key": "Urban",
+      "count": 1
+    },
+    {
+      "key": "Winter",
+      "count": 1
     }
   ],
   "presets": [
@@ -738,7 +770,150 @@
         "mountains",
         "night"
       ]
+    },
+    {
+      "id": "55",
+      "file": "header-55.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Urban",
+      "tags": [
+        "manhattan",
+        "skyline",
+        "brooklyn-bridge",
+        "blue-hour",
+        "city",
+        "nyc"
+      ]
+    },
+    {
+      "id": "56",
+      "file": "header-56.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "cathedral",
+        "gothic",
+        "stained-glass",
+        "christian",
+        "sunbeams"
+      ]
+    },
+    {
+      "id": "57",
+      "file": "header-57.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sports",
+      "tags": [
+        "baseball",
+        "stadium",
+        "night",
+        "sports",
+        "diamond"
+      ]
+    },
+    {
+      "id": "58",
+      "file": "header-58.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Winter",
+      "tags": [
+        "snow",
+        "village",
+        "cottage",
+        "night",
+        "winter",
+        "alpine"
+      ]
+    },
+    {
+      "id": "59",
+      "file": "header-59.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Underwater",
+      "tags": [
+        "coral-reef",
+        "underwater",
+        "turtle",
+        "tropical",
+        "ocean"
+      ]
+    },
+    {
+      "id": "60",
+      "file": "header-60.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Space",
+      "tags": [
+        "spacex",
+        "rocket",
+        "launch",
+        "space",
+        "sunset"
+      ]
+    },
+    {
+      "id": "61",
+      "file": "header-61.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Nature",
+      "tags": [
+        "cabin",
+        "wilderness",
+        "campfire",
+        "mountains",
+        "sunset"
+      ]
+    },
+    {
+      "id": "62",
+      "file": "header-62.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sci-Fi",
+      "tags": [
+        "sci-fi",
+        "futuristic",
+        "alien-city",
+        "spires",
+        "planet"
+      ]
+    },
+    {
+      "id": "63",
+      "file": "header-63.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Trades",
+      "tags": [
+        "workshop",
+        "trades",
+        "craftsman",
+        "tools",
+        "flag"
+      ]
+    },
+    {
+      "id": "64",
+      "file": "header-64.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sky",
+      "tags": [
+        "milky-way",
+        "galaxy",
+        "desert",
+        "night",
+        "stars",
+        "arch"
+      ]
     }
   ],
-  "count": 54
+  "count": 64
 }
