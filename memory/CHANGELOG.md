@@ -1,3 +1,24 @@
+## 2026-02-18 — Depression-Era Gangsters (169-183) 🎩
+
+- Received a 4×4 grid of Depression-era / prohibition / gangster themes.
+- **Skipped panel (0,1)** — vintage movie marquee with "JACK OAKIE"
+  burned in (real deceased actor's name = right-of-publicity risk in
+  some U.S. states). Kept other in-scene text (Wall Street Crash
+  newspaper, "FIRST NATIONAL BANK", "WANTED $10,000", "ROOMS 25¢") —
+  these are generic period details, no IP.
+- **Extracted 15 safe panels** as presets 169-183 under new
+  **"Gangster"** category:
+  - 169 tommy-gun quartet, 170 posed gangsters, 171 bank robbery run,
+    172 Wall Street Crash paper, 173 industrial-city street,
+    174 bourbon warehouse, 175 wanted poster, 176 backroom poker,
+    177 bullet-riddled getaway car, 178 wet-street shooter,
+    179 fedora + tommy + cash still-life, 180 prohibition still,
+    181 "ROOMS 25¢" hotel, 182 street shootout with muzzle flash,
+    183 vintage sedan on Brooklyn Bridge under NYC skyline
+- **`manifest.json`** 168 → 183 presets. **`service-worker.js`** v32
+  → v33.
+
+
 ## 2026-02-18 — Southern Category (149-168 + Moonshine Merge) 🥃
 
 - User asked whether to call the moonshine batch "Moonshiners / Old
