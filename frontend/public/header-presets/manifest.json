@@ -2,31 +2,63 @@
   "version": 7,
   "categories": [
     {
+      "key": "Nature",
+      "count": 18
+    },
+    {
       "key": "Sunset",
       "count": 16
     },
     {
-      "key": "Nature",
-      "count": 14
+      "key": "Faith",
+      "count": 12
     },
     {
       "key": "Water",
-      "count": 8
+      "count": 12
+    },
+    {
+      "key": "Sky",
+      "count": 9
     },
     {
       "key": "Wildlife",
       "count": 8
     },
     {
-      "key": "Sky",
-      "count": 7
+      "key": "Christmas",
+      "count": 5
+    },
+    {
+      "key": "Cinco",
+      "count": 5
+    },
+    {
+      "key": "Halloween",
+      "count": 5
+    },
+    {
+      "key": "Lunar",
+      "count": 5
+    },
+    {
+      "key": "NewYear",
+      "count": 5
+    },
+    {
+      "key": "Easter",
+      "count": 4
+    },
+    {
+      "key": "Auto",
+      "count": 3
     },
     {
       "key": "Patriotic",
       "count": 3
     },
     {
-      "key": "Auto",
+      "key": "Camping",
       "count": 2
     },
     {
@@ -38,7 +70,7 @@
       "count": 2
     },
     {
-      "key": "Camping",
+      "key": "Adventure",
       "count": 1
     },
     {
@@ -50,7 +82,7 @@
       "count": 1
     },
     {
-      "key": "Faith",
+      "key": "Cozy",
       "count": 1
     },
     {
@@ -58,7 +90,15 @@
       "count": 1
     },
     {
+      "key": "History",
+      "count": 1
+    },
+    {
       "key": "Hunting",
+      "count": 1
+    },
+    {
+      "key": "Music",
       "count": 1
     },
     {
@@ -835,11 +875,11 @@
       "height": 419,
       "category": "Sports",
       "tags": [
+        "yankee-stadium",
         "baseball",
-        "stadium",
+        "mlb",
         "night",
-        "sports",
-        "diamond"
+        "nyc"
       ]
     },
     {
@@ -1081,7 +1121,791 @@
         "earthrise",
         "nasa"
       ]
+    },
+    {
+      "id": "75",
+      "file": "header-75.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Nature",
+      "tags": [
+        "cherry-blossoms",
+        "sakura",
+        "japan",
+        "spring",
+        "pink"
+      ]
+    },
+    {
+      "id": "76",
+      "file": "header-76.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "waterfall",
+        "cascade",
+        "rainforest",
+        "mist",
+        "tropical"
+      ]
+    },
+    {
+      "id": "77",
+      "file": "header-77.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sky",
+      "tags": [
+        "storm",
+        "lightning",
+        "thunderstorm",
+        "night",
+        "prairie"
+      ]
+    },
+    {
+      "id": "78",
+      "file": "header-78.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Nature",
+      "tags": [
+        "autumn",
+        "fall",
+        "maple",
+        "forest",
+        "leaves"
+      ]
+    },
+    {
+      "id": "79",
+      "file": "header-79.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Cozy",
+      "tags": [
+        "fireplace",
+        "cozy",
+        "hygge",
+        "cabin",
+        "winter"
+      ]
+    },
+    {
+      "id": "80",
+      "file": "header-80.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "yacht",
+        "sailing",
+        "mediterranean",
+        "sunset",
+        "ocean"
+      ]
+    },
+    {
+      "id": "81",
+      "file": "header-81.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Auto",
+      "tags": [
+        "motorcycle",
+        "road-trip",
+        "desert",
+        "canyon",
+        "sunset"
+      ]
+    },
+    {
+      "id": "82",
+      "file": "header-82.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "lighthouse",
+        "storm",
+        "rocky-coast",
+        "waves",
+        "sunrise"
+      ]
+    },
+    {
+      "id": "83",
+      "file": "header-83.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Nature",
+      "tags": [
+        "snowy-peaks",
+        "alps",
+        "alpenglow",
+        "sunrise",
+        "mountains"
+      ]
+    },
+    {
+      "id": "84",
+      "file": "header-84.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Nature",
+      "tags": [
+        "cactus",
+        "desert",
+        "saguaro",
+        "arizona",
+        "sunset"
+      ]
+    },
+    {
+      "id": "85",
+      "file": "header-85.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Water",
+      "tags": [
+        "tropical-waterfall",
+        "jungle",
+        "lagoon",
+        "paradise",
+        "hidden"
+      ]
+    },
+    {
+      "id": "86",
+      "file": "header-86.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Music",
+      "tags": [
+        "jazz",
+        "club",
+        "music",
+        "night",
+        "amber"
+      ]
+    },
+    {
+      "id": "87",
+      "file": "header-87.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Camping",
+      "tags": [
+        "campfire",
+        "camping",
+        "friends",
+        "night",
+        "stars"
+      ]
+    },
+    {
+      "id": "88",
+      "file": "header-88.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Adventure",
+      "tags": [
+        "mountaineer",
+        "climber",
+        "ridge",
+        "sunrise",
+        "adventure"
+      ]
+    },
+    {
+      "id": "89",
+      "file": "header-89.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sky",
+      "tags": [
+        "hot-air-balloons",
+        "cappadocia",
+        "sunrise",
+        "colorful",
+        "turkey"
+      ]
+    },
+    {
+      "id": "90",
+      "file": "header-90.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "History",
+      "tags": [
+        "castle",
+        "medieval",
+        "dusk",
+        "stone",
+        "fantasy"
+      ]
+    },
+    {
+      "id": "91",
+      "file": "header-91.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "cross",
+        "sunset",
+        "mountain-ridge",
+        "christian",
+        "faith"
+      ]
+    },
+    {
+      "id": "92",
+      "file": "header-92.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "church",
+        "mountains",
+        "autumn",
+        "steeple",
+        "country"
+      ]
+    },
+    {
+      "id": "93",
+      "file": "header-93.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "shepherd",
+        "lamb",
+        "sunset",
+        "meadow",
+        "symbolic"
+      ]
+    },
+    {
+      "id": "94",
+      "file": "header-94.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "calvary",
+        "three-crosses",
+        "sunset",
+        "hill",
+        "dramatic"
+      ]
+    },
+    {
+      "id": "95",
+      "file": "header-95.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "bible",
+        "candle",
+        "open-book",
+        "reverent",
+        "amber"
+      ]
+    },
+    {
+      "id": "96",
+      "file": "header-96.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "stained-glass",
+        "cathedral",
+        "light-beams",
+        "gothic",
+        "colorful"
+      ]
+    },
+    {
+      "id": "97",
+      "file": "header-97.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "praying-hands",
+        "rosary",
+        "sunbeams",
+        "devotion",
+        "spiritual"
+      ]
+    },
+    {
+      "id": "98",
+      "file": "header-98.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "lighthouse",
+        "storm",
+        "waves",
+        "faith",
+        "perseverance"
+      ]
+    },
+    {
+      "id": "99",
+      "file": "header-99.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "heaven",
+        "gates",
+        "clouds",
+        "divine-light",
+        "ethereal"
+      ]
+    },
+    {
+      "id": "100",
+      "file": "header-100.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Easter",
+      "tags": [
+        "easter",
+        "cross",
+        "sunrise",
+        "spring",
+        "flowers"
+      ]
+    },
+    {
+      "id": "101",
+      "file": "header-101.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Easter",
+      "tags": [
+        "empty-tomb",
+        "easter",
+        "resurrection",
+        "stone",
+        "light"
+      ]
+    },
+    {
+      "id": "102",
+      "file": "header-102.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Easter",
+      "tags": [
+        "easter-lilies",
+        "cross",
+        "spring",
+        "white",
+        "meadow"
+      ]
+    },
+    {
+      "id": "103",
+      "file": "header-103.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Easter",
+      "tags": [
+        "easter-eggs",
+        "spring",
+        "grass",
+        "pastel",
+        "basket"
+      ]
+    },
+    {
+      "id": "104",
+      "file": "header-104.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "sea-of-galilee",
+        "fishing-boat",
+        "sunrise",
+        "biblical",
+        "calm"
+      ]
+    },
+    {
+      "id": "105",
+      "file": "header-105.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Faith",
+      "tags": [
+        "desert",
+        "lone-tree",
+        "sunset",
+        "solitude",
+        "spiritual"
+      ]
+    },
+    {
+      "id": "106",
+      "file": "header-106.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Christmas",
+      "tags": [
+        "nativity",
+        "manger",
+        "star",
+        "christmas",
+        "night"
+      ]
+    },
+    {
+      "id": "107",
+      "file": "header-107.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Christmas",
+      "tags": [
+        "christmas-tree",
+        "fireplace",
+        "presents",
+        "cozy",
+        "holiday"
+      ]
+    },
+    {
+      "id": "108",
+      "file": "header-108.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Christmas",
+      "tags": [
+        "christmas-church",
+        "snowy-village",
+        "night",
+        "steeple",
+        "holiday"
+      ]
+    },
+    {
+      "id": "109",
+      "file": "header-109.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Christmas",
+      "tags": [
+        "santa",
+        "sleigh",
+        "reindeer",
+        "moon",
+        "christmas"
+      ]
+    },
+    {
+      "id": "110",
+      "file": "header-110.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Christmas",
+      "tags": [
+        "ornaments",
+        "pine",
+        "christmas",
+        "bokeh",
+        "holiday"
+      ]
+    },
+    {
+      "id": "111",
+      "file": "header-111.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Halloween",
+      "tags": [
+        "haunted-house",
+        "mansion",
+        "full-moon",
+        "spooky",
+        "fog"
+      ]
+    },
+    {
+      "id": "112",
+      "file": "header-112.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Halloween",
+      "tags": [
+        "pumpkins",
+        "jack-o-lantern",
+        "porch",
+        "autumn",
+        "candlelight"
+      ]
+    },
+    {
+      "id": "113",
+      "file": "header-113.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Halloween",
+      "tags": [
+        "graveyard",
+        "tombstones",
+        "fog",
+        "full-moon",
+        "spooky"
+      ]
+    },
+    {
+      "id": "114",
+      "file": "header-114.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Halloween",
+      "tags": [
+        "witch",
+        "cauldron",
+        "potion",
+        "bats",
+        "spooky"
+      ]
+    },
+    {
+      "id": "115",
+      "file": "header-115.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Halloween",
+      "tags": [
+        "jack-o-lantern",
+        "pumpkin",
+        "autumn",
+        "glow",
+        "halloween"
+      ]
+    },
+    {
+      "id": "116",
+      "file": "header-116.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "NewYear",
+      "tags": [
+        "times-square",
+        "newyear",
+        "confetti",
+        "crowd",
+        "celebration"
+      ]
+    },
+    {
+      "id": "117",
+      "file": "header-117.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "NewYear",
+      "tags": [
+        "champagne",
+        "toast",
+        "cheers",
+        "celebration",
+        "bokeh"
+      ]
+    },
+    {
+      "id": "118",
+      "file": "header-118.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "NewYear",
+      "tags": [
+        "fireworks",
+        "skyline",
+        "celebration",
+        "reflection",
+        "city"
+      ]
+    },
+    {
+      "id": "119",
+      "file": "header-119.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "NewYear",
+      "tags": [
+        "clock",
+        "countdown",
+        "midnight",
+        "bubbles",
+        "celebration"
+      ]
+    },
+    {
+      "id": "120",
+      "file": "header-120.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "NewYear",
+      "tags": [
+        "party",
+        "celebration",
+        "streamers",
+        "sparklers",
+        "festive"
+      ]
+    },
+    {
+      "id": "121",
+      "file": "header-121.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Cinco",
+      "tags": [
+        "fiesta",
+        "sombrero",
+        "papel-picado",
+        "cinco",
+        "mexican"
+      ]
+    },
+    {
+      "id": "122",
+      "file": "header-122.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Cinco",
+      "tags": [
+        "mariachi",
+        "musicians",
+        "guitars",
+        "charro",
+        "festive"
+      ]
+    },
+    {
+      "id": "123",
+      "file": "header-123.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Cinco",
+      "tags": [
+        "mexican-flag",
+        "sunset",
+        "patriotic",
+        "waving",
+        "mountains"
+      ]
+    },
+    {
+      "id": "124",
+      "file": "header-124.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Cinco",
+      "tags": [
+        "mexican-food",
+        "tacos",
+        "fiesta",
+        "authentic",
+        "colorful"
+      ]
+    },
+    {
+      "id": "125",
+      "file": "header-125.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Cinco",
+      "tags": [
+        "papel-picado",
+        "banners",
+        "sunset",
+        "festive",
+        "colorful"
+      ]
+    },
+    {
+      "id": "126",
+      "file": "header-126.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Lunar",
+      "tags": [
+        "chinese-dragon",
+        "lunar-new-year",
+        "lanterns",
+        "celebration",
+        "red"
+      ]
+    },
+    {
+      "id": "127",
+      "file": "header-127.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Lunar",
+      "tags": [
+        "red-lanterns",
+        "chinese",
+        "festive",
+        "glowing",
+        "new-year"
+      ]
+    },
+    {
+      "id": "128",
+      "file": "header-128.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Lunar",
+      "tags": [
+        "chinese-new-year",
+        "red-envelope",
+        "mandarin",
+        "decorations",
+        "traditional"
+      ]
+    },
+    {
+      "id": "129",
+      "file": "header-129.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Lunar",
+      "tags": [
+        "firecrackers",
+        "chinese",
+        "sparks",
+        "celebration",
+        "red"
+      ]
+    },
+    {
+      "id": "130",
+      "file": "header-130.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Lunar",
+      "tags": [
+        "lion-dance",
+        "chinese",
+        "festive",
+        "performance",
+        "new-year"
+      ]
     }
   ],
-  "count": 74
+  "count": 130
 }

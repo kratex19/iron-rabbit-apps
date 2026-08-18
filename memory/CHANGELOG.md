@@ -1,3 +1,24 @@
+## 2026-02-18 — Presets 91-130 (Faith/Holiday/Culture Expansion) + Fixes 🎉
+
+**40 new presets generated via Gemini Nano Banana**:
+- **91-99 Faith**: Cross sunrise, mountain church, shepherd+lamb, calvary, bible+candle, stained-glass, praying hands, storm lighthouse, heaven's gates
+- **100-103 Easter**: Sunrise cross+wildflowers, empty tomb, lilies+cross, decorated eggs
+- **104-105 Faith**: Sea of Galilee, desert solitude
+- **106-110 Christmas**: Nativity manger, tree+fireplace, snowy church, Santa's sleigh, ornaments+bokeh
+- **111-115 Halloween**: Haunted mansion, jack-o'-lanterns, foggy graveyard, witch+cauldron, single carved pumpkin
+- **116-120 NewYear**: Times Square, champagne toast, fireworks over skyline, midnight clock, rooftop party
+- **121-125 Cinco de Mayo**: Fiesta spread, mariachi band, waving flag, food, papel picado banners
+- **126-130 Lunar New Year**: Dragon dance, red lanterns, decorations, firecrackers, lion dance
+
+**Fixes**:
+- **header-56** — kept the user's higher-quality cathedral shot from earlier session
+- **header-57 & header-91 restored** — user-uploaded artifacts on Aug 18 turned out to be 10-image *preview grids* (not individual images), which had briefly overwritten these two files. Regenerated both with Nano Banana: header-57 is now a stunning Yankee-style stadium panorama, header-91 is a wooden cross on a rocky mountain ridge at sunset.
+- **`manifest.json`** — Now 130 presets across **31 categories** (was 15).
+- **`service-worker.js`** — CACHE_NAME v27 → v28.
+- **Cost**: ~$1.30 in EMERGENT_LLM_KEY credits total for this session (40 wishlist + 40 seasonal + 2 regens).
+- **Verified**: `/dashboard/settings` renders 130 tiles + 32 chips; server manifest at 130.
+
+
 ## 2026-02-18 — Presets 65-74 (Genre Expansion via Nano Banana) 🎨
 
 - Generated 10 more via `gemini-3.1-flash-image-preview` across the
