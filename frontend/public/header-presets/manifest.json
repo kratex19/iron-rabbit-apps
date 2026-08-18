@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "categories": [
     {
       "key": "Southern",
@@ -16,6 +16,10 @@
     {
       "key": "Gangster",
       "count": 15
+    },
+    {
+      "key": "ChainGang",
+      "count": 6
     },
     {
       "key": "Faith",
@@ -2834,7 +2838,91 @@
         "village",
         "nepal"
       ]
+    },
+    {
+      "id": "200",
+      "file": "header-200.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "ChainGang",
+      "title": "Chain Gang Highway",
+      "tags": [
+        "chain-gang",
+        "road-work",
+        "tar-wagon",
+        "guard"
+      ]
+    },
+    {
+      "id": "201",
+      "file": "header-201.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "ChainGang",
+      "title": "Eat And Be Thankful",
+      "tags": [
+        "mess-hall",
+        "cornbread",
+        "prisoners",
+        "sign"
+      ]
+    },
+    {
+      "id": "202",
+      "file": "header-202.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "ChainGang",
+      "title": "Coal Cart Winter",
+      "tags": [
+        "penitentiary",
+        "snow",
+        "coal-cart",
+        "smokestacks"
+      ]
+    },
+    {
+      "id": "203",
+      "file": "header-203.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "ChainGang",
+      "title": "Boot Hill Procession",
+      "tags": [
+        "funeral",
+        "coffin-cart",
+        "snow-ridge",
+        "cross"
+      ]
+    },
+    {
+      "id": "204",
+      "file": "header-204.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "ChainGang",
+      "title": "Cattle Drive Loading",
+      "tags": [
+        "cattle",
+        "boxcars",
+        "steam-locomotive",
+        "prison-ranch"
+      ]
+    },
+    {
+      "id": "205",
+      "file": "header-205.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "ChainGang",
+      "title": "Yard Ball Sunset",
+      "tags": [
+        "basketball",
+        "prison-yard",
+        "sunset",
+        "guard-tower"
+      ]
     }
   ],
-  "count": 199
+  "count": 205
 }

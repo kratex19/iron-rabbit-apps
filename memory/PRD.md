@@ -3,6 +3,9 @@
 
 ## 📌 Session state (2026-02-16, this session)
 
+### 🎉 Shipped in latest fork (2026-02, ChainGang grid)
+- **6 new ChainGang / Depression-Era Prison presets (headers 200–205)** — Extracted from user's 2×3 grid (chain gang road paving, prison mess hall "Eat And Be Thankful", winter coal cart yard, snowy funeral procession, cattle drive loading, sunset yard basketball). Titled panels: `Chain Gang Highway`, `Eat And Be Thankful`, `Coal Cart Winter`, `Boot Hill Procession`, `Cattle Drive Loading`, `Yard Ball Sunset`. Filed under new **"ChainGang"** category (count 6). Total presets **199 → 205**. Manifest v9. SW `CACHE_NAME` v34 → v35, `RUNTIME` v16 → v17.
+
 ### 🎉 Shipped in latest fork (2026-02, Himalayan Adventure grid)
 - **16 new Himalayan / Nepal presets (headers 184–199)** — Extracted from the user-supplied 4×4 grid (Everest summit, Annapurna Base Camp signpost, storm tents, alpenglow ridges, sea of clouds, Buddhist stupa, etc.). Center-strip cropped to 1526×419 WebP, ~35–52 KB each. Filed under a new **"Adventure"** category bucket (bumped from 1 → 17). Total preset count **183 → 199**. Manifest bumped to v8. Service worker `CACHE_NAME` v33 → v34 and `RUNTIME` v15 → v16 to force manifest refresh on devices. Files: `/app/frontend/public/header-presets/header-{184..199}.webp`, `manifest.json`, `service-worker.js`. Copyright review: only generic geographic tourism signage present (Annapurna, Mt. Everest) — no branded, trademarked, or personal-name content.
 
