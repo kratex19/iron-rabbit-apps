@@ -26,6 +26,10 @@
       "count": 8
     },
     {
+      "key": "Fishing",
+      "count": 7
+    },
+    {
       "key": "Christmas",
       "count": 5
     },
@@ -47,6 +51,10 @@
     },
     {
       "key": "Easter",
+      "count": 4
+    },
+    {
+      "key": "Hunting",
       "count": 4
     },
     {
@@ -86,15 +94,7 @@
       "count": 1
     },
     {
-      "key": "Fishing",
-      "count": 1
-    },
-    {
       "key": "History",
-      "count": 1
-    },
-    {
-      "key": "Hunting",
       "count": 1
     },
     {
@@ -1905,7 +1905,133 @@
         "performance",
         "new-year"
       ]
+    },
+    {
+      "id": "131",
+      "file": "header-131.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Hunting",
+      "tags": [
+        "hunter",
+        "scouting",
+        "binoculars",
+        "sunrise",
+        "ridge"
+      ]
+    },
+    {
+      "id": "132",
+      "file": "header-132.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Hunting",
+      "tags": [
+        "deer",
+        "buck",
+        "tree-stand",
+        "autumn",
+        "dawn"
+      ]
+    },
+    {
+      "id": "133",
+      "file": "header-133.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Hunting",
+      "tags": [
+        "duck-hunter",
+        "waterfowl",
+        "marsh",
+        "sunset",
+        "silhouette"
+      ]
+    },
+    {
+      "id": "134",
+      "file": "header-134.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "fly-fishing",
+        "mountain-river",
+        "waders",
+        "angler",
+        "clear-water"
+      ]
+    },
+    {
+      "id": "135",
+      "file": "header-135.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "fly-reel",
+        "gear",
+        "macro",
+        "lures",
+        "tackle"
+      ]
+    },
+    {
+      "id": "136",
+      "file": "header-136.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "fly-casting",
+        "forest-river",
+        "golden-hour",
+        "arc",
+        "serene"
+      ]
+    },
+    {
+      "id": "137",
+      "file": "header-137.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "deep-sea",
+        "boat",
+        "rods",
+        "sunset",
+        "offshore"
+      ]
+    },
+    {
+      "id": "138",
+      "file": "header-138.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "marlin",
+        "leaping",
+        "ocean",
+        "sport-fishing",
+        "spray"
+      ]
+    },
+    {
+      "id": "139",
+      "file": "header-139.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "angler",
+        "fighting-fish",
+        "boat",
+        "action",
+        "offshore"
+      ]
     }
   ],
-  "count": 130
+  "count": 139
 }

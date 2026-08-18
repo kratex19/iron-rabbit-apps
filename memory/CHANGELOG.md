@@ -1,3 +1,24 @@
+## 2026-02-18 — Presets 131-139 (Hunting & Fishing) 🎣🏹
+
+- User sent 2 preview grid screenshots. First grid (053-057, 059) held
+  landscape themes that duplicate our existing 43-49 — **skipped**.
+- Second grid (3x3) held 9 distinct hunting/fishing scenes. Generated
+  each fresh with Nano Banana at native resolution (better than
+  extracting panels from a downsized grid):
+  - **131 Hunter Scouting** — camo hunter with binoculars on ridge
+  - **132 Deer with Tree Stand** — buck at dawn autumn meadow
+  - **133 Duck Hunter** — silhouette with waterfowl flock at sunset
+  - **134 Fly Fisherman Mountains** — angler in mountain river
+  - **135 Fly Gear Macro** — reel + rod + fly-lure box on mossy rock
+  - **136 Fly Casting Sunset** — arced line at golden hour forest river
+  - **137 Deep-Sea Boat** — rigged rods on boat at ocean sunset
+  - **138 Marlin Leaping** — sport-fishing action, blue marlin airborne
+  - **139 Angler Fighting Fish** — action shot bending rod on boat
+- **`manifest.json`** — 130 → 139 presets. Category totals:
+  Hunting **4** (66, 131-133), Fishing **7** (65, 134-139).
+- **`service-worker.js`** — v28 → v29.
+
+
 ## 2026-02-18 — Presets 91-130 (Faith/Holiday/Culture Expansion) + Fixes 🎉
 
 **40 new presets generated via Gemini Nano Banana**:
