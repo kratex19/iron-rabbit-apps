@@ -1,3 +1,26 @@
+## 2026-02-18 — Southern Category (149-168 + Moonshine Merge) 🥃
+
+- User asked whether to call the moonshine batch "Moonshiners / Old
+  South / Plantation Era" — recommended **"Southern"** (broader,
+  avoids the historically-charged connotation of "Plantation Era",
+  which typically means antebellum imagery not depicted here).
+- Received a 5×4 (20 panel) ChatGPT grid. Detected layout: v-dividers
+  305/613/921/1228, h-dividers 265/510/753.
+- **Extracted all 20 panels** as presets 149-168:
+  - Row 1: vintage-car dirt road, moonshiners with still, rustic cabin,
+    moonshine truck night, bayou dock sunset
+  - Row 2: general store, loaded moonshine truck, wooden rustic-country
+    sign, porch group with dog, river-jug boat
+  - Row 3: smoking cabin, moonshiners group by still, rustic cabin +
+    car, moonshiners interior at table, "Slow Down" country sign
+  - Row 4: steam train Whistle Stop, barrel truck, white country
+    church at sunset, still + jugs distillery, rusty truck at cabin
+- **Merged existing "Moonshine" (140-148) into "Southern"** — one chip
+  for the whole vibe, easier to browse. Southern chip now shows **29**.
+- **`manifest.json`** 148 → 168 presets. **`service-worker.js`** v31 →
+  v32.
+
+
 ## 2026-02-18 — Presets 140-148 (Moonshine / Southern Americana) 🥃
 
 - User sent a 4×3 grid of Southern-Americana / prohibition-era themes.
