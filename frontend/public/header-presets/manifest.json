@@ -26,15 +26,47 @@
       "count": 3
     },
     {
+      "key": "Auto",
+      "count": 2
+    },
+    {
+      "key": "Space",
+      "count": 2
+    },
+    {
+      "key": "Underwater",
+      "count": 2
+    },
+    {
+      "key": "Camping",
+      "count": 1
+    },
+    {
+      "key": "Canyon",
+      "count": 1
+    },
+    {
+      "key": "Country",
+      "count": 1
+    },
+    {
       "key": "Faith",
       "count": 1
     },
     {
-      "key": "Sci-Fi",
+      "key": "Fishing",
       "count": 1
     },
     {
-      "key": "Space",
+      "key": "Hunting",
+      "count": 1
+    },
+    {
+      "key": "Robotics",
+      "count": 1
+    },
+    {
+      "key": "Sci-Fi",
       "count": 1
     },
     {
@@ -43,10 +75,6 @@
     },
     {
       "key": "Trades",
-      "count": 1
-    },
-    {
-      "key": "Underwater",
       "count": 1
     },
     {
@@ -913,7 +941,147 @@
         "stars",
         "arch"
       ]
+    },
+    {
+      "id": "65",
+      "file": "header-65.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Fishing",
+      "tags": [
+        "fishing",
+        "angler",
+        "lake",
+        "dawn",
+        "misty"
+      ]
+    },
+    {
+      "id": "66",
+      "file": "header-66.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Hunting",
+      "tags": [
+        "hunting",
+        "hunter",
+        "dog",
+        "sunrise",
+        "silhouette"
+      ]
+    },
+    {
+      "id": "67",
+      "file": "header-67.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Country",
+      "tags": [
+        "barn",
+        "farm",
+        "country",
+        "wheat",
+        "sunset"
+      ]
+    },
+    {
+      "id": "68",
+      "file": "header-68.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Auto",
+      "tags": [
+        "muscle-car",
+        "canyon",
+        "highway",
+        "auto",
+        "sunset"
+      ]
+    },
+    {
+      "id": "69",
+      "file": "header-69.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Auto",
+      "tags": [
+        "rusty-truck",
+        "vintage",
+        "prairie",
+        "abandoned",
+        "sunset"
+      ]
+    },
+    {
+      "id": "70",
+      "file": "header-70.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Canyon",
+      "tags": [
+        "slot-canyon",
+        "sandstone",
+        "sunbeam",
+        "arizona",
+        "canyon"
+      ]
+    },
+    {
+      "id": "71",
+      "file": "header-71.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Camping",
+      "tags": [
+        "tent",
+        "camping",
+        "milky-way",
+        "forest",
+        "campfire"
+      ]
+    },
+    {
+      "id": "72",
+      "file": "header-72.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Underwater",
+      "tags": [
+        "scuba",
+        "diver",
+        "turtle",
+        "coral",
+        "underwater"
+      ]
+    },
+    {
+      "id": "73",
+      "file": "header-73.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Robotics",
+      "tags": [
+        "robot",
+        "robotics",
+        "workshop",
+        "futuristic",
+        "tech"
+      ]
+    },
+    {
+      "id": "74",
+      "file": "header-74.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Space",
+      "tags": [
+        "earth",
+        "moon",
+        "space",
+        "earthrise",
+        "nasa"
+      ]
     }
   ],
-  "count": 64
+  "count": 74
 }
