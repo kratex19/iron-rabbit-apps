@@ -2,11 +2,11 @@
   "version": 7,
   "categories": [
     {
-      "key": "Nature",
-      "count": 13
+      "key": "Sunset",
+      "count": 16
     },
     {
-      "key": "Sunset",
+      "key": "Nature",
       "count": 13
     },
     {
@@ -19,7 +19,7 @@
     },
     {
       "key": "Sky",
-      "count": 5
+      "count": 6
     },
     {
       "key": "Patriotic",
@@ -681,7 +681,64 @@
         "night",
         "snow"
       ]
+    },
+    {
+      "id": "51",
+      "file": "header-51.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "mountain",
+        "lake",
+        "sunset",
+        "reflection",
+        "dawn"
+      ]
+    },
+    {
+      "id": "52",
+      "file": "header-52.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "beach",
+        "palm",
+        "tropical",
+        "ocean",
+        "sunset"
+      ]
+    },
+    {
+      "id": "53",
+      "file": "header-53.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sunset",
+      "tags": [
+        "pier",
+        "lake",
+        "dock",
+        "sunset",
+        "mountains",
+        "reflection"
+      ]
+    },
+    {
+      "id": "54",
+      "file": "header-54.webp",
+      "width": 1526,
+      "height": 419,
+      "category": "Sky",
+      "tags": [
+        "aurora",
+        "northern-lights",
+        "arctic",
+        "mountains",
+        "night"
+      ]
     }
   ],
-  "count": 50
+  "count": 54
 }
