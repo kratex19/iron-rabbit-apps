@@ -1,3 +1,25 @@
+## 2026-02-18 — Presets 140-148 (Moonshine / Southern Americana) 🥃
+
+- User sent a 4×3 grid of Southern-Americana / prohibition-era themes.
+- **Flagged and skipped 3 IP-risky panels**: "Deliverance" movie still
+  with title text burned in, Daisy Duke / General Lee (Dukes of
+  Hazzard), and The Beverly Hillbillies title+cast. All would create
+  Google-Play / App-Store rejection or takedown risk.
+- **Extracted the 9 safe panels** via pixel-detected grid layout
+  (v-dividers ~394/766/1144, h-dividers ~338/674):
+  - **140** vintage cars on dirt road (Spanish moss)
+  - **141** moonshiner with copper still + mason jar
+  - **142** moonshine truck at night with barrels
+  - **143** moonshine club drinking around table
+  - **144** weathered general store with Coca-Cola sign + gas pumps
+  - **145** sepia moonshiners group portrait with jugs
+  - **146** B&W vintage car with clay-jug haul
+  - **147** rusty forest truck loaded with moonshine barrels
+  - **148** distillery interior with barrels + still
+- **`manifest.json`** 139 → 148 presets. New category **Moonshine (9)**.
+- **`service-worker.js`** v30 → v31.
+
+
 ## 2026-02-18 — Hunting/Fishing Upgrade (ChatGPT Extractions) 🎣
 
 - User re-sent the same 3x3 hunting/fishing themes as a higher-quality
