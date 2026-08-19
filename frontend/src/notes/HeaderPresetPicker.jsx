@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronDown, ChevronUp, Check, ImageIcon, Search, X } from "lucide-react";
+import { getPresetTitle, getPresetAlt, getPresetSearchHay } from "../utils/presetTitle";
 
 /**
  * Picker for the 40 bundled header background presets that live under
@@ -47,8 +48,7 @@ export default function HeaderPresetPicker({ value, onChange, isDark }) {
     return manifest.presets.filter((p) => {
       if (activeCat !== "All" && p.category !== activeCat) return false;
       if (!q) return true;
-      const hay = [p.id, p.category, ...(p.tags || [])].join(" ").toLowerCase();
-      return hay.includes(q);
+      return getPresetSearchHay(p).includes(q);
     });
   }, [manifest, activeCat, query]);
 
@@ -131,35 +131,45 @@ export default function HeaderPresetPicker({ value, onChange, isDark }) {
                   {visiblePresets.map((p) => {
                     const url = `/header-presets/${p.file}`;
                     const selected = isSelected(p.file);
+                    const title = getPresetTitle(p);
+                    const alt = getPresetAlt(p);
                     return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => onChange(url)}
-                        className={`relative rounded overflow-hidden border transition-all group ${selected ? 'ring-2 ring-yellow-500 border-yellow-500' : (isDark ? 'border-white/10 hover:border-white/30' : 'border-gray-200 hover:border-gray-400')}`}
-                        style={{ aspectRatio: "16 / 5" }}
-                        data-testid={`settings-header-preset-${p.id}`}
-                        aria-label={`Preset ${p.id} — ${p.category}`}
-                        title={`${p.category} · ${(p.tags || []).join(", ")}`}
-                      >
-                        <img
-                          src={url}
-                          alt={`Header preset ${p.id}`}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover"
-                        />
-                        {selected && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                            <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center">
-                              <Check className="w-4 h-4 text-black" />
+                      <div key={p.id} className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => onChange(url)}
+                          className={`relative rounded overflow-hidden border transition-all group ${selected ? 'ring-2 ring-yellow-500 border-yellow-500' : (isDark ? 'border-white/10 hover:border-white/30' : 'border-gray-200 hover:border-gray-400')}`}
+                          style={{ aspectRatio: "16 / 5" }}
+                          data-testid={`settings-header-preset-${p.id}`}
+                          aria-label={alt}
+                          title={alt}
+                        >
+                          <img
+                            src={url}
+                            alt={alt}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                          {selected && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                              <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-black" />
+                              </div>
                             </div>
+                          )}
+                          <div className="absolute bottom-0 right-0 text-[9px] font-mono px-1 bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                            #{p.id}
                           </div>
-                        )}
-                        <div className="absolute bottom-0 right-0 text-[9px] font-mono px-1 bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                          #{p.id}
+                        </button>
+                        <div
+                          className={`text-[10px] leading-tight truncate px-0.5 ${isDark ? 'text-slate-300' : 'text-gray-600'}`}
+                          title={title}
+                          data-testid={`settings-header-preset-title-${p.id}`}
+                        >
+                          {title}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

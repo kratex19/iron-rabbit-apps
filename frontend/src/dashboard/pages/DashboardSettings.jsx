@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Palette, Sparkles } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Palette, Sparkles, Search, X } from "lucide-react";
 import { useDashboard } from "../DashboardLayout";
 import { PROVIDERS } from "../state/dashboardStore";
 import LocationPickerModal from "../components/LocationPickerModal";
 import { DEFAULT_BACKGROUND_POOL } from "../DashboardLayout";
 import BackgroundPicker from "../../components/BackgroundPicker";
 import { bgObjToString, stringToBgObj } from "../../utils/bgValue";
+import { getPresetTitle, getPresetAlt, getPresetSearchHay } from "../../utils/presetTitle";
 
 export default function DashboardSettings() {
   const navigate = useNavigate();
@@ -21,6 +22,9 @@ export default function DashboardSettings() {
 
   // Color / gradient / custom-gradient picker for the full-page dashboard background.
   const [bgPicker, setBgPicker] = useState({ open: false, tab: "color", focusCustom: false });
+
+  // Free-text search across preset title / category / tags.
+  const [bgQuery, setBgQuery] = useState("");
 
   // Compute category chips from the loaded presets (rebuilt fresh each
   // load so new categories from the manifest show up automatically).
@@ -232,6 +236,57 @@ export default function DashboardSettings() {
           </div>
         )}
 
+        {/* Free-text search — filters by title, category, or tag */}
+        <div style={{ position: "relative", marginTop: 10 }}>
+          <Search
+            size={13}
+            style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }}
+          />
+          <input
+            type="text"
+            value={bgQuery}
+            onChange={(e) => setBgQuery(e.target.value)}
+            placeholder="Search backgrounds (e.g. sunset, everest, deer)"
+            data-testid="dash-settings-bg-search"
+            style={{
+              width: "100%",
+              height: 32,
+              paddingLeft: 28,
+              paddingRight: bgQuery ? 28 : 10,
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(0,0,0,0.35)",
+              color: "#e2e8f0",
+              fontSize: 12,
+              outline: "none",
+            }}
+          />
+          {bgQuery && (
+            <button
+              type="button"
+              onClick={() => setBgQuery("")}
+              data-testid="dash-settings-bg-search-clear"
+              aria-label="Clear search"
+              style={{
+                position: "absolute",
+                right: 4,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: 0,
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: 4,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
         <div
           style={{
             display: "grid",
@@ -253,17 +308,23 @@ export default function DashboardSettings() {
             withStar.sort((a, b) => (favSet.has(b._url) ? 1 : 0) - (favSet.has(a._url) ? 1 : 0));
             let visible = favOnly ? withStar.filter((p) => favSet.has(p._url)) : withStar;
             if (activeCat !== "All") visible = visible.filter((p) => p.category === activeCat);
+            const q = bgQuery.trim().toLowerCase();
+            if (q) visible = visible.filter((p) => getPresetSearchHay(p).includes(q));
             if (visible.length === 0) {
               return <div style={{ color: "#94a3b8", fontSize: 12, padding: 10 }}>
-                {favOnly ? "No favorites yet — tap the ★ on any preset to add one." : `No presets in ${activeCat}.`}
+                {q ? `No presets match "${bgQuery}".`
+                  : favOnly ? "No favorites yet — tap the ★ on any preset to add one."
+                  : `No presets in ${activeCat}.`}
               </div>;
             }
             return visible.map((p) => {
               const url = p._url;
               const selected = settings.background_preset === url;
               const starred = favSet.has(url);
+              const title = getPresetTitle(p);
+              const alt = getPresetAlt(p);
               return (
-                <div key={p.id || p.file} style={{ position: "relative" }}>
+                <div key={p.id || p.file} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 2 }}>
                   <button
                     type="button"
                     onClick={() => updateSettings({ background_preset: url })}
@@ -282,10 +343,26 @@ export default function DashboardSettings() {
                     }}
                     data-testid={`dash-settings-bg-${p.id || p.file}`}
                     aria-pressed={selected}
-                    title={p.category ? `${p.category}${p.tags?.[0] ? " · " + p.tags[0] : ""}` : ""}
+                    aria-label={alt}
+                    title={alt}
                   >
-                    <img src={url} alt="preset" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+                    <img src={url} alt={alt} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
                   </button>
+                  <div
+                    data-testid={`dash-settings-bg-title-${p.id || p.file}`}
+                    title={title}
+                    style={{
+                      fontSize: 10,
+                      lineHeight: "12px",
+                      color: "#cbd5e1",
+                      padding: "0 2px",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {title}
+                  </div>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); toggleFavorite(url); }}
