@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Palette, Sparkles, Search, X } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Palette, Sparkles, Search, X, Pencil } from "lucide-react";
 import { useDashboard } from "../DashboardLayout";
 import { PROVIDERS } from "../state/dashboardStore";
 import LocationPickerModal from "../components/LocationPickerModal";
 import { DEFAULT_BACKGROUND_POOL } from "../DashboardLayout";
 import BackgroundPicker from "../../components/BackgroundPicker";
 import { bgObjToString, stringToBgObj } from "../../utils/bgValue";
-import { getPresetTitle, getPresetAlt, getPresetSearchHay } from "../../utils/presetTitle";
+import { getPresetTitle, getPresetAlt, getPresetSearchHay, getPresetDefaultTitle, loadTitleOverrides, subscribeTitleOverrides } from "../../utils/presetTitle";
+import PresetRenameModal from "../../components/PresetRenameModal";
 
 export default function DashboardSettings() {
   const navigate = useNavigate();
@@ -25,6 +26,11 @@ export default function DashboardSettings() {
 
   // Free-text search across preset title / category / tags.
   const [bgQuery, setBgQuery] = useState("");
+
+  // Rename modal state + live overrides map (grid re-renders on save).
+  const [renaming, setRenaming] = useState(null);
+  const [overrides, setOverrides] = useState(() => loadTitleOverrides());
+  useEffect(() => subscribeTitleOverrides(setOverrides), []);
 
   // Compute category chips from the loaded presets (rebuilt fresh each
   // load so new categories from the manifest show up automatically).
@@ -309,7 +315,7 @@ export default function DashboardSettings() {
             let visible = favOnly ? withStar.filter((p) => favSet.has(p._url)) : withStar;
             if (activeCat !== "All") visible = visible.filter((p) => p.category === activeCat);
             const q = bgQuery.trim().toLowerCase();
-            if (q) visible = visible.filter((p) => getPresetSearchHay(p).includes(q));
+            if (q) visible = visible.filter((p) => getPresetSearchHay(p, overrides).includes(q));
             if (visible.length === 0) {
               return <div style={{ color: "#94a3b8", fontSize: 12, padding: 10 }}>
                 {q ? `No presets match "${bgQuery}".`
@@ -321,10 +327,10 @@ export default function DashboardSettings() {
               const url = p._url;
               const selected = settings.background_preset === url;
               const starred = favSet.has(url);
-              const title = getPresetTitle(p);
-              const alt = getPresetAlt(p);
+              const title = getPresetTitle(p, overrides);
+              const alt = getPresetAlt(p, overrides);
               return (
-                <div key={p.id || p.file} style={{ position: "relative", display: "flex", flexDirection: "column", gap: 2 }}>
+                <div key={p.id || p.file} className="ir-dash-preset-cell" style={{ position: "relative", display: "flex", flexDirection: "column", gap: 2 }}>
                   <button
                     type="button"
                     onClick={() => updateSettings({ background_preset: url })}
@@ -363,6 +369,33 @@ export default function DashboardSettings() {
                   >
                     {title}
                   </div>
+                  {/* Rename pencil */}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setRenaming(p); }}
+                    aria-label={`Rename preset ${p.id}`}
+                    title="Rename this preset"
+                    data-testid={`dash-settings-bg-rename-${p.id || p.file}`}
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      left: 4,
+                      width: 22,
+                      height: 22,
+                      borderRadius: 999,
+                      background: "rgba(0,0,0,0.55)",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      color: "#e5e7eb",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      padding: 0,
+                      backdropFilter: "blur(4px)",
+                    }}
+                  >
+                    <Pencil size={11} />
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); toggleFavorite(url); }}
@@ -439,6 +472,14 @@ export default function DashboardSettings() {
             ? "Pick a preset gradient or build your own — shown across the full dashboard background."
             : "Pick a color — shown across the full dashboard background."
         }
+      />
+
+      <PresetRenameModal
+        open={!!renaming}
+        onClose={() => setRenaming(null)}
+        preset={renaming}
+        currentTitle={renaming ? getPresetTitle(renaming, overrides) : ""}
+        defaultTitle={renaming ? getPresetDefaultTitle(renaming) : ""}
       />
     </>
   );
