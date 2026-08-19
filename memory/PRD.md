@@ -3,7 +3,13 @@
 
 ## 📌 Session state (2026-02-16, this session)
 
-### 🎉 Shipped in latest fork (2026-02, ChainGang grid)
+### 🎉 Shipped in latest fork (2026-02, unified background picker on Home + Dashboard)
+- **Home Page header — Color + Gradient options** — Added two new inline buttons to `SettingsModal.jsx` Header Background section, placed just below "Choose from Preset" and "Upload from device": **Choose a color** and **Choose a gradient**. Each opens the existing `BackgroundPicker` (same picker used by the tile editor) with `allowedTabs=["color", "gradient"]` — Image tab hidden. Selection stored as a CSS string in `settings.header_bg`; `AppHeader.jsx` detects CSS via new `resolveBackgroundStyle` helper (`/utils/bgValue.js`) and renders solid color/gradient with `background` prop, or `backgroundImage: url(...)` for image URLs. Preview thumb inside Settings also handles both cases.
+- **Weather Dashboard — Color / Gradient / Make-Your-Own row** — Added three new pill buttons to `DashboardSettings.jsx` Appearance section, styled identically to the Favorites/Auto chips and positioned above the Background Image row on a single line starting from the left: **Choose a color**, **Choose a gradient**, **Make your own gradient**. All three open the shared `BackgroundPicker` — the third one with `focusCustom=true` which auto-scrolls to the custom-gradient builder. Choice stored in `settings.background_preset` as a CSS string; `DashboardLayout.jsx` `.ir-dash-bg` renders it full-page (position:fixed inset:0) via `bgStyle` memo. Swipe-to-change still works — swiping away from a color/gradient jumps back into the image pool. Image tab hidden on the dashboard picker to keep it focused on color/gradient only.
+- **Shared helper `frontend/src/utils/bgValue.js`** — `isCssBackground(str)`, `bgObjToString(bg)`, `stringToBgObj(str)`, `resolveBackgroundStyle(str)` — used by both surfaces.
+- **BackgroundPicker enhancements** — Added props `initialTab`, `allowedTabs`, `title`, `description`, `focusCustom`. Fully backwards-compatible: existing tile-editor call sites are untouched.
+
+
 - **6 new ChainGang / Depression-Era Prison presets (headers 200–205)** — Extracted from user's 2×3 grid (chain gang road paving, prison mess hall "Eat And Be Thankful", winter coal cart yard, snowy funeral procession, cattle drive loading, sunset yard basketball). Titled panels: `Chain Gang Highway`, `Eat And Be Thankful`, `Coal Cart Winter`, `Boot Hill Procession`, `Cattle Drive Loading`, `Yard Ball Sunset`. Filed under new **"ChainGang"** category (count 6). Total presets **199 → 205**. Manifest v9. SW `CACHE_NAME` v34 → v35, `RUNTIME` v16 → v17.
 
 ### 🎉 Shipped in latest fork (2026-02, Himalayan Adventure grid)

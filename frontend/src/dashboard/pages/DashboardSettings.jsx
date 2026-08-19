@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Palette, Sparkles, Wand2 } from "lucide-react";
 import { useDashboard } from "../DashboardLayout";
 import { PROVIDERS } from "../state/dashboardStore";
 import LocationPickerModal from "../components/LocationPickerModal";
 import { DEFAULT_BACKGROUND_POOL } from "../DashboardLayout";
+import BackgroundPicker from "../../components/BackgroundPicker";
+import { bgObjToString, stringToBgObj } from "../../utils/bgValue";
 
 export default function DashboardSettings() {
   const navigate = useNavigate();
@@ -16,6 +18,9 @@ export default function DashboardSettings() {
   const favorites = Array.isArray(settings.favorites) ? settings.favorites : [];
   const favSet = useMemo(() => new Set(favorites), [favorites]);
   const [activeCat, setActiveCat] = useState("All");
+
+  // Color / gradient / custom-gradient picker for the full-page dashboard background.
+  const [bgPicker, setBgPicker] = useState({ open: false, tab: "color", focusCustom: false });
 
   // Compute category chips from the loaded presets (rebuilt fresh each
   // load so new categories from the manifest show up automatically).
@@ -120,6 +125,44 @@ export default function DashboardSettings() {
 
         {/* Appearance */}
         <div className="ir-dash-label" style={{ marginTop: 20 }}>Appearance</div>
+
+        {/* Choose a color / gradient / build-your-own — full-page background */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            marginTop: 6,
+            marginBottom: 12,
+            justifyContent: "flex-start",
+          }}
+          data-testid="dash-settings-bg-quick-actions"
+        >
+          <button
+            className="ir-dash-btn ir-dash-btn--ghost"
+            onClick={() => setBgPicker({ open: true, tab: "color", focusCustom: false })}
+            data-testid="dash-settings-bg-choose-color"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Palette size={12} /> Choose a color
+          </button>
+          <button
+            className="ir-dash-btn ir-dash-btn--ghost"
+            onClick={() => setBgPicker({ open: true, tab: "gradient", focusCustom: false })}
+            data-testid="dash-settings-bg-choose-gradient"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Sparkles size={12} /> Choose a gradient
+          </button>
+          <button
+            className="ir-dash-btn ir-dash-btn--ghost"
+            onClick={() => setBgPicker({ open: true, tab: "gradient", focusCustom: true })}
+            data-testid="dash-settings-bg-make-gradient"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Wand2 size={12} /> Make your own gradient
+          </button>
+        </div>
 
         <div className="ir-dash-row" style={{ alignItems: "flex-start" }}>
           <div>
@@ -307,6 +350,30 @@ export default function DashboardSettings() {
         open={locOpen}
         onClose={() => setLocOpen(false)}
         onPick={(loc) => updateSettings({ location: loc, use_geolocation: false })}
+      />
+
+      {/* Full-page dashboard background — color / gradient / custom gradient */}
+      <BackgroundPicker
+        isOpen={bgPicker.open}
+        onClose={() => setBgPicker(p => ({ ...p, open: false }))}
+        value={stringToBgObj(settings.background_preset)}
+        onSelect={(bg) => updateSettings({ background_preset: bgObjToString(bg) })}
+        isDark={true}
+        initialTab={bgPicker.tab}
+        allowedTabs={["color", "gradient"]}
+        focusCustom={bgPicker.focusCustom}
+        title={
+          bgPicker.focusCustom ? "Make your own gradient"
+          : bgPicker.tab === "gradient" ? "Dashboard gradient"
+          : "Dashboard color"
+        }
+        description={
+          bgPicker.focusCustom
+            ? "Build a custom gradient — shown across the full dashboard background."
+            : bgPicker.tab === "gradient"
+            ? "Pick a preset gradient — shown across the full dashboard background."
+            : "Pick a color — shown across the full dashboard background."
+        }
       />
     </>
   );

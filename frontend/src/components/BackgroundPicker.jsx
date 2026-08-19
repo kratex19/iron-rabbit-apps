@@ -46,10 +46,30 @@ function savePinsToDB(pinnedColors, pinnedGradients) {
   }).catch(err => console.error("[BackgroundPicker] persist pins failed:", err));
 }
 
-export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isDark = true }) {
-  const [tab, setTab] = useState("color");
+export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isDark = true, initialTab, allowedTabs, title, description, focusCustom = false }) {
+  const availableTabs = Array.isArray(allowedTabs) && allowedTabs.length > 0 ? allowedTabs : ["color", "gradient", "image"];
+  const [tab, setTab] = useState(() => (
+    initialTab && availableTabs.includes(initialTab) ? initialTab : availableTabs[0]
+  ));
+  // Re-sync tab whenever the picker is re-opened with a different initialTab
+  useEffect(() => {
+    if (isOpen && initialTab && availableTabs.includes(initialTab)) setTab(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialTab]);
   const fileInputRef = useRef(null);
+  const customGradRef = useRef(null);
   const [recents, setRecents] = useState(() => loadRecents());
+
+  // Auto-scroll to the custom gradient builder when focusCustom=true
+  useEffect(() => {
+    if (isOpen && focusCustom && tab === "gradient" && customGradRef.current) {
+      // Wait for the panel to mount, then scroll into view
+      const t = setTimeout(() => {
+        customGradRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, focusCustom, tab]);
 
   // Custom color state (initialized from existing value if it's a solid color)
   const initialHex = value?.type === "color" && /^#([0-9a-f]{6})$/i.test(value.value) ? value.value : "#8b5cf6";
@@ -205,9 +225,9 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
         data-testid="background-picker-dialog"
       >
         <DialogHeader>
-          <DialogTitle className={isDark ? "text-white" : "text-gray-900"}>Tile background</DialogTitle>
+          <DialogTitle className={isDark ? "text-white" : "text-gray-900"}>{title || "Tile background"}</DialogTitle>
           <DialogDescription className={isDark ? "text-slate-400" : "text-gray-500"}>
-            Choose a color, gradient, or upload an image. Shown behind the icon on tiles.
+            {description || "Choose a color, gradient, or upload an image. Shown behind the icon on tiles."}
           </DialogDescription>
         </DialogHeader>
 
@@ -220,15 +240,21 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
 
         {/* Tabs */}
         <div className={`flex rounded-lg overflow-hidden border ${isDark ? "border-white/10" : "border-gray-200"}`}>
-          <button className={tabBtnCls("color")} onClick={() => setTab("color")} data-testid="bg-tab-color">
-            <Palette className="w-3.5 h-3.5" /> Color
-          </button>
-          <button className={tabBtnCls("gradient")} onClick={() => setTab("gradient")} data-testid="bg-tab-gradient">
-            <Sparkles className="w-3.5 h-3.5" /> Gradient
-          </button>
-          <button className={tabBtnCls("image")} onClick={() => setTab("image")} data-testid="bg-tab-image">
-            <ImageIcon className="w-3.5 h-3.5" /> Image
-          </button>
+          {availableTabs.includes("color") && (
+            <button className={tabBtnCls("color")} onClick={() => setTab("color")} data-testid="bg-tab-color">
+              <Palette className="w-3.5 h-3.5" /> Color
+            </button>
+          )}
+          {availableTabs.includes("gradient") && (
+            <button className={tabBtnCls("gradient")} onClick={() => setTab("gradient")} data-testid="bg-tab-gradient">
+              <Sparkles className="w-3.5 h-3.5" /> Gradient
+            </button>
+          )}
+          {availableTabs.includes("image") && (
+            <button className={tabBtnCls("image")} onClick={() => setTab("image")} data-testid="bg-tab-image">
+              <ImageIcon className="w-3.5 h-3.5" /> Image
+            </button>
+          )}
         </div>
 
         {/* Panels */}
@@ -416,7 +442,7 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
               )}
 
               {/* Custom gradient builder */}
-              <div className={`rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}
+              <div ref={customGradRef} className={`rounded-lg border p-3 ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}
                    data-testid="bg-gradient-custom">
                 <div className={`text-[11px] uppercase tracking-wide mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
                   Custom gradient

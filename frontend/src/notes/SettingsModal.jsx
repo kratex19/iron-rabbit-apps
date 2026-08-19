@@ -18,6 +18,8 @@ import LanguagePicker from "./LanguagePicker";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import QuickGuideSettingsSection from "../quickguide/QuickGuideSettingsSection";
 import HeaderPresetPicker from "./HeaderPresetPicker";
+import BackgroundPicker from "../components/BackgroundPicker";
+import { isCssBackground, bgObjToString, stringToBgObj, resolveBackgroundStyle } from "../utils/bgValue";
 import { computeStreak } from "../utils/cleanupStreak";
 
 /**
@@ -34,6 +36,9 @@ export default function SettingsModal({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [langPickerOpen, setLangPickerOpen] = useState(false);
+  // Home Page header background picker: reused for both "Choose a color"
+  // (allowedTabs: color) and "Choose a gradient" (allowedTabs: gradient).
+  const [headerBgPicker, setHeaderBgPicker] = useState({ open: false, tab: "color" });
   // Recap card: mirror of settings.last_cleanup, cleared locally when the
   // user dismisses so the card disappears without waiting for a parent
   // settings-prop refresh.
@@ -460,7 +465,11 @@ export default function SettingsModal({
             <div className="space-y-2">
               {formData.header_bg && (
                 <div className="relative w-full h-16 rounded-lg overflow-hidden border border-white/20">
-                  <img src={formData.header_bg} alt="Header preview" className="w-full h-full object-cover" />
+                  {isCssBackground(formData.header_bg) ? (
+                    <div className="w-full h-full" style={resolveBackgroundStyle(formData.header_bg)} />
+                  ) : (
+                    <img src={formData.header_bg} alt="Header preview" className="w-full h-full object-cover" />
+                  )}
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, header_bg: "" }))}
@@ -497,6 +506,28 @@ export default function SettingsModal({
                   </>
                 )}
               </label>
+
+              {/* Color + Gradient row (matches the two buttons above) */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHeaderBgPicker({ open: true, tab: "color" })}
+                  className={`flex items-center justify-center gap-2 h-9 rounded-md transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
+                  data-testid="settings-header-choose-color"
+                >
+                  <Palette className="w-4 h-4" />
+                  <span className="text-xs">Choose a color</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHeaderBgPicker({ open: true, tab: "gradient" })}
+                  className={`flex items-center justify-center gap-2 h-9 rounded-md transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300' : 'bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-600'}`}
+                  data-testid="settings-header-choose-gradient"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-xs">Choose a gradient</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -715,6 +746,21 @@ export default function SettingsModal({
         isOpen={langPickerOpen}
         onClose={() => setLangPickerOpen(false)}
         isDark={isDark}
+      />
+
+      {/* Home Page header color / gradient picker */}
+      <BackgroundPicker
+        isOpen={headerBgPicker.open}
+        onClose={() => setHeaderBgPicker(p => ({ ...p, open: false }))}
+        value={stringToBgObj(formData.header_bg)}
+        onSelect={(bg) => setFormData(prev => ({ ...prev, header_bg: bgObjToString(bg) }))}
+        isDark={isDark}
+        initialTab={headerBgPicker.tab}
+        allowedTabs={["color", "gradient"]}
+        title={headerBgPicker.tab === "gradient" ? "Header gradient" : "Header color"}
+        description={headerBgPicker.tab === "gradient"
+          ? "Pick a preset gradient or build your own — shown behind the app header."
+          : "Pick a color — shown behind the app header."}
       />
     </Dialog>
   );

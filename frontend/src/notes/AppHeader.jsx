@@ -10,6 +10,7 @@ import { haptic } from "../utils/haptic";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import DisplayControlsButton from "./DisplayControlsButton";
+import { resolveBackgroundStyle } from "../utils/bgValue";
 
 /**
  * Top app header — logo/title on the left, action-button strip on the right.
@@ -56,7 +57,7 @@ export default function AppHeader({
   return (
     <header
       className={`header-compact ${isDark ? "" : "light"}`}
-      style={{ backgroundImage: settings?.header_bg ? `url(${settings.header_bg})` : undefined }}
+      style={resolveBackgroundStyle(settings?.header_bg)}
     >
       <div className="relative z-10 w-full px-4 py-3 flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
         <div className="flex items-center gap-3 min-w-0">

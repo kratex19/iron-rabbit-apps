@@ -6,6 +6,7 @@ import DashboardTabBar from "./components/DashboardTabBar";
 import LocationPickerModal from "./components/LocationPickerModal";
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "./state/dashboardStore";
 import { getBrowserPosition, reverseGeocode } from "./utils/geocode";
+import { isCssBackground } from "../utils/bgValue";
 import useWeather from "./hooks/useWeather";
 import useEvents from "./hooks/useEvents";
 
@@ -121,12 +122,19 @@ export default function DashboardLayout() {
   const weather = useWeather(settings.location, settings.units);
   const eventsData = useEvents();
 
-  // Background choice: user override → deterministic pick from pool
+  // Background choice: user override → deterministic pick from pool.
+  // Value may be a URL (image) or a CSS color/gradient string.
   const backgroundUrl = useMemo(() => {
     if (settings.background_preset) return settings.background_preset;
     const key = settings.location ? Math.abs(Math.floor(settings.location.latitude + settings.location.longitude)) : 0;
     return DEFAULT_BACKGROUND_POOL[key % DEFAULT_BACKGROUND_POOL.length];
   }, [settings.background_preset, settings.location]);
+
+  const bgStyle = useMemo(() => (
+    isCssBackground(backgroundUrl)
+      ? { background: backgroundUrl }
+      : { backgroundImage: `url(${backgroundUrl})` }
+  ), [backgroundUrl]);
 
   const dim = Math.max(0, Math.min(1, settings.background_dim ?? 0.35));
 
@@ -149,7 +157,7 @@ export default function DashboardLayout() {
       style={{ "--ir-dash-dim-top": String(dim * 0.4), "--ir-dash-dim-bottom": String(dim * 1.4) }}
       data-testid="dashboard-root"
     >
-      <div className="ir-dash-bg" style={{ backgroundImage: `url(${backgroundUrl})` }} aria-hidden="true" />
+      <div className="ir-dash-bg" style={bgStyle} aria-hidden="true" />
       <div className="ir-dash-fg">
         <div className="ir-dash-topbar">
           <button
