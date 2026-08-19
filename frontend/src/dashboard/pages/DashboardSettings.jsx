@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Palette, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Palette, Sparkles } from "lucide-react";
 import { useDashboard } from "../DashboardLayout";
 import { PROVIDERS } from "../state/dashboardStore";
 import LocationPickerModal from "../components/LocationPickerModal";
@@ -126,7 +126,9 @@ export default function DashboardSettings() {
         {/* Appearance */}
         <div className="ir-dash-label" style={{ marginTop: 20 }}>Appearance</div>
 
-        {/* Choose a color / gradient / build-your-own — full-page background */}
+        {/* Choose a color / Choose a gradient — the gradient picker's own
+            custom-gradient builder sits at the bottom of the preset grid,
+            matching the Home Page header flow exactly. */}
         <div
           style={{
             display: "flex",
@@ -153,14 +155,6 @@ export default function DashboardSettings() {
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <Sparkles size={12} /> Choose a gradient
-          </button>
-          <button
-            className="ir-dash-btn ir-dash-btn--ghost"
-            onClick={() => setBgPicker({ open: true, tab: "gradient", focusCustom: true })}
-            data-testid="dash-settings-bg-make-gradient"
-            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-          >
-            <Wand2 size={12} /> Make your own gradient
           </button>
         </div>
 
@@ -352,7 +346,8 @@ export default function DashboardSettings() {
         onPick={(loc) => updateSettings({ location: loc, use_geolocation: false })}
       />
 
-      {/* Full-page dashboard background — color / gradient / custom gradient */}
+      {/* Full-page dashboard background — color or gradient (gradient tab
+          includes the "make your own" builder underneath the preset grid). */}
       <BackgroundPicker
         isOpen={bgPicker.open}
         onClose={() => setBgPicker(p => ({ ...p, open: false }))}
@@ -361,17 +356,10 @@ export default function DashboardSettings() {
         isDark={true}
         initialTab={bgPicker.tab}
         allowedTabs={["color", "gradient"]}
-        focusCustom={bgPicker.focusCustom}
-        title={
-          bgPicker.focusCustom ? "Make your own gradient"
-          : bgPicker.tab === "gradient" ? "Dashboard gradient"
-          : "Dashboard color"
-        }
+        title={bgPicker.tab === "gradient" ? "Dashboard gradient" : "Dashboard color"}
         description={
-          bgPicker.focusCustom
-            ? "Build a custom gradient — shown across the full dashboard background."
-            : bgPicker.tab === "gradient"
-            ? "Pick a preset gradient — shown across the full dashboard background."
+          bgPicker.tab === "gradient"
+            ? "Pick a preset gradient or build your own — shown across the full dashboard background."
             : "Pick a color — shown across the full dashboard background."
         }
       />
