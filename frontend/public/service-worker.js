@@ -3,8 +3,8 @@
 //     cache-first for hashed static assets,
 //     network-first for the header-presets manifest + preset images so
 //     the picker never shows stale/deleted backgrounds.
-const CACHE_NAME = 'iron-rabbit-v35';
-const RUNTIME = 'iron-rabbit-runtime-v17';
+const CACHE_NAME = 'iron-rabbit-v36';
+const RUNTIME = 'iron-rabbit-runtime-v18';
 
 // App shell — precached on install
 const PRECACHE_URLS = [

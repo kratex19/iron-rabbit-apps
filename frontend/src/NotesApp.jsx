@@ -43,6 +43,8 @@ import { maybeShowPantryAlerts } from "./utils/pantryAlerts";
 import { NOTE_COLORS, DEFAULT_TEMPLATES } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
 import CategoryGroup from "./notes/CategoryGroup";
+import PhotoLightbox from "./components/PhotoLightbox";
+import { KIOSK_MODE_KEY } from "./notes/RestaurantsGaloreDashboardModal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -102,6 +104,10 @@ export default function NotesApp() {
   const [restaurantOrdersOpen, setRestaurantOrdersOpen] = useState(false);
   // Optional filter passed to the Orders modal — set by the sparkline tap.
   const [restaurantOrdersInitialMonth, setRestaurantOrdersInitialMonth] = useState(null);
+  // Wall Mode / Kiosk — the fullscreen Photo Journal slideshow launched on
+  // cold-start when localStorage[KIOSK_MODE_KEY] is "1".
+  const [kioskImages, setKioskImages] = useState([]);
+  const [kioskOpen, setKioskOpen] = useState(false);
   const [restaurantSpendingOpen, setRestaurantSpendingOpen] = useState(false);
   const [restaurantCouponsOpen, setRestaurantCouponsOpen] = useState(false);
   const [restaurantReviewsOpen, setRestaurantReviewsOpen] = useState(false);
@@ -331,6 +337,37 @@ export default function NotesApp() {
       } catch (e) {
         // Non-fatal — user can still back up manually
         console.warn("Auto-backup check failed", e);
+      }
+
+      // Wall Mode / Kiosk cold-start — if the user has flipped the toggle in
+      // Restaurants Galore, auto-launch the Photo Journal slideshow. Guarded
+      // by a session-scoped flag so we only fire once per app cold-start
+      // (not on every hot reload or focus event).
+      try {
+        const kioskOn = localStorage.getItem(KIOSK_MODE_KEY) === "1";
+        const alreadyFired = sessionStorage.getItem("iron_rabbit_rg_kiosk_fired_v1") === "1";
+        if (kioskOn && !alreadyFired && !isScreenshotMode()) {
+          sessionStorage.setItem("iron_rabbit_rg_kiosk_fired_v1", "1");
+          // Prefer the "Photo Journal" tile — fall back to any note flagged
+          // as a photo_mosaic special action (e.g. Menu Snapshot Gallery).
+          const journal =
+            notesData.find((n) => n?.title === "Photo Journal" && Array.isArray(n?.attachments) && n.attachments.length > 0) ||
+            notesData.find((n) => n?.special_action === "photo_mosaic" && Array.isArray(n?.attachments) && n.attachments.some((a) => (a.type || "").startsWith("image/")));
+          const imgs = (journal?.attachments || []).filter((a) => (a.type || "").startsWith("image/"));
+          if (imgs.length > 0) {
+            setKioskImages(imgs);
+            // Small delay so the app has a chance to paint before we cover
+            // the whole viewport with the lightbox.
+            setTimeout(() => setKioskOpen(true), 400);
+          } else {
+            toast("Wall Mode is on, but Photo Journal has no photos yet.", {
+              description: "Add photos to the Photo Journal tile to fill the slideshow.",
+              duration: 4200,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("Kiosk auto-launch skipped", e);
       }
     } catch (err) {
       console.error("Error:", err);
@@ -1644,6 +1681,16 @@ export default function NotesApp() {
         performClearAllData={performClearAllData}
         clearSelection={clearSelection}
         undoRecentAction={undoRecentAction}
+      />
+
+      {/* Wall Mode kiosk lightbox — auto-launched on cold start when the
+          user has opted in from the Restaurants Galore dashboard. */}
+      <PhotoLightbox
+        open={kioskOpen}
+        images={kioskImages}
+        initialIndex={0}
+        startInSlideshow={true}
+        onClose={() => setKioskOpen(false)}
       />
     </div>
     </QuickGuideProvider>

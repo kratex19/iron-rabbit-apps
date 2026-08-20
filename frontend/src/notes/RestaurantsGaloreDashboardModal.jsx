@@ -4,12 +4,18 @@ import {
   ChefHat, Menu as MenuIcon, Receipt, Truck, Users, Camera,
   Mic, MessageCircle, ClipboardList, Coffee, Cookie, Search,
   AlertCircle, TrendingUp, Sparkles, HardDriveDownload, HeartHandshake,
-  ShoppingCart, Calendar,
+  ShoppingCart, Calendar, Monitor,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import RestaurantsService from "../storage/restaurantsService";
 import { daysSinceLastBackup, lastBackupLabel, BACKUP_UPDATED_EVENT } from "./rg/RestaurantWorkspacesP5";
+
+// Persisted "Wall Mode / Kiosk" preference. When true, the Photo Journal
+// slideshow auto-launches on the next cold-app-open — ideal for countertop
+// tablets running the app as a rotating photo book.
+export const KIOSK_MODE_KEY = "iron_rabbit_rg_kiosk_v1";
 
 /**
  * Restaurants Galore™ — Command Center Dashboard.
@@ -31,6 +37,30 @@ export default function RestaurantsGaloreDashboardModal({
   // Bumped whenever a backup completes so the Sync Health chip re-reads
   // localStorage without needing the dashboard to be re-opened.
   const [backupTick, setBackupTick] = useState(0);
+  // Wall Mode / Kiosk toggle — reflects `localStorage[KIOSK_MODE_KEY]`.
+  const [kioskOn, setKioskOn] = useState(() => {
+    try { return localStorage.getItem(KIOSK_MODE_KEY) === "1"; } catch { return false; }
+  });
+
+  const toggleKiosk = () => {
+    const next = !kioskOn;
+    setKioskOn(next);
+    try {
+      if (next) localStorage.setItem(KIOSK_MODE_KEY, "1");
+      else localStorage.removeItem(KIOSK_MODE_KEY);
+    } catch { /* private mode */ }
+    if (next) {
+      toast("🖼️ Wall Mode armed", {
+        description: "Next time the app cold-starts, your Photo Journal slideshow will launch automatically.",
+        duration: 4200,
+      });
+    } else {
+      toast("Wall Mode off", {
+        description: "The app will start on your Notes home as usual.",
+        duration: 2500,
+      });
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -246,6 +276,41 @@ export default function RestaurantsGaloreDashboardModal({
               </div>
               <div className={`text-[10px] mt-2 ${isDark ? "text-slate-600" : "text-gray-400"}`}>
                 <b>{stats.total_restaurants}</b> restaurants · <b>{stats.total_orders}</b> orders · <b>{stats.total_reviews}</b> reviews stored offline
+              </div>
+
+              {/* Wall Mode / Kiosk toggle — turns the app into a rotating photo
+                  book on the next cold-start. */}
+              <div
+                className={`mt-3 rounded-xl p-3 border flex items-center gap-3 ${
+                  isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-white"
+                }`}
+                data-testid="rg-kiosk-row"
+              >
+                <div className={`p-2 rounded-lg ${isDark ? "bg-amber-500/15" : "bg-amber-100"}`}>
+                  <Monitor className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-xs font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>Wall Mode (Kiosk)</div>
+                  <div className={`text-[11px] leading-tight ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                    On cold-start, auto-launch your Photo Journal slideshow — perfect for a countertop tablet.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={kioskOn}
+                  onClick={toggleKiosk}
+                  data-testid="rg-kiosk-toggle"
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                    kioskOn ? "bg-amber-500" : (isDark ? "bg-white/15" : "bg-gray-300")
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      kioskOn ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </div>

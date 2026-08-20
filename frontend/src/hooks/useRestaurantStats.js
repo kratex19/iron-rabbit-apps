@@ -52,7 +52,12 @@ export default function useRestaurantStats() {
         const spendMonth = buckets[buckets.length - 1].total;
 
         // Weekly streak: count consecutive ISO-weeks (going back from *this week*)
-        // where at least one order was recorded. Break on the first empty week.
+        // where at least one order was recorded. Break on the first empty week —
+        // UNLESS the user has a "streak freeze" available for the current
+        // calendar month (Duolingo-style). One freeze is granted per calendar
+        // month; the freeze is auto-consumed the moment a gap week would
+        // otherwise break the streak, and the ledger is persisted so a second
+        // reload doesn't double-charge or re-award it.
         const weekKey = (d) => {
           const t = new Date(d);
           t.setHours(0, 0, 0, 0);
@@ -67,7 +72,21 @@ export default function useRestaurantStats() {
             .filter(Boolean)
             .map((d) => weekKey(d))
         );
+
+        // Streak-freeze ledger — per calendar month. Shape:
+        // { "YYYY-MM": true } means that month's freeze has been consumed.
+        const FREEZE_LEDGER_KEY = "iron_rabbit_rg_freeze_ledger_v1";
+        const monthKey = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+        let ledger = {};
+        try {
+          const raw = localStorage.getItem(FREEZE_LEDGER_KEY);
+          if (raw) ledger = JSON.parse(raw) || {};
+        } catch { /* private mode */ }
+        const currentMonthKey = monthKey(new Date());
+        let freezeUsedThisMonth = !!ledger[currentMonthKey];
+
         let streakWeeks = 0;
+        let freezeAppliedNow = false;
         const cursor = new Date();
         cursor.setHours(0, 0, 0, 0);
         // If current week has no orders yet, streak still counts from last-active
@@ -82,10 +101,35 @@ export default function useRestaurantStats() {
             cursor.setDate(cursor.getDate() - 7);
             const kPrev = weekKey(cursor);
             if (!orderWeeks.has(kPrev)) break;
+          } else if (!freezeUsedThisMonth) {
+            // Consume the current month's freeze to skip this gap.
+            freezeUsedThisMonth = true;
+            freezeAppliedNow = true;
+            cursor.setDate(cursor.getDate() - 7);
           } else {
             break;
           }
         }
+
+        // Persist freeze consumption ONLY when we actually used it during this
+        // computation. This prevents accidentally burning a freeze on load
+        // when the user has no active streak or when the freeze wasn't needed.
+        if (freezeAppliedNow) {
+          ledger[currentMonthKey] = true;
+          try { localStorage.setItem(FREEZE_LEDGER_KEY, JSON.stringify(ledger)); } catch { /* noop */ }
+        }
+        const freezeAvailable = !freezeUsedThisMonth;
+
+        // "Freezes used this year" — a rolling annual consistency stat. Counts
+        // how many calendar months in the current year have consumed their
+        // freeze. Max = number of months elapsed so far (so early-January
+        // shows 0/1, mid-December shows N/12).
+        const nowYear = new Date().getFullYear();
+        const yearPrefix = `${nowYear}-`;
+        const freezesUsedThisYear = Object.keys(ledger).filter(
+          (k) => k.startsWith(yearPrefix) && ledger[k]
+        ).length;
+        const freezesGrantedThisYear = new Date().getMonth() + 1; // 1..12
 
         let lastRestName = "";
         if (last?.restaurant_id) {
@@ -102,6 +146,11 @@ export default function useRestaurantStats() {
             spendMonth,
             trend: buckets,
             streakWeeks,
+            freezeAvailable,
+            freezeUsedThisMonth,
+            freezesUsedThisYear,
+            freezesGrantedThisYear,
+            currentYear: nowYear,
             last: last ? {
               date: last.date || last.created_at,
               restaurant: lastRestName,

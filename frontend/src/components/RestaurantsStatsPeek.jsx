@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Bookmark, Flame } from "lucide-react";
+import { Bookmark, Flame, Snowflake } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import useRestaurantStats from "../hooks/useRestaurantStats";
@@ -66,6 +66,27 @@ export default function RestaurantsStatsPeek({ isDark = true }) {
   const chipStreak = isDark
     ? "bg-orange-500/15 text-orange-300"
     : "bg-orange-100 text-orange-700";
+  const chipFreezeReady = isDark
+    ? "bg-sky-500/15 text-sky-300"
+    : "bg-sky-100 text-sky-700";
+  const chipFreezeUsed = isDark
+    ? "bg-white/5 text-slate-500 line-through"
+    : "bg-gray-100 text-gray-400 line-through";
+
+  const explainFreeze = (e) => {
+    e.stopPropagation();
+    if (stats.freezeAvailable) {
+      toast("❄️ Streak freeze ready", {
+        description: "You have 1 freeze this month — miss a week and your streak survives automatically.",
+        duration: 4200,
+      });
+    } else {
+      toast("❄️ Freeze already used this month", {
+        description: "Your last gap was auto-forgiven. A fresh freeze arrives next calendar month.",
+        duration: 4200,
+      });
+    }
+  };
 
   return (
     <div className="flex items-center gap-1 flex-shrink-0" data-testid="rg-peek">
@@ -93,6 +114,20 @@ export default function RestaurantsStatsPeek({ isDark = true }) {
           <Flame className="w-2.5 h-2.5" />
           {stats.streakWeeks}w
         </span>
+      )}
+      {stats.streakWeeks > 0 && (
+        <button
+          type="button"
+          onClick={explainFreeze}
+          className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer border-0 ${
+            stats.freezeAvailable ? chipFreezeReady : chipFreezeUsed
+          }`}
+          title={stats.freezeAvailable ? "Streak freeze ready — tap for details" : "Freeze already used this month"}
+          aria-label={stats.freezeAvailable ? "Streak freeze available" : "Streak freeze used"}
+          data-testid={stats.freezeAvailable ? "rg-peek-freeze-ready" : "rg-peek-freeze-used"}
+        >
+          <Snowflake className="w-2.5 h-2.5" />
+        </button>
       )}
     </div>
   );
