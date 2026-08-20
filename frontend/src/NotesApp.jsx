@@ -1049,7 +1049,32 @@ export default function NotesApp() {
     toast.success("PDF exported!");
   };
 
-  const openEditModal            = (note) => { setEditingNote(note); setNoteModalOpen(true); };
+  const openEditModal            = (note) => {
+    // Launcher tiles bypass the note editor and jump straight into the
+    // corresponding dedicated workspace. We also detect it via the
+    // pack_id + title combo so existing installs work without re-applying.
+    if (
+      note?.special_action === "open_restaurants_galore" ||
+      (note?.pack_id === "restaurants-galore" && note?.title === "Restaurants Galore")
+    ) {
+      setRestaurantsGaloreOpen(true);
+      haptic("tap");
+      return;
+    }
+    setEditingNote(note); setNoteModalOpen(true);
+  };
+  const openFullScreen           = (note) => {
+    // Route full-screen taps on launcher tiles to the workspace too.
+    if (
+      note?.special_action === "open_restaurants_galore" ||
+      (note?.pack_id === "restaurants-galore" && note?.title === "Restaurants Galore")
+    ) {
+      setRestaurantsGaloreOpen(true);
+      haptic("tap");
+      return;
+    }
+    setFullScreenNote(note);
+  };
   const openShareModal           = (note) => { setSharingNote(note); setShareModalOpen(true); };
   const openCalculatorWithCallback = (cb)   => { setCalculatorCallback(() => cb); setCalculatorOpen(true); };
 
@@ -1074,7 +1099,7 @@ export default function NotesApp() {
         {viewMode === "icon" ? (
           <div className="notes-grid">
             {pinnedNotes.map(note => (
-              <NoteTile key={note.id} note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+              <NoteTile key={note.id} note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
             ))}
           </div>
         ) : (
@@ -1086,7 +1111,7 @@ export default function NotesApp() {
                 onEdit={openEditModal}
                 onDelete={handleDeleteNote}
                 onShare={openShareModal}
-                onFullScreen={setFullScreenNote}
+                onFullScreen={openFullScreen}
                 onTogglePin={handleTogglePin}
                 isDark={isDark}
               />
@@ -1158,7 +1183,7 @@ export default function NotesApp() {
                                         {...dp.dragHandleProps}
                                         className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                                       >
-                                        <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
                                       </div>
                                     )}
                                   </Draggable>
@@ -1197,7 +1222,7 @@ export default function NotesApp() {
                               {...dp.dragHandleProps}
                               className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                             >
-                              <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                              <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
                             </div>
                           )}
                         </Draggable>
@@ -1225,7 +1250,7 @@ export default function NotesApp() {
                         {...dp.dragHandleProps}
                         className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                       >
-                        <NoteTile note={note} onOpen={setFullScreenNote} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
                       </div>
                     )}
                   </Draggable>
@@ -1254,7 +1279,7 @@ export default function NotesApp() {
                           onEdit={openEditModal}
                           onDelete={handleDeleteNote}
                           onShare={openShareModal}
-                          onFullScreen={setFullScreenNote}
+                          onFullScreen={openFullScreen}
                           onTogglePin={handleTogglePin}
                           isDark={isDark}
                           dragHandleProps={prov.dragHandleProps}
@@ -1292,7 +1317,7 @@ export default function NotesApp() {
                           onEdit={openEditModal}
                           onDelete={handleDeleteNote}
                           onShare={openShareModal}
-                          onFullScreen={setFullScreenNote}
+                          onFullScreen={openFullScreen}
                           onTogglePin={handleTogglePin}
                           isDark={isDark}
                           dragHandleProps={prov.dragHandleProps}
@@ -1330,7 +1355,7 @@ export default function NotesApp() {
                                   onEdit={openEditModal}
                                   onDelete={handleDeleteNote}
                                   onShare={openShareModal}
-                                  onFullScreen={setFullScreenNote}
+                                  onFullScreen={openFullScreen}
                                   onTogglePin={handleTogglePin}
                                   isDark={isDark}
                                   dragHandleProps={prov2.dragHandleProps}
@@ -1365,7 +1390,7 @@ export default function NotesApp() {
             onEdit={openEditModal}
             onDelete={handleDeleteNote}
             onShare={openShareModal}
-            onFullScreen={setFullScreenNote}
+            onFullScreen={openFullScreen}
             onTogglePin={handleTogglePin}
             isDark={isDark}
             selectMode={inSelectMode}

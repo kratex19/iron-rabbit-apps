@@ -36,7 +36,6 @@ export const TILE_PACKS = [
     name: "Restaurants Galore™",
     tagline: "Complete dining organizer — restaurants, menus, orders, reviews, budget & smart insights.",
     accent: "#f59e0b",
-    special_action: "open_restaurants_galore",
     notes: [
       {
         title: "Restaurants Galore",
@@ -46,6 +45,9 @@ export const TILE_PACKS = [
         background: grad(G.amber),
         category: "Restaurants",
         pinned: true,
+        // Tapping this tile bypasses the note editor and jumps straight
+        // into the full Restaurants Galore workspace.
+        special_action: "open_restaurants_galore",
       },
       {
         title: "Tonight's Pick",
@@ -108,6 +110,41 @@ export const TILE_PACKS = [
         content: "🎂 Birthdays:\n- Who / when / their favourite spot\n\n💍 Anniversaries:\n- \n\n🏆 Big wins to celebrate:\n- Promotions\n- Milestones\n- Just because\n\n📞 Reservations to book ahead:\n",
         color: "pink", icon: "Sparkles",
         background: grad(G.cosmic),
+        category: "Restaurants",
+      },
+      {
+        title: "Photo Journal",
+        content: "📸 Attach dish photos to this tile from the paperclip icon.\n\nFor each shot:\n• Restaurant:\n• Dish:\n• Date:\n• One-line reaction:\n\n(Tip: enable 'Full Screen' view to browse photos like a gallery.)\n",
+        color: "pink", icon: "Camera",
+        background: grad(G.roseGold),
+        category: "Restaurants",
+      },
+      {
+        title: "Menu Snapshot Gallery",
+        content: "📷 Snap menu boards, printed menus, chalkboards, seasonal specials — attach them to this tile.\n\nWhy this rocks:\n• Compare prices between visits\n• Remember dishes you meant to try\n• Rediscover seasonal-only items\n\nRestaurant tag per photo:\n• \n• \n",
+        color: "orange", icon: "BookOpen",
+        background: grad(G.truffle),
+        category: "Restaurants",
+      },
+      {
+        title: "Delivery Rundown",
+        content: "🛵 Latest orders:\n\nDate:\nApp used (DoorDash / UberEats / Grubhub / other):\nRestaurant:\nDishes:\nSubtotal / Tip / Fee / Total:\n\nDelivery quality:\n• On-time? y/n\n• Temperature on arrival:\n• Packaging:\n\n🔁 Order again? y/n\n",
+        color: "cyan", icon: "Truck",
+        background: grad(G.midnight),
+        category: "Restaurants",
+      },
+      {
+        title: "Loyalty & Rewards",
+        content: "🎁 Track punch cards, apps, points:\n\nRestaurant:\nProgram / app:\nCurrent balance:\nExpires:\n\n💡 Freebies unlocked so far:\n- \n\n🚀 Best redemptions this year:\n- \n",
+        color: "lime", icon: "Ticket",
+        background: grad(G.spring),
+        category: "Restaurants",
+      },
+      {
+        title: "Coffee & Cafés",
+        content: "☕ Café:\nOrder that never fails:\nBarista tip? y/n\n\n💡 Discovery of the month:\n\n🥐 Pairs well with:\n\n📶 Work-friendly? (wifi / seating / vibe):\n\n⭐ 1-5:\n",
+        color: "amber", icon: "Coffee",
+        background: grad(G.truffle),
         category: "Restaurants",
       },
     ],
