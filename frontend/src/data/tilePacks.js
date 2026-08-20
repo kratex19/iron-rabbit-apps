@@ -118,6 +118,7 @@ export const TILE_PACKS = [
         color: "pink", icon: "Camera",
         background: grad(G.roseGold),
         category: "Restaurants",
+        special_action: "photo_mosaic",
       },
       {
         title: "Menu Snapshot Gallery",
@@ -125,6 +126,7 @@ export const TILE_PACKS = [
         color: "orange", icon: "BookOpen",
         background: grad(G.truffle),
         category: "Restaurants",
+        special_action: "photo_mosaic",
       },
       {
         title: "Delivery Rundown",

@@ -15,6 +15,8 @@ import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import { computeNoteStreak } from "./streakUtils";
 import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
 import RestaurantsStatsWidget from "../components/RestaurantsStatsWidget";
+import RestaurantsStatsPeek from "../components/RestaurantsStatsPeek";
+import PhotoMosaic from "../components/PhotoMosaic";
 
 /**
  * A single collapsible note row for List view.
@@ -172,9 +174,17 @@ export default function AccordionNoteItem({
                   <Flame className="w-3.5 h-3.5" />{streak}
                 </span>
               )}
+              {note.special_action === "restaurants_stats_widget" && (
+                <RestaurantsStatsPeek isDark={isDark} />
+              )}
               <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
             </div>
           </CollapsibleTrigger>
+          {/* Always-visible photo mosaic for gallery tiles — shows a 3×3 preview
+              even when the row is collapsed. */}
+          {note.special_action === "photo_mosaic" && (
+            <PhotoMosaic attachments={note.attachments || []} isDark={isDark} />
+          )}
           <CollapsibleContent>
             <div className={`px-3 pb-3 pt-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               {note.special_action === "restaurants_stats_widget" ? (
