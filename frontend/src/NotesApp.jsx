@@ -100,6 +100,8 @@ export default function NotesApp() {
   const [restaurantMenusOpen, setRestaurantMenusOpen] = useState(false);
   const [restaurantMealsOpen, setRestaurantMealsOpen] = useState(false);
   const [restaurantOrdersOpen, setRestaurantOrdersOpen] = useState(false);
+  // Optional filter passed to the Orders modal — set by the sparkline tap.
+  const [restaurantOrdersInitialMonth, setRestaurantOrdersInitialMonth] = useState(null);
   const [restaurantSpendingOpen, setRestaurantSpendingOpen] = useState(false);
   const [restaurantCouponsOpen, setRestaurantCouponsOpen] = useState(false);
   const [restaurantReviewsOpen, setRestaurantReviewsOpen] = useState(false);
@@ -136,6 +138,24 @@ export default function NotesApp() {
     if (!fresh) setFullScreenNote(null);
     else if (fresh.updated_at !== fullScreenNote.updated_at) setFullScreenNote(fresh);
   }, [notes, fullScreenNote]);
+
+  // Cross-component nav — sparkline dots in the Live Stats tile broadcast
+  // "rg:open-orders" with the target { year, month }. We open the Orders
+  // modal and hand the filter through as `initialMonth`.
+  useEffect(() => {
+    const onOpenOrders = (e) => {
+      const detail = e?.detail || null;
+      if (detail && Number.isInteger(detail.year) && Number.isInteger(detail.month)) {
+        setRestaurantOrdersInitialMonth({ year: detail.year, month: detail.month });
+      } else {
+        setRestaurantOrdersInitialMonth(null);
+      }
+      setRestaurantsGaloreOpen(false);
+      setRestaurantOrdersOpen(true);
+    };
+    window.addEventListener("rg:open-orders", onOpenOrders);
+    return () => window.removeEventListener("rg:open-orders", onOpenOrders);
+  }, []);
 
   // Flip shadcn CSS vars for light mode so all Radix components (Badge, Button
   // variant="outline", Popover, Dialog etc.) render with dark text on light
@@ -1557,6 +1577,7 @@ export default function NotesApp() {
         restaurantMenusOpen={restaurantMenusOpen} setRestaurantMenusOpen={setRestaurantMenusOpen}
         restaurantMealsOpen={restaurantMealsOpen} setRestaurantMealsOpen={setRestaurantMealsOpen}
         restaurantOrdersOpen={restaurantOrdersOpen} setRestaurantOrdersOpen={setRestaurantOrdersOpen}
+        restaurantOrdersInitialMonth={restaurantOrdersInitialMonth}
         restaurantSpendingOpen={restaurantSpendingOpen} setRestaurantSpendingOpen={setRestaurantSpendingOpen}
         restaurantCouponsOpen={restaurantCouponsOpen} setRestaurantCouponsOpen={setRestaurantCouponsOpen}
         restaurantReviewsOpen={restaurantReviewsOpen} setRestaurantReviewsOpen={setRestaurantReviewsOpen}

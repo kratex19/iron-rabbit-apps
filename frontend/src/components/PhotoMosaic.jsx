@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { ImageIcon } from "lucide-react";
 import StorageService from "../storage/storageService";
+import PhotoLightbox from "./PhotoLightbox";
 
 /**
  * Compact 3×3 photo mosaic for the collapsed Photo Journal / Menu Snapshot
  * Gallery tile. Only image attachments are shown. Rendered as a strip so it
  * sits neatly under the collapsed row without ballooning the tile height.
+ * Tapping a cell opens a full-screen Instagram-style lightbox with swipe +
+ * double-tap zoom.
  *
  * Props:
  *  - attachments: full note.attachments array
@@ -14,8 +17,10 @@ import StorageService from "../storage/storageService";
 const isImage = (t) => (t || "").startsWith("image/");
 
 export default function PhotoMosaic({ attachments = [], isDark = true }) {
-  const images = (attachments || []).filter((a) => isImage(a.type)).slice(0, 9);
+  const allImages = (attachments || []).filter((a) => isImage(a.type));
+  const images = allImages.slice(0, 9);
   const [urls, setUrls] = useState({});
+  const [lightboxIdx, setLightboxIdx] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,38 +57,50 @@ export default function PhotoMosaic({ attachments = [], isDark = true }) {
     );
   }
 
-  const extra = (attachments || []).filter((a) => isImage(a.type)).length - images.length;
+  const extra = allImages.length - images.length;
 
   return (
-    <div
-      className="grid grid-cols-3 gap-1 px-3 pb-2"
-      data-testid="photo-mosaic"
-      aria-label={`Photo Journal · ${images.length + extra} photos`}
-    >
-      {images.map((att, i) => {
-        const isLast = i === images.length - 1 && extra > 0;
-        return (
-          <div
-            key={att.id}
-            className={`relative aspect-square rounded-md overflow-hidden ${isDark ? "bg-black/40" : "bg-gray-100"}`}
-            data-testid={`photo-mosaic-cell-${i}`}
-          >
-            {urls[att.id] ? (
-              <img
-                src={urls[att.id]}
-                alt={att.name || "Attachment"}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            ) : null}
-            {isLast && (
-              <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex items-center justify-center text-white text-xs font-semibold">
-                +{extra}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div
+        className="grid grid-cols-3 gap-1 px-3 pb-2"
+        data-testid="photo-mosaic"
+        aria-label={`Photo Journal · ${images.length + extra} photos`}
+      >
+        {images.map((att, i) => {
+          const isLast = i === images.length - 1 && extra > 0;
+          return (
+            <button
+              key={att.id}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setLightboxIdx(i); }}
+              className={`relative aspect-square rounded-md overflow-hidden ${isDark ? "bg-black/40" : "bg-gray-100"} cursor-pointer border-0 p-0`}
+              data-testid={`photo-mosaic-cell-${i}`}
+              aria-label={`Open photo ${i + 1}`}
+            >
+              {urls[att.id] ? (
+                <img
+                  src={urls[att.id]}
+                  alt={att.name || "Attachment"}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : null}
+              {isLast && (
+                <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] flex items-center justify-center text-white text-xs font-semibold">
+                  +{extra}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <PhotoLightbox
+        open={lightboxIdx !== null}
+        images={allImages}
+        initialIndex={lightboxIdx ?? 0}
+        onClose={() => setLightboxIdx(null)}
+      />
+    </>
   );
 }

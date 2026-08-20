@@ -50,6 +50,42 @@ export default function useRestaurantStats() {
         // "This month" is the last bucket
         const spendMonth = buckets[buckets.length - 1].total;
 
+        // Weekly streak: count consecutive ISO-weeks (going back from *this week*)
+        // where at least one order was recorded. Break on the first empty week.
+        const weekKey = (d) => {
+          const t = new Date(d);
+          t.setHours(0, 0, 0, 0);
+          // Adjust to Monday of the week
+          const day = (t.getDay() + 6) % 7; // 0=Mon..6=Sun
+          t.setDate(t.getDate() - day);
+          return t.getTime();
+        };
+        const orderWeeks = new Set(
+          (sorted || [])
+            .map((o) => o.date || o.created_at)
+            .filter(Boolean)
+            .map((d) => weekKey(d))
+        );
+        let streakWeeks = 0;
+        const cursor = new Date();
+        cursor.setHours(0, 0, 0, 0);
+        // If current week has no orders yet, streak still counts from last-active
+        // week (so a Monday-morning check doesn't reset the streak).
+        while (streakWeeks < 260) {
+          const k = weekKey(cursor);
+          if (orderWeeks.has(k)) {
+            streakWeeks += 1;
+            cursor.setDate(cursor.getDate() - 7);
+          } else if (streakWeeks === 0) {
+            // Give this week a grace period — roll back to previous week
+            cursor.setDate(cursor.getDate() - 7);
+            const kPrev = weekKey(cursor);
+            if (!orderWeeks.has(kPrev)) break;
+          } else {
+            break;
+          }
+        }
+
         let lastRestName = "";
         if (last?.restaurant_id) {
           const r = (restaurants || []).find((x) => x.id === last.restaurant_id);
@@ -64,6 +100,7 @@ export default function useRestaurantStats() {
             coupons: (coupons || []).length,
             spendMonth,
             trend: buckets,
+            streakWeeks,
             last: last ? {
               date: last.date || last.created_at,
               restaurant: lastRestName,

@@ -14,21 +14,42 @@ import { haptic } from "../../utils/haptic";
 // =========================================================================
 // 3. ORDER HISTORY + TIP CALCULATOR + SPLIT BILL
 // =========================================================================
-export function RestaurantOrdersModal({ isOpen, onClose, isDark }) {
+export function RestaurantOrdersModal({ isOpen, onClose, isDark, initialMonth }) {
   const [restaurants, setRestaurants] = useState([]);
   const [orders, setOrders] = useState([]);
   const [selectedR, setSelectedR] = useState("");
   const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Month pre-filter set by the Live Stats sparkline. Cleared when the modal
+  // closes so a manual re-open shows the full list.
+  const [monthFilter, setMonthFilter] = useState(null);
 
   const reload = async () => {
     setLoading(true);
     const [rs, os] = await Promise.all([RestaurantsService.listRestaurants(), RestaurantsService.listOrders()]);
     setRestaurants(rs); setOrders(os); setLoading(false);
   };
-  useEffect(() => { if (isOpen) reload(); }, [isOpen]);
+  useEffect(() => {
+    if (isOpen) {
+      reload();
+      setMonthFilter(initialMonth || null);
+    } else {
+      setMonthFilter(null);
+    }
+  }, [isOpen, initialMonth]);
 
-  const filtered = useMemo(() => orders.filter(o => !selectedR || o.restaurant_id === selectedR), [orders, selectedR]);
+  const monthLabel = monthFilter
+    ? new Date(monthFilter.year, monthFilter.month, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+    : null;
+
+  const filtered = useMemo(() => orders.filter(o => {
+    if (selectedR && o.restaurant_id !== selectedR) return false;
+    if (monthFilter) {
+      const d = new Date(o.date || o.created_at || 0);
+      if (d.getFullYear() !== monthFilter.year || d.getMonth() !== monthFilter.month) return false;
+    }
+    return true;
+  }), [orders, selectedR, monthFilter]);
 
   const handleSave = async (payload) => {
     await RestaurantsService.saveOrder(payload);
@@ -59,6 +80,23 @@ export function RestaurantOrdersModal({ isOpen, onClose, isDark }) {
                   <Plus className="w-4 h-4 mr-1" /> Log order
                 </Button>
               </div>
+              {monthFilter && (
+                <div
+                  className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs ${isDark ? "bg-amber-500/10 border-amber-500/30 text-amber-200" : "bg-amber-50 border-amber-200 text-amber-800"}`}
+                  data-testid="orders-month-filter-chip"
+                >
+                  <span>Showing <strong>{monthLabel}</strong> only · {filtered.length} order{filtered.length === 1 ? "" : "s"}</span>
+                  <div className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => setMonthFilter(null)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium ${isDark ? "hover:bg-white/10" : "hover:bg-amber-100"}`}
+                    data-testid="orders-month-filter-clear"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
               {filtered.length === 0 ? (
                 <div className={`text-center py-10 text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`}>No orders logged.</div>
               ) : (

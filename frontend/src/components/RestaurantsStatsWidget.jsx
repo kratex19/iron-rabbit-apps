@@ -96,11 +96,19 @@ function SpendSparkline({ buckets, isDark }) {
   const money = (n) => `$${(Number(n) || 0).toFixed(0)}`;
   const total6 = totals.reduce((a, b) => a + b, 0);
 
+  // Tapping a dot opens the Orders workspace filtered to that month.
+  const jumpToMonth = (b) => {
+    if (!b) return;
+    window.dispatchEvent(new CustomEvent("rg:open-orders", {
+      detail: { year: b.year, month: b.month, label: b.label },
+    }));
+  };
+
   return (
     <div className={`${cardBg} rounded-lg p-2`} data-testid="rg-widget-sparkline">
       <div className="flex items-center gap-1.5">
         <TrendingUp className="w-3 h-3 text-amber-400" />
-        <div className={`text-[9px] uppercase tracking-wider ${label}`}>Last 6 months · {money(total6)}</div>
+        <div className={`text-[9px] uppercase tracking-wider ${label}`}>Last 6 months · {money(total6)} · tap a dot</div>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-8 mt-1" role="img" aria-label="6-month spend trend">
         <defs>
@@ -114,7 +122,13 @@ function SpendSparkline({ buckets, isDark }) {
             <path d={areaD} fill="url(#rg-spark-fill)" />
             <path d={pathD} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
             {points.map(([x, y], i) => (
-              <circle key={i} cx={x} cy={y} r="1.6" fill="#fbbf24" />
+              <g key={i} style={{ cursor: "pointer" }} onClick={() => jumpToMonth(buckets[i])} data-testid={`rg-spark-dot-${i}`}>
+                {/* Large invisible hit-target for easier tapping */}
+                <circle cx={x} cy={y} r="7" fill="transparent" />
+                <circle cx={x} cy={y} r="1.6" fill="#fbbf24">
+                  <title>{`${buckets[i].label}: ${money(buckets[i].total)}`}</title>
+                </circle>
+              </g>
             ))}
           </>
         ) : (
@@ -123,7 +137,16 @@ function SpendSparkline({ buckets, isDark }) {
       </svg>
       <div className={`flex justify-between mt-0.5 text-[8px] uppercase tracking-wider ${label}`}>
         {(buckets || []).map((b, i) => (
-          <span key={i} className={i === (buckets.length - 1) ? value + " font-semibold" : ""}>{b.label}</span>
+          <button
+            key={i}
+            type="button"
+            onClick={() => jumpToMonth(b)}
+            data-testid={`rg-spark-label-${i}`}
+            className={`px-1 rounded transition-colors hover:bg-white/10 ${i === (buckets.length - 1) ? `${value} font-semibold` : ""}`}
+            style={{ border: 0, background: "transparent", cursor: "pointer", color: "inherit", fontSize: "inherit", lineHeight: "inherit" }}
+          >
+            {b.label}
+          </button>
         ))}
       </div>
     </div>

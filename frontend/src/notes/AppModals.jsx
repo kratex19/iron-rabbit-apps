@@ -318,6 +318,7 @@ export default function AppModals(p) {
       <RestaurantOrdersModal
         isOpen={p.restaurantOrdersOpen}
         onClose={() => p.setRestaurantOrdersOpen(false)}
+        initialMonth={p.restaurantOrdersInitialMonth}
         isDark={p.isDark}
       />
       <RestaurantSpendingModal
