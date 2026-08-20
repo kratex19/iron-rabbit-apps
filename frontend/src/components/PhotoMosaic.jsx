@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 import StorageService from "../storage/storageService";
 import PhotoLightbox from "./PhotoLightbox";
@@ -21,6 +21,29 @@ export default function PhotoMosaic({ attachments = [], isDark = true }) {
   const images = allImages.slice(0, 9);
   const [urls, setUrls] = useState({});
   const [lightboxIdx, setLightboxIdx] = useState(null);
+  const [slideshowStart, setSlideshowStart] = useState(false);
+
+  // Long-press → slideshow (works on both touch and mouse).
+  const longPressTimer = useRef(null);
+  const longPressFired = useRef(false);
+  const LONG_PRESS_MS = 550;
+  const startPress = (i) => {
+    longPressFired.current = false;
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      setSlideshowStart(true);
+      setLightboxIdx(i);
+    }, LONG_PRESS_MS);
+  };
+  const cancelPress = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+  const handleTap = (i) => {
+    if (longPressFired.current) { longPressFired.current = false; return; }
+    setSlideshowStart(false);
+    setLightboxIdx(i);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -72,17 +95,27 @@ export default function PhotoMosaic({ attachments = [], isDark = true }) {
             <button
               key={att.id}
               type="button"
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx(i); }}
-              className={`relative aspect-square rounded-md overflow-hidden ${isDark ? "bg-black/40" : "bg-gray-100"} cursor-pointer border-0 p-0`}
+              onClick={(e) => { e.stopPropagation(); handleTap(i); }}
+              onTouchStart={(e) => { e.stopPropagation(); startPress(i); }}
+              onTouchEnd={cancelPress}
+              onTouchMove={cancelPress}
+              onTouchCancel={cancelPress}
+              onMouseDown={(e) => { e.stopPropagation(); startPress(i); }}
+              onMouseUp={cancelPress}
+              onMouseLeave={cancelPress}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`relative aspect-square rounded-md overflow-hidden ${isDark ? "bg-black/40" : "bg-gray-100"} cursor-pointer border-0 p-0 select-none`}
               data-testid={`photo-mosaic-cell-${i}`}
-              aria-label={`Open photo ${i + 1}`}
+              aria-label={`Open photo ${i + 1} — long-press for slideshow`}
+              title="Tap to view · Long-press for slideshow"
             >
               {urls[att.id] ? (
                 <img
                   src={urls[att.id]}
                   alt={att.name || "Attachment"}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover pointer-events-none"
                   loading="lazy"
+                  draggable={false}
                 />
               ) : null}
               {isLast && (
@@ -99,7 +132,8 @@ export default function PhotoMosaic({ attachments = [], isDark = true }) {
         open={lightboxIdx !== null}
         images={allImages}
         initialIndex={lightboxIdx ?? 0}
-        onClose={() => setLightboxIdx(null)}
+        startInSlideshow={slideshowStart}
+        onClose={() => { setLightboxIdx(null); setSlideshowStart(false); }}
       />
     </>
   );

@@ -36,7 +36,7 @@ export default function useRestaurantStats() {
         const m = now.getMonth();
         const buckets = Array.from({ length: 6 }, (_, i) => {
           const d = new Date(y, m - (5 - i), 1);
-          return { year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString(undefined, { month: "short" }), total: 0 };
+          return { year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString(undefined, { month: "short" }), total: 0, count: 0 };
         });
         for (const o of sorted) {
           const d = new Date(o.date || o.created_at || 0);
@@ -44,6 +44,7 @@ export default function useRestaurantStats() {
           if (b) {
             const t = Number(o.total || 0);
             if (Number.isFinite(t)) b.total += t;
+            b.count += 1;
           }
         }
 

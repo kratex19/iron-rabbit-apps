@@ -1,13 +1,59 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Bookmark, Flame } from "lucide-react";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import useRestaurantStats from "../hooks/useRestaurantStats";
+
+// Milestones that trigger a confetti + toast celebration.
+const STREAK_MILESTONES = [4, 8, 12, 26, 52];
+const MILESTONE_KEY = "iron_rabbit_rg_last_streak_milestone_v1";
 
 /**
  * Ultra-compact stat peek shown in the collapsed row of the Live Stats
- * tile — chips for spend / wishlist / weekly streak.
+ * tile — chips for spend / wishlist / weekly streak. Also fires confetti
+ * when the weekly-streak crosses a milestone.
  */
 export default function RestaurantsStatsPeek({ isDark = true }) {
   const { stats } = useRestaurantStats();
+  const celebratedRef = useRef(false);
+
+  useEffect(() => {
+    if (!stats || celebratedRef.current) return;
+    const streak = stats.streakWeeks || 0;
+    if (streak <= 0) return;
+
+    // Find the highest milestone the user has already hit
+    const currentMilestone = STREAK_MILESTONES.filter((m) => streak >= m).slice(-1)[0] || 0;
+    let last = 0;
+    try {
+      const raw = localStorage.getItem(MILESTONE_KEY);
+      last = raw ? parseInt(raw, 10) || 0 : 0;
+    } catch { /* private mode */ }
+
+    if (currentMilestone > last) {
+      celebratedRef.current = true;
+      try { localStorage.setItem(MILESTONE_KEY, String(currentMilestone)); } catch { /* noop */ }
+      toast.success(`🔥 ${currentMilestone}-week streak logging orders — keep it going!`, {
+        description: "Every week you log at least one order counts.",
+        duration: 5000,
+      });
+      // Confetti — burst from top-center, warm palette
+      confetti({
+        particleCount: 90,
+        spread: 70,
+        startVelocity: 42,
+        origin: { x: 0.5, y: 0.1 },
+        colors: ["#fbbf24", "#f97316", "#ef4444", "#a855f7", "#fef3c7"],
+        zIndex: 400,
+      });
+      // Second smaller burst for a fuller effect
+      setTimeout(() => {
+        confetti({ particleCount: 40, angle: 60, spread: 55, origin: { x: 0, y: 0.6 }, colors: ["#fbbf24", "#f97316"], zIndex: 400 });
+        confetti({ particleCount: 40, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors: ["#fbbf24", "#f97316"], zIndex: 400 });
+      }, 180);
+    }
+  }, [stats]);
+
   if (!stats) return null;
 
   const money = (n) => `$${(Number(n) || 0).toFixed(0)}`;

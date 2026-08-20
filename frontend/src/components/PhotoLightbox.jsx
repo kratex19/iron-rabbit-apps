@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Download, Play, Pause } from "lucide-react";
 import StorageService from "../storage/storageService";
 
 /**
@@ -7,30 +7,38 @@ import StorageService from "../storage/storageService";
  * - Prev / next arrows + swipe (touch + drag)
  * - Double-tap toggles 1× ↔ 2.5× zoom (centered on the tap)
  * - Zoom in/out buttons + Download
- * - ESC / ← / → keyboard nav
+ * - ESC / ← / → / space keyboard nav (space toggles slideshow)
+ * - Optional auto-advancing SLIDESHOW mode (great for wall-mounted tablets):
+ *     pass `startInSlideshow` when opening, or tap the ▶ button
  *
  * Props:
  *  - open: boolean
  *  - images: [{ id, name, type }] — image attachments only
  *  - initialIndex: which image to open first
  *  - onClose: () => void
+ *  - startInSlideshow: boolean (default false)
  */
-export default function PhotoLightbox({ open, images = [], initialIndex = 0, onClose }) {
+export default function PhotoLightbox({ open, images = [], initialIndex = 0, onClose, startInSlideshow = false }) {
   const [idx, setIdx] = useState(initialIndex);
   const [urls, setUrls] = useState({});
   const [zoom, setZoom] = useState(1);
-  const [origin, setOrigin] = useState({ x: 50, y: 50 });   // % coordinates for CSS transform-origin
+  const [origin, setOrigin] = useState({ x: 50, y: 50 });
+  const [slideshow, setSlideshow] = useState(false);
   const touchStart = useRef(null);
   const lastTapAt = useRef(0);
+  const slideshowTimerRef = useRef(null);
 
-  // Reset index + zoom when the lightbox is (re-)opened
+  // Reset index + zoom + slideshow flag when the lightbox is (re-)opened
   useEffect(() => {
     if (open) {
       setIdx(initialIndex);
       setZoom(1);
       setOrigin({ x: 50, y: 50 });
+      setSlideshow(!!startInSlideshow);
+    } else {
+      setSlideshow(false);
     }
-  }, [open, initialIndex]);
+  }, [open, initialIndex, startInSlideshow]);
 
   // Load blob URLs for all image attachments (once)
   useEffect(() => {
@@ -58,10 +66,24 @@ export default function PhotoLightbox({ open, images = [], initialIndex = 0, onC
       if (e.key === "Escape") onClose?.();
       else if (e.key === "ArrowRight") setIdx((i) => Math.min(images.length - 1, i + 1));
       else if (e.key === "ArrowLeft") setIdx((i) => Math.max(0, i - 1));
+      else if (e.key === " " || e.code === "Space") { e.preventDefault(); setSlideshow((s) => !s); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, images.length, onClose]);
+
+  // Slideshow auto-advance — every 3.5s, wrapping around at the end.
+  useEffect(() => {
+    if (!open || !slideshow || images.length < 2) {
+      if (slideshowTimerRef.current) { clearInterval(slideshowTimerRef.current); slideshowTimerRef.current = null; }
+      return;
+    }
+    slideshowTimerRef.current = setInterval(() => {
+      setIdx((i) => (i + 1) % images.length);
+      setZoom(1);
+    }, 3500);
+    return () => { if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current); };
+  }, [open, slideshow, images.length]);
 
   if (!open || images.length === 0) return null;
   const current = images[idx];
@@ -126,7 +148,14 @@ export default function PhotoLightbox({ open, images = [], initialIndex = 0, onC
       <div className="flex items-center gap-2 p-3 text-white">
         <div className="text-sm font-medium truncate">{current?.name || `Photo ${idx + 1}`}</div>
         <div className="text-xs text-white/60 ml-2">{idx + 1} / {images.length}</div>
+        {slideshow && <div className="text-[10px] text-amber-300 ml-1 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />Slideshow</div>}
         <div className="flex-1" />
+        {images.length > 1 && (
+          <button onClick={() => setSlideshow((s) => !s)} aria-label={slideshow ? "Pause slideshow" : "Play slideshow"}
+                  className="p-2 rounded-md hover:bg-white/10" data-testid="photo-lightbox-slideshow-toggle">
+            {slideshow ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </button>
+        )}
         <button onClick={() => setZoom((z) => Math.max(1, +(z - 0.5).toFixed(2)))} aria-label="Zoom out"
                 className="p-2 rounded-md hover:bg-white/10" data-testid="photo-lightbox-zoom-out">
           <ZoomOut className="w-4 h-4" />
