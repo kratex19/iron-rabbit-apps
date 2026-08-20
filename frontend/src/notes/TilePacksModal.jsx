@@ -155,8 +155,8 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                   </div>
                 </div>
                 <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{pack.tagline}</p>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {pack.notes.slice(0, 5).map((n, i) => {
+                <div className="grid grid-cols-5 gap-1.5" data-testid={`tile-pack-preview-${pack.id}`}>
+                  {pack.notes.slice(0, 20).map((n, i) => {
                     const Ico = n.icon && LucideIcons[n.icon] ? LucideIcons[n.icon] : LucideIcons.StickyNote;
                     return (
                       <div key={i} className="aspect-square rounded-md relative overflow-hidden flex items-center justify-center" style={getBackgroundStyle(n.background)} title={n.title}>
@@ -166,6 +166,11 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                       </div>
                     );
                   })}
+                  {pack.notes.length > 20 && (
+                    <div className="aspect-square rounded-md flex items-center justify-center bg-white/10 text-white text-[10px] font-semibold">
+                      +{pack.notes.length - 20}
+                    </div>
+                  )}
                 </div>
                 <Button
                   onClick={() => onApply(pack)}

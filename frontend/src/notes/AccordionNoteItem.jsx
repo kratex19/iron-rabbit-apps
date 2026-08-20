@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import { computeNoteStreak } from "./streakUtils";
 import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
+import RestaurantsStatsWidget from "../components/RestaurantsStatsWidget";
 
 /**
  * A single collapsible note row for List view.
@@ -176,7 +177,11 @@ export default function AccordionNoteItem({
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className={`px-3 pb-3 pt-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-              <p className={`text-sm whitespace-pre-wrap line-clamp-4 mb-3 ${isDark ? 'text-slate-100' : 'text-gray-600'}`}>{note.content || "No content"}</p>
+              {note.special_action === "restaurants_stats_widget" ? (
+                <div className="mb-3"><RestaurantsStatsWidget isDark={isDark} /></div>
+              ) : (
+                <p className={`text-sm whitespace-pre-wrap line-clamp-4 mb-3 ${isDark ? 'text-slate-100' : 'text-gray-600'}`}>{note.content || "No content"}</p>
+              )}
               {Array.isArray(note.tags) && note.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-3" data-testid={`note-tags-${note.id}`}>
                   {note.tags.map(t => (

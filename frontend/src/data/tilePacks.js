@@ -114,14 +114,14 @@ export const TILE_PACKS = [
       },
       {
         title: "Photo Journal",
-        content: "📸 Attach dish photos to this tile from the paperclip icon.\n\nFor each shot:\n• Restaurant:\n• Dish:\n• Date:\n• One-line reaction:\n\n(Tip: enable 'Full Screen' view to browse photos like a gallery.)\n",
+        content: "📸 Tap the ✏️ pencil, then the Paperclip → pick MULTIPLE dish photos in one go. On mobile, tap the camera icon for instant capture.\n\nFor each shot, jot below:\n• Restaurant:\n• Dish:\n• Date:\n• One-line reaction:\n\n(Tip: enable 'Full Screen' view to browse photos like a gallery.)\n",
         color: "pink", icon: "Camera",
         background: grad(G.roseGold),
         category: "Restaurants",
       },
       {
         title: "Menu Snapshot Gallery",
-        content: "📷 Snap menu boards, printed menus, chalkboards, seasonal specials — attach them to this tile.\n\nWhy this rocks:\n• Compare prices between visits\n• Remember dishes you meant to try\n• Rediscover seasonal-only items\n\nRestaurant tag per photo:\n• \n• \n",
+        content: "📷 Snap menu boards, printed menus, chalkboards, seasonal specials — attach MANY at once.\n\nHow to use it fast:\n1. Tap ✏️ Edit\n2. Tap the camera 📷 icon (mobile) or paperclip 📎 to bulk-import photos\n3. All shots land in this tile's grid\n\nWhy this rocks:\n• Compare prices between visits\n• Remember dishes you meant to try\n• Rediscover seasonal-only items\n\nRestaurant tag per photo:\n• \n• \n",
         color: "orange", icon: "BookOpen",
         background: grad(G.truffle),
         category: "Restaurants",
@@ -146,6 +146,15 @@ export const TILE_PACKS = [
         color: "amber", icon: "Coffee",
         background: grad(G.truffle),
         category: "Restaurants",
+      },
+      {
+        title: "Live Stats",
+        content: "Expand this tile to see live counts + spend from your Restaurants Galore workspace.\n\n• Restaurants tracked\n• Wish list count\n• Reviews written\n• Active coupons\n• Spend this calendar month\n• Last order (restaurant + date + total)\n\nRefreshes automatically each time you open it.",
+        color: "cyan", icon: "TrendingUp",
+        background: grad(G.midnight),
+        category: "Restaurants",
+        // Renders <RestaurantsStatsWidget/> in place of the static content.
+        special_action: "restaurants_stats_widget",
       },
     ],
   },
