@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { Utensils, TrendingUp, Star, Bookmark, Truck, Ticket, DollarSign, ShoppingBag, GitCompare, Snowflake } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Utensils, TrendingUp, Star, Bookmark, Truck, Ticket, DollarSign, ShoppingBag, GitCompare, Snowflake, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import useRestaurantStats from "../hooks/useRestaurantStats";
 
 /**
@@ -79,6 +81,10 @@ export default function RestaurantsStatsWidget({ isDark = true }) {
  * inside the Live Stats widget. Includes a 12-dot capacity bar so long-
  * streak users can see their consistency at a glance (each dot is one
  * month of the current year; filled = freeze consumed, hollow = clean).
+ *
+ * Also shows the "Freeze Streak Trophy" cabinet: a gold badge per past
+ * calendar year the user finished without consuming any freezes. Newly
+ * awarded trophies pop with a confetti + toast celebration (once).
  */
 function FreezeInventory({ stats, isDark }) {
   const label = isDark ? "text-slate-300" : "text-gray-600";
@@ -87,6 +93,7 @@ function FreezeInventory({ stats, isDark }) {
   const used = stats.freezesUsedThisYear ?? 0;
   const granted = stats.freezesGrantedThisYear ?? 12;
   const year = stats.currentYear ?? new Date().getFullYear();
+  const trophies = stats.trophies || [];
   const clean = granted - used;
   const dots = Array.from({ length: 12 }, (_, i) => i < used ? "used" : (i < granted ? "clean" : "future"));
   const dotClass = (state) => {
@@ -94,6 +101,43 @@ function FreezeInventory({ stats, isDark }) {
     if (state === "clean") return isDark ? "bg-white/25" : "bg-gray-300";
     return isDark ? "bg-white/5" : "bg-gray-200";
   };
+
+  // Celebrate any trophies that were awarded during this hook load.
+  const celebratedRef = useRef(false);
+  useEffect(() => {
+    if (celebratedRef.current) return;
+    const fresh = stats.newlyAwardedTrophyYears || [];
+    if (fresh.length === 0) return;
+    celebratedRef.current = true;
+    const list = fresh.slice().sort((a, b) => b - a);
+    toast.success(`🏆 Freeze Streak Trophy${list.length > 1 ? "s" : ""} unlocked!`, {
+      description: `${list.join(", ")} — a full calendar year with zero freezes used. Consistency legend.`,
+      duration: 6500,
+    });
+    confetti({
+      particleCount: 120,
+      spread: 85,
+      startVelocity: 48,
+      origin: { x: 0.5, y: 0.15 },
+      colors: ["#fbbf24", "#f59e0b", "#eab308", "#fef3c7", "#facc15"],
+      zIndex: 400,
+    });
+    setTimeout(() => {
+      confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0.05, y: 0.6 }, colors: ["#fbbf24", "#f59e0b"], zIndex: 400 });
+      confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 0.95, y: 0.6 }, colors: ["#fbbf24", "#f59e0b"], zIndex: 400 });
+    }, 220);
+  }, [stats.newlyAwardedTrophyYears]);
+
+  const explainTrophy = (yr) => {
+    toast(`🏆 ${yr} · Freeze Streak Trophy`, {
+      description: `You finished ${yr} without needing a single freeze. Nothing but clean weeks.`,
+      duration: 4200,
+    });
+  };
+
+  const trophyChipCls = isDark
+    ? "bg-amber-400/15 text-amber-200 hover:bg-amber-400/25 border-amber-400/30"
+    : "bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300";
 
   return (
     <div className={`${cardBg} rounded-lg p-2`} data-testid="rg-widget-freeze-inventory">
@@ -123,6 +167,31 @@ function FreezeInventory({ stats, isDark }) {
             ? `${clean} clean month${clean === 1 ? "" : "s"} · ${used} auto-forgiven gap${used === 1 ? "" : "s"}.`
             : `Every month this year needed a freeze — nice save.`}
       </div>
+
+      {/* Trophy cabinet — one chip per past year finished with zero freezes. */}
+      {trophies.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-white/5" data-testid="rg-widget-trophy-cabinet">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Trophy className="w-3 h-3 text-amber-400" />
+            <div className={`text-[9px] uppercase tracking-wider ${label}`}>Freeze Streak Trophies</div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {trophies.map((t) => (
+              <button
+                key={t.year}
+                type="button"
+                onClick={() => explainTrophy(t.year)}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors ${trophyChipCls}`}
+                title={`${t.year} — zero freezes used. Tap for details.`}
+                data-testid={`rg-widget-trophy-${t.year}`}
+              >
+                <Trophy className="w-2.5 h-2.5" />
+                {t.year}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

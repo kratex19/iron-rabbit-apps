@@ -131,6 +131,50 @@ export default function useRestaurantStats() {
         ).length;
         const freezesGrantedThisYear = new Date().getMonth() + 1; // 1..12
 
+        // Freeze Streak Trophies — awarded once, permanently, for finishing a
+        // *past* calendar year with zero freezes consumed. To avoid gifting
+        // trophies retroactively for years the user wasn't using the app, we
+        // only award for years that (a) had at least one order logged AND
+        // (b) have no entries in the freeze ledger for any month of that year.
+        //
+        // Trophy store shape: { "YYYY": { awarded_at: ISOString } }
+        const TROPHY_KEY = "iron_rabbit_rg_freeze_trophies_v1";
+        let trophyStore = {};
+        try {
+          const raw = localStorage.getItem(TROPHY_KEY);
+          if (raw) trophyStore = JSON.parse(raw) || {};
+        } catch { /* private mode */ }
+
+        // Collect years the user has been active in (has any order logged).
+        const orderYears = new Set();
+        for (const o of (sorted || [])) {
+          const d = new Date(o.date || o.created_at || 0);
+          const yr = d.getFullYear();
+          if (Number.isFinite(yr) && yr > 1970) orderYears.add(yr);
+        }
+
+        const newlyAwardedYears = [];
+        const currentYear = nowYear;
+        for (const yr of orderYears) {
+          if (yr >= currentYear) continue; // only past, completed years
+          const yrPrefix = `${yr}-`;
+          const usedThatYear = Object.keys(ledger).some(
+            (k) => k.startsWith(yrPrefix) && ledger[k]
+          );
+          if (!usedThatYear && !trophyStore[String(yr)]) {
+            trophyStore[String(yr)] = { awarded_at: new Date().toISOString() };
+            newlyAwardedYears.push(yr);
+          }
+        }
+        if (newlyAwardedYears.length > 0) {
+          try { localStorage.setItem(TROPHY_KEY, JSON.stringify(trophyStore)); } catch { /* noop */ }
+        }
+        // Sorted list of earned trophy years (newest first) for UI rendering.
+        const trophies = Object.keys(trophyStore)
+          .map((y) => ({ year: parseInt(y, 10), awarded_at: trophyStore[y]?.awarded_at || null }))
+          .filter((t) => Number.isFinite(t.year))
+          .sort((a, b) => b.year - a.year);
+
         let lastRestName = "";
         if (last?.restaurant_id) {
           const r = (restaurants || []).find((x) => x.id === last.restaurant_id);
@@ -151,6 +195,8 @@ export default function useRestaurantStats() {
             freezesUsedThisYear,
             freezesGrantedThisYear,
             currentYear: nowYear,
+            trophies,
+            newlyAwardedTrophyYears: newlyAwardedYears,
             last: last ? {
               date: last.date || last.created_at,
               restaurant: lastRestName,
