@@ -39,6 +39,7 @@ import { SUPPORTED_LANGUAGES } from "./i18n";
 import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 import { maybeShowWeeklyChoreSummary } from "./utils/weeklyChoreSummary";
 import { maybeShowPantryAlerts } from "./utils/pantryAlerts";
+import { maybeShowStreakRecoveryNudge } from "./utils/streakRecoveryNudge";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
@@ -324,6 +325,7 @@ export default function NotesApp() {
       maybeShowWeeklyRecap(notesData);
       maybeShowWeeklyChoreSummary(notesData);
       maybeShowPantryAlerts();
+      maybeShowStreakRecoveryNudge();
 
       // Restaurants Galore — run scheduled backup if it's overdue
       // (weekly/monthly per user preference). Silently no-ops otherwise.

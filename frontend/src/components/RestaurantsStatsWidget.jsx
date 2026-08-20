@@ -3,6 +3,7 @@ import { Utensils, TrendingUp, Star, Bookmark, Truck, Ticket, DollarSign, Shoppi
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import useRestaurantStats from "../hooks/useRestaurantStats";
+import TrophyShareCardModal from "./TrophyShareCardModal";
 
 /**
  * Live-data widget rendered inside a note tile when
@@ -104,6 +105,7 @@ function FreezeInventory({ stats, isDark }) {
 
   // Celebrate any trophies that were awarded during this hook load.
   const celebratedRef = useRef(false);
+  const [shareYear, setShareYear] = useState(null);
   useEffect(() => {
     if (celebratedRef.current) return;
     const fresh = stats.newlyAwardedTrophyYears || [];
@@ -129,10 +131,9 @@ function FreezeInventory({ stats, isDark }) {
   }, [stats.newlyAwardedTrophyYears]);
 
   const explainTrophy = (yr) => {
-    toast(`🏆 ${yr} · Freeze Streak Trophy`, {
-      description: `You finished ${yr} without needing a single freeze. Nothing but clean weeks.`,
-      duration: 4200,
-    });
+    // Open the shareable card modal — much more satisfying than a toast,
+    // and it lets the user post their consistency badge to socials.
+    setShareYear(yr);
   };
 
   const trophyChipCls = isDark
@@ -192,6 +193,12 @@ function FreezeInventory({ stats, isDark }) {
           </div>
         </div>
       )}
+
+      <TrophyShareCardModal
+        open={shareYear !== null}
+        onClose={() => setShareYear(null)}
+        year={shareYear}
+      />
     </div>
   );
 }
