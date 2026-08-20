@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { ChevronDown, ChevronUp, Check, ImageIcon, Search, X, Pencil } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, ImageIcon, Search, X, Pencil, Edit3 } from "lucide-react";
 import { getPresetTitle, getPresetAlt, getPresetSearchHay, getPresetDefaultTitle, loadTitleOverrides, subscribeTitleOverrides } from "../utils/presetTitle";
 import PresetRenameModal from "../components/PresetRenameModal";
+import BulkRenameModal from "../components/BulkRenameModal";
 
 /**
  * Picker for the 40 bundled header background presets that live under
@@ -21,6 +22,7 @@ export default function HeaderPresetPicker({ value, onChange, isDark }) {
   const [query, setQuery] = useState("");
   // Rename modal state + live overrides map (so grid re-renders on save).
   const [renaming, setRenaming] = useState(null); // preset object or null
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [overrides, setOverrides] = useState(() => loadTitleOverrides());
   useEffect(() => subscribeTitleOverrides(setOverrides), []);
 
@@ -100,28 +102,40 @@ export default function HeaderPresetPicker({ value, onChange, isDark }) {
                 })}
               </div>
 
-              {/* Search box */}
-              <div className={`relative`}>
-                <Search className={`w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search presets (e.g. deer, sunset, lake)"
-                  className={`w-full h-8 pl-7 pr-7 rounded-md text-xs border outline-none focus:ring-1 focus:ring-yellow-500/50 ${isDark ? 'bg-black/30 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-gray-200 text-gray-800 placeholder:text-gray-400'}`}
-                  data-testid="settings-header-presets-search"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-white/10"
-                    aria-label="Clear search"
-                    data-testid="settings-header-presets-search-clear"
-                  >
-                    <X className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
-                  </button>
-                )}
+              {/* Search box + Bulk rename */}
+              <div className="flex items-center gap-1.5">
+                <div className={`relative flex-1`}>
+                  <Search className={`w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-gray-400'}`} />
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search presets (e.g. deer, sunset, lake)"
+                    className={`w-full h-8 pl-7 pr-7 rounded-md text-xs border outline-none focus:ring-1 focus:ring-yellow-500/50 ${isDark ? 'bg-black/30 border-white/10 text-white placeholder:text-slate-500' : 'bg-white border-gray-200 text-gray-800 placeholder:text-gray-400'}`}
+                    data-testid="settings-header-presets-search"
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-white/10"
+                      aria-label="Clear search"
+                      data-testid="settings-header-presets-search-clear"
+                    >
+                      <X className={`w-3.5 h-3.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBulkOpen(true)}
+                  className={`flex items-center gap-1 h-8 px-2 rounded-md text-[11px] font-medium transition-colors ${isDark ? 'bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300' : 'bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700'}`}
+                  aria-label="Rename all presets"
+                  title="Rename all presets"
+                  data-testid="settings-header-bulk-rename"
+                >
+                  <Edit3 className="w-3 h-3" /> Rename all
+                </button>
               </div>
 
               {/* Grid */}
@@ -203,6 +217,12 @@ export default function HeaderPresetPicker({ value, onChange, isDark }) {
         preset={renaming}
         currentTitle={renaming ? getPresetTitle(renaming, overrides) : ""}
         defaultTitle={renaming ? getPresetDefaultTitle(renaming) : ""}
+      />
+
+      <BulkRenameModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        presets={manifest?.presets || []}
       />
     </div>
   );

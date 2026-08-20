@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, Palette, Sparkles, Search, X, Pencil } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Palette, Sparkles, Search, X, Pencil, Edit3 } from "lucide-react";
 import { useDashboard } from "../DashboardLayout";
 import { PROVIDERS } from "../state/dashboardStore";
 import LocationPickerModal from "../components/LocationPickerModal";
@@ -9,6 +9,7 @@ import BackgroundPicker from "../../components/BackgroundPicker";
 import { bgObjToString, stringToBgObj } from "../../utils/bgValue";
 import { getPresetTitle, getPresetAlt, getPresetSearchHay, getPresetDefaultTitle, loadTitleOverrides, subscribeTitleOverrides } from "../../utils/presetTitle";
 import PresetRenameModal from "../../components/PresetRenameModal";
+import BulkRenameModal from "../../components/BulkRenameModal";
 
 export default function DashboardSettings() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function DashboardSettings() {
 
   // Rename modal state + live overrides map (grid re-renders on save).
   const [renaming, setRenaming] = useState(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [overrides, setOverrides] = useState(() => loadTitleOverrides());
   useEffect(() => subscribeTitleOverrides(setOverrides), []);
 
@@ -243,54 +245,73 @@ export default function DashboardSettings() {
         )}
 
         {/* Free-text search — filters by title, category, or tag */}
-        <div style={{ position: "relative", marginTop: 10 }}>
-          <Search
-            size={13}
-            style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }}
-          />
-          <input
-            type="text"
-            value={bgQuery}
-            onChange={(e) => setBgQuery(e.target.value)}
-            placeholder="Search backgrounds (e.g. sunset, everest, deer)"
-            data-testid="dash-settings-bg-search"
-            style={{
-              width: "100%",
-              height: 32,
-              paddingLeft: 28,
-              paddingRight: bgQuery ? 28 : 10,
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(0,0,0,0.35)",
-              color: "#e2e8f0",
-              fontSize: 12,
-              outline: "none",
-            }}
-          />
-          {bgQuery && (
-            <button
-              type="button"
-              onClick={() => setBgQuery("")}
-              data-testid="dash-settings-bg-search-clear"
-              aria-label="Clear search"
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
+          <div style={{ position: "relative", flex: 1 }}>
+            <Search
+              size={13}
+              style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", pointerEvents: "none" }}
+            />
+            <input
+              type="text"
+              value={bgQuery}
+              onChange={(e) => setBgQuery(e.target.value)}
+              placeholder="Search backgrounds (e.g. sunset, everest, deer)"
+              data-testid="dash-settings-bg-search"
               style={{
-                position: "absolute",
-                right: 4,
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "transparent",
-                border: 0,
-                color: "#94a3b8",
-                cursor: "pointer",
-                padding: 4,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
+                width: "100%",
+                height: 32,
+                paddingLeft: 28,
+                paddingRight: bgQuery ? 28 : 10,
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(0,0,0,0.35)",
+                color: "#e2e8f0",
+                fontSize: 12,
+                outline: "none",
               }}
-            >
-              <X size={12} />
-            </button>
-          )}
+            />
+            {bgQuery && (
+              <button
+                type="button"
+                onClick={() => setBgQuery("")}
+                data-testid="dash-settings-bg-search-clear"
+                aria-label="Clear search"
+                style={{
+                  position: "absolute",
+                  right: 4,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: 0,
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  padding: 4,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setBulkOpen(true)}
+            data-testid="dash-settings-bulk-rename"
+            aria-label="Rename all presets"
+            title="Rename all presets"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              height: 32, padding: "0 10px", fontSize: 11, fontWeight: 600,
+              background: "rgba(255,255,255,0.05)", color: "#e2e8f0",
+              border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Edit3 size={11} /> Rename all
+          </button>
         </div>
 
         <div
@@ -480,6 +501,12 @@ export default function DashboardSettings() {
         preset={renaming}
         currentTitle={renaming ? getPresetTitle(renaming, overrides) : ""}
         defaultTitle={renaming ? getPresetDefaultTitle(renaming) : ""}
+      />
+
+      <BulkRenameModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        presets={presets}
       />
     </>
   );

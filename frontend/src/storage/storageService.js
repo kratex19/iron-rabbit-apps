@@ -427,6 +427,17 @@ export const StorageService = {
     const templates = await this.getTemplates();
     const exportedAt = new Date().toISOString();
 
+    // Preset title overrides live in localStorage (fast, cross-tab). Include
+    // them in backups so custom preset names follow the user to a new phone.
+    let presetTitleOverrides = {};
+    try {
+      const raw = localStorage.getItem("iron_rabbit_preset_title_overrides_v1");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") presetTitleOverrides = parsed;
+      }
+    } catch { /* localStorage disabled — ship an empty map */ }
+
     // Export attachments as base64 so the backup is a single portable JSON
     const files = {};
     await filesStore.iterate((entry, key) => {
@@ -455,6 +466,7 @@ export const StorageService = {
         settings,
         templates,
         files: filesSerialized,
+        preset_title_overrides: presetTitleOverrides,
       }
     };
   },
@@ -464,7 +476,7 @@ export const StorageService = {
       throw new Error('Invalid backup file');
     }
 
-    const { notes = [], settings, templates = [], files = {} } = backupData.data;
+    const { notes = [], settings, templates = [], files = {}, preset_title_overrides } = backupData.data;
 
     // Replace mode wipes existing data; merge mode preserves and overwrites by id.
     if (mode === "replace") {
@@ -507,6 +519,30 @@ export const StorageService = {
         await settingsStore.setItem('app_settings', { ...existing, ...settings });
       } else {
         await settingsStore.setItem('app_settings', settings);
+      }
+    }
+
+    // Restore custom preset title overrides (localStorage-backed) — merge
+    // mode keeps existing local names, replace mode overwrites everything.
+    if (preset_title_overrides && typeof preset_title_overrides === "object") {
+      try {
+        const key = "iron_rabbit_preset_title_overrides_v1";
+        let next = preset_title_overrides;
+        if (mode === "merge") {
+          const raw = localStorage.getItem(key);
+          const existing = raw ? (JSON.parse(raw) || {}) : {};
+          next = { ...existing, ...preset_title_overrides };
+        }
+        // Coerce to strings + drop empties
+        const clean = {};
+        for (const [k, v] of Object.entries(next)) {
+          if (typeof v === "string" && v.trim()) clean[k] = v.trim();
+        }
+        localStorage.setItem(key, JSON.stringify(clean));
+        // Broadcast so any mounted picker refreshes without reload
+        window.dispatchEvent(new CustomEvent("iron-rabbit-preset-overrides-changed"));
+      } catch (err) {
+        console.error("Failed to restore preset title overrides:", err);
       }
     }
 

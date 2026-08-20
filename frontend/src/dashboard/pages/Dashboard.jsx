@@ -42,7 +42,22 @@ function EventGroup({ label, sub, events, onOpen }) {
   );
 }
 
-function WeatherWidget({ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate }) {
+function relativeTimeAgo(ms, now) {
+  if (!ms) return null;
+  const diff = Math.max(0, (now?.getTime?.() || Date.now()) - ms);
+  const s = Math.floor(diff / 1000);
+  if (s < 30) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return m === 1 ? "1 min ago" : `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return h === 1 ? "1 h ago" : `${h} h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1 day ago" : `${d} days ago`;
+}
+
+function WeatherWidget({ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate, now }) {
+  const updatedAgo = weather.data?.updated_at ? relativeTimeAgo(weather.data.updated_at, now) : null;
   return (
     <div className="ir-dash-card" data-testid="dash-weather-panel">
       <div className="ir-dash-label">Today</div>
@@ -58,6 +73,15 @@ function WeatherWidget({ weather, settings, tempUnit, currentTemp, wmoCode, isDa
         </button>
       </div>
       <div className="ir-dash-weather-statement">{statement}</div>
+      {updatedAgo && (
+        <div
+          data-testid="dash-weather-updated-ago"
+          style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, letterSpacing: 0.2 }}
+          title={new Date(weather.data.updated_at).toLocaleString()}
+        >
+          Updated {updatedAgo}{weather.offline ? " · offline" : ""}
+        </div>
+      )}
       <div className="ir-dash-weather-actions">
         <button className="ir-dash-weather-action" onClick={openWeatherProvider} data-testid="dash-weather-live-btn">
           <Cloud size={18} />
@@ -236,7 +260,7 @@ export default function Dashboard() {
 
   const renderWidgetBody = (key) => {
     switch (key) {
-      case "weather": return <WeatherWidget {...{ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate }} />;
+      case "weather": return <WeatherWidget {...{ weather, settings, tempUnit, currentTemp, wmoCode, isDay, statement, openWeatherProvider, openLocationPicker, navigate, now }} />;
       case "traffic": return <TrafficWidget />;
       case "alert":   return <AlertWidget alert={severeAlert} />;
       case "next":    return <NextEventWidget nextEvent={nextEvent} />;
