@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { MapPin, RefreshCcw, Settings as SettingsIcon, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import "./dashboard.css";
 import DashboardTabBar from "./components/DashboardTabBar";
 import LocationPickerModal from "./components/LocationPickerModal";
@@ -183,12 +184,35 @@ export default function DashboardLayout() {
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button
               className="ir-dash-icon-btn"
-              onClick={() => weather.refresh?.()}
-              aria-label="Refresh weather"
-              title="Refresh weather"
+              onClick={async () => {
+                // No location saved yet? Open the picker instead of silently doing nothing.
+                if (!settings.location) {
+                  toast.info("Set a location to fetch the forecast.");
+                  setLocationPickerOpen(true);
+                  return;
+                }
+                // Bail out gracefully if already refreshing
+                if (weather.loading) return;
+                try {
+                  const result = await weather.refresh?.();
+                  if (result?.ok === false) {
+                    toast.error(`Refresh failed: ${result.error || "unknown error"}`);
+                  } else {
+                    toast.success("Weather updated");
+                  }
+                } catch (e) {
+                  toast.error(`Refresh failed: ${e?.message || "unknown error"}`);
+                }
+              }}
+              disabled={weather.loading}
+              aria-label={weather.loading ? "Refreshing…" : (settings.location ? "Refresh weather" : "Set a location to fetch weather")}
+              title={weather.loading ? "Refreshing…" : (settings.location ? "Refresh weather" : "Set a location to fetch weather")}
               data-testid="dash-refresh"
             >
-              <RefreshCcw size={16} />
+              <RefreshCcw
+                size={16}
+                className={weather.loading ? "ir-dash-spin" : ""}
+              />
             </button>
             <button
               className="ir-dash-icon-btn"

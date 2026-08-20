@@ -30,7 +30,7 @@ export default function useWeather(location, units = "F") {
   const cacheKey = location ? `${location.latitude.toFixed(3)},${location.longitude.toFixed(3)}|${units}` : null;
 
   const fetchNow = useCallback(async () => {
-    if (!location) return;
+    if (!location) return { ok: false, error: "no-location" };
     setLoading(true);
     setError(null);
     try {
@@ -50,13 +50,16 @@ export default function useWeather(location, units = "F") {
       setOffline(false);
       cacheKeyRef.current = cacheKey;
       if (cacheKey) await saveWeatherCache(cacheKey, payload);
+      return { ok: true };
     } catch (err) {
-      setError(err.message || String(err));
+      const msg = err.message || String(err);
+      setError(msg);
       // Try cache fallback
       if (cacheKey) {
         const cached = await loadWeatherCache(cacheKey);
         if (cached) { setData(cached); setOffline(true); }
       }
+      return { ok: false, error: msg };
     } finally {
       setLoading(false);
     }
