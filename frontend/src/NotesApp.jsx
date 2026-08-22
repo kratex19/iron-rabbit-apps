@@ -40,11 +40,13 @@ import { maybeShowWeeklyRecap } from "./utils/weeklyRecap";
 import { maybeShowWeeklyChoreSummary } from "./utils/weeklyChoreSummary";
 import { maybeShowPantryAlerts } from "./utils/pantryAlerts";
 import { maybeShowStreakRecoveryNudge } from "./utils/streakRecoveryNudge";
+import { maybeOfferYearWrap } from "./utils/yearWrapOffer";
 
 import { NOTE_COLORS, DEFAULT_TEMPLATES } from "./notes/constants";
 import AccordionNoteItem from "./notes/AccordionNoteItem";
 import CategoryGroup from "./notes/CategoryGroup";
 import PhotoLightbox from "./components/PhotoLightbox";
+import YearlyWrapStoryModal from "./components/YearlyWrapStoryModal";
 import { KIOSK_MODE_KEY } from "./notes/RestaurantsGaloreDashboardModal";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -109,6 +111,9 @@ export default function NotesApp() {
   // cold-start when localStorage[KIOSK_MODE_KEY] is "1".
   const [kioskImages, setKioskImages] = useState([]);
   const [kioskOpen, setKioskOpen] = useState(false);
+  // Year Wrap Story — auto-offered on new-year cold-start (via toast action
+  // dispatching `rg:open-year-wrap`).
+  const [yearWrapOpen, setYearWrapOpen] = useState(null);
   const [restaurantSpendingOpen, setRestaurantSpendingOpen] = useState(false);
   const [restaurantCouponsOpen, setRestaurantCouponsOpen] = useState(false);
   const [restaurantReviewsOpen, setRestaurantReviewsOpen] = useState(false);
@@ -162,6 +167,17 @@ export default function NotesApp() {
     };
     window.addEventListener("rg:open-orders", onOpenOrders);
     return () => window.removeEventListener("rg:open-orders", onOpenOrders);
+  }, []);
+
+  // Year Wrap — the auto-offer toast dispatches this event when the user
+  // taps "View wrap". Also fired by the toast/action inside components.
+  useEffect(() => {
+    const onOpenYearWrap = (e) => {
+      const yr = e?.detail?.year;
+      if (Number.isInteger(yr)) setYearWrapOpen(yr);
+    };
+    window.addEventListener("rg:open-year-wrap", onOpenYearWrap);
+    return () => window.removeEventListener("rg:open-year-wrap", onOpenYearWrap);
   }, []);
 
   // Flip shadcn CSS vars for light mode so all Radix components (Badge, Button
@@ -326,6 +342,7 @@ export default function NotesApp() {
       maybeShowWeeklyChoreSummary(notesData);
       maybeShowPantryAlerts();
       maybeShowStreakRecoveryNudge();
+      maybeOfferYearWrap();
 
       // Restaurants Galore — run scheduled backup if it's overdue
       // (weekly/monthly per user preference). Silently no-ops otherwise.
@@ -1693,6 +1710,14 @@ export default function NotesApp() {
         initialIndex={0}
         startInSlideshow={true}
         onClose={() => setKioskOpen(false)}
+      />
+
+      {/* Year Wrap Story — auto-offered on new-year cold-start, also
+          launchable from the Restaurants Galore dashboard. */}
+      <YearlyWrapStoryModal
+        open={yearWrapOpen !== null}
+        onClose={() => setYearWrapOpen(null)}
+        year={yearWrapOpen}
       />
     </div>
     </QuickGuideProvider>

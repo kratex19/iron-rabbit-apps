@@ -4,12 +4,14 @@ import {
   ChefHat, Menu as MenuIcon, Receipt, Truck, Users, Camera,
   Mic, MessageCircle, ClipboardList, Coffee, Cookie, Search,
   AlertCircle, TrendingUp, Sparkles, HardDriveDownload, HeartHandshake,
-  ShoppingCart, Calendar, Monitor,
+  ShoppingCart, Calendar, Monitor, Gift, Trophy,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RestaurantsService from "../storage/restaurantsService";
+import YearlyWrapStoryModal from "../components/YearlyWrapStoryModal";
 import { daysSinceLastBackup, lastBackupLabel, BACKUP_UPDATED_EVENT } from "./rg/RestaurantWorkspacesP5";
 
 // Persisted "Wall Mode / Kiosk" preference. When true, the Photo Journal
@@ -41,6 +43,8 @@ export default function RestaurantsGaloreDashboardModal({
   const [kioskOn, setKioskOn] = useState(() => {
     try { return localStorage.getItem(KIOSK_MODE_KEY) === "1"; } catch { return false; }
   });
+  // Year Wrap story modal — opens the Spotify-Wrapped-style recap.
+  const [wrapYear, setWrapYear] = useState(null);
 
   const toggleKiosk = () => {
     const next = !kioskOn;
@@ -278,6 +282,43 @@ export default function RestaurantsGaloreDashboardModal({
                 <b>{stats.total_restaurants}</b> restaurants · <b>{stats.total_orders}</b> orders · <b>{stats.total_reviews}</b> reviews stored offline
               </div>
 
+              {/* Year Wrap + Trophy Wall — companion actions for the trophy system. */}
+              <div className="grid grid-cols-2 gap-2 mt-3" data-testid="rg-year-actions">
+                <button
+                  type="button"
+                  onClick={() => setWrapYear(new Date().getFullYear() - 1)}
+                  className={`p-3 rounded-xl border text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                    isDark
+                      ? "border-amber-400/20 bg-amber-500/5 hover:bg-amber-500/10 text-white"
+                      : "border-amber-200 bg-amber-50 hover:bg-amber-100 text-gray-900"
+                  }`}
+                  data-testid="rg-open-year-wrap"
+                  aria-label="Open Year Wrap"
+                >
+                  <Gift className="w-5 h-5 mb-1.5 text-amber-400" />
+                  <div className="text-xs font-semibold">Year Wrap</div>
+                  <div className={`text-[10px] mt-0.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                    {new Date().getFullYear() - 1} recap · 6 slides
+                  </div>
+                </button>
+                <Link
+                  to="/restaurants/trophies"
+                  className={`p-3 rounded-xl border text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 block ${
+                    isDark
+                      ? "border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-white/20 text-white"
+                      : "border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-900"
+                  }`}
+                  data-testid="rg-open-trophy-wall"
+                  aria-label="Open Trophy Wall"
+                >
+                  <Trophy className="w-5 h-5 mb-1.5 text-amber-400" />
+                  <div className="text-xs font-semibold">Trophy Wall</div>
+                  <div className={`text-[10px] mt-0.5 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                    Every earned badge, side-by-side
+                  </div>
+                </Link>
+              </div>
+
               {/* Wall Mode / Kiosk toggle — turns the app into a rotating photo
                   book on the next cold-start. */}
               <div
@@ -316,6 +357,11 @@ export default function RestaurantsGaloreDashboardModal({
           </div>
         )}
       </DialogContent>
+      <YearlyWrapStoryModal
+        open={wrapYear !== null}
+        onClose={() => setWrapYear(null)}
+        year={wrapYear}
+      />
     </Dialog>
   );
 }

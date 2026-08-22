@@ -17,6 +17,7 @@ import NotesApp from "./NotesApp";
 import CommunityDashboard from "./admin/CommunityDashboard";
 import ContributorWall from "./community/ContributorWall";
 import RecoverLandingPage from "./community/RecoverLandingPage";
+import TrophyWall from "./pages/TrophyWall";
 // Isolated Weather & Calendar Dashboard module
 import DashboardLayout from "./dashboard/DashboardLayout";
 import Dashboard from "./dashboard/pages/Dashboard";
@@ -54,6 +55,9 @@ export default function App() {
         <Route path="/community/wall" element={<ContributorWall />} />
         {/* Magic-link recovery landing */}
         <Route path="/recover" element={<RecoverLandingPage />} />
+
+        {/* Trophy Wall — every earned Freeze Streak Trophy side-by-side */}
+        <Route path="/restaurants/trophies" element={<TrophyWall />} />
 
         {/* Weather & Calendar Dashboard (isolated module) */}
         <Route path="/dashboard" element={<DashboardLayout />}>
