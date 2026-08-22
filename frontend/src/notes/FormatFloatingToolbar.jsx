@@ -20,10 +20,16 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
   const barRef = useRef(null);
+  // When true, `reposition()` is a no-op — used to keep the toolbar hidden
+  // while the user is actively typing after choosing a format. Cleared on
+  // the next mousedown/touchstart inside the editable (i.e. "user clicks a
+  // beginning point with cursor" per the spec).
+  const suppressedRef = useRef(false);
 
   const hide = useCallback(() => setPos(null), []);
 
   const reposition = useCallback(() => {
+    if (suppressedRef.current) return;
     const el = editableRef.current;
     if (!el) return hide();
     const sel = window.getSelection();
@@ -80,28 +86,49 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
 
   useEffect(() => {
     const onSel = () => reposition();
-    const onKey = (e) => {
-      if (e.key === "Escape") hide();
-      else reposition();
+    // Any real character typed (or a paragraph split via Enter) hides the
+    // toolbar until the user clicks a new cursor position. Modifier-only
+    // presses (Shift, Alt, Ctrl, arrows, Escape) don't count as "typing",
+    // so a shortcut like Cmd+B leaves the toolbar visible.
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") { suppressedRef.current = true; return hide(); }
+      const isTyping =
+        e.key.length === 1 ||
+        e.key === "Enter" ||
+        e.key === "Backspace" ||
+        e.key === "Delete";
+      const modifier = e.metaKey || e.ctrlKey || e.altKey;
+      if (isTyping && !modifier) {
+        suppressedRef.current = true;
+        hide();
+      }
     };
     document.addEventListener("selectionchange", onSel);
-    document.addEventListener("keyup", onKey);
+    document.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", reposition);
-    // First run — nothing selected yet so pos stays null.
     return () => {
       document.removeEventListener("selectionchange", onSel);
-      document.removeEventListener("keyup", onKey);
+      document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", reposition);
     };
   }, [reposition, hide]);
 
   // Hide when clicking outside the editable AND outside the toolbar.
+  // A click INSIDE the editable clears the suppress flag so the toolbar
+  // can reappear (this is the "user clicks a beginning point with cursor"
+  // moment from the spec).
   useEffect(() => {
     const handler = (e) => {
       const el = editableRef.current;
       const bar = barRef.current;
       if (!el && !bar) return;
-      if ((el && el.contains(e.target)) || (bar && bar.contains(e.target))) return;
+      if (bar && bar.contains(e.target)) return;
+      if (el && el.contains(e.target)) {
+        suppressedRef.current = false;
+        // Give the browser a tick to move the caret, then reposition.
+        setTimeout(reposition, 0);
+        return;
+      }
       hide();
     };
     document.addEventListener("mousedown", handler);
@@ -110,7 +137,7 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("touchstart", handler);
     };
-  }, [editableRef, hide]);
+  }, [editableRef, hide, reposition]);
 
   // Preserve selection when clicking a toolbar button — buttons should
   // not steal focus, so the range stays valid while we execCommand.
@@ -157,9 +184,13 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   const btnCls = isDark
     ? "text-yellow-500 hover:text-yellow-300 hover:bg-white/10"
     : "text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100";
+  // Match the T / T✦ / </> mode-toggle glass background exactly:
+  //   dark  → bg-black/20  (translucent black over the note backdrop)
+  //   light → bg-black/[0.03] (subtle glass hint on light surfaces)
+  // Border kept minimal so the pill stays uncluttered.
   const barCls = isDark
-    ? "bg-slate-900/95 border-white/10 shadow-xl"
-    : "bg-white/95 border-gray-200 shadow-lg";
+    ? "bg-black/20 border-white/5"
+    : "bg-black/[0.03] border-gray-200";
 
   const iconBtn = (testid, title, onMouseDown, children) => (
     <button
