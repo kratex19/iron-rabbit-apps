@@ -17,6 +17,12 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
  * the equivalent Selection/Range operations are a swap-out inside this
  * file; the rest of the app doesn't care.
  */
+// Bumped whenever this file is materially changed. Rendered as a tiny
+// label in the corner of the floating toolbar so we can confirm at a
+// glance which build is running on a given device (e.g. to rule out
+// stale service-worker caches).
+const BUILD_STAMP = "v40-manual-wrap";
+
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
   // Which inline/block formats are currently active under the caret. We
@@ -129,7 +135,13 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       const sel = window.getSelection();
       if (el && sel && sel.rangeCount > 0) {
         const r = sel.getRangeAt(0);
-        if (el.contains(r.startContainer) && el.contains(r.endContainer)) {
+        // Only snapshot NON-COLLAPSED ranges inside the editable. This
+        // keeps the last real selection intact even after focus briefly
+        // collapses the caret into a toolbar button on touch devices —
+        // if we saved every collapsed intermediate the "select then
+        // tap Bold" workflow would race the browser and toggleInline
+        // would see nothing to wrap.
+        if (!r.collapsed && el.contains(r.startContainer) && el.contains(r.endContainer)) {
           savedRangeRef.current = r.cloneRange();
         }
       }
@@ -242,12 +254,22 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   const toggleInline = (tagName) => {
     const editable = editableRef.current;
     if (!editable) return;
+    // Restore the last-good selection first. If the current live
+    // selection is collapsed but our savedRangeRef isn't, that means
+    // touch focus collapsed the caret — restore forces the real range
+    // back onto window.getSelection().
     restoreSelection();
-    const sel = window.getSelection();
+    let sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    // Collapsed caret — nothing to wrap. Skip silently so buttons feel
-    // no-op instead of jumping.
+    let range = sel.getRangeAt(0);
+    // Second-chance restore — if we somehow ended up collapsed even
+    // after restoreSelection (a browser quirk), pull the saved range
+    // directly.
+    if (range.collapsed && savedRangeRef.current && !savedRangeRef.current.collapsed) {
+      sel.removeAllRanges();
+      sel.addRange(savedRangeRef.current);
+      range = sel.getRangeAt(0);
+    }
     if (range.collapsed) return;
 
     const upper = tagName.toUpperCase();
@@ -257,11 +279,9 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     // Simple unwrap case — whole selection sits inside a single matching
     // tag. Remove it, keeping the text.
     if (startAnc && startAnc === endAnc) {
-      // Remember the plain text so we can re-select after unwrap.
       const text = startAnc.textContent;
       const parent = startAnc.parentNode;
       unwrapElement(startAnc);
-      // Best-effort re-select over the merged text nodes.
       const walker = document.createTreeWalker(parent, NodeFilter.SHOW_TEXT, null);
       let n;
       while ((n = walker.nextNode())) {
@@ -284,18 +304,23 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       const wrap = document.createElement(tagName);
       wrap.appendChild(range.extractContents());
       range.insertNode(wrap);
-      // Merge adjacent text nodes so future toggles find the boundaries.
       wrap.parentNode?.normalize();
-      // Re-select the wrapped content
       const nr = document.createRange();
       nr.selectNodeContents(wrap);
       sel.removeAllRanges();
       sel.addRange(nr);
       savedRangeRef.current = nr.cloneRange();
     } catch (err) {
-      // Complex multi-block selection — fall back to execCommand which
-      // at least applies *something*.
-      try { document.execCommand(tagName === "b" ? "bold" : tagName === "i" ? "italic" : tagName === "u" ? "underline" : "strikeThrough"); } catch { /* noop */ }
+      // Very complex multi-block selection — fall back to execCommand
+      // (deprecated but universally supported for the trivial cases).
+      try {
+        document.execCommand(
+          tagName === "b" ? "bold" :
+          tagName === "i" ? "italic" :
+          tagName === "u" ? "underline" : "strikeThrough",
+          false, null
+        );
+      } catch { /* noop */ }
     }
   };
 
@@ -404,6 +429,15 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       <div className={`mx-0.5 w-px h-5 ${isDark ? "bg-white/10" : "bg-gray-200"}`} aria-hidden />
       {iconBtn("fs-fmt-link", "Link", insertLink, <LinkIcon className="w-3.5 h-3.5" strokeWidth={2.6} />, active.link)}
       {iconBtn("fs-fmt-br", "Line break", insertLineBreak, <CornerDownLeft className="w-3.5 h-3.5" strokeWidth={2.6} />, false)}
+      {/* Build stamp — helps confirm which bundle is running on a device
+          when a fix has shipped. Tiny, opaque, non-interactive. */}
+      <span
+        className={`ml-1 pl-1 text-[8px] font-mono opacity-40 select-none ${isDark ? "text-yellow-200 border-l border-white/10" : "text-yellow-800 border-l border-gray-300"}`}
+        data-testid="fs-fmt-build-stamp"
+        aria-hidden
+      >
+        {BUILD_STAMP}
+      </span>
     </div>
   );
 }
