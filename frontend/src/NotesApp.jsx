@@ -1511,30 +1511,10 @@ export default function NotesApp() {
     );
   };
 
-  // Compute the composited colour that <main> visually paints on the
-  // home page — near-black-with-underlay in dark mode, dark-gray on
-  // white in light mode — so we can paint the outer app-container the
-  // same colour. Result: the region below the last note (mobile list
-  // view especially) no longer shows a jarring white/gray strip; it
-  // seamlessly extends the "last row" background down to the viewport
-  // bottom without touching the locked underlay/<main> block.
-  const composeHomeAppBg = () => {
-    const bg = typeof settings?.ui_brightness?.bg === "number" ? settings.ui_brightness.bg : 0.3;
-    const mainAlpha = Math.max(0, Math.min(1, 1 - bg));
-    const base = isDark ? [2, 6, 23] : [249, 250, 251];        // bg-[#020617] / bg-gray-50
-    const underlayA = isDark ? 0.08 : 0.03;
-    const underlayC = isDark ? [255, 255, 255] : [0, 0, 0];
-    const step1 = base.map((b, i) => b * (1 - underlayA) + underlayC[i] * underlayA);
-    const finalC = step1.map((c) => c * (1 - mainAlpha));
-    const [r, g, b2] = finalC.map((v) => Math.round(v));
-    return `rgb(${r}, ${g}, ${b2})`;
-  };
-
   return (
     <QuickGuideProvider>
     <div
       className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`}
-      style={{ backgroundColor: composeHomeAppBg() }}
       data-testid="app-container"
     >
       <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} />
@@ -1598,7 +1578,7 @@ export default function NotesApp() {
           data-testid="home-brightness-underlay"
         />
         <main
-          className="relative px-4 py-3 max-w-4xl mx-auto ir-brightness-scope"
+          className="relative px-4 py-3 max-w-4xl mx-auto ir-brightness-scope min-h-screen"
           style={{
             background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
             color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),
