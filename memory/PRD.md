@@ -1,7 +1,19 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
 
-## 📌 Session state (2026-02-20, this session)
+## 📌 Session state (2026-02-22, this session)
+
+### 🎉 Shipped in this fork (2026-02-22)
+- **Expanded Text Editing Modes** — Added three centered mode toggles underneath the existing yellow Expanded Text toolbar: **[ T ] [ T✦ ] [ </> ]** (Regular Text / Tags & Formatting / HTML). Yellow icon language matches the existing toolbar exactly (yellow-500 dark / yellow-600 light, amber-filled active state matching `DisplayControlsButton`). Left and right edges of the row are intentionally left open for the future Associated-Note / Category slide-in arrows.
+  - **Regular Text mode** — unchanged behavior, the same `TextareaAutosize` bound directly to `note.content`, with the LOCKED text-brightness ref-forcing preserved 1:1.
+  - **Tags & Formatting mode** — WYSIWYG `contentEditable` div with a compact floating toolbar (P · H1 · H2 · H3 · Bold · Italic · Underline · Strikethrough · Link · Line-Break). Toolbar auto-positions above/below the selection and hides on outside click. Plain-text notes auto-upgrade to `<p>` blocks the first time the mode is entered so formatting has proper structure to hang on. Paste always inserts as plain text so external styling can never leak in.
+  - **HTML mode** — mono-green raw HTML source textarea for advanced users. Round-trips the exact same `content` field, so switching between all three modes never loses text.
+  - **Content compatibility** — no schema change. Content still stored in `note.content`. On note open we heuristic-detect HTML (`<p>`, `<h1..3>`, `<strong>`, `<em>`, `<u>`, `<s>`, `<a>`, `<br>`) and pre-select Format mode so re-opening a formatted note doesn't dump raw tags at the user.
+  - **HTML security** — Every save runs through `DOMPurify` with a strict allowlist matching the spec (10 tags, `href/title/target/rel` on `<a>` only, `javascript:`/`data:` URIs blocked). Verified live: `<script>` and `onmouseover` handlers are stripped end-to-end (typed → auto-saved → re-read from IndexedDB → rendered clean; `window.__pwned` remained undefined). Links are auto-hardened with `target="_blank" rel="noopener noreferrer"`.
+  - **What was NOT touched** — Quick Edit is untouched. Existing header, toolbar, yellow icons, spacing, close button, display-brightness slider, title panel, category badge, save-status pill, attachments accordion, mobile layout — all identical to before. LOCKED_SURFACES.md star-mode brightness blocks unchanged. No design changes to any unrelated component.
+  - Files added: `frontend/src/notes/EditingModeToggle.jsx`, `frontend/src/notes/ExpandedTextEditor.jsx`, `frontend/src/notes/FormatFloatingToolbar.jsx`, `frontend/src/utils/htmlSanitize.js`. Modified: `frontend/src/notes/FullScreenNote.jsx` (small additive changes — mode state, mode-toggle render, editor swap, sanitize-on-save), `frontend/src/App.css` (scoped `.fs-content-editable` typography), `frontend/package.json` (`dompurify@3.4.14`).
+
+## 📌 Prior session state (2026-02-20)
 
 ### 🎉 Shipped in this fork (2026-02-20)
 - **Trophy Share Card** — Tapping any Freeze Streak Trophy chip now opens a full-fidelity **1080×1920 IG-story share card** rendered live on a hidden `<canvas>`: deep amber → stone gradient background, subtle paper-grain overlay, gold-vector trophy cup with star inlay, giant year in gold, "FREEZE STREAK TROPHY" tagline, "52 CLEAN WEEKS · Consistency legend" badge, and Iron Rabbit branding footer. Preview at 9:16 aspect ratio + **Download** (PNG named `iron-rabbit-trophy-YYYY.png`) and **Share** (Web Share API when supported, graceful download fallback otherwise). New files: `frontend/src/components/TrophyShareCardModal.jsx`. Updated: `frontend/src/components/RestaurantsStatsWidget.jsx` (chip click now opens the share modal).

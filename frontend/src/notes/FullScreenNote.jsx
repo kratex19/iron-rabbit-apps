@@ -15,6 +15,9 @@ import { NOTE_COLORS } from "./constants";
 import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } from "../utils/markdown";
 import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 import DisplayControlsButton from "./DisplayControlsButton";
+import EditingModeToggle from "./EditingModeToggle";
+import ExpandedTextEditor from "./ExpandedTextEditor";
+import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 
 /**
  * Full-screen note editor with inline auto-save.
@@ -86,6 +89,18 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     el.style.setProperty("-webkit-text-fill-color", c, "important");
   }, [noteBrightness?.text]);
 
+  // Expanded Text editing mode — session-only preference for THIS open of
+  // the note. Auto-selects "format" when the stored content already
+  // contains HTML (so re-opening a formatted note doesn't dump HTML tags
+  // at the user), else defaults to "text" so classic behavior is
+  // preserved for every existing plain-text note.
+  const [mode, setMode] = useState(() => (looksLikeHtml(note?.content || "") ? "format" : "text"));
+  useEffect(() => {
+    // Re-evaluate when a different note is opened (not on every autosave).
+    setMode(looksLikeHtml(note?.content || "") ? "format" : "text");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id]);
+
   // When note changes (new note opened, or synced from parent after edit), reset local state
   useEffect(() => {
     if (!note) return;
@@ -116,12 +131,16 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id]);
 
-  // Auto-save when title/content change (debounced 700ms)
+  // Auto-save when title/content change (debounced 700ms). Content is
+  // sanitised through the HTML allowlist right before it hits storage so
+  // no <script> or event-handler HTML can ever be persisted, even if it
+  // was pasted or entered via HTML source mode.
   useEffect(() => {
     if (!dirty || !note) return;
     const t = setTimeout(async () => {
       setSaving(true);
-      await onSaveInline(note.id, { title: title.trim() || "Untitled", content, ui_brightness: noteBrightness });
+      const safe = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+      await onSaveInline(note.id, { title: title.trim() || "Untitled", content: safe, ui_brightness: noteBrightness });
       setSaving(false);
       setSavedAt(Date.now());
       setDirty(false);
@@ -141,7 +160,8 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   const handleClose = async () => {
     if (dirty) {
       setSaving(true);
-      await onSaveInline(note.id, { title: title.trim() || "Untitled", content, ui_brightness: noteBrightness });
+      const safe = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+      await onSaveInline(note.id, { title: title.trim() || "Untitled", content: safe, ui_brightness: noteBrightness });
       setSaving(false);
     }
     onClose();
@@ -254,6 +274,11 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <Button variant="ghost" size="icon" onClick={handleClose} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-close-btn" aria-label="Close"><X className="w-5 h-5" /></Button>
           </div>
         </div>
+        {/* Editing-mode segmented control — centered under the existing
+            yellow toolbar. Left and right edges of this row are
+            intentionally left blank for the future Associated-Note /
+            Category slide-in arrows. See EditingModeToggle.jsx. */}
+        <EditingModeToggle mode={mode} onChange={setMode} isDark={isDark} />
         {/* Slide-down title panel — sits BELOW the protected header so
             existing icons always remain visually above it (no z-index
             changes anywhere). Collapsed by default; toggled by the top-
@@ -290,16 +315,14 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             color: brightnessToText(noteBrightness?.text ?? 0.7),
           }}
         >
-          <TextareaAutosize
-            ref={contentTextareaRef}
+          <ExpandedTextEditor
             value={content}
-            onChange={(e) => { setContent(e.target.value); setDirty(true); }}
+            onChange={(next) => { setContent(next); setDirty(true); }}
+            mode={mode}
+            textColor={brightnessToText(noteBrightness?.text ?? 0.7)}
+            textareaRef={contentTextareaRef}
+            isDark={isDark}
             placeholder="Start writing…"
-            minRows={3}
-            className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-60`}
-            style={{ color: brightnessToText(noteBrightness?.text ?? 0.7) }}
-            data-testid="fullscreen-content-input"
-            aria-label="Note content"
           />
           {Array.isArray(note.chores) && (
             <ChoresPanel
