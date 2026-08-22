@@ -122,7 +122,7 @@ export default function ExpandedTextEditor({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         minRows={3}
-        className="fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-60"
+        className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-70 ${isDark ? "placeholder:text-yellow-500" : "placeholder:text-yellow-600"}`}
         style={{ color: textColor }}
         data-testid="fullscreen-content-input"
         aria-label="Note content"
@@ -165,7 +165,7 @@ export default function ExpandedTextEditor({
         onPaste={handlePaste}
         placeholder={placeholder}
         data-testid="fullscreen-content-input-format"
-        className="fs-content-input fs-content-editable w-full bg-transparent border-0 outline-none text-base leading-relaxed font-sans"
+        className={`fs-content-input fs-content-editable w-full bg-transparent border-0 outline-none text-base leading-relaxed font-sans ${isDark ? "fs-placeholder-dark" : "fs-placeholder-light"}`}
         style={{ color: textColor, minHeight: "6rem" }}
       />
       <FormatFloatingToolbar
