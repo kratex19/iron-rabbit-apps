@@ -339,26 +339,24 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               at a glance without expanding the panel. */}
           {Array.isArray(note.checklist) && note.checklist.length > 0 && (
             <div
-              className={`rounded-lg border mt-auto backdrop-blur-md ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.03] border-gray-200"}`}
+              className={`rounded-lg border mt-auto ${isDark ? "bg-white border-white/20 text-gray-900" : "bg-white border-gray-200 text-gray-900"}`}
               data-testid="fullscreen-checklist"
             >
               <button
                 type="button"
                 onClick={() => setChecklistOpen((v) => !v)}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-slate-200" : "hover:bg-white text-gray-700"}`}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-gray-50 text-gray-800"
                 aria-expanded={checklistOpen}
                 aria-controls="fs-checklist-panel"
                 data-testid="fs-checklist-toggle"
               >
                 <CheckSquare className="w-3.5 h-3.5 opacity-70" />
                 <span className="text-xs font-semibold">Checklist</span>
-                <span className={`ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                  isDark ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                }`}>
+                <span className="ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
                   {note.checklist.filter((c) => c.done).length}/{note.checklist.length}
                 </span>
                 <ChevronDown
-                  className={`w-4 h-4 ml-auto transition-transform ${checklistOpen ? "rotate-180" : "rotate-0"} ${isDark ? "text-slate-400" : "text-gray-400"}`}
+                  className={`w-4 h-4 ml-auto transition-transform text-gray-500 ${checklistOpen ? "rotate-180" : "rotate-0"}`}
                 />
               </button>
               {checklistOpen && (
@@ -371,17 +369,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                         const updated = note.checklist.map((c) => c.id === item.id ? { ...c, done: !c.done } : c);
                         onSaveInline(note.id, { checklist: updated });
                       }}
-                      className={`w-full flex items-center gap-2 rounded px-1 py-1 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-white"}`}
+                      className="w-full flex items-center gap-2 rounded px-1 py-1 transition-colors hover:bg-gray-50"
                       data-testid={`fs-checklist-toggle-${item.id}`}
                     >
-                      <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-400" : "border-gray-300"}`}>
+                      <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : "border-gray-300"}`}>
                         {item.done && (
                           <svg viewBox="0 0 12 12" className="w-3 h-3 text-white">
                             <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                       </span>
-                      <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-900")}`}>
+                      <span className={`text-sm text-left flex-1 ${item.done ? "line-through text-gray-400" : "text-gray-900"}`}>
                         {item.text}
                       </span>
                     </button>
