@@ -35,9 +35,10 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   const hide = useCallback(() => setPos(null), []);
 
   // Refresh the "which formats does the caret currently sit inside" map.
-  // Called on every selectionchange (so dots update as the user moves
-  // the caret) and after every execCommand (so dots reflect the change
-  // even if the selection didn't otherwise move).
+  // We DO NOT rely on queryCommandState (it disagrees with the manual
+  // wrappers we now use, and misfires in Capacitor WebViews). Instead
+  // we walk the DOM ancestor chain from the caret to the editable root
+  // and look for matching tag names.
   const refreshActive = useCallback(() => {
     const el = editableRef.current;
     if (!el) return;
@@ -45,24 +46,18 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     if (!el.contains(range.startContainer)) return;
-    // queryCommandState is legacy but universally supported and is the
-    // canonical way to read live formatting state inside a contentEditable.
     let bold = false, italic = false, underline = false, strike = false, link = false;
-    try {
-      bold = document.queryCommandState("bold");
-      italic = document.queryCommandState("italic");
-      underline = document.queryCommandState("underline");
-      strike = document.queryCommandState("strikeThrough");
-    } catch { /* noop */ }
-    // Walk up from the range's start container to find the nearest block
-    // ancestor (P / H1 / H2 / H3). If none found, treat as null.
     let node = range.startContainer;
     if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
     let block = null;
     while (node && node !== el) {
       const tag = node.tagName;
-      if (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3") { block = tag; break; }
-      if (tag === "A") link = true;
+      if (tag === "B" || tag === "STRONG") bold = true;
+      else if (tag === "I" || tag === "EM") italic = true;
+      else if (tag === "U") underline = true;
+      else if (tag === "S" || tag === "STRIKE" || tag === "DEL") strike = true;
+      else if (tag === "A") link = true;
+      else if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) block = tag;
       node = node.parentElement;
     }
     setActive({ bold, italic, underline, strike, block, link });
@@ -218,11 +213,103 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     return true;
   };
 
-  const exec = (cmd, arg = null) => {
+  // ---- Manual inline formatting (bypasses execCommand entirely) ------
+  //
+  // `document.execCommand` behaves inconsistently across browsers and
+  // WebViews (notably Android Capacitor + iOS WKWebView), often silently
+  // failing on selections that span partial text nodes. We instead do the
+  // DOM manipulation ourselves — extract the selected range, wrap it in
+  // the desired tag, insert it back, and re-select. If the entire
+  // selection is already inside a matching tag, we UNWRAP it (toggle
+  // off) so the same button both adds AND removes the formatting.
+
+  const findAncestorTag = (node, root, tagName) => {
+    while (node && node !== root) {
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === tagName) return node;
+      node = node.parentNode;
+    }
+    return null;
+  };
+
+  const unwrapElement = (el) => {
+    const parent = el.parentNode;
+    if (!parent) return;
+    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+    parent.removeChild(el);
+    parent.normalize();
+  };
+
+  const toggleInline = (tagName) => {
+    const editable = editableRef.current;
+    if (!editable) return;
     restoreSelection();
-    document.execCommand(cmd, false, arg);
     const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    // Collapsed caret — nothing to wrap. Skip silently so buttons feel
+    // no-op instead of jumping.
+    if (range.collapsed) return;
+
+    const upper = tagName.toUpperCase();
+    const startAnc = findAncestorTag(range.startContainer, editable, upper);
+    const endAnc = findAncestorTag(range.endContainer, editable, upper);
+
+    // Simple unwrap case — whole selection sits inside a single matching
+    // tag. Remove it, keeping the text.
+    if (startAnc && startAnc === endAnc) {
+      // Remember the plain text so we can re-select after unwrap.
+      const text = startAnc.textContent;
+      const parent = startAnc.parentNode;
+      unwrapElement(startAnc);
+      // Best-effort re-select over the merged text nodes.
+      const walker = document.createTreeWalker(parent, NodeFilter.SHOW_TEXT, null);
+      let n;
+      while ((n = walker.nextNode())) {
+        if ((n.textContent || "").includes(text)) {
+          const nr = document.createRange();
+          const idx = n.textContent.indexOf(text);
+          nr.setStart(n, idx);
+          nr.setEnd(n, idx + text.length);
+          sel.removeAllRanges();
+          sel.addRange(nr);
+          savedRangeRef.current = nr.cloneRange();
+          break;
+        }
+      }
+      return;
+    }
+
+    // Wrap case — extract the range, wrap it in the new tag, re-insert.
+    try {
+      const wrap = document.createElement(tagName);
+      wrap.appendChild(range.extractContents());
+      range.insertNode(wrap);
+      // Merge adjacent text nodes so future toggles find the boundaries.
+      wrap.parentNode?.normalize();
+      // Re-select the wrapped content
+      const nr = document.createRange();
+      nr.selectNodeContents(wrap);
+      sel.removeAllRanges();
+      sel.addRange(nr);
+      savedRangeRef.current = nr.cloneRange();
+    } catch (err) {
+      // Complex multi-block selection — fall back to execCommand which
+      // at least applies *something*.
+      try { document.execCommand(tagName === "b" ? "bold" : tagName === "i" ? "italic" : tagName === "u" ? "underline" : "strikeThrough"); } catch { /* noop */ }
+    }
+  };
+
+  const exec = (cmd) => {
+    // Map old execCommand names → new manual toggle tags.
+    if (cmd === "bold")          { toggleInline("b"); }
+    else if (cmd === "italic")   { toggleInline("i"); }
+    else if (cmd === "underline"){ toggleInline("u"); }
+    else if (cmd === "strikeThrough") { toggleInline("s"); }
+    else {
+      // Anything else (createLink etc.) still goes through execCommand.
+      restoreSelection();
+      try { document.execCommand(cmd, false, arguments[1] ?? null); } catch { /* noop */ }
+    }
     editableRef.current?.focus();
     onCommand?.();
     refreshActive();
