@@ -17,6 +17,7 @@ import { noteToMarkdown, safeFilename, downloadTextFile, shareNoteAsMarkdown } f
 import RestaurantsStatsWidget from "../components/RestaurantsStatsWidget";
 import RestaurantsStatsPeek from "../components/RestaurantsStatsPeek";
 import PhotoMosaic from "../components/PhotoMosaic";
+import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 
 /**
  * A single collapsible note row for List view.
@@ -189,6 +190,17 @@ export default function AccordionNoteItem({
             <div className={`px-3 pb-3 pt-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               {note.special_action === "restaurants_stats_widget" ? (
                 <div className="mb-3"><RestaurantsStatsWidget isDark={isDark} /></div>
+              ) : looksLikeHtml(note.content) ? (
+                // Content authored in T✦ Tags & Formatting mode — render
+                // the styled HTML (headings, bold, italic, links) instead
+                // of showing raw tags. HTML mode </> raw view stays in
+                // Full Screen. Sanitised at read time; also sanitised on
+                // save so this is defence-in-depth.
+                <div
+                  className={`fs-content-editable text-sm line-clamp-4 mb-3 ${isDark ? 'text-slate-100' : 'text-gray-600'}`}
+                  data-testid={`note-content-html-${note.id}`}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
+                />
               ) : (
                 <p className={`text-sm whitespace-pre-wrap line-clamp-4 mb-3 ${isDark ? 'text-slate-100' : 'text-gray-600'}`}>{note.content || "No content"}</p>
               )}
