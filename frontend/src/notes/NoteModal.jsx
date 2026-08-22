@@ -20,6 +20,7 @@ import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
 import Attachments from "../components/Attachments";
 import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
+import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 import DisplayControlsButton from "./DisplayControlsButton";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import StorageService from "../storage/storageService";
@@ -79,14 +80,58 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   // TextareaAutosize + light-underlay wrapper (search for
   // `note-content-underlay`) without an explicit unlock from the user.
   // The top bar and other form fields of this dialog are NOT locked.
+  //
+  // 🔓 UNLOCKED with password 2020 on 2026-02-22 to add a rendered
+  // contentEditable swap when the note content is HTML (Format-mode
+  // output). Underlay + brightness math preserved 1:1; textarea is
+  // kept intact for plain-text notes.
   const contentTextareaRef = useRef(null);
+  const htmlEditableRef = useRef(null);
+  const lastAppliedHtmlRef = useRef(null);
+  const isHtml = looksLikeHtml(content);
   useLayoutEffect(() => {
-    const el = contentTextareaRef.current;
-    if (!el) return;
     const c = brightnessToText(noteBrightness?.text ?? 0.7);
-    el.style.setProperty("color", c, "important");
-    el.style.setProperty("-webkit-text-fill-color", c, "important");
-  }, [noteBrightness?.text]);
+    const ta = contentTextareaRef.current;
+    if (ta) {
+      ta.style.setProperty("color", c, "important");
+      ta.style.setProperty("-webkit-text-fill-color", c, "important");
+    }
+    const he = htmlEditableRef.current;
+    if (he) {
+      he.style.setProperty("color", c, "important");
+      he.style.setProperty("-webkit-text-fill-color", c, "important");
+    }
+  }, [noteBrightness?.text, isHtml]);
+
+  // Sync `content` → contentEditable innerHTML when the value changes
+  // externally (mode swap, note switch, translate) — but NEVER while the
+  // user is actively typing, otherwise the caret jumps to position 0.
+  useLayoutEffect(() => {
+    if (!isHtml) return;
+    const el = htmlEditableRef.current;
+    if (!el) return;
+    if (document.activeElement === el) return;
+    const clean = sanitizeHtml(content || "");
+    if (lastAppliedHtmlRef.current === clean && el.innerHTML === clean) return;
+    el.innerHTML = clean;
+    lastAppliedHtmlRef.current = clean;
+  }, [content, isHtml]);
+
+  const handleHtmlInput = () => {
+    const el = htmlEditableRef.current;
+    if (!el) return;
+    const html = el.innerHTML;
+    lastAppliedHtmlRef.current = html;
+    setContent(html);
+  };
+  const handleHtmlPaste = (e) => {
+    // Force plain-text paste so external formatting never leaks in.
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    if (typeof text === "string") {
+      try { document.execCommand("insertText", false, text); } catch { /* noop */ }
+    }
+  };
 
   // Debounced brightness auto-save for EXISTING notes. Mirrors the
   // FullScreenNote behavior so slider drags persist immediately without
@@ -194,8 +239,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       .map(t => t.trim().toLowerCase().replace(/^#/, ""))
       .filter(Boolean);
     const finalTags = Array.from(new Set([...tags, ...draftTags]));
+    // When the content is HTML (Format-mode output being edited here),
+    // run it through DOMPurify one more time on save so anything the
+    // user pasted that slipped past the render step is neutralised
+    // before it hits storage.
+    const safeContent = looksLikeHtml(content) ? sanitizeHtml(content) : content;
     const noteData = {
-      title: title.trim(), content, color, icon, background,
+      title: title.trim(), content: safeContent, color, icon, background,
       // Pin only allowed on main-category (or uncategorized) notes.
       // If a subcategory is set, force pinned=false so old state is cleaned up.
       pinned: subcategory.trim() ? false : pinned,
@@ -310,20 +360,41 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                   className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-white/[0.10]' : 'bg-black/[0.05]'}`}
                   data-testid="note-content-underlay"
                 />
-                <TextareaAutosize
-                  ref={contentTextareaRef}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder={t("note.content_placeholder")}
-                  minRows={3}
-                  maxRows={20}
-                  className={`ir-brightness-scope relative w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
-                  style={{
-                    background: brightnessToBg(noteBrightness?.bg ?? 0.3),
-                    color: brightnessToText(noteBrightness?.text ?? 0.7),
-                  }}
-                  data-testid="note-content-input"
-                />
+                {isHtml ? (
+                  <div
+                    ref={htmlEditableRef}
+                    role="textbox"
+                    contentEditable
+                    suppressContentEditableWarning
+                    aria-multiline
+                    aria-label="Note content"
+                    spellCheck
+                    onInput={handleHtmlInput}
+                    onBlur={handleHtmlInput}
+                    onPaste={handleHtmlPaste}
+                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[5.5rem] max-h-[26rem] overflow-y-auto ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+                    style={{
+                      background: brightnessToBg(noteBrightness?.bg ?? 0.3),
+                      color: brightnessToText(noteBrightness?.text ?? 0.7),
+                    }}
+                    data-testid="note-content-input-html"
+                  />
+                ) : (
+                  <TextareaAutosize
+                    ref={contentTextareaRef}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder={t("note.content_placeholder")}
+                    minRows={3}
+                    maxRows={20}
+                    className={`ir-brightness-scope relative w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
+                    style={{
+                      background: brightnessToBg(noteBrightness?.bg ?? 0.3),
+                      color: brightnessToText(noteBrightness?.text ?? 0.7),
+                    }}
+                    data-testid="note-content-input"
+                  />
+                )}
               </div>
             </div>
 
