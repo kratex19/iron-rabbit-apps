@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v40-manual-wrap";
+const BUILD_STAMP = "v41-caret-keep";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -213,15 +213,32 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   // button's mousedown/touchstart, this guarantees execCommand runs
   // against the user's *intended* range even on iOS/Android where touch
   // taps briefly move focus onto the button before mousedown fires.
+  //
+  // IMPORTANT: if the live selection is ALREADY inside the editable, we
+  // keep it as-is. Overwriting a good live caret with the (possibly
+  // stale) savedRangeRef caused the "cursor jumps to before the first
+  // line" bug when tapping the line-break / block buttons right after
+  // typing.
   const restoreSelection = () => {
     const el = editableRef.current;
+    if (!el) return false;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const live = sel.getRangeAt(0);
+      if (el.contains(live.startContainer) && el.contains(live.endContainer)) {
+        el.focus();
+        // Keep savedRangeRef fresh with wherever the live caret is now.
+        savedRangeRef.current = live.cloneRange();
+        return true;
+      }
+    }
     const r = savedRangeRef.current;
-    if (!el || !r) return false;
+    if (!r) return false;
     if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return false;
     el.focus();
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(r);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
     return true;
   };
 
