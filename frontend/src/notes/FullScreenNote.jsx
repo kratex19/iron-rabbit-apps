@@ -36,6 +36,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // action is immediately visible.
   const initialAttachmentCount = (note?.attachments || []).length;
   const [attachmentsOpen, setAttachmentsOpen] = useState(initialAttachmentCount === 0);
+  const [checklistOpen, setChecklistOpen] = useState(false);
   const noteIdRef = useRef(note?.id);
 
   // Title reveal panel — slides down from beneath the header when the user
@@ -331,45 +332,70 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               isDark={isDark}
             />
           )}
+          {/* Checklist accordion — pushed to the bottom of the scroll area
+              (mt-auto) so the writing area gets maximum vertical breathing
+              room. Sits directly above the Images & files accordion. Closed
+              by default; the count badge stays visible so progress is clear
+              at a glance without expanding the panel. */}
           {Array.isArray(note.checklist) && note.checklist.length > 0 && (
-            <div className={`rounded-lg p-3 space-y-1 border ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`} data-testid="fullscreen-checklist">
-              <div className={`text-xs font-semibold mb-2 flex items-center gap-1.5 ${isDark ? "text-slate-200" : "text-gray-700"}`}>
-                <CheckSquare className="w-3.5 h-3.5" /> Checklist
-                <span className={`ml-auto font-mono font-normal ${isDark ? "text-slate-400" : "text-gray-400"}`}>
+            <div
+              className={`rounded-lg border mt-auto ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`}
+              data-testid="fullscreen-checklist"
+            >
+              <button
+                type="button"
+                onClick={() => setChecklistOpen((v) => !v)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${isDark ? "hover:bg-white/5 text-slate-200" : "hover:bg-white text-gray-700"}`}
+                aria-expanded={checklistOpen}
+                aria-controls="fs-checklist-panel"
+                data-testid="fs-checklist-toggle"
+              >
+                <CheckSquare className="w-3.5 h-3.5 opacity-70" />
+                <span className="text-xs font-semibold">Checklist</span>
+                <span className={`ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                  isDark ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                }`}>
                   {note.checklist.filter((c) => c.done).length}/{note.checklist.length}
                 </span>
-              </div>
-              {note.checklist.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    const updated = note.checklist.map((c) => c.id === item.id ? { ...c, done: !c.done } : c);
-                    onSaveInline(note.id, { checklist: updated });
-                  }}
-                  className={`w-full flex items-center gap-2 rounded px-1 py-1 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-white"}`}
-                  data-testid={`fs-checklist-toggle-${item.id}`}
-                >
-                  <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-400" : "border-gray-300"}`}>
-                    {item.done && (
-                      <svg viewBox="0 0 12 12" className="w-3 h-3 text-white">
-                        <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-900")}`}>
-                    {item.text}
-                  </span>
-                </button>
-              ))}
+                <ChevronDown
+                  className={`w-4 h-4 ml-auto transition-transform ${checklistOpen ? "rotate-180" : "rotate-0"} ${isDark ? "text-slate-400" : "text-gray-400"}`}
+                />
+              </button>
+              {checklistOpen && (
+                <div id="fs-checklist-panel" className="px-3 pb-3 pt-1 space-y-1">
+                  {note.checklist.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        const updated = note.checklist.map((c) => c.id === item.id ? { ...c, done: !c.done } : c);
+                        onSaveInline(note.id, { checklist: updated });
+                      }}
+                      className={`w-full flex items-center gap-2 rounded px-1 py-1 transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-white"}`}
+                      data-testid={`fs-checklist-toggle-${item.id}`}
+                    >
+                      <span className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${item.done ? "bg-indigo-500 border-indigo-500" : isDark ? "border-slate-400" : "border-gray-300"}`}>
+                        {item.done && (
+                          <svg viewBox="0 0 12 12" className="w-3 h-3 text-white">
+                            <path d="M2.5 6.5L5 9l4.5-5.5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-sm text-left flex-1 ${item.done ? (isDark ? "line-through text-slate-400" : "line-through text-gray-400") : (isDark ? "text-slate-100" : "text-gray-900")}`}>
+                        {item.text}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-          {/* Collapsible Images & files accordion — pushed to the bottom of the
-              scroll area (mt-auto) so the writing area gets maximum vertical
-              breathing room. When the note has no attachments, it still sits at
-              the bottom of the visible viewport as a subtle CTA. */}
+          {/* Collapsible Images & files accordion — sits directly below the
+              checklist accordion. When there is no checklist, this block
+              picks up the `mt-auto` (via the fallback className below) so
+              it still floats to the bottom of the visible viewport. */}
           <div
-            className={`rounded-lg border mt-auto ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
+            className={`rounded-lg border ${!(Array.isArray(note.checklist) && note.checklist.length > 0) ? "mt-auto" : ""} ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
             data-testid="fs-attachments-accordion"
           >
             <button
