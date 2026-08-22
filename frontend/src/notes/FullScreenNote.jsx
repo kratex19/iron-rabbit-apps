@@ -34,8 +34,9 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // note has attachments so the text area gets maximum vertical space. If
   // there are none, we expand it so the "Take photo / Attach files" call-to-
   // action is immediately visible.
-  const initialAttachmentCount = (note?.attachments || []).length;
-  const [attachmentsOpen, setAttachmentsOpen] = useState(initialAttachmentCount === 0);
+  // Both accordions default to closed on open so the writing area gets
+  // maximum vertical breathing room. User can tap either header to open.
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const noteIdRef = useRef(note?.id);
 
@@ -388,20 +389,18 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               )}
             </div>
           )}
-          {/* Collapsible Images & files accordion — sits directly below the
-              checklist accordion. When there is no checklist, this block
-              picks up the `mt-auto` (via the fallback className below) so
-              it still floats to the bottom of the visible viewport. */}
+          {/* Collapsible Images & files accordion — matches the white
+              paper-card style of the checklist accordion above. When
+              there is no checklist, this block picks up the `mt-auto`
+              so it still floats to the bottom of the visible viewport. */}
           <div
-            className={`rounded-lg border ${!(Array.isArray(note.checklist) && note.checklist.length > 0) ? "mt-auto" : ""} ${isDark ? "border-white/10 bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
+            className={`rounded-lg border ${!(Array.isArray(note.checklist) && note.checklist.length > 0) ? "mt-auto" : ""} bg-white border-gray-200 text-gray-900`}
             data-testid="fs-attachments-accordion"
           >
             <button
               type="button"
               onClick={() => setAttachmentsOpen(v => !v)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                isDark ? "hover:bg-white/5 text-slate-200" : "hover:bg-white text-gray-700"
-              }`}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors hover:bg-gray-50 text-gray-800"
               aria-expanded={attachmentsOpen}
               aria-controls="fs-attachments-panel"
               data-testid="fs-attachments-toggle"
@@ -410,16 +409,14 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               <span className="text-xs font-semibold">Images & files</span>
               {(note.attachments || []).length > 0 && (
                 <span
-                  className={`ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                    isDark ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/30" : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                  }`}
+                  className="ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200"
                   data-testid="fs-attachments-count"
                 >
                   {(note.attachments || []).length}
                 </span>
               )}
               <ChevronDown
-                className={`w-4 h-4 ml-auto transition-transform ${attachmentsOpen ? "rotate-180" : "rotate-0"} ${isDark ? "text-slate-400" : "text-gray-400"}`}
+                className={`w-4 h-4 ml-auto transition-transform text-gray-500 ${attachmentsOpen ? "rotate-180" : "rotate-0"}`}
               />
             </button>
             {attachmentsOpen && (
