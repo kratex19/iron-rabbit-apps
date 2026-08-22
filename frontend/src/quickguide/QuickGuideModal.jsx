@@ -18,8 +18,7 @@ import { useQuickGuideContext } from "./QuickGuideProvider";
 import ResourceIdChip from "./ResourceIdChip";
 import MoreHelpButton from "./MoreHelpButton";
 import GuideFeedback from "./GuideFeedback";
-import CloseConfirmDialog from "./CloseConfirmDialog";
-import { searchArticles } from "./search";
+import CloseConfirmDialog from "./CloseConfirmDialog";import { searchArticles } from "./search";
 import { shareCardAsImage, shareCardAsQr } from "./shareCard";
 import { BACKGROUND_COLORS, BACKGROUND_GRADIENTS } from "../data/noteIcons";
 import StorageService from "../storage/storageService";
@@ -39,7 +38,7 @@ const CARD_THEME_GRADIENTS = [
 ];
 
 export default function QuickGuideModal({ isDark = true }) {
-  const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard, reorderUserCards, pendingImport, clearPendingImport, communityTips } = useQuickGuideContext();
+  const { openId, close, getArticle, getAllArticles, open, history, state, upsertUserCard, deleteUserCard, reorderUserCards, pendingImport, clearPendingImport, communityTips, markSeen } = useQuickGuideContext();
   const article = openId ? getArticle(openId) : null;
 
   const [confirmingClose, setConfirmingClose] = useState(false);
@@ -131,10 +130,17 @@ export default function QuickGuideModal({ isDark = true }) {
 
   const askClose = useCallback(() => setConfirmingClose(true), []);
   const confirmClose = useCallback(() => {
+    // Close synchronously so the guide never lingers if anything
+    // interrupts the follow-up hint timer (backgrounded app, another
+    // modal opening, etc.). Provider.close() already marks the guide
+    // as seen so it won't auto-pop again next time the screen mounts.
     setConfirmingClose(false);
+    if (openId) markSeen(openId);
+    close();
+    // Reassuring hint appears AFTER close; auto-dismisses shortly.
     setShowHint(true);
-    setTimeout(() => { setShowHint(false); close(); }, 1400);
-  }, [close]);
+    setTimeout(() => setShowHint(false), 1400);
+  }, [close, openId, markSeen]);
   const cancelClose = useCallback(() => setConfirmingClose(false), []);
 
   useEffect(() => {
