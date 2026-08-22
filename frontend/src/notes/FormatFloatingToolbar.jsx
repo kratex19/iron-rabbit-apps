@@ -25,6 +25,14 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   // the next mousedown/touchstart inside the editable (i.e. "user clicks a
   // beginning point with cursor" per the spec).
   const suppressedRef = useRef(false);
+  // Snapshot of the last selection range that was inside the editable.
+  // We restore it right before running any execCommand so touch taps on
+  // the toolbar (which fire touchstart → focus-steal BEFORE our
+  // mousedown handler can preventDefault) don't lose the user's
+  // selection. This is the fix for "Bold/Italic/etc. does nothing on
+  // mobile" — the range was collapsing to a zero-width caret in the
+  // toolbar itself before execCommand ran.
+  const savedRangeRef = useRef(null);
 
   const hide = useCallback(() => setPos(null), []);
 
@@ -85,7 +93,21 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   }, [editableRef, hide]);
 
   useEffect(() => {
-    const onSel = () => reposition();
+    const onSel = () => {
+      // Snapshot the current range whenever the user selects inside the
+      // editable. We consult this snapshot inside exec/applyBlock/etc.
+      // so any focus loss (touch tap on a toolbar button, browser quirk)
+      // doesn't destroy the user's selection.
+      const el = editableRef.current;
+      const sel = window.getSelection();
+      if (el && sel && sel.rangeCount > 0) {
+        const r = sel.getRangeAt(0);
+        if (el.contains(r.startContainer) && el.contains(r.endContainer)) {
+          savedRangeRef.current = r.cloneRange();
+        }
+      }
+      reposition();
+    };
     // Any real character typed (or a paragraph split via Enter) hides the
     // toolbar until the user clicks a new cursor position. Modifier-only
     // presses (Shift, Alt, Ctrl, arrows, Escape) don't count as "typing",
@@ -143,25 +165,47 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   // not steal focus, so the range stays valid while we execCommand.
   const stopFocusSteal = (e) => e.preventDefault();
 
+  // Restore the last-seen editable selection into `window.getSelection()`
+  // right before running a command. Combined with `preventDefault` on the
+  // button's mousedown/touchstart, this guarantees execCommand runs
+  // against the user's *intended* range even on iOS/Android where touch
+  // taps briefly move focus onto the button before mousedown fires.
+  const restoreSelection = () => {
+    const el = editableRef.current;
+    const r = savedRangeRef.current;
+    if (!el || !r) return false;
+    if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return false;
+    el.focus();
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    return true;
+  };
+
   const exec = (cmd, arg = null) => {
+    restoreSelection();
     document.execCommand(cmd, false, arg);
-    // Return focus to the editable so the caret stays where the user
-    // last was.
+    // Update the saved range to the (possibly collapsed) post-command
+    // selection so a follow-up format runs on the same intent.
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
     editableRef.current?.focus();
     onCommand?.();
-    // Reposition after the DOM settles.
     setTimeout(reposition, 0);
   };
 
   const applyBlock = (tag) => {
-    // formatBlock with a tag name switches the current block-level element.
+    restoreSelection();
     document.execCommand("formatBlock", false, tag);
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
     editableRef.current?.focus();
     onCommand?.();
     setTimeout(reposition, 0);
   };
 
   const insertLineBreak = () => {
+    restoreSelection();
     document.execCommand("insertHTML", false, "<br>");
     editableRef.current?.focus();
     onCommand?.();
@@ -169,13 +213,14 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   };
 
   const insertLink = () => {
+    restoreSelection();
     const url = window.prompt("Link URL", "https://");
     if (!url) return;
-    // Safe scheme check — same allowlist as the sanitiser.
     if (!/^(https?|mailto|tel):/i.test(url)) {
       window.alert("Link must start with http://, https://, mailto: or tel:");
       return;
     }
+    restoreSelection();
     exec("createLink", url);
   };
 
@@ -199,7 +244,14 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       title={title}
       aria-label={title}
       data-testid={testid}
+      // Fire the format command on BOTH mousedown (desktop) and
+      // touchstart (mobile). On iOS/Android, touchstart runs first and
+      // moves focus onto the button unless we preventDefault here,
+      // which was collapsing the editable's selection before
+      // execCommand could act on it — the "Bold/Italic does nothing on
+      // mobile" bug.
       onMouseDown={(e) => { stopFocusSteal(e); onMouseDown(); }}
+      onTouchStart={(e) => { e.preventDefault(); onMouseDown(); }}
       className={`inline-flex items-center justify-center h-8 w-8 rounded-md text-sm font-semibold ${btnCls}`}
     >
       {children}
