@@ -1005,18 +1005,25 @@
    nothing else in the app is affected. */
 .fs-content-editable:empty::before {
   content: attr(placeholder);
-  opacity: 0.7;
+  opacity: 0.85;
   pointer-events: none;
 }
 /* "Start writing…" placeholder colour — matches the yellow icons in the
-   FullScreenNote top bar (yellow-500 in dark mode, yellow-600 in light). */
+   FullScreenNote top bar (yellow-500 in dark mode, yellow-600 in light).
+   We must set BOTH `color` and `-webkit-text-fill-color` because
+   index.css force-paints textarea::placeholder via -webkit-text-fill-color,
+   which otherwise wins the WebKit paint order over `color` alone. */
+.fs-placeholder-dark::placeholder,
 .fs-placeholder-dark:empty::before {
-  color: #eab308; /* tailwind yellow-500 */
-  -webkit-text-fill-color: #eab308;
+  color: #eab308 !important; /* tailwind yellow-500 */
+  -webkit-text-fill-color: #eab308 !important;
+  opacity: 0.85 !important;
 }
+.fs-placeholder-light::placeholder,
 .fs-placeholder-light:empty::before {
-  color: #ca8a04; /* tailwind yellow-600 */
-  -webkit-text-fill-color: #ca8a04;
+  color: #ca8a04 !important; /* tailwind yellow-600 */
+  -webkit-text-fill-color: #ca8a04 !important;
+  opacity: 0.85 !important;
 }
 .fs-content-editable p { margin: 0 0 0.75rem 0; }
 .fs-content-editable p:last-child { margin-bottom: 0; }

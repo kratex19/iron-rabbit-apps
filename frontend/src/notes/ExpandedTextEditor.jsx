@@ -122,7 +122,7 @@ export default function ExpandedTextEditor({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         minRows={3}
-        className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans placeholder:opacity-70 ${isDark ? "placeholder:text-yellow-500" : "placeholder:text-yellow-600"}`}
+        className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? "fs-placeholder-dark" : "fs-placeholder-light"}`}
         style={{ color: textColor }}
         data-testid="fullscreen-content-input"
         aria-label="Note content"
