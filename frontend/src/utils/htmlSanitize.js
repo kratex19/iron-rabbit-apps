@@ -7,7 +7,7 @@
 import DOMPurify from "dompurify";
 
 const CONFIG = {
-  ALLOWED_TAGS: ["p", "h1", "h2", "h3", "strong", "em", "u", "s", "a", "br", "b", "i"],
+  ALLOWED_TAGS: ["p", "h1", "h2", "h3", "strong", "em", "u", "s", "a", "br", "b", "i", "strike", "del"],
   ALLOWED_ATTR: ["href", "title", "target", "rel"],
   ALLOW_DATA_ATTR: false,
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^:]*$)/i, // block javascript:, data: etc.
@@ -35,7 +35,7 @@ export function sanitizeHtml(dirty) {
 // Cheap heuristic to detect whether a stored `content` string is HTML
 // (contains any tag from the allowlist) vs. plain text. Used to auto-pick
 // the initial editing mode when opening an existing note.
-const HTML_TAG_RE = /<(p|h1|h2|h3|strong|b|em|i|u|s|a|br)(\s[^>]*)?>/i;
+const HTML_TAG_RE = /<(p|h1|h2|h3|strong|b|em|i|u|s|a|br|strike|del)(\s[^>]*)?>/i;
 export function looksLikeHtml(content) {
   return typeof content === "string" && HTML_TAG_RE.test(content);
 }
