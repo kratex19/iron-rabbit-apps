@@ -19,22 +19,54 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
  */
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
+  // Which inline/block formats are currently active under the caret. We
+  // read this off `document.queryCommandState` (for bold/italic/etc.) and
+  // the nearest block-level ancestor's tag (for P/H1/H2/H3). Refreshed
+  // on every selectionchange so the dots track the caret live.
+  const [active, setActive] = useState({
+    bold: false, italic: false, underline: false, strike: false,
+    block: null, // "P" | "H1" | "H2" | "H3" | null
+    link: false,
+  });
   const barRef = useRef(null);
-  // When true, `reposition()` is a no-op — used to keep the toolbar hidden
-  // while the user is actively typing after choosing a format. Cleared on
-  // the next mousedown/touchstart inside the editable (i.e. "user clicks a
-  // beginning point with cursor" per the spec).
   const suppressedRef = useRef(false);
-  // Snapshot of the last selection range that was inside the editable.
-  // We restore it right before running any execCommand so touch taps on
-  // the toolbar (which fire touchstart → focus-steal BEFORE our
-  // mousedown handler can preventDefault) don't lose the user's
-  // selection. This is the fix for "Bold/Italic/etc. does nothing on
-  // mobile" — the range was collapsing to a zero-width caret in the
-  // toolbar itself before execCommand ran.
   const savedRangeRef = useRef(null);
 
   const hide = useCallback(() => setPos(null), []);
+
+  // Refresh the "which formats does the caret currently sit inside" map.
+  // Called on every selectionchange (so dots update as the user moves
+  // the caret) and after every execCommand (so dots reflect the change
+  // even if the selection didn't otherwise move).
+  const refreshActive = useCallback(() => {
+    const el = editableRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.startContainer)) return;
+    // queryCommandState is legacy but universally supported and is the
+    // canonical way to read live formatting state inside a contentEditable.
+    let bold = false, italic = false, underline = false, strike = false, link = false;
+    try {
+      bold = document.queryCommandState("bold");
+      italic = document.queryCommandState("italic");
+      underline = document.queryCommandState("underline");
+      strike = document.queryCommandState("strikeThrough");
+    } catch { /* noop */ }
+    // Walk up from the range's start container to find the nearest block
+    // ancestor (P / H1 / H2 / H3). If none found, treat as null.
+    let node = range.startContainer;
+    if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    let block = null;
+    while (node && node !== el) {
+      const tag = node.tagName;
+      if (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3") { block = tag; break; }
+      if (tag === "A") link = true;
+      node = node.parentElement;
+    }
+    setActive({ bold, italic, underline, strike, block, link });
+  }, [editableRef]);
 
   const reposition = useCallback(() => {
     if (suppressedRef.current) return;
@@ -107,6 +139,7 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
         }
       }
       reposition();
+      refreshActive();
     };
     // Any real character typed (or a paragraph split via Enter) hides the
     // toolbar until the user clicks a new cursor position. Modifier-only
@@ -128,12 +161,15 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     document.addEventListener("selectionchange", onSel);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", reposition);
+    // First mount — read the initial state (in case the caret is
+    // already inside a formatted run).
+    refreshActive();
     return () => {
       document.removeEventListener("selectionchange", onSel);
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", reposition);
     };
-  }, [reposition, hide]);
+  }, [reposition, hide, refreshActive, editableRef]);
 
   // Hide when clicking outside the editable AND outside the toolbar.
   // A click INSIDE the editable clears the suppress flag so the toolbar
@@ -185,12 +221,11 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   const exec = (cmd, arg = null) => {
     restoreSelection();
     document.execCommand(cmd, false, arg);
-    // Update the saved range to the (possibly collapsed) post-command
-    // selection so a follow-up format runs on the same intent.
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
     editableRef.current?.focus();
     onCommand?.();
+    refreshActive();
     setTimeout(reposition, 0);
   };
 
@@ -201,6 +236,7 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
     editableRef.current?.focus();
     onCommand?.();
+    refreshActive();
     setTimeout(reposition, 0);
   };
 
@@ -229,32 +265,34 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   const btnCls = isDark
     ? "text-yellow-500 hover:text-yellow-300 hover:bg-white/10"
     : "text-yellow-700 hover:text-yellow-800 hover:bg-yellow-100";
-  // Match the T / T✦ / </> mode-toggle glass background exactly:
-  //   dark  → bg-black/20  (translucent black over the note backdrop)
-  //   light → bg-black/[0.03] (subtle glass hint on light surfaces)
-  // Border kept minimal so the pill stays uncluttered.
   const barCls = isDark
     ? "bg-black/20 border-white/5"
     : "bg-black/[0.03] border-gray-200";
+  // Yellow dot indicator painted beneath each icon when that format
+  // matches the current caret run. Kept tiny (4 px) so it feels like a
+  // status LED, not a second icon.
+  const dotCls = isDark ? "bg-yellow-300" : "bg-yellow-600";
 
-  const iconBtn = (testid, title, onMouseDown, children) => (
+  const iconBtn = (testid, title, onMouseDown, children, isActive = false) => (
     <button
       key={testid}
       type="button"
       title={title}
       aria-label={title}
+      aria-pressed={isActive}
       data-testid={testid}
-      // Fire the format command on BOTH mousedown (desktop) and
-      // touchstart (mobile). On iOS/Android, touchstart runs first and
-      // moves focus onto the button unless we preventDefault here,
-      // which was collapsing the editable's selection before
-      // execCommand could act on it — the "Bold/Italic does nothing on
-      // mobile" bug.
+      data-active={isActive ? "true" : "false"}
       onMouseDown={(e) => { stopFocusSteal(e); onMouseDown(); }}
       onTouchStart={(e) => { e.preventDefault(); onMouseDown(); }}
-      className={`inline-flex items-center justify-center h-8 w-8 rounded-md text-sm font-semibold ${btnCls}`}
+      className={`relative inline-flex items-center justify-center h-8 w-8 rounded-md text-sm font-semibold ${btnCls}`}
     >
       {children}
+      {isActive && (
+        <span
+          aria-hidden
+          className={`absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${dotCls}`}
+        />
+      )}
     </button>
   );
 
@@ -267,18 +305,18 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       className={`absolute z-50 rounded-lg border backdrop-blur-md px-1 py-1 flex items-center gap-0.5 ${barCls}`}
       style={{ top: pos.top, left: pos.left }}
     >
-      {iconBtn("fs-fmt-p", "Paragraph", () => applyBlock("P"), "P")}
-      {iconBtn("fs-fmt-h1", "Heading 1", () => applyBlock("H1"), "H1")}
-      {iconBtn("fs-fmt-h2", "Heading 2", () => applyBlock("H2"), "H2")}
-      {iconBtn("fs-fmt-h3", "Heading 3", () => applyBlock("H3"), "H3")}
+      {iconBtn("fs-fmt-p", "Paragraph", () => applyBlock("P"), "P", active.block === "P")}
+      {iconBtn("fs-fmt-h1", "Heading 1", () => applyBlock("H1"), "H1", active.block === "H1")}
+      {iconBtn("fs-fmt-h2", "Heading 2", () => applyBlock("H2"), "H2", active.block === "H2")}
+      {iconBtn("fs-fmt-h3", "Heading 3", () => applyBlock("H3"), "H3", active.block === "H3")}
       <div className={`mx-0.5 w-px h-5 ${isDark ? "bg-white/10" : "bg-gray-200"}`} aria-hidden />
-      {iconBtn("fs-fmt-bold", "Bold", () => exec("bold"), <Bold className="w-3.5 h-3.5" strokeWidth={2.6} />)}
-      {iconBtn("fs-fmt-italic", "Italic", () => exec("italic"), <Italic className="w-3.5 h-3.5" strokeWidth={2.6} />)}
-      {iconBtn("fs-fmt-underline", "Underline", () => exec("underline"), <Underline className="w-3.5 h-3.5" strokeWidth={2.6} />)}
-      {iconBtn("fs-fmt-strike", "Strikethrough", () => exec("strikeThrough"), <Strikethrough className="w-3.5 h-3.5" strokeWidth={2.6} />)}
+      {iconBtn("fs-fmt-bold", "Bold", () => exec("bold"), <Bold className="w-3.5 h-3.5" strokeWidth={2.6} />, active.bold)}
+      {iconBtn("fs-fmt-italic", "Italic", () => exec("italic"), <Italic className="w-3.5 h-3.5" strokeWidth={2.6} />, active.italic)}
+      {iconBtn("fs-fmt-underline", "Underline", () => exec("underline"), <Underline className="w-3.5 h-3.5" strokeWidth={2.6} />, active.underline)}
+      {iconBtn("fs-fmt-strike", "Strikethrough", () => exec("strikeThrough"), <Strikethrough className="w-3.5 h-3.5" strokeWidth={2.6} />, active.strike)}
       <div className={`mx-0.5 w-px h-5 ${isDark ? "bg-white/10" : "bg-gray-200"}`} aria-hidden />
-      {iconBtn("fs-fmt-link", "Link", insertLink, <LinkIcon className="w-3.5 h-3.5" strokeWidth={2.6} />)}
-      {iconBtn("fs-fmt-br", "Line break", insertLineBreak, <CornerDownLeft className="w-3.5 h-3.5" strokeWidth={2.6} />)}
+      {iconBtn("fs-fmt-link", "Link", insertLink, <LinkIcon className="w-3.5 h-3.5" strokeWidth={2.6} />, active.link)}
+      {iconBtn("fs-fmt-br", "Line break", insertLineBreak, <CornerDownLeft className="w-3.5 h-3.5" strokeWidth={2.6} />, false)}
     </div>
   );
 }
