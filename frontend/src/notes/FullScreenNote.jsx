@@ -339,7 +339,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               at a glance without expanding the panel. */}
           {Array.isArray(note.checklist) && note.checklist.length > 0 && (
             <div
-              className={`rounded-lg border mt-auto ${isDark ? "bg-white/5 border-white/10" : "bg-gray-50 border-gray-200"}`}
+              className={`rounded-lg border mt-auto backdrop-blur-md ${isDark ? "bg-black/20 border-white/5" : "bg-black/[0.03] border-gray-200"}`}
               data-testid="fullscreen-checklist"
             >
               <button
