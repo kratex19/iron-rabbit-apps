@@ -219,6 +219,24 @@ export default function NotesApp() {
     setIsDark(choice === "dark");
   };
 
+  // Uncategorized section collapse — the Uncategorized "Sparkles" header
+  // on the home page (grid & list views) is now tappable to fold the
+  // notes underneath into the header, matching the behaviour of normal
+  // named categories. Persisted per-device in localStorage.
+  const [uncategorizedOpen, setUncategorizedOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem("ir_uncategorized_open");
+      return v === null ? true : v === "1";
+    } catch { return true; }
+  });
+  const toggleUncategorized = () => {
+    setUncategorizedOpen((v) => {
+      const next = !v;
+      try { localStorage.setItem("ir_uncategorized_open", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   // Persist BrightnessSliders values to settings. Called by all three
   // scoped surfaces (Home body, NoteModal quick-text, FullScreenNote
   // expanded-text). Uses a debounce via requestAnimationFrame so drag
@@ -1279,14 +1297,20 @@ export default function NotesApp() {
             {uncategorized.length > 0 && (
               <div>
                 {grouped.length > 0 && (
-                  <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
+                  <CategoryHeader
+                    title="Uncategorized"
+                    notes={uncategorized}
+                    isDark={isDark}
+                    onToggle={toggleUncategorized}
+                    isOpen={uncategorizedOpen}
+                  />
                 )}
                 <Droppable droppableId="notes-in-" type="note">
                   {(prov, snap) => (
                     <div
                       ref={prov.innerRef}
                       {...prov.droppableProps}
-                      className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
+                      className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""} ${grouped.length > 0 && !uncategorizedOpen ? "hidden" : ""}`}
                       data-testid="notes-icon-uncategorized"
                     >
                       {uncategorized.map((note, idx) => (
@@ -1420,8 +1444,15 @@ export default function NotesApp() {
                         } ${uncSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""}`}
                       >
                         <div className="px-1 pt-1 pb-1">
-                          <CategoryHeader title="Uncategorized" notes={uncategorized} isDark={isDark} />
+                          <CategoryHeader
+                            title="Uncategorized"
+                            notes={uncategorized}
+                            isDark={isDark}
+                            onToggle={toggleUncategorized}
+                            isOpen={uncategorizedOpen}
+                          />
                         </div>
+                        <div className={uncategorizedOpen ? "" : "hidden"}>
                         {uncategorized.map((note, idx) => (
                           <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx} isDragDisabled={inSelectMode}>
                             {(prov2, snap2) => (
@@ -1446,6 +1477,7 @@ export default function NotesApp() {
                           </Draggable>
                         ))}
                         {uncProv.placeholder}
+                        </div>
                       </div>
                     )}
                   </Droppable>

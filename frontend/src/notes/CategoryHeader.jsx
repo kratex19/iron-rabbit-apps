@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, Pin } from "lucide-react";
+import { Sparkles, Pin, ChevronDown } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
 
 /**
@@ -17,8 +17,12 @@ import { NOTE_COLORS } from "./constants";
  *   count      – optional override for the count badge
  *   pinned     – if true, replaces the Sparkles glyph with a Pin icon.
  *   isDark
+ *   onToggle   – optional; if provided the header becomes a tappable
+ *                collapse trigger and shows a rotating chevron on the
+ *                right. Parent owns the open/closed state.
+ *   isOpen     – open/closed state paired with onToggle.
  */
-export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark, dragHandleProps = null }) {
+export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark, dragHandleProps = null, onToggle, isOpen }) {
   const derived = accent || (() => {
     // 1. Prefer the pack's own accent if any note in this group was applied
     //    from a Tile Pack (kept in sync with the pack card in TilePacksModal).
@@ -32,12 +36,10 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
   const displayCount = count ?? (Array.isArray(notes) ? notes.length : undefined);
   const Ico = pinned ? Pin : Sparkles;
 
-  return (
-    <div
-      className={`flex items-center gap-2 px-1 mb-2 rounded-md ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
-      data-testid={`category-header-${title}`}
-      {...(dragHandleProps || {})}
-    >
+  const isCollapsible = typeof onToggle === "function";
+
+  const inner = (
+    <>
       <div
         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md"
         style={{ background: derived }}
@@ -45,7 +47,7 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
       >
         <Ico className="w-4 h-4 text-white" strokeWidth={pinned ? 2.5 : 2} />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-left">
         <div className={`font-semibold text-sm truncate ${isDark ? "text-white" : "text-gray-900"}`}>
           {title}
         </div>
@@ -55,6 +57,37 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
           </div>
         )}
       </div>
+      {isCollapsible && (
+        <ChevronDown
+          className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""} ${isDark ? "text-slate-400" : "text-gray-500"}`}
+          aria-hidden="true"
+        />
+      )}
+    </>
+  );
+
+  if (isCollapsible) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!!isOpen}
+        className={`w-full flex items-center gap-2 px-1 mb-2 rounded-md transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"} ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2" : "py-1"}`}
+        data-testid={`category-header-${title}`}
+        {...(dragHandleProps || {})}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-2 px-1 mb-2 rounded-md ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
+      data-testid={`category-header-${title}`}
+      {...(dragHandleProps || {})}
+    >
+      {inner}
     </div>
   );
 }
