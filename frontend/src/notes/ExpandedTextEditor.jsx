@@ -57,14 +57,19 @@ export default function ExpandedTextEditor({
   }, [mode]);
 
   // Push `value` into the contentEditable when it changes externally.
+  // While the editable is FOCUSED we deliberately leave the DOM alone —
+  // resetting `innerHTML` here would clobber the caret (the classic bug
+  // where pressing Enter after a sentence sends the caret to position 0
+  // because DOMPurify normalises the browser-inserted block wrapper and
+  // we then overwrite the DOM with the "clean" copy). The editable is
+  // authoritative while focused; sanitisation happens on save instead.
   useLayoutEffect(() => {
     if (mode !== "format") return;
     const el = editableRef.current;
     if (!el) return;
+    if (document.activeElement === el) return; // don't clobber caret
     const clean = sanitizeHtml(value || "");
     if (lastAppliedHtmlRef.current === clean && el.innerHTML === clean) return;
-    // Preserve caret if focused and content is the same after sanitize.
-    if (document.activeElement === el && el.innerHTML === clean) return;
     el.innerHTML = clean;
     lastAppliedHtmlRef.current = clean;
   }, [value, mode]);
@@ -77,6 +82,17 @@ export default function ExpandedTextEditor({
     el.style.setProperty("color", textColor, "important");
     el.style.setProperty("-webkit-text-fill-color", textColor, "important");
   }, [textColor, mode]);
+
+  // Ask the browser to wrap Enter-created blocks in <p> instead of the
+  // default <div>. This keeps the DOM aligned with our HTML allowlist so
+  // pressing Enter creates a new paragraph that survives the sanitiser
+  // on save. execCommand is deprecated but this specific setting is
+  // still respected by every modern browser and there is no supported
+  // replacement.
+  useEffect(() => {
+    if (mode !== "format") return;
+    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch { /* noop */ }
+  }, [mode]);
 
   const handleEditableInput = useCallback(() => {
     const el = editableRef.current;
