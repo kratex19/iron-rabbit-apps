@@ -114,6 +114,19 @@ export default function ExpandedTextEditor({
     }
   }, []);
 
+  // Click handler — inside a contentEditable, browsers do NOT navigate
+  // <a> clicks (they just place the caret). Give the user a way to open
+  // links they just inserted: tap opens in a new tab. Shift/Alt/Ctrl-
+  // click leaves the default (caret-place) behaviour so power users can
+  // still edit link text if needed.
+  const handleEditableClick = useCallback((e) => {
+    const a = e.target.closest && e.target.closest("a");
+    if (!a || !a.href) return;
+    if (e.shiftKey || e.altKey || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    try { window.open(a.href, "_blank", "noopener,noreferrer"); } catch { /* noop */ }
+  }, []);
+
   if (mode === "text") {
     return (
       <TextareaAutosize
@@ -163,6 +176,7 @@ export default function ExpandedTextEditor({
         onInput={handleEditableInput}
         onBlur={handleEditableInput}
         onPaste={handlePaste}
+        onClick={handleEditableClick}
         placeholder={placeholder}
         data-testid="fullscreen-content-input-format"
         className={`fs-content-input fs-content-editable w-full bg-transparent border-0 outline-none text-base leading-relaxed font-sans ${isDark ? "fs-placeholder-dark" : "fs-placeholder-light"}`}

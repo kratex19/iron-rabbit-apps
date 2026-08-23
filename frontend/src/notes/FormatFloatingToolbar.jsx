@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v42-link-fix";
+const BUILD_STAMP = "v43-link-open";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -377,7 +377,16 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     setTimeout(reposition, 0);
   };
 
+  const linkGuardRef = useRef(0);
   const insertLink = () => {
+    // Debounce guard — on mobile Capacitor WebViews, `onTouchStart` and
+    // the emulated `onMouseDown` can BOTH fire for a single tap even
+    // though we preventDefault the touch. Without this guard the prompt
+    // opens a second time immediately after the first OK.
+    const now = Date.now();
+    if (now - linkGuardRef.current < 600) return;
+    linkGuardRef.current = now;
+
     // Snapshot the exact range BEFORE opening window.prompt — the prompt
     // steals focus from the contentEditable and the browser collapses
     // the selection, so we cannot rely on the live selection after the
