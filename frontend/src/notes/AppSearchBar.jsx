@@ -35,11 +35,8 @@ export default function AppSearchBar({
   const { t } = useTranslation();
   return (
     <>
-      {/* Search + View mode + Filter + Sort — pulled UP into the header
-          with a negative top margin so the header's background image
-          shows through around/behind the row. Saves vertical space and
-          gives the top of the page a more layered, magazine-y feel. */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-3 -mt-6 sm:-mt-7 relative z-10">
+      {/* Search + View mode + Filter + Sort */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <div className="relative flex-1">
           <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
           <Input
