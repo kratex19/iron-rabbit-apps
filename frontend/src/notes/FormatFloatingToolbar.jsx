@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v41-caret-keep";
+const BUILD_STAMP = "v42-link-fix";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -341,7 +341,7 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     }
   };
 
-  const exec = (cmd) => {
+  const exec = (cmd, arg = null) => {
     // Map old execCommand names → new manual toggle tags.
     if (cmd === "bold")          { toggleInline("b"); }
     else if (cmd === "italic")   { toggleInline("i"); }
@@ -350,7 +350,7 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     else {
       // Anything else (createLink etc.) still goes through execCommand.
       restoreSelection();
-      try { document.execCommand(cmd, false, arguments[1] ?? null); } catch { /* noop */ }
+      try { document.execCommand(cmd, false, arg); } catch { /* noop */ }
     }
     editableRef.current?.focus();
     onCommand?.();
@@ -378,15 +378,66 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   };
 
   const insertLink = () => {
-    restoreSelection();
+    // Snapshot the exact range BEFORE opening window.prompt — the prompt
+    // steals focus from the contentEditable and the browser collapses
+    // the selection, so we cannot rely on the live selection after the
+    // prompt returns. If the user had text selected, that's the anchor
+    // text for the link; if not, we insert the URL itself as anchor text.
+    const el = editableRef.current;
+    let snapshot = null;
+    const liveSel = window.getSelection();
+    if (el && liveSel && liveSel.rangeCount > 0) {
+      const r = liveSel.getRangeAt(0);
+      if (el.contains(r.startContainer) && el.contains(r.endContainer)) {
+        snapshot = r.cloneRange();
+      }
+    }
+    if (!snapshot && savedRangeRef.current) {
+      snapshot = savedRangeRef.current.cloneRange();
+    }
+
     const url = window.prompt("Link URL", "https://");
-    if (!url) return;
+    if (!url || url.trim() === "https://") return;
     if (!/^(https?|mailto|tel):/i.test(url)) {
       window.alert("Link must start with http://, https://, mailto: or tel:");
       return;
     }
-    restoreSelection();
-    exec("createLink", url);
+
+    // Put the saved range back onto window.getSelection() so createLink
+    // has something to wrap.
+    if (el && snapshot) {
+      el.focus();
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(snapshot);
+    }
+
+    // If the selection is collapsed (no text was highlighted), insert the
+    // URL itself as the anchor text so the link is still visible.
+    const sel2 = window.getSelection();
+    if (sel2 && sel2.rangeCount > 0 && sel2.getRangeAt(0).collapsed) {
+      try { document.execCommand("insertText", false, url); } catch { /* noop */ }
+      // Re-select the just-inserted text so createLink wraps it.
+      const s = window.getSelection();
+      if (s && s.rangeCount > 0) {
+        const r = s.getRangeAt(0);
+        const end = r.endOffset;
+        const start = Math.max(0, end - url.length);
+        try {
+          const nr = document.createRange();
+          nr.setStart(r.endContainer, start);
+          nr.setEnd(r.endContainer, end);
+          s.removeAllRanges();
+          s.addRange(nr);
+        } catch { /* noop */ }
+      }
+    }
+
+    try { document.execCommand("createLink", false, url); } catch { /* noop */ }
+    editableRef.current?.focus();
+    onCommand?.();
+    refreshActive();
+    setTimeout(reposition, 0);
   };
 
   if (!pos) return null;
