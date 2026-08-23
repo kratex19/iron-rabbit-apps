@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v45-inline-fix";
+const BUILD_STAMP = "v46-execcmd";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -343,17 +343,38 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     }
   };
 
+  // Restore the last non-collapsed selection onto window.getSelection()
+  // before running an execCommand. On touch devices tapping a toolbar
+  // button can collapse the live caret; the saved range (populated by
+  // the onSel handler on every non-collapsed selection) is the source
+  // of truth for "what did the user last highlight".
+  const restoreForCommand = () => {
+    const el = editableRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    const live = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    const liveGood = live && !live.collapsed
+      && el.contains(live.startContainer)
+      && el.contains(live.endContainer);
+    if (liveGood) { el.focus(); return; }
+    const saved = savedRangeRef.current;
+    if (!saved || saved.collapsed) return;
+    if (!el.contains(saved.startContainer) || !el.contains(saved.endContainer)) return;
+    el.focus();
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(saved.cloneRange());
+  };
+
   const exec = (cmd, arg = null) => {
-    // Map old execCommand names → new manual toggle tags.
-    if (cmd === "bold")          { toggleInline("b"); }
-    else if (cmd === "italic")   { toggleInline("i"); }
-    else if (cmd === "underline"){ toggleInline("u"); }
-    else if (cmd === "strikeThrough") { toggleInline("s"); }
-    else {
-      // Anything else (createLink etc.) still goes through execCommand.
-      restoreSelection();
-      try { document.execCommand(cmd, false, arg); } catch { /* noop */ }
-    }
+    // For inline styles (bold/italic/underline/strike), use native
+    // execCommand — it works reliably in the same WebView that runs the
+    // block-level `formatBlock` commands (P/H1/H2/H3) just fine. The
+    // manual DOM-wrapping approach previously used here silently failed
+    // on touch after selection loss; restoring the saved range first
+    // solves that without any manual DOM surgery.
+    restoreForCommand();
+    try { document.execCommand(cmd, false, arg); } catch { /* noop */ }
     editableRef.current?.focus();
     onCommand?.();
     refreshActive();
