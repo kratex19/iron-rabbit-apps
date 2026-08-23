@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v47-insertHTML";
+const BUILD_STAMP = "v48-caret-inline";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -381,19 +381,39 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     if (inlineTag) {
       restoreForCommand();
       const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        if (!range.collapsed) {
-          const text = range.toString();
-          const escaped = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          try {
-            document.execCommand(
-              "insertHTML", false, `<${inlineTag}>${escaped}</${inlineTag}>`
-            );
-          } catch { /* noop */ }
+      if (!sel || sel.rangeCount === 0) {
+        editableRef.current?.focus();
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      if (!range.collapsed) {
+        // Existing selection — wrap it.
+        const text = range.toString();
+        const escaped = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        try {
+          document.execCommand(
+            "insertHTML", false, `<${inlineTag}>${escaped}</${inlineTag}>`
+          );
+        } catch { /* noop */ }
+      } else {
+        // Collapsed caret — insert an empty formatted tag anchored by a
+        // zero-width-space and place the caret INSIDE, right after the
+        // ZWSP. Anything the user types next lands inside the tag and
+        // therefore comes out bold / italic / etc.
+        const editable = editableRef.current;
+        if (editable) {
+          const node = document.createElement(inlineTag);
+          const zwsp = document.createTextNode("\u200B");
+          node.appendChild(zwsp);
+          range.insertNode(node);
+          const nr = document.createRange();
+          nr.setStart(zwsp, 1);
+          nr.setEnd(zwsp, 1);
+          sel.removeAllRanges();
+          sel.addRange(nr);
         }
       }
     } else {
