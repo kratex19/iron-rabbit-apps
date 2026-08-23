@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v48-caret-inline";
+const BUILD_STAMP = "v49-switch-mode";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -399,16 +399,49 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
           );
         } catch { /* noop */ }
       } else {
-        // Collapsed caret — insert an empty formatted tag anchored by a
-        // zero-width-space and place the caret INSIDE, right after the
-        // ZWSP. Anything the user types next lands inside the tag and
-        // therefore comes out bold / italic / etc.
+        // Collapsed caret — the user wants "next-typed text should be
+        // [bold/italic/etc]". Insert an empty formatted tag at the
+        // caret anchored by a zero-width-space and place the caret
+        // INSIDE it. If the caret is already inside another inline
+        // formatting tag we step OUT so the new tag becomes a SIBLING
+        // (not a nested child) — otherwise tapping Bold → Italic
+        // produces italic-AND-bold text. If that outer tag is empty
+        // (still just the ZWSP from a previous button press) we
+        // REPLACE it in place, so the user simply "switched modes".
         const editable = editableRef.current;
         if (editable) {
-          const node = document.createElement(inlineTag);
+          // Walk up to find the outermost inline formatting ancestor.
+          let node = range.startContainer;
+          if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+          let outer = null;
+          let walker = node;
+          while (walker && walker !== editable) {
+            const t = walker.tagName;
+            if (t === "B" || t === "I" || t === "U" || t === "S" ||
+                t === "STRONG" || t === "EM" || t === "STRIKE" || t === "DEL") {
+              outer = walker;
+            }
+            walker = walker.parentNode;
+          }
+
+          const newTag = document.createElement(inlineTag);
           const zwsp = document.createTextNode("\u200B");
-          node.appendChild(zwsp);
-          range.insertNode(node);
+          newTag.appendChild(zwsp);
+
+          if (outer && outer.parentNode) {
+            const bareText = (outer.textContent || "").replace(/\u200B/g, "");
+            if (bareText.length === 0) {
+              // Empty outer tag — replace it with the new format.
+              outer.parentNode.replaceChild(newTag, outer);
+            } else {
+              // Non-empty — insert the new tag right after it as sibling.
+              outer.parentNode.insertBefore(newTag, outer.nextSibling);
+            }
+          } else {
+            // Not inside any inline tag — insert at caret.
+            range.insertNode(newTag);
+          }
+
           const nr = document.createRange();
           nr.setStart(zwsp, 1);
           nr.setEnd(zwsp, 1);
