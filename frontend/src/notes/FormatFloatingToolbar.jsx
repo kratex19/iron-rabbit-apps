@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v44-link-busy";
+const BUILD_STAMP = "v45-inline-fix";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -218,7 +218,11 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   // keep it as-is. Overwriting a good live caret with the (possibly
   // stale) savedRangeRef caused the "cursor jumps to before the first
   // line" bug when tapping the line-break / block buttons right after
-  // typing.
+  // typing. This helper is READ-ONLY on savedRangeRef — the onSel handler
+  // in the useEffect above is the single source of truth for updates, and
+  // it only stores NON-COLLAPSED ranges. This is what lets Bold/Italic/
+  // Underline/Strike find the user's last real selection even if the
+  // live caret has collapsed on button tap.
   const restoreSelection = () => {
     const el = editableRef.current;
     if (!el) return false;
@@ -227,8 +231,6 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
       const live = sel.getRangeAt(0);
       if (el.contains(live.startContainer) && el.contains(live.endContainer)) {
         el.focus();
-        // Keep savedRangeRef fresh with wherever the live caret is now.
-        savedRangeRef.current = live.cloneRange();
         return true;
       }
     }
