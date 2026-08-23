@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v46-execcmd";
+const BUILD_STAMP = "v47-insertHTML";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -367,14 +367,40 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
   };
 
   const exec = (cmd, arg = null) => {
-    // For inline styles (bold/italic/underline/strike), use native
-    // execCommand — it works reliably in the same WebView that runs the
-    // block-level `formatBlock` commands (P/H1/H2/H3) just fine. The
-    // manual DOM-wrapping approach previously used here silently failed
-    // on touch after selection loss; restoring the saved range first
-    // solves that without any manual DOM surgery.
-    restoreForCommand();
-    try { document.execCommand(cmd, false, arg); } catch { /* noop */ }
+    // Bold / Italic / Underline / Strike — wrap the selected text with
+    // an explicit tag via `insertHTML`. This is the SAME execCommand
+    // path used by the (working) Line-break button, so it's known-good
+    // on this device. Native `execCommand("bold")` was silently no-op-ing
+    // in the Capacitor Android WebView while `formatBlock` worked.
+    const inlineTag =
+      cmd === "bold"          ? "b" :
+      cmd === "italic"        ? "i" :
+      cmd === "underline"     ? "u" :
+      cmd === "strikeThrough" ? "s" : null;
+
+    if (inlineTag) {
+      restoreForCommand();
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) {
+          const text = range.toString();
+          const escaped = text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+          try {
+            document.execCommand(
+              "insertHTML", false, `<${inlineTag}>${escaped}</${inlineTag}>`
+            );
+          } catch { /* noop */ }
+        }
+      }
+    } else {
+      // Anything else (createLink etc.) uses execCommand directly.
+      restoreForCommand();
+      try { document.execCommand(cmd, false, arg); } catch { /* noop */ }
+    }
     editableRef.current?.focus();
     onCommand?.();
     refreshActive();
