@@ -21,7 +21,7 @@ import { Bold, Italic, Underline, Strikethrough, Link as LinkIcon, CornerDownLef
 // label in the corner of the floating toolbar so we can confirm at a
 // glance which build is running on a given device (e.g. to rule out
 // stale service-worker caches).
-const BUILD_STAMP = "v43-link-open";
+const BUILD_STAMP = "v44-link-busy";
 
 export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }) {
   const [pos, setPos] = useState(null); // { top, left, arrow } | null
@@ -377,15 +377,18 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     setTimeout(reposition, 0);
   };
 
-  const linkGuardRef = useRef(0);
+  const linkBusyRef = useRef(false);
   const insertLink = () => {
-    // Debounce guard — on mobile Capacitor WebViews, `onTouchStart` and
-    // the emulated `onMouseDown` can BOTH fire for a single tap even
-    // though we preventDefault the touch. Without this guard the prompt
-    // opens a second time immediately after the first OK.
-    const now = Date.now();
-    if (now - linkGuardRef.current < 600) return;
-    linkGuardRef.current = now;
+    // Re-entrancy guard — on Capacitor Android WebViews, tapping the Link
+    // button can queue an emulated `mousedown` that fires AFTER
+    // `window.prompt` closes. A time-based debounce doesn't work because
+    // the prompt blocks the JS thread (and clock) for the whole duration
+    // of the user typing. A boolean flag survives the blocking prompt
+    // and is only cleared once the queued events have had a chance to
+    // drain, so the second dispatch is swallowed.
+    if (linkBusyRef.current) return;
+    linkBusyRef.current = true;
+    const clearBusy = () => { setTimeout(() => { linkBusyRef.current = false; }, 500); };
 
     // Snapshot the exact range BEFORE opening window.prompt — the prompt
     // steals focus from the contentEditable and the browser collapses
@@ -406,9 +409,10 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     }
 
     const url = window.prompt("Link URL", "https://");
-    if (!url || url.trim() === "https://") return;
+    if (!url || url.trim() === "https://") { clearBusy(); return; }
     if (!/^(https?|mailto|tel):/i.test(url)) {
       window.alert("Link must start with http://, https://, mailto: or tel:");
+      clearBusy();
       return;
     }
 
@@ -447,6 +451,7 @@ export default function FormatFloatingToolbar({ editableRef, onCommand, isDark }
     onCommand?.();
     refreshActive();
     setTimeout(reposition, 0);
+    clearBusy();
   };
 
   if (!pos) return null;
