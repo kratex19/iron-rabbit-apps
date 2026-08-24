@@ -64,6 +64,28 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // Auto-close the panel when the user switches to a different note.
   useEffect(() => { setTitlePanelOpen(false); }, [note?.id]);
 
+  // Track the on-screen keyboard's height and expose it as a CSS
+  // custom property `--kb-inset` on the document root. Used by the
+  // writing-area's padding-bottom so the caret never gets pinned to
+  // the top of the Android soft keyboard. Kept as a belt-and-suspenders
+  // fallback for WebViews that don't yet support the modern
+  // `env(keyboard-inset-height)` CSS environment variable.
+  useEffect(() => {
+    const vv = typeof window !== "undefined" && window.visualViewport;
+    if (!vv) return undefined;
+    const update = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty("--kb-inset", `${kb}px`);
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    update();
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
   // 🔒 LOCKED (star-mode expanded text) — see /app/memory/LOCKED_SURFACES.md
   // Password required to modify: 2020
   // The following blocks — per-note brightness state init, note-change
@@ -327,7 +349,19 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             color: brightnessToText(noteBrightness?.text ?? 0.7),
           }}
         >
-          <div className="pb-24">
+          <div
+            className="pb-24"
+            style={{
+              // Grow the bottom padding by the on-screen keyboard's
+              // height whenever it's open, so the caret is never
+              // pinned against the top edge of the keyboard. Uses
+              // both the modern `env(keyboard-inset-height)` and a
+              // JS-driven `--kb-inset` fallback so the whichever
+              // reports the taller value wins — supports every mobile
+              // WebView the app can run in.
+              paddingBottom: "calc(max(env(keyboard-inset-height, 0px), var(--kb-inset, 0px)) + 6rem)",
+            }}
+          >
             <ExpandedTextEditor
               value={content}
               onChange={(next) => { setContent(next); setDirty(true); }}
