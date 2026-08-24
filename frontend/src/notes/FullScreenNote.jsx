@@ -214,14 +214,24 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               ref={colorButtonRef}
               type="button"
               onClick={() => setTitlePanelOpen(v => !v)}
-              className="w-4 h-4 rounded-full flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500/50 focus:ring-offset-transparent transition-transform active:scale-95"
-              style={{ background: colorConfig.gradient || colorConfig.accent }}
+              className="relative w-9 h-9 -my-2 rounded-full flex items-center justify-center flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-transform active:scale-95 hover:bg-white/5"
               aria-expanded={titlePanelOpen}
               aria-controls="fullscreen-title-panel"
               aria-label={titlePanelOpen ? "Hide title" : "Show title"}
               title={titlePanelOpen ? "Hide title" : "Show title"}
               data-testid="fullscreen-title-toggle"
-            />
+            >
+              <span
+                aria-hidden="true"
+                className="w-4 h-4 rounded-full block"
+                style={{ background: colorConfig.gradient || colorConfig.accent }}
+              />
+              <ChevronDown
+                aria-hidden="true"
+                className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 transition-transform ${titlePanelOpen ? "rotate-180" : ""} ${isDark ? "text-slate-300" : "text-gray-500"}`}
+                strokeWidth={2.4}
+              />
+            </button>
             {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}{note.subcategory && ` > ${note.subcategory}`}</Badge>}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
