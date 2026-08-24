@@ -327,15 +327,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             color: brightnessToText(noteBrightness?.text ?? 0.7),
           }}
         >
-          <ExpandedTextEditor
-            value={content}
-            onChange={(next) => { setContent(next); setDirty(true); }}
-            mode={mode}
-            textColor={brightnessToText(noteBrightness?.text ?? 0.7)}
-            textareaRef={contentTextareaRef}
-            isDark={isDark}
-            placeholder="Start writing…"
-          />
+          <div className="pb-24">
+            <ExpandedTextEditor
+              value={content}
+              onChange={(next) => { setContent(next); setDirty(true); }}
+              mode={mode}
+              textColor={brightnessToText(noteBrightness?.text ?? 0.7)}
+              textareaRef={contentTextareaRef}
+              isDark={isDark}
+              placeholder="Start writing…"
+            />
+          </div>
           {Array.isArray(note.chores) && (
             <ChoresPanel
               chores={note.chores}
