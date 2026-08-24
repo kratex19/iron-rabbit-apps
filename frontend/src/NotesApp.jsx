@@ -196,18 +196,23 @@ export default function NotesApp() {
   // hybrid rendering (dark chrome + light-mode text colours on note
   // expands). One source of truth: `settings.theme_preference`.
   useEffect(() => {
-    if (!settings) return;
+    if (!settings) return undefined;
     if (settings.theme_preference) {
       setIsDark(settings.theme_preference === 'dark');
-    } else {
-      // Settings loaded but no explicit preference → force dark default
-      // AND surface the one-time Choose-Your-Theme picker (unless
-      // already dismissed or `?screenshot=1` is set).
-      setIsDark(true);
-      if (!settings.theme_chooser_seen && !isScreenshotMode()) {
-        setTimeout(() => setThemeChooserOpen(true), 400);
-      }
+      return undefined;
     }
+    // Settings loaded but no explicit preference → force dark default
+    // AND surface the one-time Choose-Your-Theme picker (unless
+    // already dismissed or `?screenshot=1` is set).
+    setIsDark(true);
+    if (settings.theme_chooser_seen || isScreenshotMode()) return undefined;
+    const t = setTimeout(() => setThemeChooserOpen(true), 400);
+    // CRITICAL: return cleanup so that if `settings` changes again
+    // before the timeout fires (which happens during load when the
+    // settings object is hydrated in phases), we cancel the pending
+    // reopen. Without this the modal would reopen after the user hit
+    // the X button because a stale timeout was still queued.
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.theme_preference, settings?.theme_chooser_seen, !!settings]);
 
