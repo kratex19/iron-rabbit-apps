@@ -1,5 +1,22 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-27, responsive audit)
+
+### 🎉 Shipped in this fork (2026-02-27) — Full responsiveness audit
+- **App-wide responsiveness pass** — Audited every screen at 320/360/390/428/600/768/1024 px viewports in both portrait and landscape. Verified `overflowH=false` at every size (i.e. no unintended horizontal scroll). Design preserved 1:1 — no colours, typography, tiles, spacing, or navigation concepts changed.
+- **Header wrap consistency (fixes the "Small Header vs Large Header" discrepancy)** — The 21-icon action row in `AppHeader.jsx` was capped with `max-w-[300px] sm:max-w-[320px]` so it always wraps into ~3 rows regardless of viewport width. Previously, browsers with ≥800 px viewport (in-app browsers like Chrome Custom Tab, tablets, landscape phones) squeezed every icon onto a single row producing the "small header" look; PWA users on narrow viewports got the intended "large header" (3 rows). Now everyone sees the same wrapped layout on every device.
+- **Safe-area inset support (Android status/nav bars + iOS notches)** — Added `viewport-fit=cover` to the viewport meta tag and introduced `--safe-*` CSS custom properties + utility classes (`.pt-safe`, `.pb-safe`, `.pt-safe-plus-3`, `.pb-safe-plus-6`, etc.). Applied to the header top-padding, main container bottom-padding, and repositioned the FAB / RecentActionPill / MultiSelectBar to sit above the gesture bar via `bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))`.
+- **Universal horizontal overflow guard** — Added `overflow-x: hidden` to both `html` and `body` in `index.css` so a stray absolute-positioned child can never leak sideways during transitions or unexpectedly push the page. Elements that need horizontal scroll (Quick Guide strip, filter chips) still opt in via `overflow-x: auto` locally.
+- **Base Radix `DialogContent` hardening** — Default `w-full max-w-lg` widened to `w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto` so any modal in the app (existing or future) automatically fits inside the viewport and scrolls internally on landscape phones + tiny devices. Modals that already declared their own `max-h/max-w` still win via Tailwind cascade order.
+- **Landscape phone rescue** — Added `@media (max-height: 480px) and (orientation: landscape)` rule forcing every `[role="dialog"]` to `max-height: 92vh + overflow-y: auto` so tall modals never spill past the top/bottom of a landscape-phone viewport.
+- **Theme Chooser tile pill fix** — On 320 px viewports, the "RECOMMENDED" pill inside each Theme card was being clipped by the `ml-auto` alignment. Row is now `flex-wrap` with the pill using `whitespace-nowrap` so it either sits inline (wider tiles) or wraps below the title (narrow tiles) — never clipped. Modal itself gained `max-h-[92vh] overflow-y-auto` for landscape-phone safety.
+- **RecentActionPill + MultiSelectBar mobile safety** — Both now use `max-w-[calc(100vw-2rem)] flex-wrap justify-center` so on very narrow viewports the buttons wrap into 2 rows inside the pill rather than pushing past the screen edge.
+- **Service worker bump** — `iron-rabbit-v69` → `iron-rabbit-v70`, runtime `v24` → `v25`. Files: `frontend/public/service-worker.js`, `frontend/public/index.html`, `frontend/src/index.css`, `frontend/src/App.css`, `frontend/src/components/ui/dialog.jsx`, `frontend/src/notes/AppHeader.jsx`, `frontend/src/notes/RecentActionPill.jsx`, `frontend/src/notes/MultiSelectBar.jsx`, `frontend/src/onboarding/ThemeChooserModal.jsx`, `frontend/src/NotesApp.jsx`.
+
+### ✅ Verification (2026-02-27)
+Visual audit at 8 viewport sizes performed with Playwright screenshots — every viewport reported `body.scrollWidth === window.innerWidth` (no horizontal overflow). Header consistently wraps to 3 rows on 320, 360, 390, 428, 600, 768, 1024, and 844×390 landscape. FAB sits at bottom-right without colliding with the search bar / bottom accordions. Backend `/api/` and `/api/health` both return HTTP 200.
+
+
 
 ## 📌 Session state (2026-02-22, this session)
 

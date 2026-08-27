@@ -106,11 +106,15 @@
 
 /* Smaller FAB */
 .fab-button-sm {
-    @apply fixed bottom-6 right-6 w-12 h-12 rounded-full;
+    @apply fixed w-12 h-12 rounded-full;
     @apply bg-indigo-500 text-white flex items-center justify-center;
     @apply shadow-lg hover:shadow-xl hover:bg-indigo-600;
     @apply transition-all duration-200 hover:scale-105 active:scale-95;
     @apply z-50;
+    /* Respect the Android/iOS navigation bar so the FAB never lands
+       under the gesture pill. Uses `env()` with a safe fallback. */
+    right: max(1.5rem, env(safe-area-inset-right, 1.5rem));
+    bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem));
 }
 
 .fab-button-sm.light {
@@ -617,7 +621,9 @@
 /* Responsive */
 @media (max-width: 640px) {
     .fab-button-sm {
-        @apply bottom-4 right-4 w-11 h-11;
+        @apply w-11 h-11;
+        right: max(1rem, env(safe-area-inset-right, 1rem));
+        bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
     }
 }
 

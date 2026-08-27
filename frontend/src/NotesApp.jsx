@@ -1583,7 +1583,7 @@ export default function NotesApp() {
           data-testid="home-brightness-underlay"
         />
         <main
-          className="relative px-4 py-3 max-w-4xl mx-auto ir-brightness-scope min-h-screen"
+          className="relative px-4 py-3 pb-safe-plus-6 max-w-4xl mx-auto ir-brightness-scope min-h-screen"
           style={{
             background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
             color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),

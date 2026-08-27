@@ -15,11 +15,12 @@ export default function MultiSelectBar({
   if (count === 0) return null;
   return (
     <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border ${
+      className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border max-w-[calc(100vw-2rem)] flex-wrap justify-center ${
         isDark
           ? "bg-[#0B1221]/95 border-white/20 text-white"
           : "bg-white/95 border-gray-300 text-gray-900"
       }`}
+      style={{ bottom: "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))" }}
       data-testid="multiselect-bar"
     >
       <span className={`text-xs font-semibold flex items-center gap-1.5 px-2 ${isDark ? "text-slate-300" : "text-gray-700"}`}>

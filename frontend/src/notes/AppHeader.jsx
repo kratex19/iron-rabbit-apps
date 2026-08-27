@@ -59,7 +59,7 @@ export default function AppHeader({
       className={`header-compact ${isDark ? "" : "light"}`}
       style={resolveBackgroundStyle(settings?.header_bg)}
     >
-      <div className="relative z-10 w-full px-4 py-3 flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
+      <div className="relative z-10 w-full px-4 py-3 pt-safe-plus-3 px-safe flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
         <div className="flex items-center gap-3 min-w-0">
           {settings?.logo_url && (
             <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer" className="shrink-0">
@@ -84,7 +84,14 @@ export default function AppHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-1 flex-wrap justify-end ml-auto" data-testid="header-icon-row">
+        {/* Icon row — capped width so 21 icons always wrap into ~3 rows on any
+            viewport (phone, tablet, in-app Chrome Custom Tabs). Without a cap,
+            wider viewports (~800px+) fit every icon on a single row which
+            produces the "small header" appearance on desktop-like browsers. */}
+        <div
+          className="flex items-center gap-1 flex-wrap justify-end ml-auto max-w-[300px] sm:max-w-[320px]"
+          data-testid="header-icon-row"
+        >
           {onBrightnessChange && (
             <DisplayControlsButton
               value={uiBrightness}

@@ -37,7 +37,7 @@ export default function ThemeChooserModal({ isOpen, onPick }) {
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg rounded-lg border border-white/10 p-6 text-white shadow-2xl"
+        className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-lg border border-white/10 p-6 text-white shadow-2xl"
         style={{
           background:
             "linear-gradient(180deg, rgba(15, 23, 42, 0.55) 0%, rgba(11, 18, 33, 0.65) 100%)",
@@ -135,13 +135,13 @@ function ThemeCard({ id, title, subtitle, preview, icon, recommended, onPick }) 
     >
       {preview}
       <div className="p-3">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="w-5 h-5 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/80">
+        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+          <span className="w-5 h-5 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white/80 shrink-0">
             {icon}
           </span>
           <span className="text-sm font-semibold text-white">{title}</span>
           {recommended && (
-            <span className="ml-auto text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+            <span className="ml-auto text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap">
               Recommended
             </span>
           )}

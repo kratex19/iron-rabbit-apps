@@ -15,11 +15,12 @@ export default function RecentActionPill({ action, onUndo, onDismiss, isDark }) 
     : `${count} note${count === 1 ? "" : "s"} moved to Trash`;
   return (
     <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border ${
+      className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border max-w-[calc(100vw-2rem)] flex-wrap justify-center ${
         isDark
           ? "bg-[#0B1221]/95 border-white/20 text-white"
           : "bg-white/95 border-gray-300 text-gray-900"
       }`}
+      style={{ bottom: "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))" }}
       data-testid="recent-action-pill"
       role="status"
       aria-live="polite"

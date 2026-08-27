@@ -19,6 +19,61 @@ body {
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--bg-main);
     color: #f8fafc;
+    /* Prevent accidental horizontal scroll on any device. Individual
+       elements can still opt into horizontal scrolling (e.g. the Quick
+       Guide strip) without leaking overflow to the whole page. */
+    overflow-x: hidden;
+}
+
+html {
+    /* Same guard at the root so mobile Safari never lets an oversized
+       child (e.g. a stray absolute-positioned element) push the page
+       sideways during transitions. */
+    overflow-x: hidden;
+}
+
+/* Reserve safe areas on the outermost viewport so notched devices and
+   Android gesture-navigation bars never hide content. Individual
+   surfaces (header, FAB, bottom accordions) can consume the insets
+   with the utility classes below. */
+:root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Utility helpers — apply these to any sticky/fixed surface that
+   sits at the very top or bottom of the viewport so content is
+   never obscured by status/navigation bars. */
+.pt-safe { padding-top: max(env(safe-area-inset-top, 0px), 0px); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px); }
+.pl-safe { padding-left: max(env(safe-area-inset-left, 0px), 0px); }
+.pr-safe { padding-right: max(env(safe-area-inset-right, 0px), 0px); }
+.px-safe {
+    padding-left: max(env(safe-area-inset-left, 0px), 0px);
+    padding-right: max(env(safe-area-inset-right, 0px), 0px);
+}
+.pt-safe-plus-3 { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem); }
+.pb-safe-plus-4 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
+.pb-safe-plus-6 { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem); }
+
+/* Fixed elements pinned to the viewport edges must offset by the
+   inset so they don't collide with the status/navigation bars. */
+.top-safe { top: max(env(safe-area-inset-top, 0px), 0px); }
+.bottom-safe { bottom: max(env(safe-area-inset-bottom, 0px), 0px); }
+.right-safe { right: max(env(safe-area-inset-right, 0px), 0px); }
+.left-safe { left: max(env(safe-area-inset-left, 0px), 0px); }
+
+/* Landscape phone: shrink dialog inner padding + let long modals scroll.
+   Any Radix DialogContent used inside our app already caps height with
+   max-h-[90vh] — this rule ensures anything not doing so still stays
+   inside the viewport. */
+@media (max-height: 480px) and (orientation: landscape) {
+    [role="dialog"] {
+        max-height: 92vh !important;
+        overflow-y: auto;
+    }
 }
 
 .font-mono {
