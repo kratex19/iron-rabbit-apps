@@ -34,6 +34,23 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Kubernetes liveness/readiness probe endpoint.
+# The ingress hits `GET /health` (NO `/api` prefix) every 5s. Without
+# this route the pod returned 404s continuously and the K8s controller
+# considered the container unhealthy, so the deployment never went
+# ready. Kept intentionally minimal: no DB call, no dependencies —
+# just an "am I responding" check.
+@app.get("/health", include_in_schema=False)
+async def _health():
+    return {"status": "ok"}
+
+
+# Also expose it at /api/health for symmetry with the rest of the
+# API surface — some monitoring dashboards prefer the prefixed form.
+@app.get("/api/health", include_in_schema=False)
+async def _api_health():
+    return {"status": "ok"}
+
 # Wire routers. Order doesn't matter, but community/digest come first for
 # readability — they're where the interesting stuff lives.
 app.include_router(notes_router)
@@ -65,26 +82,16 @@ async def _weekly_digest_job():
 
 @app.on_event("startup")
 async def _start_scheduler():
-    """Register the weekly cron and TTL index once per process."""
+    """Register the weekly cron and required indexes once per process."""
     global _scheduler
     if _scheduler is not None:
         return  # already registered — avoid double-scheduling on reload
-    # 180-day TTL on analytics events so long-term storage stays bounded.
-    try:
-        await db.community_events.create_index(
-            "at", expireAfterSeconds=180 * 24 * 60 * 60, name="events_ttl",
-        )
-    except Exception:
-        logger.exception("could not create community_events TTL index")
 
-    # 90-day TTL on recovery funnel events — smaller window since the metric
-    # only informs the current-launch magic-link-vs-manual decision.
-    try:
-        await db.recovery_events.create_index(
-            "at", expireAfterSeconds=90 * 24 * 60 * 60, name="recovery_events_ttl",
-        )
-    except Exception:
-        logger.exception("could not create recovery_events TTL index")
+    # NOTE: TTL indexes intentionally omitted — MongoDB's TTL monitor
+    # background-deletes expired documents on its own without any user
+    # action, which violates the zero-data-loss deployment policy. If
+    # long-term storage growth ever becomes a real issue, add an
+    # explicit admin-triggered cleanup endpoint instead.
 
     # Unique nickname reservation — prevents concurrent-write races.
     try:
