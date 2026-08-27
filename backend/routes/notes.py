@@ -136,37 +136,4 @@ async def update_settings(settings_update: SettingsUpdate):
     return await db.settings.find_one({"id": "app_settings"}, {"_id": 0})
 
 
-@router.post("/upload/logo")
-async def upload_logo(file: UploadFile = File(...)):
-    allowed = {"image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"}
-    if file.content_type not in allowed:
-        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: jpg, png, gif, webp, svg")
-    ext = file.filename.split(".")[-1] if "." in (file.filename or "") else "png"
-    filename = f"logo_{uuid.uuid4().hex[:8]}.{ext}"
-    filepath = UPLOADS_DIR / filename
-    async with aiofiles.open(filepath, "wb") as f:
-        content = await file.read()
-        await f.write(content)
-    return {"url": f"/api/uploads/{filename}"}
 
-
-@router.post("/upload/header")
-async def upload_header(file: UploadFile = File(...)):
-    allowed = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-    if file.content_type not in allowed:
-        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: jpg, png, gif, webp")
-    ext = file.filename.split(".")[-1] if "." in (file.filename or "") else "jpg"
-    filename = f"header_{uuid.uuid4().hex[:8]}.{ext}"
-    filepath = UPLOADS_DIR / filename
-    async with aiofiles.open(filepath, "wb") as f:
-        content = await file.read()
-        await f.write(content)
-    return {"url": f"/api/uploads/{filename}"}
-
-
-@router.get("/uploads/{filename}")
-async def get_uploaded_file(filename: str):
-    filepath = UPLOADS_DIR / filename
-    if not filepath.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(filepath)
