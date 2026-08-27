@@ -60,6 +60,20 @@
 	<string>Iron Rabbit saves images to your photo library only when you tap the "Save to Photos" option on a note attachment.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Iron Rabbit uses Face ID to unlock the app when you turn on App Lock in Security settings. Your biometric data never leaves this device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Iron Rabbit uses the microphone only when you tap the voice-input button so you can dictate note text. Recordings are transcribed on-device and are not stored.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Iron Rabbit uses speech recognition to turn your dictated words into note text when you tap the voice-input button. This only runs while you are holding to dictate.</string>
+	<!--
+	  App Store submission compliance flag. Setting this to `false`
+	  declares that the app does NOT use non-exempt encryption
+	  beyond what Apple's standard iOS APIs provide, which skips
+	  the ITAR export-compliance interview during App Store Connect
+	  submission. If you ever add end-to-end encryption or a
+	  custom crypto implementation, flip this to `true`.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>com.ironrabbit.app.openNote</string>
