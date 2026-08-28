@@ -9,8 +9,8 @@
 //     new SW file had been published. With HTML now always fetched
 //     network-first (and runtime-cached as a fallback for offline),
 //     every deploy propagates to users on their next page load.
-const CACHE_NAME = 'iron-rabbit-v81';
-const RUNTIME = 'iron-rabbit-runtime-v36';
+const CACHE_NAME = 'iron-rabbit-v82';
+const RUNTIME = 'iron-rabbit-runtime-v37';
 
 // App shell — only the manifest is precached. HTML is deliberately
 // left out so a stale precache can never override a fresh deploy.

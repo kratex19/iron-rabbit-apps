@@ -26,6 +26,7 @@ import AppHeader from "./notes/AppHeader";
 import { QuickGuideProvider, QuickGuideModal } from "./quickguide";
 import WeeklyDigest from "./notes/WeeklyDigest";
 import AppSearchBar from "./notes/AppSearchBar";
+import { useEffectiveGridColumns } from "./notes/TilesColumnsButton";
 import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import AppModals from "./notes/AppModals";
 import ThemeChooserModal from "./onboarding/ThemeChooserModal";
@@ -785,6 +786,27 @@ export default function NotesApp() {
     }
   };
 
+  const handleGridColumnsChange = async (nextGridColumns) => {
+    // Optimistic UI — persist to IndexedDB in the background.
+    setSettings((prev) => ({ ...prev, grid_columns: nextGridColumns }));
+    try {
+      const updated = await StorageService.saveSettings({ grid_columns: nextGridColumns });
+      setSettings(updated);
+    } catch {
+      /* non-fatal */
+    }
+  };
+
+  // Effective column count for the currently-active viewport class.
+  // Falls back to the fluid `.notes-grid` behaviour when the user has
+  // never customised (initial gridColumns is undefined).
+  const effectiveGridColumns = useEffectiveGridColumns(settings?.grid_columns);
+  // Inline-style spread applied to every `.notes-grid` render — only
+  // sets grid-template-columns when the user has actively customised;
+  // otherwise stays empty so the fluid auto-fill CSS keeps working.
+  const gridStyle = effectiveGridColumns
+    ? { gridTemplateColumns: `repeat(${effectiveGridColumns}, minmax(0, 1fr))` }
+    : undefined;
   const handleToggleTheme = async () => {
     const next = !isDark;
     setIsDark(next);
@@ -1196,7 +1218,7 @@ export default function NotesApp() {
       <div className="mb-4" data-testid="pinned-rail">
         <CategoryHeader title="Pinned" notes={pinnedNotes} pinned isDark={isDark} />
         {viewMode === "icon" ? (
-          <div className="notes-grid">
+          <div className="notes-grid" style={gridStyle}>
             {pinnedNotes.map(note => (
               <NoteTile key={note.id} note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
             ))}
@@ -1272,6 +1294,7 @@ export default function NotesApp() {
                                 ref={prov.innerRef}
                                 {...prov.droppableProps}
                                 className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
+                                style={gridStyle}
                               >
                                 {items.map((note, idx) => (
                                   <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
@@ -1316,6 +1339,7 @@ export default function NotesApp() {
                       ref={prov.innerRef}
                       {...prov.droppableProps}
                       className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""} ${grouped.length > 0 && !uncategorizedOpen ? "hidden" : ""}`}
+                      style={gridStyle}
                       data-testid="notes-icon-uncategorized"
                     >
                       {uncategorized.map((note, idx) => (
@@ -1345,7 +1369,7 @@ export default function NotesApp() {
         <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <Droppable droppableId="notes-grid" type="note">
             {(prov) => (
-              <div ref={prov.innerRef} {...prov.droppableProps} className="notes-grid" data-testid="notes-icon-flat">
+              <div ref={prov.innerRef} {...prov.droppableProps} className="notes-grid" style={gridStyle} data-testid="notes-icon-flat">
                 {processedNotes.map((note, idx) => (
                   <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
                     {(dp, ds) => (
@@ -1610,6 +1634,8 @@ export default function NotesApp() {
           onClearSelection={clearSelection}
           selectedCount={selectedIds.size}
           visibleCount={processedNotes.length}
+          gridColumns={settings?.grid_columns}
+          onGridColumnsChange={handleGridColumnsChange}
         />
 
         {renderPinnedRail()}

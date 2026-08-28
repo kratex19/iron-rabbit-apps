@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SORT_OPTIONS, FILTER_OPTIONS } from "./constants";
 import { haptic } from "../utils/haptic";
 import TagFilterStrip from "./TagFilterStrip";
+import TilesColumnsButton from "./TilesColumnsButton";
 
 /**
  * Search bar + view/filter/sort controls + tag strip + group-by toggle.
@@ -31,6 +32,8 @@ export default function AppSearchBar({
   onClearSelection,
   selectedCount,
   visibleCount,
+  gridColumns,
+  onGridColumnsChange,
 }) {
   const { t } = useTranslation();
   return (
@@ -133,6 +136,13 @@ export default function AppSearchBar({
         >
           <FolderTree className="w-3.5 h-3.5" /> {t("app.groupBy")}
         </button>
+        {viewMode === "icon" && onGridColumnsChange && (
+          <TilesColumnsButton
+            isDark={isDark}
+            gridColumns={gridColumns}
+            onChange={onGridColumnsChange}
+          />
+        )}
         <button
           onClick={() => selectMode ? onClearSelection() : onEnterSelectMode()}
           className={`text-xs px-3 py-1.5 rounded-md border flex items-center gap-1.5 ${
