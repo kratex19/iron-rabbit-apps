@@ -49,17 +49,20 @@
     color: inherit !important;
 }
 
-/* Ensure the header icon row + logo sit on a subtle glass so they remain
-   readable over any preset image, without visually adding a big panel. */
+/* Icon-row inner layer sits INSIDE the outer glass strip
+   (`.ir-header-glass-strip`) which already provides the frosted
+   surface. Keep the inner row essentially transparent so the strip
+   reads as a single subtle pane — a soft 6 %/12 % tint just enough
+   to keep the row visible against very busy header artwork. */
 .header-compact [data-testid="header-icon-row"] {
-    background: rgba(0, 0, 0, 0.28);
+    background: rgba(0, 0, 0, 0.06);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
     border-radius: 10px;
     padding: 2px 6px;
 }
 .header-compact.light [data-testid="header-icon-row"] {
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.12);
 }
 
 /* Accordion Note Item */
