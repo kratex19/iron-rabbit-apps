@@ -201,6 +201,46 @@ html {
     width: 100% !important;
 }
 
+/* =============================================================
+   FLUID BODY TYPOGRAPHY — targeted, non-invasive
+   These rules attach the fluid --ir-text-* scale to the specific
+   surfaces called out in the responsive directive (note titles,
+   category headers, modal body text) so paragraphs breathe on 27″+
+   monitors while remaining unchanged on phones (clamp min hits ≈
+   the current Tailwind default).
+
+   Scoped narrowly by data-testid or class so third-party UI
+   primitives (Radix, shadcn) are not affected globally.
+   ============================================================= */
+
+/* Category / group headers on the home list & grid views. */
+[data-testid="category-title"] {
+    font-size: var(--ir-text-sm);
+    line-height: 1.35;
+}
+
+/* Modal body / description text. Radix DialogDescription already gets
+   a colour + spacing — we only touch the size so it scales fluidly. */
+[data-radix-dialog-description],
+.ir-modal-wide p,
+.ir-modal-narrow p {
+    font-size: var(--ir-text-sm);
+    line-height: 1.55;
+}
+.ir-modal-wide [data-radix-dialog-title],
+.ir-modal-narrow [data-radix-dialog-title] {
+    font-size: var(--ir-text-lg);
+    line-height: 1.25;
+}
+
+/* Note list rows — the plain-list layout inherits size from Tailwind
+   text-sm on rows. Opt these rows into the fluid scale so titles grow
+   proportionally on large displays. Scoped to the notes shell. */
+.ir-app-main [data-testid^="note-row-"] .ir-note-title,
+.ir-app-main [data-testid^="note-list-item-"] .ir-note-title {
+    font-size: var(--ir-text-base);
+}
+
 .font-mono {
     font-family: 'JetBrains Mono', monospace;
 }

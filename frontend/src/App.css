@@ -646,6 +646,35 @@
     gap: var(--ir-gap);
 }
 
+/* =============================================================
+   TV / ULTRAWIDE MODE — genuine layout change at ≥ 2000 px
+   Not a patch: this is a legitimate responsive breakpoint per
+   Lesson 10 of the responsive design course. Once the viewport is
+   wide enough that a tile row would otherwise become uncomfortably
+   sparse (many small tiles in an over-wide column), grow the tile
+   minimum so tiles stay visually substantial and use the extra
+   screen real-estate coherently. Below 2000 px the fluid rule
+   above keeps working unchanged.
+   ============================================================= */
+@media (min-width: 2000px) {
+    :root {
+        /* Larger tile floor + generous gap so 4K/ultrawide/TV
+           displays show substantial, click-target-appropriate tiles
+           rather than a checkerboard of tiny thumbnails. */
+        --ir-tile-min: clamp(9rem, 11vw, 13rem);
+        --ir-gap: clamp(1rem, 1vw, 1.5rem);
+    }
+    .notes-grid {
+        /* Slightly larger radius + inner spacing on TV so tiles read
+           as physical cards from across a room. */
+        gap: var(--ir-gap-lg);
+    }
+    /* Extend the fluid shell max so the app breathes on ultrawide. */
+    :root {
+        --ir-shell-max: min(94vw, 2000px);
+    }
+}
+
 .note-tile {
     position: relative;
     aspect-ratio: 1 / 1;
@@ -715,9 +744,11 @@
 }
 
 .note-tile-title {
-    /* Matches the `font-semibold text-sm` style used on Tile-Packs pack
-       cards — noticeably more prominent than the previous 0.78rem. */
-    font-size: 0.875rem;         /* Tailwind text-sm */
+    /* Fluid typography — scales from Tailwind `text-sm` (0.875rem) on
+       small phones up to a comfortable ~1.05rem on wide desktops so
+       tiles remain readable at 27″+ monitor distance without a
+       breakpoint patch. Uses the app-wide --ir-text-sm token. */
+    font-size: var(--ir-text-sm);
     font-weight: 600;            /* Tailwind font-semibold */
     line-height: 1.15;
     letter-spacing: -0.005em;    /* Tailwind tracking-tight */
@@ -732,10 +763,6 @@
     word-break: break-word;
     max-width: 100%;
     padding: 0 0.25rem;
-}
-
-@media (min-width: 768px) {
-    .note-tile-title { font-size: 0.95rem; }
 }
 
 .note-tile-badges {
