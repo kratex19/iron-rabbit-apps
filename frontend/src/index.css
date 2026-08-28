@@ -642,3 +642,69 @@ main.ir-brightness-scope [class*="text-zinc-"] {
 @media (prefers-reduced-motion: reduce) {
   .irr-wall-pulse { animation: none; }
 }
+
+
+/* =============================================================
+   LANDSCAPE POLISH — short-viewport phones & small tablets
+   When the viewport is short (typical mobile-landscape and split-
+   screen scenarios), reclaim vertical space so more of the app is
+   visible above the fold. Purely visual densification — no layout
+   or logic changes.
+   ============================================================= */
+@media (orientation: landscape) and (max-height: 560px) {
+    /* Shrink the fluid container Y-padding globally so header rows,
+       main content and section gaps all breathe less vertically. */
+    :root {
+        --ir-container-pad-y: clamp(0.25rem, 0.9vh, 0.5rem);
+        --ir-gap: clamp(0.375rem, 1vh, 0.625rem);
+    }
+
+    /* Branding row: pull the title/logo closer together, drop the
+       safe-area top since Android landscape has no notch on the top
+       edge (side notches are handled by ir-app-shell + safe-area). */
+    .ir-header-inner {
+        padding-top: calc(env(safe-area-inset-top, 0px) + 0.2rem);
+        padding-bottom: 0.15rem;
+    }
+    .ir-header-inner + .ir-header-inner {
+        padding-top: 0.15rem;
+        margin-top: 0;                 /* strip owns its own spacing */
+    }
+
+    /* Row title — one line only, slightly smaller so the logo can
+       hug the top-right without wrapping the URL. */
+    .header-compact h1 {
+        font-size: var(--ir-text-lg);
+        line-height: 1.1;
+    }
+
+    /* Compress the branded logo tile so it stops eating vertical room. */
+    [data-testid="header-logo"] img {
+        width:  clamp(1.9rem, 4vh, 2.4rem) !important;
+        height: clamp(1.9rem, 4vh, 2.4rem) !important;
+    }
+
+    /* Glass icon strip: sit tight under the branding row, tighter
+       internal spacing, single-row when width allows. */
+    .ir-header-glass-strip {
+        margin-top: 0.2rem;
+        padding: 0 0.375rem;
+    }
+    .ir-header-glass-strip button {
+        width:  clamp(1.5rem, 3.4vh, 1.85rem) !important;
+        height: clamp(1.5rem, 3.4vh, 1.85rem) !important;
+    }
+
+    /* Main content: reclaim the block-start padding so the tile grid
+       lifts closer to the header. */
+    .ir-app-main {
+        padding-block-start: 0.35rem;
+    }
+
+    /* Popovers/menus that dock under header buttons (Tiles, Language,
+       Display) should never exceed the visible viewport height. */
+    [data-radix-popper-content-wrapper] > * {
+        max-height: 82vh !important;
+        overflow-y: auto;
+    }
+}

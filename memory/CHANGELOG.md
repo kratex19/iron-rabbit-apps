@@ -1,3 +1,11 @@
+## 2026-02-28 — v84: Landscape unlock + share preview + landscape polish
+
+- **manifest.json**: `"orientation": "portrait-primary"` → `"any"` so the installed PWA rotates with the device. Users may need to reinstall the home-screen shortcut once (OS caches manifest at install time).
+- **Open Graph / share preview**: Added `frontend/public/og-image.jpg` (1200×630, ~120 KB), `og-image.png` (same content), and `feature-graphic-1024x500.png` (Play Store feature graphic). Wired full OG + Twitter Card meta tags into `frontend/public/index.html` pointing to `https://app.ironrabbitapps.com/og-image.jpg`.
+- **Landscape UI polish**: New `@media (orientation: landscape) and (max-height: 560px)` block in `frontend/src/index.css`. Compresses `--ir-container-pad-y`, `--ir-gap`, header rows, logo tile, and glass-strip icon buttons so short landscape viewports (rotated phones, split-screen) reclaim vertical space. Verified: header height drops to ~86 px in a 900×400 landscape.
+- **iOS native note**: `IOS_BUILD.md` already documents that `Info.plist` must include all 4 `UISupportedInterfaceOrientations` when the Xcode project is generated — no code change here, just heads-up for future native build.
+
+
 ## 2026-02-18 — Depression-Era Gangsters (169-183) 🎩
 
 - Received a 4×4 grid of Depression-era / prohibition / gangster themes.
