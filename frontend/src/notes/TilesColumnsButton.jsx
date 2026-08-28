@@ -42,14 +42,37 @@ export const DEFAULT_GRID_COLUMNS = DEVICE_CLASSES.reduce((acc, d) => {
 
 export default function TilesColumnsButton({ isDark, gridColumns, onChange }) {
   const [open, setOpen] = useState(false);
+  // Popover position is computed relative to the viewport when opened so it
+  // never clips past the left OR right edge, regardless of where the button
+  // ends up in the toolbar's flex layout.
+  const [popPos, setPopPos] = useState({ top: 0, left: 0 });
   const popRef = useRef(null);
   const btnRef = useRef(null);
 
   const current = { ...DEFAULT_GRID_COLUMNS, ...(gridColumns || {}) };
 
+  const repositionPopover = () => {
+    if (!btnRef.current) return;
+    const btnRect = btnRef.current.getBoundingClientRect();
+    const popoverWidth = 288;   // matches Tailwind w-72 (18rem)
+    const viewportPad = 8;       // 0.5rem gutter to the viewport edge
+    const viewportW = window.innerWidth;
+    // Prefer centering under the button, but clamp so we stay in view.
+    const idealLeft = btnRect.left + btnRect.width / 2 - popoverWidth / 2;
+    const clampedLeft = Math.max(
+      viewportPad,
+      Math.min(idealLeft, viewportW - popoverWidth - viewportPad)
+    );
+    setPopPos({
+      top: btnRect.bottom + 8,   // 0.5rem below the button
+      left: clampedLeft,
+    });
+  };
+
   // Close on outside click / Escape.
   useEffect(() => {
     if (!open) return;
+    repositionPopover();
     const handleClick = (e) => {
       if (
         popRef.current && !popRef.current.contains(e.target) &&
@@ -60,11 +83,18 @@ export default function TilesColumnsButton({ isDark, gridColumns, onChange }) {
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("touchstart", handleClick);
     document.addEventListener("keydown", handleKey);
+    // Reposition on scroll / resize so the popover follows if the toolbar
+    // reflows underneath it (e.g. keyboard opens, orientation changes).
+    window.addEventListener("resize", repositionPopover);
+    window.addEventListener("scroll", repositionPopover, true);
     return () => {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("touchstart", handleClick);
       document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("resize", repositionPopover);
+      window.removeEventListener("scroll", repositionPopover, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const setValue = (key, value) => {
@@ -97,11 +127,12 @@ export default function TilesColumnsButton({ isDark, gridColumns, onChange }) {
       {open && (
         <div
           ref={popRef}
-          className={`absolute z-50 top-full right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-xl border shadow-2xl ${
+          className={`fixed z-50 w-72 max-w-[calc(100vw-1rem)] rounded-xl border shadow-2xl ${
             isDark
               ? "bg-[#0B1221] border-white/15 text-white"
               : "bg-white border-slate-200 text-slate-900"
           }`}
+          style={{ top: popPos.top, left: popPos.left }}
           data-testid="tiles-columns-popover"
           role="dialog"
           aria-label="Tile columns per device"
