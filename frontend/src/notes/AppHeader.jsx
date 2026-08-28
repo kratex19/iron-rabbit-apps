@@ -59,15 +59,18 @@ export default function AppHeader({
       className={`header-compact ${isDark ? "" : "light"}`}
       style={resolveBackgroundStyle(settings?.header_bg)}
     >
-      <div className="relative z-10 w-full px-4 py-3 pt-safe-plus-3 px-safe flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="relative z-10 ir-header-inner flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {settings?.logo_url && (
             <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer" className="shrink-0">
               <img src={settings.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/20" />
             </a>
           )}
           <div className="min-w-0">
-            <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight truncate">
+            <h1
+              className="font-bold text-white tracking-tight truncate"
+              style={{ fontSize: "var(--ir-text-2xl)" }}
+            >
               {settings?.company_name || "Iron Rabbit"}
             </h1>
             {settings?.website_url && (
@@ -84,12 +87,22 @@ export default function AppHeader({
           </div>
         </div>
 
-        {/* Icon row — capped width so 21 icons always wrap into ~3 rows on any
-            viewport (phone, tablet, in-app Chrome Custom Tabs). Without a cap,
-            wider viewports (~800px+) fit every icon on a single row which
-            produces the "small header" appearance on desktop-like browsers. */}
+        {/* Icon row — natural fluid flex-wrap. No hard-coded max-width
+            (that would be a device-specific patch, per the responsive-
+            architecture directive). The row is capped in inline-size by
+            a fluid clamp() so:
+              - narrow phones give the row ≥ 60% of the header for wrapping
+              - large screens (tablets, laptops, TVs) let the row grow up
+                to ~28rem so all 21 icons fit on one or two rows.
+            The behaviour is a genuine responsive layout change, not a
+            fixed pixel cap. */}
         <div
-          className="flex items-center gap-1 flex-wrap justify-end ml-auto max-w-[300px] sm:max-w-[320px]"
+          className="flex items-center gap-1 flex-wrap justify-end ml-auto"
+          style={{
+            flex: "1 1 60%",
+            maxInlineSize: "clamp(15rem, 40vw, 28rem)",
+            minInlineSize: "12rem",
+          }}
           data-testid="header-icon-row"
         >
           {onBrightnessChange && (

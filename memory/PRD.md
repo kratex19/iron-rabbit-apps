@@ -1,5 +1,43 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28, container-based responsive architecture)
+
+### 🎉 Shipped in this fork (2026-02-28) — Container-based responsive architecture
+Executed the "Iron Rabbit Responsive Design Architecture Requirements" directive: rebuilt the layout foundation around fluid containers, design tokens, and `clamp()` scales. **Visual look preserved 1:1** — colours, typography weights, tile styles, iconography, brightness sliders, spacing rhythm all unchanged. The architecture is now genuinely responsive from small phones to 4K/ultrawide/TV displays with **one coherent layout**, not a stack of device-specific overrides.
+
+**Design tokens introduced (`frontend/src/index.css`)** — single source of truth for every spacing / typography / container value in the app.
+- Fluid spacing scale: `--ir-space-1` … `--ir-space-8` (each `clamp()` between a phone-min and a desktop-max)
+- Fluid container padding: `--ir-container-pad-x` (`clamp(0.75rem, 2.2vw, 2.25rem)`) and `--ir-container-pad-y`
+- Fluid gap tokens: `--ir-gap` and `--ir-gap-lg`
+- Fluid typography scale: `--ir-text-xs` … `--ir-text-3xl` — text now scales proportionally with the viewport instead of via breakpoint patches
+- Fluid container maxes: `--ir-shell-max: min(96vw, 1600px)`, `--ir-modal-wide-max: min(92vw, 960px)`, `--ir-modal-narrow-max: min(92vw, 32rem)`
+- Fluid tile size: `--ir-tile-min: clamp(6.25rem, 22vw, 10rem)` — replaces the 5-breakpoint tile grid stack
+
+**App shell rebuilt as a proper flex column (`.ir-app-shell` + `.ir-app-main`)** — the root now uses `display: flex; flex-direction: column; min-height: 100svh; width: 100%; overflow-x: hidden`. Header sits *inside* the shell (never overflows or drifts off-page). Main content is `flex: 1 1 auto`, capped at `var(--ir-shell-max)` = 1600px, with fluid horizontal padding from the shell edges. Result: on a 4K/TV the app is comfortably centred at 1600px with generous whitespace instead of stretching absurdly; on a phone it fills the viewport with fluid edge padding.
+
+**Header refactored (`AppHeader.jsx` + `.ir-header-inner`)** — the old `max-w-[300px] sm:max-w-[320px]` hard cap on the icon row (a patchwork fix that forced "3 rows everywhere") has been removed. The icon row now uses `flex: 1 1 60%; max-inline-size: clamp(15rem, 40vw, 28rem); min-inline-size: 12rem` so it naturally wraps into **4 rows on ≤ 320 px phones, 3 rows on ~ 390-600 px phones, 2 rows on tablets/laptops, and can fit on 1-2 rows on desktop/TV** — a genuine responsive layout change, not a device-specific override. The `<h1>` title also switched from `text-xl md:text-2xl` breakpoints to `font-size: var(--ir-text-2xl)` fluid scaling. Safe-area inset for iOS notches is merged into `.ir-header-inner` `padding-top` so `.pt-safe` no longer clashes with the fluid container padding.
+
+**Tile grid re-architected (`App.css`)** — five breakpoint rules (`480px / 768px / 1024px / 1280px`) collapsed into a single fluid rule: `grid-template-columns: repeat(auto-fill, minmax(var(--ir-tile-min), 1fr))`. Column count now emerges automatically from container width: ~2-3 cols on phones, 5-6 on tablets, 9-10 on laptops, 15+ on 4K/TV. No manual per-device tuning ever again.
+
+**Settings modal widened** — was capped at `max-w-md` (28 rem) which produced a narrow column on tablets and desktops. Now uses `.ir-modal-wide` (`min(92vw, 960px)`) so it grows fluidly into the available width up to a sensible reading cap. Body still scrolls internally on short heights via the shared `max-h-[90vh]` from the hardened base `DialogContent`.
+
+**Verification metrics** (measured live at 8 viewports, `body.scrollWidth === window.innerWidth` at every one, `overflow=False` everywhere):
+| Viewport | shellW | mainW | icon-row wraps into |
+|---|---|---|---|
+| 320×568 (small phone) | 320 | 307 | 4 rows |
+| 390×844 (iPhone 12) | 390 | 374 | 3 rows |
+| 768×1024 (iPad portrait) | 768 | 737 | 3 rows |
+| 1024×768 (iPad landscape) | 1024 | 983 | 2 rows |
+| 1440×900 (laptop) | 1440 | 1382 | 2 rows |
+| 1920×1080 (desktop HD) | 1920 | 1600 (capped) | 2 rows |
+| 2560×1440 (2K) | 2560 | 1600 (capped) | 2 rows |
+| 3840×2160 (4K) | 3840 | 1600 (capped) | 2 rows |
+
+**Service worker** bumped `v71` → `v72` (runtime `v26` → `v27`).
+
+**Files** — `frontend/src/index.css`, `frontend/src/App.css`, `frontend/src/NotesApp.jsx`, `frontend/src/notes/AppHeader.jsx`, `frontend/src/notes/SettingsModal.jsx`, `frontend/public/service-worker.js`.
+
+
 ## 📌 Session state (2026-02-27, responsive audit)
 
 ### 🎉 Shipped in this fork (2026-02-27) — Full responsiveness audit

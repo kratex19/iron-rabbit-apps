@@ -632,23 +632,18 @@
    Note Tile (Icon-view)
    ============================================================ */
 
+/* ============================================================
+   Note Tile grid — fluid (auto-fill + fluid tile minimum)
+   Replaces the previous 2 / 3 / 4 / 5 / 6-column breakpoint stack
+   with ONE architecture-level rule. The tile minimum flexes with
+   the viewport via --ir-tile-min so the same rule produces sensible
+   column counts from small phones (~2-3 cols) up to 4K/TV (~15+).
+   ============================================================ */
+
 .notes-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-}
-
-@media (min-width: 480px) {
-    .notes-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@media (min-width: 768px) {
-    .notes-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
-}
-@media (min-width: 1024px) {
-    .notes-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-}
-@media (min-width: 1280px) {
-    .notes-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    grid-template-columns: repeat(auto-fill, minmax(var(--ir-tile-min), 1fr));
+    gap: var(--ir-gap);
 }
 
 .note-tile {

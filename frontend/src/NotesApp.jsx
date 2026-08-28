@@ -1519,7 +1519,7 @@ export default function NotesApp() {
   return (
     <QuickGuideProvider>
     <div
-      className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`}
+      className={`ir-app-shell transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`}
       data-testid="app-container"
     >
       <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} />
@@ -1576,14 +1576,14 @@ export default function NotesApp() {
           property so a targeted rule in `index.css` can force it onto
           note titles / meta text that would otherwise be locked to
           their Tailwind colour classes. */}
-      <div className="relative">
+      <div className="relative flex-1 flex flex-col">
         <div
           aria-hidden="true"
           className={`absolute inset-0 pointer-events-none ${isDark ? 'bg-white/[0.08]' : 'bg-black/[0.03]'}`}
           data-testid="home-brightness-underlay"
         />
         <main
-          className="relative px-4 py-3 pb-safe-plus-6 max-w-4xl mx-auto ir-brightness-scope min-h-screen"
+          className="relative ir-app-main ir-brightness-scope"
           style={{
             background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
             color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),
