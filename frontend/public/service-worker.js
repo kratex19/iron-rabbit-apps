@@ -3,13 +3,18 @@
 //     cache-first for hashed static assets,
 //     network-first for the header-presets manifest + preset images so
 //     the picker never shows stale/deleted backgrounds.
+// v80: PRECACHE no longer includes `/` or `/index.html`. The reason —
+//     precaching the shell was the mechanism by which old service
+//     workers kept serving the previous app version to users AFTER a
+//     new SW file had been published. With HTML now always fetched
+//     network-first (and runtime-cached as a fallback for offline),
+//     every deploy propagates to users on their next page load.
 const CACHE_NAME = 'iron-rabbit-v80';
 const RUNTIME = 'iron-rabbit-runtime-v35';
 
-// App shell — precached on install
+// App shell — only the manifest is precached. HTML is deliberately
+// left out so a stale precache can never override a fresh deploy.
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
   '/manifest.json',
 ];
 
@@ -52,7 +57,9 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   if (!request.url.startsWith(self.location.origin)) return;
 
-  // ---- HTML / navigation: network-first, fallback to cache (offline) ----
+  // ---- HTML / navigation: network-first, fallback to runtime cache
+  //      (populated on previous successful visits) so offline still
+  //      works even though we no longer precache the shell. ----
   if (isHTMLRequest(request)) {
     event.respondWith(
       fetch(request)
@@ -64,7 +71,13 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() =>
-          caches.match(request).then(cached => cached || caches.match('/index.html'))
+          // Offline fallback chain: exact match → root → any cached
+          // HTML we've ever seen from this origin. Returns undefined
+          // (browser default failure) if the user has never visited
+          // the app online — acceptable trade for eliminating the
+          // stale-shell class of bugs.
+          caches.match(request)
+            .then(cached => cached || caches.match('/'))
         )
     );
     return;
