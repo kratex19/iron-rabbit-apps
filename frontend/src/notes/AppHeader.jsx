@@ -11,6 +11,7 @@ import { SUPPORTED_LANGUAGES } from "../i18n";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import DisplayControlsButton from "./DisplayControlsButton";
 import { resolveBackgroundStyle } from "../utils/bgValue";
+import ViewportWarning from "./ViewportWarning";
 
 /**
  * Top app header — logo/title on the left, action-button strip on the right.
@@ -85,25 +86,31 @@ export default function AppHeader({
             </a>
           )}
         </div>
-        {settings?.logo_url && (
-          <a
-            href={settings?.website_url || "#"}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0"
-            data-testid="header-logo"
-          >
-            <img
-              src={settings.logo_url}
-              alt="Logo"
-              className="rounded-lg object-cover border border-white/20"
-              style={{
-                width:  "clamp(2.5rem, 5vw, 3.5rem)",
-                height: "clamp(2.5rem, 5vw, 3.5rem)",
-              }}
-            />
-          </a>
-        )}
+        <div className="shrink-0 flex items-start gap-2">
+          {settings?.logo_url && (
+            <a
+              href={settings?.website_url || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0"
+              data-testid="header-logo"
+            >
+              <img
+                src={settings.logo_url}
+                alt="Logo"
+                className="rounded-lg object-cover border border-white/20"
+                style={{
+                  width:  "clamp(2.5rem, 5vw, 3.5rem)",
+                  height: "clamp(2.5rem, 5vw, 3.5rem)",
+                }}
+              />
+            </a>
+          )}
+          {/* Viewport warning sentinel — only visible when a rendering
+              mishap is detected (Chrome Desktop-site mode, extreme
+              browser zoom, etc). Pulses red until dismissed. */}
+          <ViewportWarning isDark={isDark} />
+        </div>
       </div>
 
       {/* -----------------------------------------------------------

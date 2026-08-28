@@ -266,6 +266,47 @@ html {
                 0 6px 16px -14px rgba(0, 0, 0, 0.15);
 }
 
+/* ============================================================
+   Viewport-warning sentinel — pulsing red button that appears in
+   the header when we detect a likely rendering mishap (Chrome
+   "Desktop site" mode, extreme zoom, etc). Only rendered when the
+   component's detection logic finds an issue; otherwise absent.
+   ============================================================ */
+.ir-viewport-warning-btn {
+    width:  clamp(1.75rem, 3.5vw, 2.25rem);
+    height: clamp(1.75rem, 3.5vw, 2.25rem);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.55rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.55);
+    color: #fca5a5;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+    animation: ir-warning-pulse 1.4s ease-in-out infinite;
+}
+.ir-viewport-warning-btn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    transform: translateY(-1px);
+}
+
+@keyframes ir-warning-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55),
+                    0 0 0 0 rgba(239, 68, 68, 0.35);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.0),
+                    0 0 12px 2px rgba(239, 68, 68, 0.55);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ir-viewport-warning-btn { animation: none; }
+}
+
+
 /* Fluid modal width helpers — apply to Radix DialogContent to override
    the base `max-w-lg` cap with a genuinely fluid width that fills large
    screens without becoming a narrow column on tablets/desktops. */
