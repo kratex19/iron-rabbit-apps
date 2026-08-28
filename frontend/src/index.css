@@ -207,30 +207,31 @@ html {
    strip itself provides the glass surface and its own compact
    internal padding for the icons. */
 .ir-header-glass-strip {
-    /* Glass surface: translucent background + soft border + backdrop
-       blur so the header art shows through subtly, matching the
-       Iron Rabbit visual identity used on tiles and modals. */
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 0.85rem;
-    backdrop-filter: blur(14px) saturate(120%);
-    -webkit-backdrop-filter: blur(14px) saturate(120%);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset,
-                0 8px 20px -12px rgba(0, 0, 0, 0.5);
-    /* Slightly tighter vertical padding than the branding row so the
-       strip reads as a compact toolbar rather than a second header. */
-    padding: var(--ir-space-2);
+    /* Glass surface: more opaque now (0.14 alpha vs 0.06 previously)
+       so the toolbar reads as a definite bar rather than a barely-
+       visible tint. Still translucent enough to let the header art
+       show through subtly. */
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.75rem;
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+                0 6px 16px -12px rgba(0, 0, 0, 0.5);
+    /* Tighter vertical padding — strip now hugs the icons closely
+       for a compact toolbar feel. */
+    padding: var(--ir-space-1) var(--ir-space-2);
     /* Sits directly under the branding row with a subtle gap. */
     margin-top: var(--ir-space-2);
     width: 100%;
 }
 
-/* Light mode variant — softer white glass over a lighter background. */
+/* Light mode variant — softer but distinctly visible white glass. */
 .header-compact.light .ir-header-glass-strip {
-    background: rgba(255, 255, 255, 0.55);
-    border-color: rgba(0, 0, 0, 0.08);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset,
-                0 8px 20px -12px rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.72);
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75) inset,
+                0 6px 16px -12px rgba(0, 0, 0, 0.18);
 }
 
 /* Fluid modal width helpers — apply to Radix DialogContent to override
