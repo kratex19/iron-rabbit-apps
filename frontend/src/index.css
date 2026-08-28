@@ -149,14 +149,18 @@ html {
     overflow-x: hidden;        /* redundant belt-and-suspenders */
 }
 
-/* Main content region: fluid width up to the shell cap, fluid padding
-   from the shell edges, fluid gap between children, grows to fill
-   remaining vertical space so short pages still cover the viewport. */
+/* Main content region: fills the ENTIRE shell width edge-to-edge so it
+   visually matches the header. The header sits *inside* this same
+   shell so header + body read as one continuous surface, never two
+   stacked containers. Content within the main uses fluid horizontal
+   padding (--ir-container-pad-x) to keep readable line lengths on
+   large screens. Grows to fill remaining vertical space so short
+   pages still cover the viewport. */
 .ir-app-main {
     flex: 1 1 auto;
     width: 100%;
-    max-width: var(--ir-shell-max);
-    margin-inline: auto;
+    max-width: 100%;
+    margin-inline: 0;
     padding-inline: var(--ir-container-pad-x);
     padding-block-start: var(--ir-container-pad-y);
     padding-block-end: calc(env(safe-area-inset-bottom, 0px) + var(--ir-space-6));
@@ -166,24 +170,23 @@ html {
     gap: var(--ir-gap);
 }
 
-/* Header slots inside the shell. It always renders full-shell-width so
-   background image / gradient extends edge-to-edge, but its inner
-   content column is capped by the same shell max-width. */
+/* Header slots inside the shell. Full-shell-width so its background
+   / gradient extends edge-to-edge and aligns with the main body
+   underneath. No max-width cap here — the shell is the boundary. */
 .ir-app-shell > header,
 .ir-app-shell > .header-compact {
     width: 100%;
 }
 
-/* When the header's content should mirror the main container's inner
-   width (align logo/icons with the notes below), apply this to the
-   inner flex row of AppHeader. Optional — legacy header still works.
-   The top padding merges the fluid container-pad-y with the iOS
-   safe-area inset so a notched device pushes content down cleanly
-   without a separate `.pt-safe` utility overriding padding-top. */
+/* Header inner content also fills 100% of the shell width so title
+   (left-aligned) and icon-row (right-aligned) sit exactly above the
+   left/right edges of the body content below. Fluid horizontal
+   padding matches --ir-container-pad-x so header and body content
+   share the same visual gutter. */
 .ir-header-inner {
     width: 100%;
-    max-width: var(--ir-shell-max);
-    margin-inline: auto;
+    max-width: 100%;
+    margin-inline: 0;
     padding-inline: var(--ir-container-pad-x);
     padding-top: calc(env(safe-area-inset-top, 0px) + var(--ir-container-pad-y));
     padding-bottom: var(--ir-container-pad-y);

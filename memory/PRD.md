@@ -1,5 +1,35 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28, header/body width mismatch fix — v74)
+
+### 🎉 Shipped v74 — Header/body full-width alignment
+User reported (viewing on Production `app.ironrabbitapps.com` at desktop viewport): *"The header is way larger than the rest of body. The body should be 100% of page with header inside of it. It looks as if header is in its own container above the body content."*
+
+**Root cause** — At the desktop viewport (1440 px measured), the shell's `--ir-shell-max: min(96vw, 1600px)` capped `.ir-header-inner` and `.ir-app-main` at 1382 px each while the outer `<header>` element and the main wrapper `<div>` remained 100 vw (1440 px). Result: the header's background image spanned edge-to-edge but the body content was inset by 29 px on each side, producing a visible mismatch where the header looked like a separate "hat" container floating above a narrower body column.
+
+**Fix** — Extended both `.ir-header-inner` and `.ir-app-main` to fill 100 % of the shell width:
+- `.ir-app-main`: removed `max-width: var(--ir-shell-max)` and `margin-inline: auto`; now `width: 100%; max-width: 100%; margin-inline: 0`
+- `.ir-header-inner`: same removal — now spans the full shell width, so title (left) and icon row (right) sit exactly above the left/right edges of the body content underneath
+- Fluid horizontal padding (`--ir-container-pad-x`) remains identical on both surfaces so their inner gutters align pixel-for-pixel
+
+**Verification metrics** (live, at 5 viewports):
+| Viewport | Header W | Header-inner W | Main W | Aligned? |
+|---|---|---|---|---|
+| 390 × 844  | 390  | 390  | 390  | ✅ |
+| 1024 × 768 | 1024 | 1024 | 1024 | ✅ |
+| 1440 × 900 | 1440 | 1440 | 1440 | ✅ |
+| 1920 × 1080 | 1920 | 1920 | 1920 | ✅ |
+| 2560 × 1440 | 2560 | 2560 | 2560 | ✅ |
+
+All three surfaces now share identical `width` and `left` values at every viewport — header, header-inner, and body are one continuous surface visually. Zero horizontal overflow at any tested size.
+
+**Trade-off** — On ultrawide / 4K, the icon row now sits at the far right edge of the viewport (still capped at `clamp(15rem, 40vw, 28rem) ≈ 448px` wide max) rather than being pulled inward. This is the correct fluid response per the container architecture — matches how the body content reaches those same edges.
+
+**Service worker** bumped `v73` → `v74` (runtime `v28` → `v29`).
+
+**Files** — `frontend/src/index.css`, `frontend/public/service-worker.js`.
+
+
 ## 📌 Session state (2026-02-28, container-based responsive architecture)
 
 ### 🎉 Shipped in this fork (2026-02-28) — Container-based responsive architecture
