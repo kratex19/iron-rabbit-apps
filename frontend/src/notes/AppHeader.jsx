@@ -59,52 +59,65 @@ export default function AppHeader({
       className={`header-compact ${isDark ? "" : "light"}`}
       style={resolveBackgroundStyle(settings?.header_bg)}
     >
-      <div className="relative z-10 ir-header-inner flex items-center justify-between flex-wrap gap-y-2 gap-x-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          {settings?.logo_url && (
-            <a href={settings?.website_url || "#"} target="_blank" rel="noopener noreferrer" className="shrink-0">
-              <img src={settings.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover border border-white/20" />
+      {/* -----------------------------------------------------------
+          Row 1 — Branding
+          Title + URL on the left · Logo pinned to the top-right corner.
+          Fluid: on small phones the logo shrinks; on desktops the
+          title/URL block grows to fill available space between them.
+         ----------------------------------------------------------- */}
+      <div className="relative z-10 ir-header-inner flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1
+            className="font-bold text-white tracking-tight truncate"
+            style={{ fontSize: "var(--ir-text-2xl)" }}
+          >
+            {settings?.company_name || "Iron Rabbit"}
+          </h1>
+          {settings?.website_url && (
+            <a
+              href={settings.website_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-slate-300 hover:text-white flex items-center gap-1 truncate"
+            >
+              <ExternalLink className="w-3 h-3 shrink-0" />
+              <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
             </a>
           )}
-          <div className="min-w-0">
-            <h1
-              className="font-bold text-white tracking-tight truncate"
-              style={{ fontSize: "var(--ir-text-2xl)" }}
-            >
-              {settings?.company_name || "Iron Rabbit"}
-            </h1>
-            {settings?.website_url && (
-              <a
-                href={settings.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-slate-300 hover:text-white flex items-center gap-1 truncate"
-              >
-                <ExternalLink className="w-3 h-3 shrink-0" />
-                <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
-              </a>
-            )}
-          </div>
         </div>
+        {settings?.logo_url && (
+          <a
+            href={settings?.website_url || "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0"
+            data-testid="header-logo"
+          >
+            <img
+              src={settings.logo_url}
+              alt="Logo"
+              className="rounded-lg object-cover border border-white/20"
+              style={{
+                width:  "clamp(2.5rem, 5vw, 3.5rem)",
+                height: "clamp(2.5rem, 5vw, 3.5rem)",
+              }}
+            />
+          </a>
+        )}
+      </div>
 
-        {/* Icon row — natural fluid flex-wrap. No hard-coded max-width
-            (that would be a device-specific patch, per the responsive-
-            architecture directive). The row is capped in inline-size by
-            a fluid clamp() so:
-              - narrow phones give the row ≥ 60% of the header for wrapping
-              - large screens (tablets, laptops, TVs) let the row grow up
-                to ~28rem so all 21 icons fit on one or two rows.
-            The behaviour is a genuine responsive layout change, not a
-            fixed pixel cap. */}
-        <div
-          className="flex items-center gap-1 flex-wrap justify-end ml-auto"
-          style={{
-            flex: "1 1 60%",
-            maxInlineSize: "clamp(15rem, 40vw, 28rem)",
-            minInlineSize: "12rem",
-          }}
-          data-testid="header-icon-row"
-        >
+      {/* -----------------------------------------------------------
+          Row 2 — Glass icon strip
+          Full-width glass-effect bar containing every action icon.
+          Wraps naturally when the row can't accommodate all icons
+          (small phones → multiple rows; desktops → typically one).
+         ----------------------------------------------------------- */}
+      <div className="relative z-10 ir-header-inner">
+        <div className="ir-header-glass-strip">
+          <div
+            className="flex items-center justify-start gap-1 flex-wrap"
+            data-testid="header-icon-row"
+          >
           {onBrightnessChange && (
             <DisplayControlsButton
               value={uiBrightness}
@@ -179,6 +192,7 @@ export default function AppHeader({
           <Button variant="ghost" size="icon" onClick={onArchiveTrash} className={iconBtnCls} title="Archive & Trash" data-testid="archive-trash-btn"><Archive className="w-4 h-4" /></Button>
           <QuickGuideButton resourceId="IRR-1000" origin="home" isDark={isDark} className={iconBtnCls} />
           <Button variant="ghost" size="icon" onClick={onSettings} className={iconBtnCls} title={t("header.settings")} data-testid="settings-btn"><Settings className="w-4 h-4" /></Button>
+          </div>
         </div>
       </div>
     </header>

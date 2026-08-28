@@ -192,6 +192,47 @@ html {
     padding-bottom: var(--ir-container-pad-y);
 }
 
+/* When there are two consecutive `.ir-header-inner` rows (branding
+   row + glass icon strip), the second row should reset its top
+   safe-area padding — the notch offset was already consumed by the
+   first row. Uses `:not(:first-of-type)` so the rule is inherently
+   safe and doesn't require a modifier class. */
+.ir-header-inner + .ir-header-inner {
+    padding-top: var(--ir-container-pad-y);
+}
+
+/* Row 2 of the header — a full-width glass strip containing every
+   icon button. Nested inside an `.ir-header-inner` wrapper so it
+   inherits the fluid outer container padding automatically. The
+   strip itself provides the glass surface and its own compact
+   internal padding for the icons. */
+.ir-header-glass-strip {
+    /* Glass surface: translucent background + soft border + backdrop
+       blur so the header art shows through subtly, matching the
+       Iron Rabbit visual identity used on tiles and modals. */
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 0.85rem;
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset,
+                0 8px 20px -12px rgba(0, 0, 0, 0.5);
+    /* Slightly tighter vertical padding than the branding row so the
+       strip reads as a compact toolbar rather than a second header. */
+    padding: var(--ir-space-2);
+    /* Sits directly under the branding row with a subtle gap. */
+    margin-top: var(--ir-space-2);
+    width: 100%;
+}
+
+/* Light mode variant — softer white glass over a lighter background. */
+.header-compact.light .ir-header-glass-strip {
+    background: rgba(255, 255, 255, 0.55);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset,
+                0 8px 20px -12px rgba(0, 0, 0, 0.15);
+}
+
 /* Fluid modal width helpers — apply to Radix DialogContent to override
    the base `max-w-lg` cap with a genuinely fluid width that fills large
    screens without becoming a narrow column on tablets/desktops. */
