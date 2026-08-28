@@ -1,5 +1,25 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 🧨 Incident post-mortem (2026-02-28) — "Production is broken" was Chrome's Desktop-Site mode
+
+**TL;DR** — After a full-session investigation (deployer RCA #1, deployer RCA #2, service-worker inspection, bundle-hash comparison, Cloudflare origin fetches with `cache: no-store`) that definitively confirmed Production was serving v79 correctly, the user discovered that Chrome for Android's **"Desktop site"** setting was enabled, causing the phone to render Iron Rabbit's *desktop* layout on a mobile screen. This produced the "corrupted" appearance that kicked off the investigation.
+
+**No code was broken. No CDN was stale. No SW was corrupted. The phone was pretending to be a desktop.**
+
+**Durable learning** — Every future support / troubleshooting conversation about "the mobile app looks corrupted / desktop-like / has an old layout" MUST start by asking: *"Are you viewing this in a browser with Desktop-site mode enabled?"* Only escalate to CDN/DNS/SW/build diagnostics after that question is answered.
+
+Full playbook in `/app/memory/TROUBLESHOOTING.md`. Applies to every future agent, every fork, every support conversation.
+
+**Concurrent hardening shipped (v80, preview only)** — Even though the incident was user-side, we tightened the SW lifecycle so future updates propagate to real users within seconds:
+- Removed `/` and `/index.html` from `PRECACHE_URLS` — old SW can no longer serve a stale shell after a new SW file is published
+- Added visibility-change SW update check + 30-min polling in `frontend/src/index.js`
+- Retained `skipWaiting()` + `clients.claim()` + auto-reload on `controllerchange`
+- Runtime cache name (`iron-rabbit-runtime-v35`) is now bumped alongside `CACHE_NAME` on every deploy so stale runtime entries are purged during activate
+- Offline fallback for HTML now uses runtime cache (`/` last-resort) instead of the removed `/index.html` precache
+
+**Files touched:** `frontend/public/service-worker.js`, `frontend/src/index.js`, `/app/memory/TROUBLESHOOTING.md`, this PRD.
+
+
 ## 📌 Session state (2026-02-28, header/body width mismatch fix — v74)
 
 ### 🎉 Shipped v74 — Header/body full-width alignment
