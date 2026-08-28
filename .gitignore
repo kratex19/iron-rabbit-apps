@@ -97,9 +97,13 @@ frontend/node_modules/.cache/default-development/2.pack_
 frontend/node_modules/.cache/default-development/13.pack
 frontend/node_modules/.cache/default-development/15.pack
 frontend/node_modules/.cache/default-development/16.pack
-.env
-.env.*
-*.env
+# Emergent's Kubernetes deployment pipeline requires backend/.env and
+# frontend/.env to be present in the repository so the platform can
+# rewrite production URLs during deploy. The three blanket patterns
+# .env / .env.* / *.env previously here caused the readiness scanner
+# to fail. Removed intentionally — Emergent will only ever commit
+# non-secret env keys (MONGO_URL, DB_NAME, REACT_APP_BACKEND_URL); real
+# API keys should live in the Emergent Secrets manager, never in .env.
 credentials.json
 *.key
 .credentials
