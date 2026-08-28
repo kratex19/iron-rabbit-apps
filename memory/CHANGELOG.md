@@ -1,3 +1,16 @@
+## 2026-02-28 — v85: PWA "Add to Home Screen" install prompt
+
+- **NEW `frontend/src/notes/InstallPrompt.jsx`**: subtle bottom-of-viewport toast that
+  * captures `beforeinstallprompt` on Android Chrome / desktop Chrome → native install with one tap;
+  * falls back to an iOS Safari instructional card (Share → Add to Home Screen) since iOS never fires BIP;
+  * waits 20 s after landing before appearing;
+  * persists dismissal / 14-day snooze / installed state in `localStorage` under `ir-install-prompt-state`;
+  * auto-hides when `display-mode: standalone` is true;
+  * respects `prefers-reduced-motion`.
+- Wired into `NotesApp.jsx` next to Toaster/QuickGuideModal/WeeklyDigest.
+- All buttons expose data-testids: `install-prompt`, `install-prompt-install`, `install-prompt-later`, `install-prompt-dismiss`.
+
+
 ## 2026-02-28 — v84: Landscape unlock + share preview + landscape polish
 
 - **manifest.json**: `"orientation": "portrait-primary"` → `"any"` so the installed PWA rotates with the device. Users may need to reinstall the home-screen shortcut once (OS caches manifest at install time).

@@ -23,6 +23,7 @@ import { presetForIcon } from "./data/quickAddTemplates";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
 import CategoryHeader from "./notes/CategoryHeader";
 import AppHeader from "./notes/AppHeader";
+import InstallPrompt from "./notes/InstallPrompt";
 import { QuickGuideProvider, QuickGuideModal } from "./quickguide";
 import WeeklyDigest from "./notes/WeeklyDigest";
 import AppSearchBar from "./notes/AppSearchBar";
@@ -1549,6 +1550,7 @@ export default function NotesApp() {
       <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} />
       <QuickGuideModal isDark={isDark} />
       <WeeklyDigest notes={notes} />
+      <InstallPrompt isDark={isDark} />
 
       {/* Compact Header (extracted) */}
       <AppHeader
