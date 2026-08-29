@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { X, Share, Plus, Download } from "lucide-react";
 import { haptic } from "../utils/haptic";
+import { isScreenshotMode } from "../utils/screenshotMode";
 
 /**
  * Subtle "Add to Home Screen" hint.
@@ -51,6 +52,7 @@ export default function InstallPrompt({ isDark = true }) {
   const [mode, setMode] = useState("chrome"); // "chrome" | "ios"
 
   const shouldSkip = useCallback(() => {
+    if (isScreenshotMode()) return true;   // never surface to crawlers / screenshot bots
     if (isStandalone()) return true;
     const state = readState();
     if (state.installed) return true;
