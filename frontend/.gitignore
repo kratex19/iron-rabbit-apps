@@ -21,3 +21,17 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ===== Android / Capacitor build artefacts (never commit) =====
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/.idea/
+
+# ===== Signing material — MUST NEVER BE COMMITTED =====
+android/**/*.keystore
+android/**/*.jks
+android/keystore.properties
+android/app/keystore.properties
