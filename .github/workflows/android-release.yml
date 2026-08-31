@@ -1,0 +1,180 @@
+# Iron Rabbit — Signed Android App Bundle release workflow.
+#
+# Runs on GitHub's free x86_64 Linux runners so we sidestep the ARM64 aapt2
+# blocker that prevents native AAB builds inside Emergent's pod.
+#
+# Trigger: manual (workflow_dispatch) so a release is always intentional.
+# Optional inputs let you bump version code / name without a source commit.
+#
+# Requires these three secrets in GitHub → Settings → Secrets → Actions:
+#   SIGNING_KEYSTORE_BASE64   base64 of frontend/android/app/signing.keystore
+#   SIGNING_KEYSTORE_PASSWORD keystore password (same as key password in our setup)
+#   SIGNING_KEY_ALIAS         "my-key-alias"
+#
+# The output AAB is uploaded as a workflow artifact you can download from
+# the Actions UI and upload manually to Google Play Console → Internal Testing.
+#
+# Nothing here uploads to Google Play — that stays a deliberate manual step.
+
+name: Android release AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "versionName (e.g. 1.0.1) — leave blank to keep whatever is in build.gradle"
+        required: false
+        default: ""
+      version_code:
+        description: "versionCode (integer, must be > previous Play release) — leave blank to keep build.gradle value"
+        required: false
+        default: ""
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install JS dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Optional — override versionName
+        if: ${{ inputs.version_name != '' }}
+        working-directory: frontend/android/app
+        run: |
+          echo "Setting versionName to '${{ inputs.version_name }}'"
+          sed -i -E 's/(versionName )".*"/\1"${{ inputs.version_name }}"/' build.gradle
+          grep 'versionName ' build.gradle
+
+      - name: Optional — override versionCode
+        if: ${{ inputs.version_code != '' }}
+        working-directory: frontend/android/app
+        run: |
+          echo "Setting versionCode to '${{ inputs.version_code }}'"
+          sed -i -E 's/(versionCode )[0-9]+/\1${{ inputs.version_code }}/' build.gradle
+          grep 'versionCode ' build.gradle
+
+      - name: Build web bundle
+        working-directory: frontend
+        run: |
+          # Emergent's local .env values aren't in git; use minimal fallbacks
+          # so the web build resolves URLs. If your CRA build requires more env,
+          # set them as GitHub Actions Variables (Settings → Variables → Actions).
+          echo "REACT_APP_BACKEND_URL=${{ vars.REACT_APP_BACKEND_URL || 'https://app.ironrabbitapps.com' }}" > .env
+          DISABLE_ESLINT_PLUGIN=true CI=false yarn build
+
+      - name: Sync web bundle into Android project
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: Restore signing keystore from secret
+        working-directory: frontend/android/app
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 secret is not set. Aborting."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > signing.keystore
+          # Sanity — non-zero size, correct JKS header (feed-face-cafe)
+          test -s signing.keystore
+          xxd -l 4 signing.keystore | head -1
+
+      - name: Write keystore.properties
+        working-directory: frontend/android
+        env:
+          STORE_PASS: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        run: |
+          cat > keystore.properties <<EOF
+          storeFile=signing.keystore
+          storePassword=$STORE_PASS
+          keyAlias=$KEY_ALIAS
+          keyPassword=$STORE_PASS
+          EOF
+          chmod 600 keystore.properties
+
+      - name: Build & sign release AAB
+        working-directory: frontend/android
+        run: ./gradlew --no-daemon --console=plain bundleRelease
+
+      - name: Verify signed AAB fingerprint
+        working-directory: frontend/android
+        run: |
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          test -f "$AAB" || { echo "::error::AAB not produced"; exit 1; }
+          echo "=== AAB: $AAB ($(stat -c%s $AAB) bytes) ==="
+          keytool -printcert -jarfile "$AAB" | grep -E "Owner|SHA1:|SHA256:"
+          # Fail fast if the SHA-1 doesn't match Play's registered upload key
+          EXPECTED_SHA1='F7:B3:7B:57:A0:62:5B:D0:3D:10:37:FA:0C:15:04:FC:9A:E6:AE:3B'
+          if keytool -printcert -jarfile "$AAB" | grep -q "SHA1: $EXPECTED_SHA1"; then
+            echo "::notice::AAB signature SHA-1 matches Play Console upload key"
+          else
+            echo "::error::AAB signature does NOT match expected upload key SHA-1 $EXPECTED_SHA1"
+            exit 1
+          fi
+
+      - name: Rename AAB with version + timestamp
+        id: rename
+        working-directory: frontend/android
+        run: |
+          VN=$(grep 'versionName ' app/build.gradle | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          VC=$(grep 'versionCode ' app/build.gradle | head -1 | sed -E 's/.*versionCode ([0-9]+).*/\1/')
+          TS=$(date -u +%Y%m%dT%H%M%SZ)
+          NEW="iron-rabbit-${VN}-vc${VC}-${TS}.aab"
+          cp app/build/outputs/bundle/release/app-release.aab "$NEW"
+          echo "aab_name=$NEW" >> "$GITHUB_OUTPUT"
+          echo "aab_path=frontend/android/$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Upload AAB as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.rename.outputs.aab_name }}
+          path: ${{ steps.rename.outputs.aab_path }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Cleanup signing material
+        if: always()
+        working-directory: frontend/android
+        run: |
+          # Best-effort scrub — the runner is ephemeral but be tidy anyway.
+          shred -uz app/signing.keystore || rm -f app/signing.keystore
+          shred -uz keystore.properties || rm -f keystore.properties
+
+      - name: Summary
+        run: |
+          echo "### Iron Rabbit AAB built ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- File: \`${{ steps.rename.outputs.aab_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Signed with the correct Play upload key" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next step:** download the artifact from this run and upload manually to Google Play Console → Testing → Internal testing → Create new release." >> $GITHUB_STEP_SUMMARY
