@@ -116,3 +116,16 @@ frontend/node_modules/.cache/default-development/26.pack
 frontend/node_modules/.cache/default-development/14.pack
 frontend/node_modules/.cache/default-development/8.pack_
 frontend/node_modules/.cache/default-development/9.pack_
+
+# ===== Android SDK (installed inside this pod for AAB signing only) =====
+# Multi-GB tooling; must never be committed.
+/android-sdk/
+/build-logs/
+/frontend/android/.gradle/
+/frontend/android/build/
+/frontend/android/app/build/
+/frontend/android/local.properties
+
+# ===== Build output artefacts (never commit the AAB itself) =====
+/frontend/android/output/
+/frontend/public/downloads/
