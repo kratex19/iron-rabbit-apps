@@ -26,6 +26,7 @@ import SavedWeather from "./dashboard/pages/SavedWeather";
 import EventsPage from "./dashboard/pages/Events";
 import Traffic from "./dashboard/pages/Traffic";
 import DashboardSettings from "./dashboard/pages/DashboardSettings";
+import { BackGuard } from "./hooks/useBackGuard";
 
 function NotFound() {
   return (
@@ -40,6 +41,7 @@ function NotFound() {
 export default function App() {
   return (
     <BrowserRouter>
+      <BackGuard />
       <Toaster position="bottom-right" />
       <Routes>
         {/* Notes App — default landing */}
