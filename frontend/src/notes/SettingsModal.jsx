@@ -424,11 +424,6 @@ export default function SettingsModal({
             </div>
           )}
 
-                <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
-              </button>
-            </div>
-          )}
-
           {/* Accordion effect for Tile Packs in grid view */}
           <div>
             <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>

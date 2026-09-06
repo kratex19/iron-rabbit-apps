@@ -1167,6 +1167,25 @@ export default function NotesApp() {
     return Array.from(set).sort();
   }, [notes]);
 
+  // Every unique nested category path across active notes — powers the
+  // depth-aware suggestions in the CategoryPathAccordion inside NoteModal.
+  // We deduplicate by joined string but return the underlying arrays.
+  const existingPaths = useMemo(() => {
+    const seen = new Map();
+    for (const n of notes) {
+      if (n.archived_at || n.deleted_at) continue;
+      const modern = Array.isArray(n.category_path) ? n.category_path : null;
+      const legacy = [n.category, n.subcategory].filter((s) => s && String(s).trim());
+      const path = (modern && modern.length > 0 ? modern : legacy)
+        .map((s) => String(s || "").trim())
+        .filter(Boolean);
+      if (path.length === 0) continue;
+      const key = path.join("\u241E");
+      if (!seen.has(key)) seen.set(key, path);
+    }
+    return Array.from(seen.values());
+  }, [notes]);
+
   const exportToPDF = async () => {
     // Optional biometric gate before exporting
     const toggles = await SecurityService.getToggles();
@@ -1703,6 +1722,7 @@ export default function NotesApp() {
         notes={notes}
         settings={settings}
         categories={categories}
+        existingPaths={existingPaths}
         templates={templates}
         allTags={allTags}
         storageInfo={storageInfo}

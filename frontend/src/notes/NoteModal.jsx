@@ -29,6 +29,7 @@ import TemplateModal from "./TemplateModal";
 import TranslateModal from "./TranslateModal";
 import EventsSection from "./EventsSection";
 import ChecklistSection from "./ChecklistSection";
+import CategoryPathAccordion from "./CategoryPathAccordion";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -36,7 +37,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
-export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, templates, allTags = [], uiBrightness, onBrightnessChange }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -53,6 +54,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const [bgPickerOpen, setBgPickerOpen] = useState(false);
   const [category, setCategory] = useState("");
   const [subcategory, setSubcategory] = useState("");
+  // Infinite-nested category path. Level 0 mirrors `category`, level 1
+  // mirrors `subcategory`; anything deeper is stored ONLY in this array
+  // (persisted as `category_path` on the note).
+  const [categoryPath, setCategoryPath] = useState([]);
   const [alarm, setAlarm] = useState({ enabled: false, datetime: null, sound: "bell", haptic: false });
   const [alarmDate, setAlarmDate] = useState(null);
   const [alarmTime, setAlarmTime] = useState("12:00");
@@ -184,6 +189,12 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       setEvents(Array.isArray(note.events) ? note.events : []);
       setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
+      // Infinite path: prefer the modern `category_path` if present, else
+      // migrate from legacy category/subcategory. Trim trailing empties.
+      const initialPath = Array.isArray(note.category_path) && note.category_path.length > 0
+        ? note.category_path
+        : [note.category, note.subcategory].filter((s) => s && String(s).trim());
+      setCategoryPath(initialPath);
       if (note.alarm) {
         setAlarm(note.alarm);
         if (note.alarm.datetime) {
@@ -204,6 +215,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       setEvents([]);
       setChecklist([]);
       setCategory(""); setSubcategory("");
+      setCategoryPath([]);
       setAlarm({ enabled: false, datetime: null, sound: "bell", haptic: false });
       setAlarmDate(null); setAlarmTime("12:00");
       setRecurring({ enabled: false, frequency: "weekly", days: [] });
@@ -220,6 +232,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     setBackground(template.background || null);
     setCategory(template.category || "");
     setSubcategory(template.subcategory || "");
+    // Templates predate infinite nesting; derive a legacy 2-level path.
+    setCategoryPath([template.category, template.subcategory].filter((s) => s && String(s).trim()));
     setShowTemplates(false);
   };
 
@@ -244,16 +258,25 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     // user pasted that slipped past the render step is neutralised
     // before it hits storage.
     const safeContent = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+    // Normalize the nested path (drop empty strings, trim segments).
+    const cleanPath = (Array.isArray(categoryPath) ? categoryPath : [])
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
+    // Legacy fields stay in sync with the top two levels so grouping,
+    // filtering, PDF export and search keep working unchanged.
+    const legacyCat = cleanPath[0] || category.trim();
+    const legacySub = cleanPath[1] || subcategory.trim();
     const noteData = {
       title: title.trim(), content: safeContent, color, icon, background,
       // Pin only allowed on main-category (or uncategorized) notes.
       // If a subcategory is set, force pinned=false so old state is cleaned up.
-      pinned: subcategory.trim() ? false : pinned,
+      pinned: legacySub ? false : pinned,
       tags: finalTags,
       attachments,
       events,
       checklist,
-      category: category.trim(), subcategory: subcategory.trim(),
+      category: legacyCat, subcategory: legacySub,
+      category_path: cleanPath,
       alarm: { ...alarm, datetime: alarmDateTime }, recurring,
       // Persist per-note brightness so re-opening this note restores its
       // exact slider positions regardless of grid/list view or theme.
@@ -398,17 +421,20 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.category")}</label>
-                <Input value={category} onChange={(e) => { setCategory(e.target.value); setSubcategory(""); }} placeholder="e.g., Work" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'}`} list="categories" />
-                <datalist id="categories">{Object.keys(categories).map(cat => <option key={cat} value={cat} />)}</datalist>
-              </div>
-              <div>
-                <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.subcategory")}</label>
-                <Input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} placeholder="e.g., Meetings" className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400'}`} list="subcategories" />
-                <datalist id="subcategories">{subcategories.map(sub => <option key={sub} value={sub} />)}</datalist>
-              </div>
+            <div>
+              <CategoryPathAccordion
+                path={categoryPath}
+                onChange={(next) => {
+                  setCategoryPath(next);
+                  // Keep legacy top-two in sync for downstream consumers
+                  // that still read `category` / `subcategory` directly.
+                  setCategory(next[0] || "");
+                  setSubcategory(next[1] || "");
+                }}
+                categories={categories}
+                existingPaths={existingPaths}
+                isDark={isDark}
+              />
             </div>
 
             <div>

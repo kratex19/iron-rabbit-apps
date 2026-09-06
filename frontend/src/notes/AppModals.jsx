@@ -97,6 +97,7 @@ export default function AppModals(p) {
         onOpenCalculator={p.openCalculatorWithCallback}
         isDark={p.isDark}
         categories={p.categories}
+        existingPaths={p.existingPaths}
         templates={p.templates}
         allTags={p.allTags}
         uiBrightness={p.uiBrightness}

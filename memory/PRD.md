@@ -1,5 +1,56 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-27, Build blocker + Q7 nested categories — v93)
+
+### 🔴 Production build blocker fixed
+Deployer agent reported Cloud Build step #8 aborted on ESLint parse error in `frontend/src/notes/SettingsModal.jsx` at line 428:14 — an **orphaned duplicate JSX fragment** (leftover `<ChevronRight/>`, `</button>`, `</div>`, `)}`) after the "Sync pack colors" block closed. Likely a bad merge when the Accordion-effect control was added. **Fix:** deleted the stray 5 lines (426–430). Verified with `@babel/parser` — PARSE_OK. This was blocking every deploy attempt.
+
+### ✅ Shipped v93 — Q7: Infinite nested categories with smoked-glass accordion (Edit Note)
+User asked for infinite nested categories in Edit Note styled as a smoked-glass accordion.
+
+**New component:** `frontend/src/notes/CategoryPathAccordion.jsx`
+- Renders a collapsible **smoked-glass panel** (`bg-white/[0.04]` + `backdrop-blur-md` in dark, `bg-white/60` + blur in light).
+- Each level (L1, L2, L3…) is a translucent pill row with progressive left-indent (`marginLeft: depth * 12px`), a corner-down-right elbow, an inline text input, and a remove-X.
+- Bottom **"Add sub-level"** button — disabled while the last segment is empty so users can't create ghost levels. First press reads "Add category".
+- **Header breadcrumb** shows the flattened path (`Work › Projects › Q1 › Roadmap`) when collapsed.
+- Depth-aware **autocomplete suggestions**: Level 0 pulls from `categories` map keys; Level 1 pulls from `categories[path[0]]`; deeper levels pull from `existingPaths` where the prefix matches the current path.
+
+**Data model (backwards-compatible):**
+- Added `category_path: string[]` on the note document.
+- On load (`NoteModal` init effect): prefer modern `note.category_path`; fall back to `[note.category, note.subcategory].filter(Boolean)` for legacy notes.
+- On save: write `category_path` PLUS keep the legacy top-two segments in sync (`category = path[0]`, `subcategory = path[1]`) so existing grouping, sorting, PDF export, and free-text search all continue to work unchanged.
+- Templates: treated as legacy 2-level; hydrated to a path on selection.
+
+**Wiring:**
+- `NotesApp.jsx` — added `existingPaths` `useMemo` that dedupes every unique nested path across active notes (uses a `\u241E` join key). Passed through `<AppModals existingPaths={…} />`.
+- `AppModals.jsx` — forwards `existingPaths` to `<NoteModal>`.
+- `NoteModal.jsx` — removed the old 2-input `Category` + `Subcategory` grid; replaced with `<CategoryPathAccordion path={categoryPath} onChange={…} categories={…} existingPaths={…} isDark={…} />`. `onChange` also mirrors levels 0/1 into the local `category`/`subcategory` state to keep any current-in-flight consumers happy.
+
+**Tested (screenshot smoke tests via automation):**
+- App loads clean (v93).
+- Opening "New Note" renders the empty accordion with "Add category" CTA.
+- Adding 4 levels (`Work → Projects → Q1 → Roadmap`) works; breadcrumb preview updates live; each row shows L1/L2/L3/L4 badge; layout stays clean; no console errors.
+
+**Files touched:**
+- `frontend/src/notes/SettingsModal.jsx` (build-blocker fix)
+- `frontend/src/notes/CategoryPathAccordion.jsx` (new)
+- `frontend/src/notes/NoteModal.jsx`
+- `frontend/src/notes/AppModals.jsx`
+- `frontend/src/NotesApp.jsx`
+
+### ⏭ Still blocked / awaiting user input (unchanged from previous session)
+- **Q6 — Alarm/sound/haptic broken** (P1): need details from user (which alarm, foreground/background, device).
+- **backend/.env secrets before Save to Github** (P0): user must choose Secrets Manager / gitignore / accept risk.
+- **"otropis.com" header artifact** (P2): need screenshot; string not in code.
+- **Q2 — Weather background 100% width** (P2): need screenshot from the specific device.
+
+### 🗂 Backlog
+- Extend nested-categories rendering into the main list (nested `CategoryGroup` trees). Currently the list still groups by top-level `category`; deeper levels are stored, previewed in the editor, and searchable, but not yet rendered as nested collapsible groups.
+- 16th custom Menu Tile prompt.
+
+---
+
+
 ## 🧨 Incident post-mortem (2026-02-28) — "Production is broken" was Chrome's Desktop-Site mode
 
 **TL;DR** — After a full-session investigation (deployer RCA #1, deployer RCA #2, service-worker inspection, bundle-hash comparison, Cloudflare origin fetches with `cache: no-store`) that definitively confirmed Production was serving v79 correctly, the user discovered that Chrome for Android's **"Desktop site"** setting was enabled, causing the phone to render Iron Rabbit's *desktop* layout on a mobile screen. This produced the "corrupted" appearance that kicked off the investigation.
