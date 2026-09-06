@@ -1,9 +1,20 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
-import { format, addDays } from "date-fns";
+import { format, addDays, isToday, isTomorrow, isBefore, startOfDay } from "date-fns";
 import { useDashboard } from "../DashboardLayout";
 import WeatherIcon from "../components/WeatherIcon";
+
+// Open-Meteo returns `daily.time` as "YYYY-MM-DD" strings. Parsing those
+// with `new Date(t)` treats them as UTC midnight → in negative-offset
+// timezones (Americas) the local Date is the PREVIOUS day, which is why
+// row 0 previously showed one calendar day behind. Force local parsing.
+function parseLocalDate(iso) {
+  if (typeof iso !== "string") return new Date(iso);
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return new Date(iso);
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
 
 // Groups the daily forecast into Daily / Weekly / Monthly-ish tabs.
 export default function SavedWeather() {
@@ -14,13 +25,18 @@ export default function SavedWeather() {
   const d = weather.data;
   const days = React.useMemo(() => {
     if (!d?.daily?.time) return [];
-    return d.daily.time.map((t, i) => ({
-      date: new Date(t),
-      code: d.daily.weather_code[i],
-      hi: d.daily.temperature_2m_max[i],
-      lo: d.daily.temperature_2m_min[i],
-      pop: d.daily.precipitation_probability_max[i] ?? 0,
-    }));
+    const today = startOfDay(new Date());
+    return d.daily.time
+      .map((t, i) => ({
+        date: parseLocalDate(t),
+        code: d.daily.weather_code[i],
+        hi: d.daily.temperature_2m_max[i],
+        lo: d.daily.temperature_2m_min[i],
+        pop: d.daily.precipitation_probability_max[i] ?? 0,
+      }))
+      // Drop any row whose local date is before today. Prevents the
+      // duplicate-Sunday issue when the provider hands back yesterday.
+      .filter((row) => !isBefore(row.date, today));
   }, [d]);
 
   const tUnit = d?.current_units?.temperature_2m || (settings.units === "C" ? "°C" : "°F");
@@ -73,8 +89,14 @@ export default function SavedWeather() {
         ) : (
           <div>
             {shown.map((row, i) => (
-              <div className="ir-dash-daily-row" key={i} data-testid={`saved-weather-row-${i}`}>
-                <div>{i === 0 ? "Today" : format(row.date, "EEE, MMM d")}</div>
+              <div className="ir-dash-daily-row" key={row.date.toISOString()} data-testid={`saved-weather-row-${i}`}>
+                <div>
+                  {isToday(row.date)
+                    ? "Today"
+                    : isTomorrow(row.date)
+                      ? "Tomorrow"
+                      : format(row.date, "EEE, MMM d")}
+                </div>
                 <div className="ir-dash-daily-icon"><WeatherIcon code={row.code} size={22} /></div>
                 <div />
                 <div><span className="ir-dash-daily-hi">{row.hi != null ? Math.round(row.hi) : "—"}{tUnit}</span> <span className="ir-dash-daily-lo">/ {row.lo != null ? Math.round(row.lo) : "—"}{tUnit}</span></div>
