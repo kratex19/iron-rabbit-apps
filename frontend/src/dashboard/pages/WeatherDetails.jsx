@@ -9,13 +9,14 @@ import { providerUrlFor, PROVIDERS } from "../state/dashboardStore";
 
 export default function WeatherDetails() {
   const navigate = useNavigate();
-  const { settings, weather } = useDashboard();
+  const { settings, updateSettings, weather } = useDashboard();
 
   const d = weather.data;
   const cur = d?.current;
   const hourly = d?.hourly;
   const tUnit = d?.current_units?.temperature_2m || (settings.units === "C" ? "°C" : "°F");
   const wUnit = d?.current_units?.wind_speed_10m || (settings.units === "C" ? "km/h" : "mph");
+  const toggleUnits = () => updateSettings({ units: settings.units === "C" ? "F" : "C" });
 
   const openProvider = () => {
     const url = providerUrlFor(settings.provider, settings.location, settings.provider_custom_url);
@@ -38,6 +39,17 @@ export default function WeatherDetails() {
           <ArrowLeft size={18} />
         </button>
         <div className="ir-dash-subhead-title">Weather Details</div>
+        <button
+          type="button"
+          onClick={toggleUnits}
+          className="ir-dash-btn ir-dash-btn--ghost"
+          data-testid="weather-details-units-toggle"
+          aria-label={`Switch to ${settings.units === "C" ? "Fahrenheit" : "Celsius"}`}
+          title={`Switch to ${settings.units === "C" ? "Fahrenheit" : "Celsius"}`}
+          style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 12, fontWeight: 600 }}
+        >
+          °{settings.units === "C" ? "C" : "F"}
+        </button>
       </div>
 
       <div className="ir-dash-card" data-testid="weather-details-panel">

@@ -424,6 +424,47 @@ export default function SettingsModal({
             </div>
           )}
 
+                <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+              </button>
+            </div>
+          )}
+
+          {/* Accordion effect for Tile Packs in grid view */}
+          <div>
+            <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <Sparkles className="w-3.5 h-3.5" /> Tile Packs — Accordion Effect
+            </label>
+            <div className={`text-[10px] mb-2 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+              Tap a pack title in Grid view to expand or collapse it. List view is unaffected.
+            </div>
+            <div className="grid grid-cols-3 gap-1.5" data-testid="settings-pack-accordion-mode">
+              {[
+                { key: "off",    label: "Off" },
+                { key: "open",   label: "Open by default" },
+                { key: "closed", label: "Closed by default" },
+              ].map((opt) => {
+                const active = (formData.pack_accordion_mode || "off") === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, pack_accordion_mode: opt.key }))}
+                    className={`h-10 rounded-md px-2 text-[11px] font-medium border transition-colors ${
+                      active
+                        ? "bg-indigo-500 border-indigo-400 text-white"
+                        : isDark
+                          ? "bg-black/20 border-white/10 text-slate-300 hover:bg-white/5"
+                          : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                    }`}
+                    data-testid={`settings-pack-accordion-${opt.key}`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("settings.company_name")}</label>
             <Input value={formData.company_name} onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-company-name" />

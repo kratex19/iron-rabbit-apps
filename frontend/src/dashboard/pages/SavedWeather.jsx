@@ -19,7 +19,7 @@ function parseLocalDate(iso) {
 // Groups the daily forecast into Daily / Weekly / Monthly-ish tabs.
 export default function SavedWeather() {
   const navigate = useNavigate();
-  const { settings, weather } = useDashboard();
+  const { settings, updateSettings, weather } = useDashboard();
   const [tab, setTab] = useState("weekly");
 
   const d = weather.data;
@@ -51,8 +51,18 @@ export default function SavedWeather() {
         </button>
         <div className="ir-dash-subhead-title">Saved Weather (Offline)</div>
         <button
+          type="button"
+          onClick={() => updateSettings({ units: settings.units === "C" ? "F" : "C" })}
+          className="ir-dash-btn ir-dash-btn--ghost"
+          data-testid="saved-weather-units-toggle"
+          aria-label={`Switch to ${settings.units === "C" ? "Fahrenheit" : "Celsius"}`}
+          title={`Switch to ${settings.units === "C" ? "Fahrenheit" : "Celsius"}`}
+          style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 12, fontWeight: 600 }}
+        >
+          °{settings.units === "C" ? "C" : "F"}
+        </button>
+        <button
           className="ir-dash-icon-btn"
-          style={{ marginLeft: "auto" }}
           onClick={() => weather.refresh?.()}
           aria-label="Refresh"
           data-testid="saved-weather-refresh"

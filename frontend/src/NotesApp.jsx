@@ -244,6 +244,32 @@ export default function NotesApp() {
     });
   };
 
+  // Q8: Tile Pack accordion — Grid view only. Setting lives at
+  // `settings.pack_accordion_mode`: "off" | "open" | "closed". Off keeps the
+  // legacy always-visible behaviour; open/closed set the initial fold state
+  // and the user can then toggle each pack section individually. Toggle
+  // state is persisted per-device in localStorage under "ir_pack_open".
+  const [packOpenState, setPackOpenState] = useState(() => {
+    try {
+      const raw = localStorage.getItem("ir_pack_open");
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  const togglePackOpen = (key) => {
+    setPackOpenState((prev) => {
+      const currentIsOpen = key in prev
+        ? prev[key]
+        : ((settings?.pack_accordion_mode || "off") !== "closed");
+      const next = { ...prev, [key]: !currentIsOpen };
+      try { localStorage.setItem("ir_pack_open", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const isPackOpen = (key) => {
+    if (key in packOpenState) return packOpenState[key];
+    return (settings?.pack_accordion_mode || "off") !== "closed";
+  };
+
   // Persist BrightnessSliders values to settings. Called by all three
   // scoped surfaces (Home body, NoteModal quick-text, FullScreenNote
   // expanded-text). Uses a debounce via requestAnimationFrame so drag
@@ -1277,7 +1303,15 @@ export default function NotesApp() {
                 <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-icon-grouped">
                   {grouped.map(([cat, items], catIdx) => (
                     <Draggable key={cat} draggableId={`cat-${cat}`} index={catIdx}>
-                      {(catDp, catSnap) => (
+                      {(catDp, catSnap) => {
+                        // Q8 accordion — only wire toggle when the setting is
+                        // on AND this category has notes from a Tile Pack.
+                        const accordionMode = settings?.pack_accordion_mode || "off";
+                        const hasPack = items.some((n) => n?.pack_id);
+                        const useAccordion = accordionMode !== "off" && hasPack;
+                        const packKey = items.find((n) => n?.pack_id)?.pack_id || cat;
+                        const open = useAccordion ? isPackOpen(packKey) : true;
+                        return (
                         <div
                           ref={catDp.innerRef}
                           {...catDp.draggableProps}
@@ -1288,13 +1322,15 @@ export default function NotesApp() {
                             notes={items}
                             isDark={isDark}
                             dragHandleProps={catDp.dragHandleProps}
+                            onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
+                            isOpen={useAccordion ? open : undefined}
                           />
                           <Droppable droppableId={`notes-in-${cat}`} type="note">
                             {(prov, snap) => (
                               <div
                                 ref={prov.innerRef}
                                 {...prov.droppableProps}
-                                className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
+                                className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""} ${useAccordion && !open ? "hidden" : ""}`}
                                 style={gridStyle}
                               >
                                 {items.map((note, idx) => (
@@ -1316,7 +1352,8 @@ export default function NotesApp() {
                             )}
                           </Droppable>
                         </div>
-                      )}
+                        );
+                      }}
                     </Draggable>
                   ))}
                   {catProv.placeholder}
