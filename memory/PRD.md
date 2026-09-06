@@ -1,6 +1,49 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
-## 📌 Session state (2026-02-27, Build blocker + Q7 nested categories — v93)
+## 📌 Session state (2026-02-27, v94 — Nested groups + Alarm reliability)
+
+### ✅ Shipped v94-a — Nested collapsible category tree in the main list
+Extended `CategoryGroup.jsx` so that whenever any note in a top-level category carries a nested `category_path` (length ≥ 2), the body switches from the flat drag-drop list to a **recursive smoked-glass tree** rendered by new `NestedSubGroup.jsx`.
+
+- **`NestedSubGroup`**: self-recursive component that at each level (a) buckets deeper-path notes by the next path segment, (b) renders each bucket as its own translucent + `backdrop-blur-md` accordion, and (c) shows notes attached AT this exact depth using the standard `AccordionNoteItem`.
+- Each row shows an `L2 / L3 / L4 …` badge, a corner-down-right elbow, the segment label, note count, alarm-bell if any alarm is set on any descendant, and a chevron.
+- Empty sub-groups render a graceful "No notes" placeholder.
+- **Backwards compat**: legacy notes (only `category`/`subcategory`, no `category_path`) still render exactly as before via the `getPath` fallback.
+- **Drag/drop preserved**: DnD stays enabled at the flat top-level (unchanged); nested mode disables DnD inside the tree for simplicity.
+
+**Babel workaround shipped**: React-refresh + Babel choke on JSX self-references inside function components (RangeError: Maximum call stack size exceeded during AST traversal). Alias the component to `const Self = NestedSubGroup;` and use `<Self …>` in the recursive branch to sidestep the compile-time infinite loop.
+
+### ✅ Shipped v94-b — Alarm reliability overhaul (Q6)
+Full rewrite of `frontend/src/notifications/notificationService.js`:
+
+1. **Missed-alarm catch-up window** — old code only fired alarms whose `datetime` was 0–30 s in the FUTURE; if the tab was closed / throttled / the phone was asleep past the trigger moment, the alarm was silently lost forever. New window: `[-6h, +30s]` so an alarm scheduled for e.g. 5:10 PM will still fire when the user opens the app any time before 11:10 PM.
+2. **Persistent notified-ledger** — moved the "already fired" record from an in-memory `Map` to a `localStorage`-backed object keyed by `main-${noteId}@${alarmISO}` (or `evt-${eventId}@${eventISO}`). Prevents re-firing on reload. Self-vacuums entries older than 7 days.
+3. **Louder / longer / multi-note ringtones** — each of the three sounds is now a short 2- or 3-note pattern with proper attack/release envelopes and a 0.55 peak gain, replacing the previous single 200–500 ms 0.3-gain beep that was inaudible on mobile.
+   - `bell` = 880 Hz + 660 Hz sine descending chime
+   - `chime` = 1320 → 1760 → 1320 Hz triangle sparkle
+   - `signal` (megaphone) = 520 → 780 → 520 Hz square "air-horn" blasts
+4. **AudioContext priming** — new `primeAudio()` binds one-shot `touchstart` / `mousedown` / `keydown` listeners that create + `resume()` a shared context (and play a 1-sample silent buffer to unlock iOS) so alarm playback still works when the tab has been idle. Called automatically from `startAlarmChecker`.
+5. **Haptic pattern** boosted to `[200, 100, 200, 100, 400]` (was a single `[200, 100, 200]`).
+
+**Verified via automation**: fresh session with granted notification permission + injected instrumentation caught a `new Notification(...)` firing immediately at the initial `check()` for an already-past alarm — confirming the catch-up window works end-to-end.
+
+### Files touched (v94)
+- `frontend/src/notes/CategoryGroup.jsx` (rewrite — nested/flat branching)
+- `frontend/src/notes/NestedSubGroup.jsx` (new — recursive tree component)
+- `frontend/src/notifications/notificationService.js` (rewrite — reliability + audio)
+
+### ⏭ Still awaiting user input
+- **backend/.env secrets** decision before Save to Github (P0)
+- **"otropis.com" header artifact** — need screenshot (P2)
+- **Weather background 100% width** — need screenshot from device (P2)
+
+### 🗂 Remaining backlog
+- 16th custom Menu Tile prompt.
+- DnD support inside nested tree (currently drag/drop of individual notes is only enabled in flat-mode groups).
+- Consider using the experimental Notification Triggers API + Service Worker so alarms fire even when the PWA is fully closed.
+
+---
+
 
 ### 🔴 Production build blocker fixed
 Deployer agent reported Cloud Build step #8 aborted on ESLint parse error in `frontend/src/notes/SettingsModal.jsx` at line 428:14 — an **orphaned duplicate JSX fragment** (leftover `<ChevronRight/>`, `</button>`, `</div>`, `)}`) after the "Sync pack colors" block closed. Likely a bad merge when the Accordion-effect control was added. **Fix:** deleted the stray 5 lines (426–430). Verified with `@babel/parser` — PARSE_OK. This was blocking every deploy attempt.

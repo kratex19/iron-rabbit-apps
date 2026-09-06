@@ -4,12 +4,22 @@ import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import AccordionNoteItem from "./AccordionNoteItem";
+import NestedSubGroup from "./NestedSubGroup";
+
+function getPath(n) {
+  const modern = Array.isArray(n?.category_path) ? n.category_path : null;
+  if (modern && modern.length > 0) return modern.map((s) => String(s || "").trim()).filter(Boolean);
+  return [n?.category, n?.subcategory].map((s) => String(s || "").trim()).filter(Boolean);
+}
 
 /**
- * "Container note" that groups every note sharing the same category.
- * When wrapped in a DragDropContext:
- *   - The container itself is a Draggable (categories can be reordered).
- *   - Its inner body is a Droppable (notes can be dropped INTO the category).
+ * "Container note" that groups every note sharing the same TOP-LEVEL
+ * category. When any child carries a deeper `category_path`, the body
+ * switches from a flat drag-drop list to a nested smoked-glass tree
+ * (recursive `NestedSubGroup`).
+ *
+ * Drag-and-drop of individual notes remains ENABLED at the top level
+ * only (i.e. inside `CategoryGroup`s that don't contain nested paths).
  */
 export default function CategoryGroup({
   category, notes: children, onEdit, onDelete, onShare, onFullScreen, onTogglePin,
@@ -23,14 +33,29 @@ export default function CategoryGroup({
     const winner = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "purple";
     return NOTE_COLORS.find(c => c.name === winner) || NOTE_COLORS[0];
   }, [children]);
-  // If notes in this category were applied from a Tile Pack, prefer the
-  // pack's own accent so the section header stays perfectly in sync with
-  // the pack card in TilePacksModal.
   const headerAccent = useMemo(() => {
     const withPack = children.find(n => n?.pack_accent);
     return withPack?.pack_accent || colorConfig.gradient || colorConfig.accent;
   }, [children, colorConfig]);
   const alarmCount = children.filter(n => n.alarm?.enabled).length;
+
+  const hasNestedPaths = useMemo(() => children.some((n) => getPath(n).length > 1), [children]);
+  const nestedBuckets = useMemo(() => {
+    if (!hasNestedPaths) return [];
+    const m = new Map();
+    for (const n of children) {
+      const p = getPath(n);
+      if (p.length <= 1) continue;
+      const key = p[1] || "(unnamed)";
+      if (!m.has(key)) m.set(key, []);
+      m.get(key).push(n);
+    }
+    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [children, hasNestedPaths]);
+  const directTopLevelNotes = useMemo(
+    () => (hasNestedPaths ? children.filter((n) => getPath(n).length <= 1) : children),
+    [children, hasNestedPaths]
+  );
 
   return (
     <div
@@ -70,50 +95,90 @@ export default function CategoryGroup({
         </button>
       </div>
 
-      {/* Inner drop-zone: notes can be dragged INTO this category */}
-      <Droppable droppableId={`notes-in-${category}`} type="note">
-        {(dropProv, dropSnap) => (
-          <div
-            ref={dropProv.innerRef}
-            {...dropProv.droppableProps}
-            className={`category-children pl-4 pr-1 pb-1 pt-1 border-t transition-colors ${
-              isDark ? "border-white/10" : "border-gray-200"
-            } ${dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""} ${isOpen ? "" : "hidden"}`}
-            data-testid={`category-children-${category}`}
-          >
-            {children.map((note, index) => (
-              <Draggable key={note.id} draggableId={`note-${note.id}`} index={index} isDragDisabled={selectMode}>
-                {(prov, snap) => (
-                  <div ref={prov.innerRef} {...prov.draggableProps}>
-                    <AccordionNoteItem
-                      note={note}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      onShare={onShare}
-                      onFullScreen={onFullScreen}
-                      onTogglePin={onTogglePin}
-                      isDark={isDark}
-                      dragHandleProps={prov.dragHandleProps}
-                      isDragging={snap.isDragging}
-                      selectMode={selectMode}
-                      selected={isSelected ? isSelected(note.id) : false}
-                      onToggleSelect={onToggleSelect}
-                      onSwipeSelect={onSwipeSelect}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
-            {dropProv.placeholder}
-            {/* Empty-state drop hint when a note is being hovered over an empty category */}
-            {children.length === 0 && (
-              <div className={`text-center text-xs italic py-2 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
-                {dropSnap.isDraggingOver ? "Drop note here" : "No notes"}
-              </div>
-            )}
-          </div>
-        )}
-      </Droppable>
+      {hasNestedPaths ? (
+        <div
+          className={`category-children pl-3 pr-1 pb-1.5 pt-1.5 border-t ${isDark ? "border-white/10" : "border-gray-200"} ${isOpen ? "" : "hidden"}`}
+          data-testid={`category-children-${category}`}
+        >
+          {nestedBuckets.map(([subLabel, subNotes]) => (
+            <NestedSubGroup
+              key={subLabel}
+              label={subLabel}
+              notes={subNotes}
+              depth={1}
+              isDark={isDark}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onShare={onShare}
+              onFullScreen={onFullScreen}
+              onTogglePin={onTogglePin}
+              selectMode={selectMode}
+              isSelected={isSelected}
+              onToggleSelect={onToggleSelect}
+              onSwipeSelect={onSwipeSelect}
+            />
+          ))}
+          {directTopLevelNotes.map((note) => (
+            <AccordionNoteItem
+              key={note.id}
+              note={note}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onShare={onShare}
+              onFullScreen={onFullScreen}
+              onTogglePin={onTogglePin}
+              isDark={isDark}
+              selectMode={selectMode}
+              selected={isSelected ? isSelected(note.id) : false}
+              onToggleSelect={onToggleSelect}
+              onSwipeSelect={onSwipeSelect}
+            />
+          ))}
+        </div>
+      ) : (
+        <Droppable droppableId={`notes-in-${category}`} type="note">
+          {(dropProv, dropSnap) => (
+            <div
+              ref={dropProv.innerRef}
+              {...dropProv.droppableProps}
+              className={`category-children pl-4 pr-1 pb-1 pt-1 border-t transition-colors ${
+                isDark ? "border-white/10" : "border-gray-200"
+              } ${dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""} ${isOpen ? "" : "hidden"}`}
+              data-testid={`category-children-${category}`}
+            >
+              {children.map((note, index) => (
+                <Draggable key={note.id} draggableId={`note-${note.id}`} index={index} isDragDisabled={selectMode}>
+                  {(prov, snap) => (
+                    <div ref={prov.innerRef} {...prov.draggableProps}>
+                      <AccordionNoteItem
+                        note={note}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        onShare={onShare}
+                        onFullScreen={onFullScreen}
+                        onTogglePin={onTogglePin}
+                        isDark={isDark}
+                        dragHandleProps={prov.dragHandleProps}
+                        isDragging={snap.isDragging}
+                        selectMode={selectMode}
+                        selected={isSelected ? isSelected(note.id) : false}
+                        onToggleSelect={onToggleSelect}
+                        onSwipeSelect={onSwipeSelect}
+                      />
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {dropProv.placeholder}
+              {children.length === 0 && (
+                <div className={`text-center text-xs italic py-2 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  {dropSnap.isDraggingOver ? "Drop note here" : "No notes"}
+                </div>
+              )}
+            </div>
+          )}
+        </Droppable>
+      )}
     </div>
   );
 }

@@ -1,92 +1,190 @@
 // notifications/notificationService.js
 // Local notification service using device's native notification API
 // No server required - all scheduling happens on-device
+//
+// v93 alarm reliability pass:
+//   1. `startAlarmChecker` now catches PAST alarms whose fire time we
+//      missed while the tab was closed / throttled / the phone was
+//      asleep (up to 6 hours in the past). Previously we only caught
+//      alarms 0-30 seconds in the FUTURE, which meant almost every
+//      real-world alarm on mobile was missed.
+//   2. The "already-notified" ledger is now persisted to localforage
+//      (via localStorage as a lightweight sync mirror) so widening the
+//      catch-up window doesn't cause a single alarm to re-fire on every
+//      page reload.
+//   3. Sounds are now short multi-note ringtones (not single beeps) and
+//      are noticeably louder + longer so they can actually be heard on
+//      a phone that's a few feet away.
+//   4. We pre-warm a single shared `AudioContext` on the first user
+//      gesture so alarm playback still works when the tab has been idle
+//      (mobile browsers keep new contexts in `suspended` state until a
+//      gesture unlocks them). See `primeAudio()`.
 
 import { toast } from "sonner";
 import StorageService from "../storage/storageService";
 
-const SCHEDULED_ALARMS_KEY = 'scheduled_alarms';
+const NOTIFIED_LEDGER_KEY = "ir_alarm_notified_v1";
+// How far in the past we're willing to still fire a missed alarm. If the
+// user opens the app more than 6 hours after a scheduled time, the alarm
+// is considered stale — a "you missed X" toast could be added later.
+const MISSED_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 h
+// Forward window: catch alarms firing within the next 30 s so back-to-
+// back interval ticks can't skip one that's between check cycles.
+const FUTURE_WINDOW_MS = 30 * 1000;
+
+// -------- persisted "already fired" ledger --------------------------------
+function readNotifiedLedger() {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_LEDGER_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return typeof obj === "object" && obj !== null ? obj : {};
+  } catch { return {}; }
+}
+function writeNotifiedLedger(led) {
+  try {
+    // Cheap self-vacuum: drop entries older than 7 days so the ledger
+    // doesn't grow forever.
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const next = {};
+    for (const [k, v] of Object.entries(led)) {
+      if (typeof v === "number" && v > cutoff) next[k] = v;
+    }
+    localStorage.setItem(NOTIFIED_LEDGER_KEY, JSON.stringify(next));
+  } catch { /* ignore quota errors */ }
+}
 
 class NotificationService {
   constructor() {
     this.checkInterval = null;
-    this.alarmChecks = new Map(); // note_id -> last_notified timestamp
+    // Persistent per-alarm ledger: "main-<noteId>@<alarmISO>" -> notifiedTs
+    this.notified = readNotifiedLedger();
+    // Shared audio context — created lazily on first user gesture.
+    this._audioCtx = null;
+    this._primeBound = false;
   }
 
+  // -------- permissions --------------------------------------------------
   async requestPermission() {
-    if (!('Notification' in window)) {
-      console.warn('Browser does not support notifications');
+    if (!("Notification" in window)) {
+      console.warn("Browser does not support notifications");
       return false;
     }
-    if (Notification.permission === 'granted') return true;
-    if (Notification.permission === 'denied') return false;
+    if (Notification.permission === "granted") return true;
+    if (Notification.permission === "denied") return false;
     const result = await Notification.requestPermission();
-    return result === 'granted';
+    return result === "granted";
   }
 
   hasPermission() {
-    return 'Notification' in window && Notification.permission === 'granted';
+    return "Notification" in window && Notification.permission === "granted";
   }
 
-  playSound(soundType = 'bell') {
+  // -------- audio priming ------------------------------------------------
+  // Attach a one-shot listener that creates + resumes the AudioContext on
+  // the FIRST user gesture. Mobile Chrome / iOS Safari refuse to play
+  // Web Audio out of a `suspended` context — priming here gives every
+  // subsequent alarm a usable, running context.
+  primeAudio() {
+    if (this._primeBound || typeof window === "undefined") return;
+    this._primeBound = true;
+    const unlock = () => {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        if (!this._audioCtx) this._audioCtx = new Ctx();
+        if (this._audioCtx.state === "suspended") {
+          this._audioCtx.resume().catch(() => {});
+        }
+        // Play a 1-sample silent buffer to fully unlock on iOS.
+        const buf = this._audioCtx.createBuffer(1, 1, 22050);
+        const src = this._audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(this._audioCtx.destination);
+        src.start(0);
+      } catch { /* ignore */ }
+      window.removeEventListener("touchstart", unlock, true);
+      window.removeEventListener("mousedown", unlock, true);
+      window.removeEventListener("keydown", unlock, true);
+    };
+    window.addEventListener("touchstart", unlock, true);
+    window.addEventListener("mousedown", unlock, true);
+    window.addEventListener("keydown", unlock, true);
+  }
+
+  playSound(soundType = "bell") {
     try {
-      // Create a simple beep using Web Audio API (no external files needed)
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
 
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
+      // Reuse the primed context if we have one, otherwise create a fresh
+      // one (may still be `suspended` on mobile if the user hasn't
+      // interacted yet — the resume() below is our best effort).
+      const context = this._audioCtx || new Ctx();
+      if (!this._audioCtx) this._audioCtx = context;
+      if (context.state === "suspended") {
+        context.resume().catch(() => {});
+      }
 
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-
-      // Different sounds for different types
-      const soundConfig = {
-        bell: { freq: 800, duration: 0.3, type: 'sine' },
-        chime: { freq: 1200, duration: 0.5, type: 'triangle' },
-        signal: { freq: 600, duration: 0.2, type: 'square' },
+      // Multi-note ringtone patterns — each note is [freq, durationMs,
+      // waveType]. Overall gain is ~0.6 which is comfortably audible on
+      // a phone at half volume.
+      const patterns = {
+        bell:   [[880, 220, "sine"],     [660, 260, "sine"]],
+        chime:  [[1320, 180, "triangle"],[1760, 180, "triangle"], [1320, 260, "triangle"]],
+        // "signal" is the megaphone — should feel like an air-horn: two
+        // punchy square-wave blasts with a sub-drop between them.
+        signal: [[520, 240, "square"],   [780, 260, "square"],    [520, 320, "square"]],
       };
+      const notes = patterns[soundType] || patterns.bell;
 
-      const config = soundConfig[soundType] || soundConfig.bell;
-      oscillator.type = config.type;
-      oscillator.frequency.value = config.freq;
-
-      gainNode.gain.setValueAtTime(0.3, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + config.duration);
-
-      oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + config.duration);
+      let t = context.currentTime + 0.02;
+      notes.forEach(([freq, durMs, wave]) => {
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.type = wave;
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(context.destination);
+        const dur = durMs / 1000;
+        // Small attack + release to avoid clicks and to feel more like a
+        // real tone than a raw beep.
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.exponentialRampToValueAtTime(0.55, t + 0.015);
+        gain.gain.setValueAtTime(0.55, t + dur - 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.start(t);
+        osc.stop(t + dur + 0.02);
+        t += dur + 0.05; // small gap between notes
+      });
     } catch (err) {
-      console.error('Error playing sound:', err);
+      console.error("Error playing sound:", err);
     }
   }
 
   triggerHaptic() {
-    if ('vibrate' in navigator) {
-      navigator.vibrate([200, 100, 200]);
+    if ("vibrate" in navigator) {
+      // Attention-grabbing S-O-S-ish pattern instead of a single buzz.
+      navigator.vibrate([200, 100, 200, 100, 400]);
     }
   }
 
   showNotification(title, options = {}) {
     if (!this.hasPermission()) return null;
-
-    const notification = new Notification(title, {
-      body: options.body || '',
-      icon: options.icon || '/favicon.ico',
-      badge: options.icon || '/favicon.ico',
+    return new Notification(title, {
+      body: options.body || "",
+      icon: options.icon || "/favicon.ico",
+      badge: options.icon || "/favicon.ico",
       tag: options.tag,
       requireInteraction: options.requireInteraction || false,
       silent: options.silent || false,
     });
-
-    return notification;
   }
 
   triggerAlarm(note) {
     // Show notification
     this.showNotification(`Reminder: ${note.title}`, {
-      body: note.content?.substring(0, 100) || 'Time for your task!',
+      body: note.content?.substring(0, 100) || "Time for your task!",
       tag: `alarm-${note.id}`,
       requireInteraction: true,
     });
@@ -132,8 +230,10 @@ class NotificationService {
         updated_at: new Date().toISOString(),
       };
       await StorageService.saveNote(updated);
-      // Clear the last-notified marker so a fresh alarm can fire at the new time
-      this.alarmChecks.delete(`main-${noteId}`);
+      // Clear the persisted markers so a fresh alarm can fire at the new time.
+      const keyPrefix = `main-${noteId}@`;
+      Object.keys(this.notified).forEach((k) => { if (k.startsWith(keyPrefix)) delete this.notified[k]; });
+      writeNotifiedLedger(this.notified);
       toast.success(`Snoozed ${minutes < 60 ? minutes + " min" : (minutes / 60) + " hr"} — ${newTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
     } catch (err) {
       console.error("Snooze error:", err);
@@ -141,45 +241,55 @@ class NotificationService {
     }
   }
 
+  // -------- alarm scheduler / checker ------------------------------------
+  // Fires every 15 s. For each alarm we look at BOTH a small forward
+  // window (upcoming alarm) AND a wide backward window (alarms we
+  // missed while the tab was closed / phone asleep). The persisted
+  // ledger prevents a caught-up alarm from firing again on the next tick.
   startAlarmChecker(getNotes) {
-    // Check every 30 seconds for alarms
     if (this.checkInterval) clearInterval(this.checkInterval);
 
+    // Make sure we're primed for audio ASAP.
+    this.primeAudio();
+
     const check = () => {
-      const now = new Date();
-      const notes = getNotes();
-      
+      const now = Date.now();
+      const notes = getNotes() || [];
+
+      const maybeFire = (key, note) => {
+        if (this.notified[key]) return; // already notified this exact schedule
+        this.triggerAlarm(note);
+        this.notified[key] = now;
+        writeNotifiedLedger(this.notified);
+      };
+
       notes.forEach((note) => {
         // Main alarm
         if (note.alarm?.enabled && note.alarm?.datetime) {
-          const alarmTime = new Date(note.alarm.datetime);
-          const diff = alarmTime - now;
-          if (diff > 0 && diff < 30000) {
-            const key = `main-${note.id}`;
-            const lastNotified = this.alarmChecks.get(key);
-            if (!lastNotified || (now - lastNotified) > 60000) {
-              this.triggerAlarm(note);
-              this.alarmChecks.set(key, now);
-            }
+          const alarmMs = new Date(note.alarm.datetime).getTime();
+          if (!Number.isFinite(alarmMs)) return;
+          const diff = alarmMs - now;
+          const key = `main-${note.id}@${note.alarm.datetime}`;
+          // Either fires soon OR fired within the missed-window and we
+          // haven't caught up yet.
+          if ((diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS)) {
+            maybeFire(key, note);
           }
         }
         // Per-event alarms
-        (note.events || []).forEach(evt => {
+        (note.events || []).forEach((evt) => {
           if (!evt.alarm_enabled || !evt.datetime) return;
-          const t = new Date(evt.datetime);
+          const t = new Date(evt.datetime).getTime();
+          if (!Number.isFinite(t)) return;
           const diff = t - now;
-          if (diff > 0 && diff < 30000) {
-            const key = `evt-${evt.id}`;
-            const lastNotified = this.alarmChecks.get(key);
-            if (!lastNotified || (now - lastNotified) > 60000) {
-              this.triggerAlarm({
-                id: `${note.id}-${evt.id}`,
-                title: `${note.title} — ${evt.title}`,
-                content: evt.notes || note.title,
-                alarm: { sound: note.alarm?.sound || "bell", haptic: note.alarm?.haptic },
-              });
-              this.alarmChecks.set(key, now);
-            }
+          const key = `evt-${evt.id}@${evt.datetime}`;
+          if (diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS) {
+            maybeFire(key, {
+              id: `${note.id}-${evt.id}`,
+              title: `${note.title} — ${evt.title}`,
+              content: evt.notes || note.title,
+              alarm: { sound: note.alarm?.sound || "bell", haptic: note.alarm?.haptic },
+            });
           }
         });
       });
