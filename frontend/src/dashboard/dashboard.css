@@ -71,6 +71,29 @@
   background: rgba(0,0,0,0.4);
   border-color: rgba(255,255,255,0.28);
 }
+/* Location pill: primary (place name) + secondary (coordinates) stacked in a
+   single compact column so both are visible without wrapping. */
+.ir-dashboard-root .ir-dash-topbar .ir-dash-location .ir-dash-location-text {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+  min-width: 0;
+}
+.ir-dashboard-root .ir-dash-topbar .ir-dash-location .ir-dash-location-primary {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40vw;
+}
+.ir-dashboard-root .ir-dash-topbar .ir-dash-location .ir-dash-location-coords {
+  font-size: 10px;
+  color: #ffffff99;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  margin-top: 1px;
+}
 .ir-dashboard-root .ir-dash-topbar .ir-dash-icon-btn {
   width: 36px;
   height: 36px;

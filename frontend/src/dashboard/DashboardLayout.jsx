@@ -67,7 +67,9 @@ export default function DashboardLayout() {
   }, [presetManifest]);
   const nameForBackground = useCallback((url) => presetInfoByUrl.get(url)?.label || null, [presetInfoByUrl]);
 
-  // Hydrate settings and, if requested and possible, initial geolocation
+  // Hydrate settings and, if requested and possible, initial geolocation.
+  // Also opportunistically upgrade older saved locations that only have
+  // coordinates (no place name) by re-running reverseGeocode once.
   useEffect(() => {
     (async () => {
       const s = await loadSettings();
@@ -79,6 +81,20 @@ export default function DashboardLayout() {
           next = { ...s, location: loc };
           await saveSettings(next);
         } catch { /* silent — user may block permission */ }
+      } else if (s.location && Number.isFinite(s.location.latitude) && Number.isFinite(s.location.longitude)) {
+        // Upgrade legacy location saved before reverse-geocode was reliable.
+        const looksLikeCoords = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(s.location.display || s.location.name || "");
+        const missingName = !s.location.country && !s.location.admin1;
+        if (looksLikeCoords || missingName) {
+          try {
+            const loc = await reverseGeocode(s.location.latitude, s.location.longitude);
+            // Only replace if we actually got a real place name
+            if (loc && loc.country) {
+              next = { ...s, location: loc };
+              await saveSettings(next);
+            }
+          } catch { /* silent — keep whatever we had */ }
+        }
       }
       setSettings(next);
       setHydrated(true);
@@ -178,7 +194,23 @@ export default function DashboardLayout() {
             data-testid="dash-location-btn"
           >
             <MapPin size={14} />
-            <span>{settings.location?.display || settings.location?.name || "Set location"}</span>
+            {(() => {
+              const loc = settings.location;
+              if (!loc) return <span>Set location</span>;
+              const primary = loc.display || loc.name || "Location";
+              const hasCoords = Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude);
+              const looksLikeCoords = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(primary);
+              return (
+                <span className="ir-dash-location-text" data-testid="dash-location-text">
+                  <span className="ir-dash-location-primary">{primary}</span>
+                  {hasCoords && !looksLikeCoords && (
+                    <span className="ir-dash-location-coords" data-testid="dash-location-coords">
+                      {loc.latitude.toFixed(2)}, {loc.longitude.toFixed(2)}
+                    </span>
+                  )}
+                </span>
+              );
+            })()}
           </button>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
