@@ -4,14 +4,14 @@ A running list of enhancements to pick up later. Reminded by user on 2026-07-22.
 
 ## Ready to Do When You Are
 
-### 1. Go live at otropis.com
+### 1. Go live at ironrabbitapps.com
 - Deploy the app
-- Point the `otropis.com` domain (and `www.otropis.com`) at the deployment
+- Point the `ironrabbitapps.com` domain (and `www.ironrabbitapps.com`) at the deployment
 - Verify SSL certificate
 - Test canonical URLs, sitemap.xml, robots.txt on the live domain
 
 ### 2. Publish Iron Rabbit Notes to app stores
-- Google Play Console → publish → get URL like `https://play.google.com/store/apps/details?id=com.otropis.notes`
+- Google Play Console → publish → get URL like `https://play.google.com/store/apps/details?id=com.ironrabbit.notes`
 - Apple App Store Connect → publish → get URL like `https://apps.apple.com/app/id0000000000`
 - Paste both URLs into `/app/frontend/src/data/apps.js`:
   ```js

@@ -34,7 +34,7 @@ Full rewrite of `frontend/src/notifications/notificationService.js`:
 
 ### ⏭ Still awaiting user input
 - **backend/.env secrets** decision before Save to Github (P0)
-- **"otropis.com" header artifact** — need screenshot (P2)
+- **Old cached URL in browser history** — was likely user's browser autocompleting an old dev URL; string does not exist in the code. Cleaned any lingering refs in `memory/enhancements.md` to use `ironrabbitapps.com`.
 - **Weather background 100% width** — need screenshot from device (P2)
 
 ### 🗂 Remaining backlog
@@ -84,7 +84,7 @@ User asked for infinite nested categories in Edit Note styled as a smoked-glass 
 ### ⏭ Still blocked / awaiting user input (unchanged from previous session)
 - **Q6 — Alarm/sound/haptic broken** (P1): need details from user (which alarm, foreground/background, device).
 - **backend/.env secrets before Save to Github** (P0): user must choose Secrets Manager / gitignore / accept risk.
-- **"otropis.com" header artifact** (P2): need screenshot; string not in code.
+- **~~"otropis.com" header artifact~~** RESOLVED 2026-02-27: string not present in code; was browser-cached autocomplete on user's phone. Lingering PRD/enhancement refs cleaned to `ironrabbitapps.com`.
 - **Q2 — Weather background 100% width** (P2): need screenshot from the specific device.
 
 ### 🗂 Backlog

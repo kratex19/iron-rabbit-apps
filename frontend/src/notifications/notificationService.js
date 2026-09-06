@@ -295,6 +295,19 @@ class NotificationService {
       });
     };
 
+    // Mobile browsers heavily throttle (or completely pause) setInterval
+    // when the tab is backgrounded / the screen is off. When the user
+    // unlocks and returns, `visibilitychange` fires FIRST, so we hook
+    // that to force an immediate catch-up before the next 15 s tick.
+    // Same for the BFCache `pageshow` event on iOS Safari.
+    this._visHandler = () => { if (document.visibilityState === "visible") check(); };
+    this._pageshowHandler = () => check();
+    document.addEventListener("visibilitychange", this._visHandler);
+    window.addEventListener("pageshow", this._pageshowHandler);
+    // A `focus` event covers desktop tab switching too.
+    this._focusHandler = () => check();
+    window.addEventListener("focus", this._focusHandler);
+
     this.checkInterval = setInterval(check, 15000);
     check(); // Initial check
   }
@@ -303,6 +316,18 @@ class NotificationService {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
+    }
+    if (this._visHandler) {
+      document.removeEventListener("visibilitychange", this._visHandler);
+      this._visHandler = null;
+    }
+    if (this._pageshowHandler) {
+      window.removeEventListener("pageshow", this._pageshowHandler);
+      this._pageshowHandler = null;
+    }
+    if (this._focusHandler) {
+      window.removeEventListener("focus", this._focusHandler);
+      this._focusHandler = null;
     }
   }
 }
