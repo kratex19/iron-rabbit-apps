@@ -95,7 +95,7 @@ export default function CategoryGroup({
                 : isDark ? 'text-white font-semibold' : 'text-gray-900 font-semibold'
             }`}
             style={isOpen
-              ? { color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+              ? { color: '#ffffff', WebkitTextFillColor: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
               : undefined}
             data-testid="category-title"
           >{category}</span>

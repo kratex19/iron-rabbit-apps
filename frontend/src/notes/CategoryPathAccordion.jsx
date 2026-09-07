@@ -113,7 +113,7 @@ export default function CategoryPathAccordion({
               : isDark ? "text-slate-200 font-medium" : "text-gray-700 font-medium"
           }`}
           style={open
-            ? { color: "#ffffff", textShadow: "0 1px 2px rgba(0,0,0,0.6)" }
+            ? { color: "#ffffff", WebkitTextFillColor: "#ffffff", textShadow: "0 1px 2px rgba(0,0,0,0.6)" }
             : undefined}
         >
           Category path

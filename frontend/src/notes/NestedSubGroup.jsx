@@ -94,7 +94,7 @@ export default function NestedSubGroup(props) {
               : isDark ? 'text-white font-medium' : 'text-gray-800 font-medium'
           }`}
           style={isOpen
-            ? { color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+            ? { color: '#ffffff', WebkitTextFillColor: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
             : undefined}
         >
           {label}

@@ -159,7 +159,7 @@ export default function AccordionNoteItem({
                     : isDark ? 'text-white font-medium' : 'text-gray-900 font-medium'
                 }`}
                 style={isOpen
-                  ? { color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+                  ? { color: '#ffffff', WebkitTextFillColor: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
                   : undefined}
                 data-testid={`accordion-note-title-${note.id}`}
               >
