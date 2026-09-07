@@ -562,11 +562,18 @@ export default function NotesApp() {
       const now = new Date().toISOString();
 
       // ---- Natural-language reminder detection ----
-      // If the user didn't manually set an alarm, try to parse the title for
-      // a phrase like "tomorrow at 8am" and auto-populate one.
+      // Only runs on BRAND-NEW notes (no noteId) that don't already
+      // have an alarm configured, and never when the user has
+      // deliberately toggled the alarm OFF (`enabled === false`). This
+      // is what prevents the "toggle off → save → alarm comes back on
+      // because chrono re-parsed the title" bug: on edits we now
+      // respect the user's explicit choices verbatim.
       const enriched = { ...noteData };
-      const hasManualAlarm = noteData.alarm?.datetime;
-      if (!hasManualAlarm && noteData.title) {
+      const isEdit = !!noteId;
+      const userTurnedOff = noteData.alarm && noteData.alarm.enabled === false;
+      const alreadyHasAlarm = !!noteData.alarm?.datetime;
+      const shouldAutoDetect = !isEdit && !userTurnedOff && !alreadyHasAlarm;
+      if (shouldAutoDetect && noteData.title) {
         const results = chrono.parse(noteData.title, new Date(), { forwardDate: true });
         const first = results[0];
         if (first?.start) {
