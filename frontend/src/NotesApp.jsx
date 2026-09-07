@@ -483,6 +483,49 @@ export default function NotesApp() {
   }, [notes]);
   useEffect(() => { notificationService.requestPermission(); }, []);
 
+  // Handle alarm actions coming back from the Service Worker (either
+  // via `postMessage` when the app was already open, or via URL params
+  // when a cold-launch was needed). Powers the "Snooze 5m" and
+  // "Turn off" buttons on the OS notification banner.
+  useEffect(() => {
+    const handleAlarmAction = (action, noteId) => {
+      if (!noteId) return;
+      if (action === "dismiss") {
+        notificationService.dismissAlarm(noteId);
+      } else if (action === "snooze-5") {
+        notificationService.snoozeAlarm(noteId, 5);
+      } else if (action === "snooze-60") {
+        notificationService.snoozeAlarm(noteId, 60);
+      }
+    };
+    // 1) SW → open tab, via postMessage
+    const onMsg = (e) => {
+      if (e?.data?.type === "ALARM_ACTION") {
+        handleAlarmAction(e.data.action, e.data.noteId);
+      }
+    };
+    if (typeof navigator !== "undefined" && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener("message", onMsg);
+    }
+    // 2) Cold-launch URL params (?alarm-action=…&alarm-note=…)
+    try {
+      const url = new URL(window.location.href);
+      const action = url.searchParams.get("alarm-action");
+      const noteId = url.searchParams.get("alarm-note");
+      if (action && noteId) {
+        handleAlarmAction(action, noteId);
+        url.searchParams.delete("alarm-action");
+        url.searchParams.delete("alarm-note");
+        window.history.replaceState({}, "", url.toString());
+      }
+    } catch { /* ignore */ }
+    return () => {
+      if (typeof navigator !== "undefined" && navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener("message", onMsg);
+      }
+    };
+  }, []);
+
   // Auto-backup — silently exports a weekly JSON when opted-in.
   // Delayed ~5s so it never competes with cold-boot rendering.
   useEffect(() => {
@@ -567,12 +610,16 @@ export default function NotesApp() {
       // deliberately toggled the alarm OFF (`enabled === false`). This
       // is what prevents the "toggle off → save → alarm comes back on
       // because chrono re-parsed the title" bug: on edits we now
-      // respect the user's explicit choices verbatim.
+      // respect the user's explicit choices verbatim. Users can also
+      // disable auto-detection globally via Settings → Reminders.
       const enriched = { ...noteData };
       const isEdit = !!noteId;
       const userTurnedOff = noteData.alarm && noteData.alarm.enabled === false;
       const alreadyHasAlarm = !!noteData.alarm?.datetime;
-      const shouldAutoDetect = !isEdit && !userTurnedOff && !alreadyHasAlarm;
+      let autoDetectDisabled = false;
+      try { autoDetectDisabled = localStorage.getItem("ir_auto_detect_reminders") === "0"; }
+      catch { /* localStorage blocked → assume enabled (opt-in default) */ }
+      const shouldAutoDetect = !isEdit && !userTurnedOff && !alreadyHasAlarm && !autoDetectDisabled;
       if (shouldAutoDetect && noteData.title) {
         const results = chrono.parse(noteData.title, new Date(), { forwardDate: true });
         const first = results[0];

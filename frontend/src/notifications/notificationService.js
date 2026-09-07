@@ -24,10 +24,16 @@ import { toast } from "sonner";
 import StorageService from "../storage/storageService";
 
 const NOTIFIED_LEDGER_KEY = "ir_alarm_notified_v1";
-// How far in the past we're willing to still fire a missed alarm. If the
-// user opens the app more than 6 hours after a scheduled time, the alarm
-// is considered stale — a "you missed X" toast could be added later.
-const MISSED_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 h
+// How far in the past we're willing to still fire a missed alarm. If
+// the user opens the app more than 2 hours after a scheduled time, the
+// alarm is considered stale and self-silences (recorded as notified
+// without triggering a popup) so we don't spam a user who cleared cache
+// or lost the ledger with a wall of old reminders.
+const MISSED_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 h
+// Alarms older than this that AREN'T already in the ledger are
+// auto-silenced instead of firing. Prevents cache-clear from producing
+// a barrage of stale reminders.
+const STALE_SILENT_MS = 60 * 60 * 1000; // 1 h
 // Forward window: catch alarms firing within the next 30 s so back-to-
 // back interval ticks can't skip one that's between check cycles.
 const FUTURE_WINDOW_MS = 30 * 1000;
@@ -178,6 +184,12 @@ class NotificationService {
       tag: options.tag,
       requireInteraction: options.requireInteraction || false,
       silent: options.silent || false,
+      // Metadata the SW's notificationclick handler forwards back to
+      // the app so it can act on the tap (dismiss / snooze).
+      data: options.data || {},
+      // OS-level action buttons — Chrome / Edge / Samsung Internet
+      // honour these. iOS ignores them silently (users tap the toast).
+      actions: options.actions || undefined,
     };
     // Mobile Chrome + installed PWAs forbid `new Notification(...)` —
     // trying to construct one throws `Illegal constructor. Use
@@ -220,6 +232,11 @@ class NotificationService {
         body: note.content?.substring(0, 100) || "Time for your task!",
         tag: `alarm-${note.id}`,
         requireInteraction: true,
+        data: { noteId: note.id, kind: "alarm" },
+        actions: [
+          { action: "snooze-5", title: "Snooze 5m" },
+          { action: "dismiss",  title: "Turn off" },
+        ],
       });
     } catch (err) { console.warn("showNotification threw:", err); }
 
@@ -239,18 +256,59 @@ class NotificationService {
       if (!isEventAlarm) {
         toast(`⏰ ${note.title}`, {
           description: note.content?.substring(0, 80) || "Time for your task!",
-          duration: 20000,
+          // Persist until the user acts. No more auto-dismiss so the
+          // user can't accidentally miss the alarm — but they now have
+          // an explicit "Turn off" button that KILLS the alarm for good.
+          duration: Infinity,
+          id: `alarm-toast-${note.id}`,
           action: {
-            label: "Snooze 5m",
-            onClick: () => this.snoozeAlarm(note.id, 5),
+            label: "Turn off",
+            onClick: () => this.dismissAlarm(note.id),
           },
           cancel: {
-            label: "1h",
-            onClick: () => this.snoozeAlarm(note.id, 60),
+            label: "Snooze 5m",
+            onClick: () => this.snoozeAlarm(note.id, 5),
           },
         });
       }
     } catch (err) { console.warn("toast threw:", err); }
+  }
+
+  // Permanently disables the alarm on the note (persists `enabled=false`
+  // and clears the datetime) and records the ledger so it can NEVER
+  // re-fire — even if the user's data goes through a chrono re-parse
+  // or the ledger gets wiped. The "kill switch" for repeating popups.
+  async dismissAlarm(noteId) {
+    try {
+      const existing = await StorageService.getNote(noteId);
+      if (!existing) return;
+      const prevDatetime = existing.alarm?.datetime;
+      const updated = {
+        ...existing,
+        alarm: {
+          ...(existing.alarm || {}),
+          enabled: false,
+          datetime: null,
+          // Strip the auto_detected marker so chrono won't re-detect
+          // from the title on subsequent saves.
+          auto_detected: false,
+        },
+        updated_at: new Date().toISOString(),
+      };
+      await StorageService.saveNote(updated);
+      // Belt-and-suspenders: record every historical datetime for this
+      // note as "already notified" so any legacy scheduler that still
+      // holds a reference can't refire it.
+      if (prevDatetime) {
+        this.notified[`main-${noteId}@${prevDatetime}`] = Date.now();
+        writeNotifiedLedger(this.notified);
+      }
+      toast.dismiss(`alarm-toast-${noteId}`);
+      toast.success("Alarm turned off");
+    } catch (err) {
+      console.error("dismissAlarm error:", err);
+      toast.error("Could not turn off alarm");
+    }
   }
 
   async snoozeAlarm(noteId, minutes) {
@@ -310,6 +368,14 @@ class NotificationService {
               if (!Number.isFinite(alarmMs)) return;
               const diff = alarmMs - now;
               const key = `main-${note.id}@${note.alarm.datetime}`;
+              // Stale (older than STALE_SILENT_MS in the past and NOT
+              // in the ledger) → mark as notified silently. Prevents
+              // the "cache cleared → old alarms all fire at once" storm.
+              if (diff < -STALE_SILENT_MS && !this.notified[key]) {
+                this.notified[key] = now;
+                writeNotifiedLedger(this.notified);
+                return;
+              }
               if ((diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS)) {
                 maybeFire(key, note);
               }
@@ -322,6 +388,11 @@ class NotificationService {
                 if (!Number.isFinite(t)) return;
                 const diff = t - now;
                 const key = `evt-${evt.id}@${evt.datetime}`;
+                if (diff < -STALE_SILENT_MS && !this.notified[key]) {
+                  this.notified[key] = now;
+                  writeNotifiedLedger(this.notified);
+                  return;
+                }
                 if (diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS) {
                   maybeFire(key, {
                     id: `${note.id}-${evt.id}`,

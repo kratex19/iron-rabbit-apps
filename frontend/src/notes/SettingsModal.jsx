@@ -809,16 +809,20 @@ function NotificationsPanel({ isDark }) {
   const [status, setStatus] = useState(() =>
     typeof Notification === "undefined" ? "unsupported" : Notification.permission
   );
-  const [prefs, setPrefs] = useState({ weekly_recap: true, chore_summary: true, pantry_expiration: true });
+  const [prefs, setPrefs] = useState({ weekly_recap: true, chore_summary: true, pantry_expiration: true, auto_detect: true });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const s = await StorageService.getSettings();
+      let autoDetect = true;
+      try { autoDetect = localStorage.getItem("ir_auto_detect_reminders") !== "0"; }
+      catch { /* ignore */ }
       setPrefs({
         weekly_recap: s?.notif_weekly_recap !== false,
         chore_summary: s?.notif_chore_summary !== false,
         pantry_expiration: s?.notif_pantry_expiration !== false,
+        auto_detect: autoDetect,
       });
       setLoading(false);
     })();
@@ -838,17 +842,26 @@ function NotificationsPanel({ isDark }) {
   const savePref = async (key, val) => {
     const next = { ...prefs, [key]: val };
     setPrefs(next);
+    // Auto-detect is a per-device toggle → stays in localStorage so it
+    // ships alongside the other client-only alarm settings.
+    if (key === "auto_detect") {
+      try { localStorage.setItem("ir_auto_detect_reminders", val ? "1" : "0"); }
+      catch { /* ignore */ }
+      return;
+    }
     await StorageService.saveSettings({
       notif_weekly_recap: next.weekly_recap,
       notif_chore_summary: next.chore_summary,
     });
   };
 
-  const fireTest = () => {
+  const fireTest = async () => {
     if (status !== "granted") { toast.error("Grant permission first"); return; }
+    // Route through the shared service so we go through
+    // `ServiceWorkerRegistration.showNotification()` on mobile (direct
+    // `new Notification()` throws `Illegal constructor` on Chrome PWAs).
     try {
-      // eslint-disable-next-line no-new
-      new Notification("Iron Rabbit · Test", {
+      await notificationService.showNotification("Iron Rabbit · Test", {
         body: "Nice — notifications are working. Weekly recaps will fire on Sunday evenings.",
         tag: "iron-rabbit-test",
       });
@@ -895,6 +908,14 @@ function NotificationsPanel({ isDark }) {
         )}
       </div>
       <div className="space-y-2.5">
+        <NotifToggle
+          label="Auto-detect reminders from titles"
+          hint="Uses phrases like “tomorrow at 8am” in a NEW note title to set an alarm automatically"
+          checked={prefs.auto_detect}
+          onChange={(v) => savePref("auto_detect", v)}
+          isDark={isDark}
+          testid="notif-toggle-auto-detect"
+        />
         <NotifToggle
           label="Weekly week-in-review"
           hint="Sundays · summary of notes created + edits + categories"

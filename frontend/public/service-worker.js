@@ -9,8 +9,8 @@
 //     new SW file had been published. With HTML now always fetched
 //     network-first (and runtime-cached as a fallback for offline),
 //     every deploy propagates to users on their next page load.
-const CACHE_NAME = 'iron-rabbit-v96';
-const RUNTIME = 'iron-rabbit-runtime-v51';
+const CACHE_NAME = 'iron-rabbit-v97';
+const RUNTIME = 'iron-rabbit-runtime-v52';
 
 // App shell — only the manifest is precached. HTML is deliberately
 // left out so a stale precache can never override a fresh deploy.
@@ -120,18 +120,32 @@ self.addEventListener('fetch', event => {
 
 // ---- Notification click: focus / open the app when a reminder is tapped ----
 self.addEventListener('notificationclick', (event) => {
+  const action = event.action || '';
+  const data = event.notification.data || {};
   event.notification.close();
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    // Prefer focusing an already-open Iron Rabbit tab
+
+    // Prefer messaging an already-open Iron Rabbit tab so it can
+    // perform the action (dismiss / snooze) without a full navigation.
     for (const client of allClients) {
       if (client.url && new URL(client.url).origin === self.location.origin) {
+        try {
+          client.postMessage({ type: 'ALARM_ACTION', action, noteId: data.noteId });
+        } catch { /* ignore */ }
         return client.focus();
       }
     }
-    // Otherwise open a fresh tab at the app root
+
+    // Otherwise open a fresh tab and hand the action to the app via URL
+    // params — `NotesApp` reads these on boot and re-runs the same
+    // dismiss/snooze code path as the in-app toast buttons.
     if (self.clients.openWindow) {
-      return self.clients.openWindow('/');
+      const params = new URLSearchParams();
+      if (action) params.set('alarm-action', action);
+      if (data.noteId) params.set('alarm-note', String(data.noteId));
+      const qs = params.toString();
+      return self.clients.openWindow(qs ? `/?${qs}` : '/');
     }
   })());
 });
