@@ -88,7 +88,17 @@ export default function CategoryGroup({
           >
             <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />
           </div>
-          <span className={`font-semibold text-sm truncate flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="category-title">{category}</span>
+          <span
+            className={`text-sm truncate flex-1 transition-colors ${
+              isOpen
+                ? 'font-bold'
+                : isDark ? 'text-white font-semibold' : 'text-gray-900 font-semibold'
+            }`}
+            style={isOpen
+              ? { color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+              : undefined}
+            data-testid="category-title"
+          >{category}</span>
           <Badge variant="outline" className={`text-xs flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`} data-testid="category-count">{children.length}</Badge>
           {alarmCount > 0 && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
           <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />

@@ -152,7 +152,19 @@ export default function AccordionNoteItem({
               )}
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
               {note.pinned && <Pin className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} title="Pinned" />}
-              <span className={`font-medium truncate flex-1 text-left ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.title || "Untitled"}</span>
+              <span
+                className={`truncate flex-1 text-left transition-colors ${
+                  isOpen
+                    ? 'font-semibold'
+                    : isDark ? 'text-white font-medium' : 'text-gray-900 font-medium'
+                }`}
+                style={isOpen
+                  ? { color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+                  : undefined}
+                data-testid={`accordion-note-title-${note.id}`}
+              >
+                {note.title || "Untitled"}
+              </span>
               {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}</Badge>}
               {hasAlarm && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
               {hasRecurring && <Repeat className="w-4 h-4 text-green-500 flex-shrink-0" />}

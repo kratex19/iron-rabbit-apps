@@ -72,7 +72,16 @@ export default function NestedSubGroup(props) {
         <span className={`text-[10px] uppercase tracking-wider shrink-0 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
           L{depth + 1}
         </span>
-        <span className={`text-sm font-medium truncate flex-1 ${isDark ? "text-white" : "text-gray-800"}`}>
+        <span
+          className={`text-sm truncate flex-1 transition-colors ${
+            isOpen
+              ? 'font-bold'
+              : isDark ? 'text-white font-medium' : 'text-gray-800 font-medium'
+          }`}
+          style={isOpen
+            ? { color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+            : undefined}
+        >
           {label}
         </span>
         <Badge
