@@ -65,13 +65,14 @@ export default function NestedSubGroup(props) {
 
   const alarmCount = bucketNotes.filter((n) => n.alarm?.enabled).length;
 
-  const shellBg = isDark ? "bg-white/[0.035]" : "bg-white/60";
+  // Transparent shell — inherits the parent CategoryGroup's colored gradient
+  // so nested subs read as belonging to the parent surface. Only a subtle
+  // border keeps them slightly distinct (per user spec: no smoked-glass).
   const shellBorder = isDark ? "border-white/10" : "border-gray-200";
 
   return (
     <div
-      className={`rounded-md border overflow-hidden ${shellBg} ${shellBorder} backdrop-blur-md mb-1.5`}
-      style={{ boxShadow: isDark ? "inset 0 1px 0 rgba(255,255,255,0.03)" : "inset 0 1px 0 rgba(255,255,255,0.4)" }}
+      className={`rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5`}
       data-testid={`nested-subgroup-${depth}-${label}`}
     >
       <button

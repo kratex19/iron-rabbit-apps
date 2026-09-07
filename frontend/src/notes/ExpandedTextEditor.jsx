@@ -39,6 +39,64 @@ export default function ExpandedTextEditor({
   // (e.g. mode change or external update).
   const lastAppliedHtmlRef = useRef(null);
 
+  // ── Text-mode "keep the tags, add plaintext beneath" state ─────────
+  // When the user switches from Format/HTML mode INTO Text mode, we
+  // freeze the current HTML as the "preserved" prefix and show a
+  // plaintext render of it in the textarea. Anything the user types in
+  // Text mode is treated as an APPENDED plain-text tail — we commit it
+  // back to the parent as `preservedHtml + plainTextToHtml(appended)`
+  // so switching BACK to Format/HTML preserves every tag they had,
+  // with the new plaintext appended as fresh paragraphs. If the user
+  // edits the preserved-plaintext region itself, we abandon HTML
+  // preservation for THIS session and fall back to a plaintext value —
+  // sane default for the "start fresh" case.
+  const [textBuffer, setTextBuffer] = useState("");
+  const [preservedHtml, setPreservedHtml] = useState(null);
+  // Reinitialise the text-mode buffer every time we ENTER text mode.
+  // Deliberately depends ONLY on `mode` (and note-swap via value length
+  // heuristics is handled by the format-mode value effect below), so
+  // routine parent re-renders while we're mid-typing don't clobber
+  // the buffer or the caret.
+  useEffect(() => {
+    if (mode !== "text") return;
+    if (looksLikeHtml(value)) {
+      setPreservedHtml(value);
+      setTextBuffer(htmlToPlainText(value));
+    } else {
+      setPreservedHtml(null);
+      setTextBuffer(value || "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  const handleTextChange = (e) => {
+    const next = e.target.value;
+    setTextBuffer(next);
+    if (preservedHtml) {
+      const preservedPlain = htmlToPlainText(preservedHtml);
+      if (next === preservedPlain) {
+        // No user addition yet — keep value as the preserved HTML.
+        onChange(preservedHtml);
+        return;
+      }
+      if (next.startsWith(preservedPlain)) {
+        // User APPENDED to the plaintext view. Fold the added tail back
+        // into the HTML as new paragraph(s) so Format/HTML mode still
+        // shows every original tag intact.
+        const appended = next.slice(preservedPlain.length);
+        onChange(preservedHtml + plainTextToHtml(appended));
+        return;
+      }
+      // User edited the middle of the preserved-plaintext region. We
+      // can't safely map that edit back to the HTML tree, so drop
+      // preservation and commit as plaintext.
+      setPreservedHtml(null);
+      onChange(next);
+      return;
+    }
+    onChange(next);
+  };
+
   // When the user switches INTO format mode from plain text we auto-
   // upgrade the string to paragraphs so the WYSIWYG has a proper block
   // structure to hang formatting on. When they switch INTO text mode
@@ -128,15 +186,29 @@ export default function ExpandedTextEditor({
   }, []);
 
   if (mode === "text") {
+    // Text-mode display is driven by the local `textBuffer` state above,
+    // NOT the raw parent `value`. This keeps the textarea's DOM output
+    // clean (no double-newline injection on every keystroke) while the
+    // parent value is committed as HTML behind the scenes so tags added
+    // in Format/HTML mode survive the round-trip.
     return (
       <TextareaAutosize
         ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={textBuffer}
+        onChange={handleTextChange}
         placeholder={placeholder}
         minRows={3}
         className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-base leading-relaxed font-sans ${isDark ? "fs-placeholder-dark" : "fs-placeholder-light"}`}
-        style={{ color: textColor }}
+        style={{
+          color: textColor,
+          // WebKit / mobile browsers inherit `-webkit-text-fill-color`
+          // from an ancestor with a `color: white` cascade and use it to
+          // paint text, ignoring plain `color`. Setting it explicitly
+          // inline makes the slider value survive re-mounts on cold
+          // reopen even if the ref-forcing useLayoutEffect hasn't
+          // landed by first paint.
+          WebkitTextFillColor: textColor,
+        }}
         data-testid="fullscreen-content-input"
         aria-label="Note content"
       />
@@ -180,7 +252,15 @@ export default function ExpandedTextEditor({
         placeholder={placeholder}
         data-testid="fullscreen-content-input-format"
         className={`fs-content-input fs-content-editable w-full bg-transparent border-0 outline-none text-base leading-relaxed font-sans ${isDark ? "fs-placeholder-dark" : "fs-placeholder-light"}`}
-        style={{ color: textColor, minHeight: "6rem" }}
+        style={{
+          color: textColor,
+          // Same WebKit belt-and-suspenders as text mode above — the
+          // contentEditable inherits `-webkit-text-fill-color` from
+          // ancestors and needs an explicit inline override so the
+          // slider value survives cold reopens on mobile browsers.
+          WebkitTextFillColor: textColor,
+          minHeight: "6rem",
+        }}
       />
       <FormatFloatingToolbar
         editableRef={editableRef}

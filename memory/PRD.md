@@ -1,5 +1,27 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28)
+
+### ✅ Nested sub-category background — reverted (per user)
+- User did not like the smoked-glass tint on `NestedSubGroup.jsx` (the L2/L3+ folder rows inside a parent `CategoryGroup`).
+- Fix: shell now uses `bg-transparent` (inherits parent CategoryGroup's colored surface) with only a subtle `border-white/10` outline + indent for slight distinction. Removed `bg-white/[0.035]`/`bg-white/60`, `backdrop-blur-md`, and the inset boxShadow.
+- File: `/app/frontend/src/notes/NestedSubGroup.jsx`
+
+### ✅ FullScreen expanded-text — text-color persistence hardened
+- Added inline `WebkitTextFillColor` alongside `color` in ExpandedTextEditor for all three modes (text/html/format). Belt-and-suspenders for mobile WebKit inheritance override — same pattern already applied to `NoteModal.jsx`.
+- User confirmed persistence works across all surfaces.
+- File: `/app/frontend/src/notes/ExpandedTextEditor.jsx`
+
+### ✅ Expanded-text mode-switch behavior — HTML preserved across text↔format/html
+- Prior bug: adding tags in Format mode or HTML in HTML mode then switching to Text mode showed the raw HTML/tags in the plaintext pane. Switching back to Format retained whatever was last saved (as HTML), but users expected Text to render as clean plaintext.
+- New behavior in `ExpandedTextEditor.jsx`:
+  - Text mode maintains a **local `textBuffer` + `preservedHtml` snapshot**. On entering Text mode, if the value looks like HTML we snapshot it and show `htmlToPlainText(value)` in the textarea.
+  - Typing in Text mode commits back to the parent as `preservedHtml + plainTextToHtml(appendedTail)` so the original tags remain intact and the plaintext addition is folded in as fresh paragraph(s).
+  - Switching back to Format/HTML mode shows the original tags PLUS the appended plaintext as new paragraphs. Switching to Text again shows the combined plaintext view. If the user edits the middle of the preserved-plaintext region, HTML preservation is dropped for that session (falls back to plain-text value).
+- Not deployed yet — user asked to hold until they verify.
+
+
+
 ## 🌙 Deferred (user asked to resume next session)
 - **Rich Notification Icon**: Ship a proper Iron Rabbit PNG for the notification `icon` + `badge` so banners feel branded instead of showing the tiny favicon.
 - **Focus Mode**: Add a Settings toggle that silences ALL alarm popups but keeps OS notifications firing — for late-night use when the app is open in a tab.
