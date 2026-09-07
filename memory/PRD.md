@@ -1,5 +1,28 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28 — Focus Now + Night Visuals)
+
+### ✅ Focus Now Timer shipped
+- New setting `settings.focus_until` (ms timestamp). While `Date.now() < focus_until`, `notificationService.isFocusActive()` returns true.
+- New component: `frontend/src/notes/FocusNowTimer.jsx` — chip row (30 min / 1 hour / 2 hours / Until sunrise). Live "X left" countdown ticks every 30s, self-cleans when elapsed, cancel chip for early stop.
+- "Until sunrise" = next occurrence of 06:00 local time (heuristic; no location dependency).
+- `notificationService.setFocusConfig({ manual, until, schedule })` now accepts the timer.
+
+### ✅ Night Visuals shipped
+- New setting `settings.focus_night_visuals = { enabled, ui_brightness: { text, bg } }`.
+- New component: `frontend/src/notes/NightVisualsPanel.jsx` — live preview swatch showing text on bg using the saved values, a "Snapshot current sliders" one-tap button, and editable BrightnessSliders inline.
+- **NotesApp integration**: `effectiveBrightness = useMemo(...)`. When Focus is active AND `focus_night_visuals.enabled`, home page `<main>` picks up `focus_night_visuals.ui_brightness` instead of `settings.ui_brightness`. Per-note saved brightness untouched.
+- **Live tick**: `focusTick` state increments every 30s so schedule transitions (`22:00` → active) or Focus-Now-timer elapse trigger a re-render and the home page visuals swap without user interaction.
+
+### Files touched
+- `notificationService.js` — added `until` to `focusConfig`; `isFocusActive` OR's manual/until/schedule.
+- `NotesApp.jsx` — `focusTick` interval, `focusActiveNow` + `effectiveBrightness` memos, `setFocusConfig` includes `until`, home `<main>` now uses `effectiveBrightness`.
+- `SettingsModal.jsx` — imported and rendered `FocusNowTimer` + `NightVisualsPanel`.
+- `FocusNowTimer.jsx` (new).
+- `NightVisualsPanel.jsx` (new).
+
+
+
 ## 📌 Session state (2026-02-28 — Focus Mode Schedule)
 
 ### ✅ Focus Mode nightly schedule shipped

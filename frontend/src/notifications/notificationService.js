@@ -125,21 +125,24 @@ class NotificationService {
     // Perfect for late-night use: the reminder still lands on your
     // lock screen but nothing beeps or flashes on the open tab.
     //
-    // Two inputs, OR'd together to produce the effective quiet state:
+    // Two-plus inputs, OR'd together to produce the effective quiet state:
     //   1. `focusConfig.manual` — the "ON now" toggle (immediate override)
-    //   2. `focusConfig.schedule` — per-day nightly window with times
+    //   2. `focusConfig.until`  — timestamp (ms) that pins Focus ON until
+    //                             the given moment (Focus Now chip row)
+    //   3. `focusConfig.schedule` — per-day nightly window with times
     // Effective state is computed at trigger time via `isFocusActive()`
-    // so a running alarm scheduler picks up schedule transitions without
-    // any explicit tick.
-    this.focusConfig = { manual: false, schedule: null };
+    // so a running alarm scheduler picks up transitions without any
+    // explicit tick.
+    this.focusConfig = { manual: false, until: null, schedule: null };
   }
 
-  // Called from NotesApp when `settings.focus_mode` or
-  // `settings.focus_schedule` changes so the alarm scheduler picks up
-  // the latest configuration immediately.
+  // Called from NotesApp when `settings.focus_mode`,
+  // `settings.focus_until` or `settings.focus_schedule` changes so
+  // the alarm scheduler picks up the latest configuration immediately.
   setFocusConfig(config) {
     this.focusConfig = {
       manual: !!(config && config.manual),
+      until: (config && typeof config.until === "number" && Number.isFinite(config.until)) ? config.until : null,
       schedule: config && config.schedule ? config.schedule : null,
     };
   }
@@ -149,10 +152,12 @@ class NotificationService {
     this.focusConfig = { ...(this.focusConfig || {}), manual: !!on };
   }
 
-  // Effective focus state = manual OR inside a scheduled window right now.
+  // Effective focus state = manual OR active-until-timer OR inside a
+  // scheduled window right now.
   isFocusActive(now = new Date()) {
     const cfg = this.focusConfig || {};
     if (cfg.manual) return true;
+    if (cfg.until && Date.now() < cfg.until) return true;
     return isInFocusWindow(now, cfg.schedule);
   }
 

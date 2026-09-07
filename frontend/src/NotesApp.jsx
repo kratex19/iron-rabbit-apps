@@ -518,15 +518,39 @@ export default function NotesApp() {
   }, [notes]);
   useEffect(() => { notificationService.requestPermission(); }, []);
 
-  // Push the Focus Mode config (manual toggle + per-day schedule) into
-  // the notification service every time either changes so the next
-  // alarm honours the latest state without waiting for a service tick.
+  // Push the Focus Mode config (manual toggle + Focus-Now timer +
+  // per-day schedule) into the notification service every time any of
+  // them changes so the next alarm honours the latest state without
+  // waiting for a service tick.
   useEffect(() => {
     notificationService.setFocusConfig({
       manual: !!settings?.focus_mode,
+      until: (typeof settings?.focus_until === "number" && Number.isFinite(settings?.focus_until)) ? settings.focus_until : null,
       schedule: settings?.focus_schedule || null,
     });
-  }, [settings?.focus_mode, settings?.focus_schedule]);
+  }, [settings?.focus_mode, settings?.focus_until, settings?.focus_schedule]);
+
+  // Force a re-render every 30s so home-page brightness (which depends
+  // on `notificationService.isFocusActive()`) can flip when a scheduled
+  // window opens/closes or the Focus-Now timer elapses.
+  const [focusTick, setFocusTick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setFocusTick((t) => t + 1), 30 * 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Effective brightness for the home page. Night Visuals overrides the
+  // saved home-page sliders whenever Focus Mode is active — the user's
+  // per-note brightness is preserved (this only fills in for surfaces
+  // that already fell back to the global default).
+  const focusActiveNow = useMemo(() => notificationService.isFocusActive(new Date()), [
+    settings?.focus_mode, settings?.focus_until, settings?.focus_schedule, focusTick,
+  ]);
+  const effectiveBrightness = useMemo(() => {
+    const nv = settings?.focus_night_visuals;
+    if (focusActiveNow && nv && nv.enabled && nv.ui_brightness) return nv.ui_brightness;
+    return settings?.ui_brightness;
+  }, [focusActiveNow, settings?.focus_night_visuals, settings?.ui_brightness]);
 
   // Handle alarm actions coming back from the Service Worker (either
   // via `postMessage` when the app was already open, or via URL params
@@ -1821,9 +1845,9 @@ export default function NotesApp() {
         <main
           className="relative ir-app-main ir-brightness-scope"
           style={{
-            background: brightnessToBg(settings?.ui_brightness?.bg ?? 0.3),
-            color: brightnessToText(settings?.ui_brightness?.text ?? 0.7),
-            "--ir-text": brightnessToText(settings?.ui_brightness?.text ?? 0.7),
+            background: brightnessToBg(effectiveBrightness?.bg ?? 0.3),
+            color: brightnessToText(effectiveBrightness?.text ?? 0.7),
+            "--ir-text": brightnessToText(effectiveBrightness?.text ?? 0.7),
           }}
         >
         <AppSearchBar

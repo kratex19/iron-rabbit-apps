@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import PinnedHub from "./PinnedHub";
 import FocusModeSchedule from "./FocusModeSchedule";
+import FocusNowTimer from "./FocusNowTimer";
+import NightVisualsPanel from "./NightVisualsPanel";
 import StorageService from "../storage/storageService";
 import notificationService from "../notifications/notificationService";
 import { SUPPORTED_LANGUAGES } from "../i18n";
@@ -399,6 +401,16 @@ export default function SettingsModal({
                 aria-label="Toggle Focus Mode now"
               />
             </div>
+            {/* Focus Now — chip row that pins Focus ON for a limited
+                window without hunting through the manual toggle or the
+                schedule. Uses `settings.focus_until` timestamp. */}
+            <div className="mt-2">
+              <FocusNowTimer
+                value={settings.focus_until}
+                onChange={(next) => onSave({ ...settings, focus_until: next })}
+                isDark={isDark}
+              />
+            </div>
             {/* Per-day schedule picker — auto-toggles Focus Mode during
                 user-defined nightly windows without needing to remember
                 to flip the manual switch. */}
@@ -406,6 +418,17 @@ export default function SettingsModal({
               <FocusModeSchedule
                 value={settings.focus_schedule}
                 onChange={(next) => onSave({ ...settings, focus_schedule: next })}
+                isDark={isDark}
+              />
+            </div>
+            {/* Night Visuals — snapshot current text/bg brightness for
+                automatic use whenever Focus Mode is active (manual,
+                timer or schedule). */}
+            <div className="mt-2">
+              <NightVisualsPanel
+                value={settings.focus_night_visuals}
+                onChange={(next) => onSave({ ...settings, focus_night_visuals: next })}
+                currentBrightness={settings.ui_brightness}
                 isDark={isDark}
               />
             </div>
