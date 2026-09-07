@@ -1,5 +1,13 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 🌙 Deferred (user asked to resume next session)
+- **Rich Notification Icon**: Ship a proper Iron Rabbit PNG for the notification `icon` + `badge` so banners feel branded instead of showing the tiny favicon.
+- **Focus Mode**: Add a Settings toggle that silences ALL alarm popups but keeps OS notifications firing — for late-night use when the app is open in a tab.
+- Confirm v97 (OS notification actions + Auto-detect toggle + stale-alarm silencer) landed cleanly in production and the Sept 7 alarm loop is fully quiet.
+
+---
+
+
 ## 📌 Session state (2026-02-27, v94 — Nested groups + Alarm reliability)
 
 ### ✅ Shipped v94-a — Nested collapsible category tree in the main list
