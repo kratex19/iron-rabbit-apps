@@ -179,8 +179,11 @@ class NotificationService {
     if (!this.hasPermission()) return null;
     const body = {
       body: options.body || "",
-      icon: options.icon || "/favicon.ico",
-      badge: options.icon || "/favicon.ico",
+      icon: options.icon || "/icon-192.png",
+      // Notification "badge" is a small monochrome silhouette shown in
+      // the Android status bar. Use the 96px flat icon so it renders
+      // crisply — Android will threshold to monochrome automatically.
+      badge: options.badge || "/notification-badge-96.png",
       tag: options.tag,
       requireInteraction: options.requireInteraction || false,
       silent: options.silent || false,

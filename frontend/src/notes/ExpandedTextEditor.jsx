@@ -224,10 +224,16 @@ export default function ExpandedTextEditor({
         placeholder="<p>HTML source…</p>"
         minRows={3}
         spellCheck={false}
-        className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-sm leading-relaxed font-mono placeholder:opacity-60 ${isDark ? "text-emerald-300" : "text-emerald-800"}`}
-        // Note: html mode uses a monospace green tint by design — this
-        // does not affect Regular / Format modes, which continue to
-        // honour the per-note text brightness slider exactly as before.
+        className={`fs-content-input w-full bg-transparent border-0 outline-none resize-none text-sm leading-relaxed font-mono placeholder:opacity-60`}
+        // HTML mode now follows the per-note brightness slider just
+        // like Regular and Format modes. Uses the same WebKit belt-
+        // and-suspenders (`WebkitTextFillColor`) so mobile browsers'
+        // inherited `-webkit-text-fill-color` cascade can't beat the
+        // slider value.
+        style={{
+          color: textColor,
+          WebkitTextFillColor: textColor,
+        }}
         data-testid="fullscreen-content-input-html"
         aria-label="Note HTML source"
       />
