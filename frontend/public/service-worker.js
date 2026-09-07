@@ -116,3 +116,22 @@ self.addEventListener('fetch', event => {
     })
   );
 });
+
+
+// ---- Notification click: focus / open the app when a reminder is tapped ----
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Prefer focusing an already-open Iron Rabbit tab
+    for (const client of allClients) {
+      if (client.url && new URL(client.url).origin === self.location.origin) {
+        return client.focus();
+      }
+    }
+    // Otherwise open a fresh tab at the app root
+    if (self.clients.openWindow) {
+      return self.clients.openWindow('/');
+    }
+  })());
+});

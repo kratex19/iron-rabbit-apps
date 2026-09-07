@@ -169,54 +169,88 @@ class NotificationService {
     }
   }
 
-  showNotification(title, options = {}) {
+  async showNotification(title, options = {}) {
     if (!this.hasPermission()) return null;
-    return new Notification(title, {
+    const body = {
       body: options.body || "",
       icon: options.icon || "/favicon.ico",
       badge: options.icon || "/favicon.ico",
       tag: options.tag,
       requireInteraction: options.requireInteraction || false,
       silent: options.silent || false,
-    });
+    };
+    // Mobile Chrome + installed PWAs forbid `new Notification(...)` —
+    // trying to construct one throws `Illegal constructor. Use
+    // ServiceWorkerRegistration.showNotification() instead.` Route
+    // through the SW when it's available (which it is for us — we
+    // register `/service-worker.js` at boot).
+    try {
+      if (typeof navigator !== "undefined" && navigator.serviceWorker && navigator.serviceWorker.ready) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg && typeof reg.showNotification === "function") {
+          await reg.showNotification(title, body);
+          return null;
+        }
+      }
+    } catch (err) {
+      console.warn("SW notification failed, falling back to direct Notification:", err);
+    }
+    // Desktop fallback — still supported on Chrome/Firefox/Edge on macOS/Linux/Windows.
+    try {
+      return new Notification(title, body);
+    } catch (err) {
+      // Some contexts (mobile PWAs, iOS Safari without SW) refuse both.
+      // Never let this bubble — the alarm check runs on a setInterval
+      // inside a useEffect, so a throw here would tear down the tree.
+      console.warn("Notification.showNotification() rejected:", err);
+      return null;
+    }
   }
 
   triggerAlarm(note) {
-    // Show notification
-    this.showNotification(`Reminder: ${note.title}`, {
-      body: note.content?.substring(0, 100) || "Time for your task!",
-      tag: `alarm-${note.id}`,
-      requireInteraction: true,
-    });
+    // Every step of the alarm trigger is best-effort. A single failure
+    // (browser blocks Notification, AudioContext refuses to resume,
+    // vibrate() throws on desktop) must NOT propagate out of the
+    // 15-second scheduler tick — otherwise it takes the whole React
+    // tree down and produces the "black tar" screen users saw before.
+    try {
+      // Fire-and-forget: showNotification is async but we don't await
+      // it (nothing here depends on the notification landing).
+      this.showNotification(`Reminder: ${note.title}`, {
+        body: note.content?.substring(0, 100) || "Time for your task!",
+        tag: `alarm-${note.id}`,
+        requireInteraction: true,
+      });
+    } catch (err) { console.warn("showNotification threw:", err); }
 
-    // Play sound
-    if (note.alarm?.sound) {
-      this.playSound(note.alarm.sound);
-    }
+    try {
+      if (note.alarm?.sound) this.playSound(note.alarm.sound);
+    } catch (err) { console.warn("playSound threw:", err); }
 
-    // Vibrate if haptic enabled
-    if (note.alarm?.haptic) {
-      this.triggerHaptic();
-    }
+    try {
+      if (note.alarm?.haptic) this.triggerHaptic();
+    } catch (err) { console.warn("triggerHaptic threw:", err); }
 
     // In-app snooze toast (only shows when app is focused). Skip for
     // synthetic per-event alarms (id contains "-") since they aren't
     // stored as top-level notes.
-    const isEventAlarm = typeof note.id === "string" && note.id.includes("-") && note.id.split("-").length > 5;
-    if (!isEventAlarm) {
-      toast(`⏰ ${note.title}`, {
-        description: note.content?.substring(0, 80) || "Time for your task!",
-        duration: 20000,
-        action: {
-          label: "Snooze 5m",
-          onClick: () => this.snoozeAlarm(note.id, 5),
-        },
-        cancel: {
-          label: "1h",
-          onClick: () => this.snoozeAlarm(note.id, 60),
-        },
-      });
-    }
+    try {
+      const isEventAlarm = typeof note.id === "string" && note.id.includes("-") && note.id.split("-").length > 5;
+      if (!isEventAlarm) {
+        toast(`⏰ ${note.title}`, {
+          description: note.content?.substring(0, 80) || "Time for your task!",
+          duration: 20000,
+          action: {
+            label: "Snooze 5m",
+            onClick: () => this.snoozeAlarm(note.id, 5),
+          },
+          cancel: {
+            label: "1h",
+            onClick: () => this.snoozeAlarm(note.id, 60),
+          },
+        });
+      }
+    } catch (err) { console.warn("toast threw:", err); }
   }
 
   async snoozeAlarm(noteId, minutes) {
@@ -253,46 +287,63 @@ class NotificationService {
     this.primeAudio();
 
     const check = () => {
-      const now = Date.now();
-      const notes = getNotes() || [];
+      try {
+        const now = Date.now();
+        const notes = getNotes() || [];
 
-      const maybeFire = (key, note) => {
-        if (this.notified[key]) return; // already notified this exact schedule
-        this.triggerAlarm(note);
-        this.notified[key] = now;
-        writeNotifiedLedger(this.notified);
-      };
-
-      notes.forEach((note) => {
-        // Main alarm
-        if (note.alarm?.enabled && note.alarm?.datetime) {
-          const alarmMs = new Date(note.alarm.datetime).getTime();
-          if (!Number.isFinite(alarmMs)) return;
-          const diff = alarmMs - now;
-          const key = `main-${note.id}@${note.alarm.datetime}`;
-          // Either fires soon OR fired within the missed-window and we
-          // haven't caught up yet.
-          if ((diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS)) {
-            maybeFire(key, note);
+        const maybeFire = (key, note) => {
+          if (this.notified[key]) return; // already notified this exact schedule
+          try {
+            this.triggerAlarm(note);
+          } catch (err) {
+            console.warn("triggerAlarm threw:", err);
           }
-        }
-        // Per-event alarms
-        (note.events || []).forEach((evt) => {
-          if (!evt.alarm_enabled || !evt.datetime) return;
-          const t = new Date(evt.datetime).getTime();
-          if (!Number.isFinite(t)) return;
-          const diff = t - now;
-          const key = `evt-${evt.id}@${evt.datetime}`;
-          if (diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS) {
-            maybeFire(key, {
-              id: `${note.id}-${evt.id}`,
-              title: `${note.title} — ${evt.title}`,
-              content: evt.notes || note.title,
-              alarm: { sound: note.alarm?.sound || "bell", haptic: note.alarm?.haptic },
+          this.notified[key] = now;
+          writeNotifiedLedger(this.notified);
+        };
+
+        notes.forEach((note) => {
+          try {
+            // Main alarm
+            if (note.alarm?.enabled && note.alarm?.datetime) {
+              const alarmMs = new Date(note.alarm.datetime).getTime();
+              if (!Number.isFinite(alarmMs)) return;
+              const diff = alarmMs - now;
+              const key = `main-${note.id}@${note.alarm.datetime}`;
+              if ((diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS)) {
+                maybeFire(key, note);
+              }
+            }
+            // Per-event alarms
+            (note.events || []).forEach((evt) => {
+              try {
+                if (!evt.alarm_enabled || !evt.datetime) return;
+                const t = new Date(evt.datetime).getTime();
+                if (!Number.isFinite(t)) return;
+                const diff = t - now;
+                const key = `evt-${evt.id}@${evt.datetime}`;
+                if (diff <= FUTURE_WINDOW_MS && diff >= -MISSED_WINDOW_MS) {
+                  maybeFire(key, {
+                    id: `${note.id}-${evt.id}`,
+                    title: `${note.title} — ${evt.title}`,
+                    content: evt.notes || note.title,
+                    alarm: { sound: note.alarm?.sound || "bell", haptic: note.alarm?.haptic },
+                  });
+                }
+              } catch (evtErr) {
+                console.warn("Alarm check (event) threw:", evtErr);
+              }
             });
+          } catch (noteErr) {
+            console.warn("Alarm check (note) threw:", noteErr);
           }
         });
-      });
+      } catch (outerErr) {
+        // Absolutely nothing must escape this scheduler — a throw here
+        // would take the whole React tree down (which is exactly the
+        // "black tar" crash the user hit before the ErrorBoundary).
+        console.warn("Alarm check outer error:", outerErr);
+      }
     };
 
     // Mobile browsers heavily throttle (or completely pause) setInterval
