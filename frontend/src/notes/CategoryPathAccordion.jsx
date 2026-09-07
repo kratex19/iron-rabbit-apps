@@ -106,7 +106,16 @@ export default function CategoryPathAccordion({
         data-testid="category-path-toggle"
       >
         <FolderTree className={`w-4 h-4 ${isDark ? "text-indigo-300" : "text-indigo-500"}`} />
-        <span className={`text-xs font-medium ${isDark ? "text-slate-200" : "text-gray-700"}`}>
+        <span
+          className={`text-xs transition-colors ${
+            open
+              ? "font-bold"
+              : isDark ? "text-slate-200 font-medium" : "text-gray-700 font-medium"
+          }`}
+          style={open
+            ? { color: "#ffffff", textShadow: "0 1px 2px rgba(0,0,0,0.6)" }
+            : undefined}
+        >
           Category path
         </span>
         <div className="flex-1 min-w-0">

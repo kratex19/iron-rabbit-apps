@@ -48,7 +48,16 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
         <Ico className="w-4 h-4 text-white" strokeWidth={pinned ? 2.5 : 2} />
       </div>
       <div className="min-w-0 flex-1 text-left">
-        <div className={`font-semibold text-sm truncate ${isDark ? "text-white" : "text-gray-900"}`}>
+        <div
+          className={`text-sm truncate transition-colors ${
+            isOpen
+              ? "font-bold"
+              : isDark ? "text-white font-semibold" : "text-gray-900 font-semibold"
+          }`}
+          style={isOpen
+            ? { color: "#ffffff", textShadow: "0 1px 2px rgba(0,0,0,0.6)" }
+            : undefined}
+        >
           {title}
         </div>
         {typeof displayCount === "number" && (
