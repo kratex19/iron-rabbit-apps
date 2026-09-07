@@ -518,12 +518,15 @@ export default function NotesApp() {
   }, [notes]);
   useEffect(() => { notificationService.requestPermission(); }, []);
 
-  // Push the Focus Mode setting into the notification service every
-  // time it changes so the next alarm honours the toggle immediately
-  // without waiting for the next interval tick.
+  // Push the Focus Mode config (manual toggle + per-day schedule) into
+  // the notification service every time either changes so the next
+  // alarm honours the latest state without waiting for a service tick.
   useEffect(() => {
-    notificationService.setFocusMode(!!settings?.focus_mode);
-  }, [settings?.focus_mode]);
+    notificationService.setFocusConfig({
+      manual: !!settings?.focus_mode,
+      schedule: settings?.focus_schedule || null,
+    });
+  }, [settings?.focus_mode, settings?.focus_schedule]);
 
   // Handle alarm actions coming back from the Service Worker (either
   // via `postMessage` when the app was already open, or via URL params

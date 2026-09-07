@@ -1,5 +1,21 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28 — Focus Mode Schedule)
+
+### ✅ Focus Mode nightly schedule shipped
+- **Data model**: `settings.focus_schedule = { enabled, recurring, days: { sun/mon/tue/wed/thu/fri/sat: { enabled, start, end } } }`. Times are HH:MM local. If `end <= start` the window straddles midnight (e.g. Sun 22:00 → Mon 06:30).
+- **New component**: `frontend/src/notes/FocusModeSchedule.jsx` — per-day picker with day toggle + start/end time inputs + `+1d` badge for overnight windows + recurring weekly toggle + live "Currently active" status hint.
+- **Effective state math** in `notificationService.js`:
+  - `focusConfig = { manual, schedule }`
+  - `isFocusActive(now)` = `manual || isInFocusWindow(now, schedule)`
+  - `triggerAlarm` reads `isFocusActive()` at trigger time so schedule transitions apply without any explicit tick.
+  - `isInFocusWindow` is exported from notificationService and unit-tested for 6 edge cases (all pass) including yesterday-tail crossing midnight.
+- **NotesApp wiring**: single `useEffect` on `[settings.focus_mode, settings.focus_schedule]` pushes the whole config into the service.
+- **UI**: SettingsModal Focus Mode row now shows the manual "ON now" override toggle first, then the full schedule picker below. Weekday nights (Sun–Thu) pre-enabled 22:00 → 06:30 as sensible defaults.
+- Files: `notificationService.js`, `NotesApp.jsx`, `SettingsModal.jsx`, `FocusModeSchedule.jsx` (new).
+
+
+
 ## 📌 Session state (2026-02-28 — continued)
 
 ### ✅ Focus Mode shipped

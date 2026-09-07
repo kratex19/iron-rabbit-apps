@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import PinnedHub from "./PinnedHub";
+import FocusModeSchedule from "./FocusModeSchedule";
 import StorageService from "../storage/storageService";
 import notificationService from "../notifications/notificationService";
 import { SUPPORTED_LANGUAGES } from "../i18n";
@@ -385,17 +386,27 @@ export default function SettingsModal({
               <BellOff className={`w-4 h-4 shrink-0 ${settings.focus_mode ? "text-indigo-400" : (isDark ? "text-slate-500" : "text-gray-400")}`} />
               <div className="flex-1 min-w-0">
                 <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-800"}`}>
-                  Silence in-app popups
+                  Focus Mode — ON now
                 </div>
                 <div className={`text-[11px] leading-snug ${isDark ? "text-slate-500" : "text-gray-500"}`}>
-                  Alarm popups, sound, and haptics are muted. Lock-screen notifications still fire silently so you never miss a reminder.
+                  Manual override. Silences alarm popups, sound, and haptics right now until you switch it off. Lock-screen notifications still fire silently.
                 </div>
               </div>
               <Switch
                 checked={!!settings.focus_mode}
                 onCheckedChange={(v) => onSave({ ...settings, focus_mode: v })}
                 data-testid="focus-mode-toggle"
-                aria-label="Toggle Focus Mode"
+                aria-label="Toggle Focus Mode now"
+              />
+            </div>
+            {/* Per-day schedule picker — auto-toggles Focus Mode during
+                user-defined nightly windows without needing to remember
+                to flip the manual switch. */}
+            <div className="mt-2">
+              <FocusModeSchedule
+                value={settings.focus_schedule}
+                onChange={(next) => onSave({ ...settings, focus_schedule: next })}
+                isDark={isDark}
               />
             </div>
           </div>

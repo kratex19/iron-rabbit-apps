@@ -60,6 +60,54 @@ function writeNotifiedLedger(led) {
   } catch { /* ignore quota errors */ }
 }
 
+// -------- Focus Mode schedule helper --------------------------------------
+// Days-of-week keyed schedule with optional overnight windows. Each day's
+// `start` and `end` are "HH:MM" strings in local time. If `end <= start`
+// the window is treated as crossing midnight (e.g. `22:00 → 06:30` on
+// Sun covers Sun 22:00 through Mon 06:30). To check the current moment
+// we look at TODAY's window in the normal direction and ALSO at
+// YESTERDAY's window's tail if it crossed midnight.
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+function parseHHMM(s) {
+  if (typeof s !== "string") return null;
+  const m = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const h = Math.min(23, Math.max(0, parseInt(m[1], 10)));
+  const min = Math.min(59, Math.max(0, parseInt(m[2], 10)));
+  return h * 60 + min;
+}
+export function isInFocusWindow(now, schedule) {
+  if (!schedule || !schedule.enabled) return false;
+  const days = schedule.days || {};
+  const curDay = now.getDay(); // 0=Sun
+  const curMinutes = now.getHours() * 60 + now.getMinutes();
+  // Today
+  const today = days[DAY_KEYS[curDay]];
+  if (today && today.enabled) {
+    const s = parseHHMM(today.start);
+    const e = parseHHMM(today.end);
+    if (s != null && e != null) {
+      if (s < e) {
+        if (curMinutes >= s && curMinutes < e) return true;
+      } else {
+        // Crosses midnight — active from start through end of today.
+        if (curMinutes >= s) return true;
+      }
+    }
+  }
+  // Yesterday tail (only counts if yesterday's window crossed midnight)
+  const yIdx = (curDay + 6) % 7;
+  const yesterday = days[DAY_KEYS[yIdx]];
+  if (yesterday && yesterday.enabled) {
+    const s = parseHHMM(yesterday.start);
+    const e = parseHHMM(yesterday.end);
+    if (s != null && e != null && s >= e) {
+      if (curMinutes < e) return true;
+    }
+  }
+  return false;
+}
+
 class NotificationService {
   constructor() {
     this.checkInterval = null;
@@ -68,7 +116,7 @@ class NotificationService {
     // Shared audio context — created lazily on first user gesture.
     this._audioCtx = null;
     this._primeBound = false;
-    // Focus Mode — user-settable via Settings. When true:
+    // Focus Mode — user-settable via Settings. When active:
     //   - No in-app alarm toast popup
     //   - No alarm sound
     //   - No haptic vibration
@@ -76,14 +124,36 @@ class NotificationService {
     //     Android/iOS don't play their default notification sound.
     // Perfect for late-night use: the reminder still lands on your
     // lock screen but nothing beeps or flashes on the open tab.
-    this.focusMode = false;
+    //
+    // Two inputs, OR'd together to produce the effective quiet state:
+    //   1. `focusConfig.manual` — the "ON now" toggle (immediate override)
+    //   2. `focusConfig.schedule` — per-day nightly window with times
+    // Effective state is computed at trigger time via `isFocusActive()`
+    // so a running alarm scheduler picks up schedule transitions without
+    // any explicit tick.
+    this.focusConfig = { manual: false, schedule: null };
   }
 
-  // Called from NotesApp when `settings.focus_mode` changes so the
-  // alarm scheduler picks up the toggle immediately without waiting
-  // for the next interval tick.
+  // Called from NotesApp when `settings.focus_mode` or
+  // `settings.focus_schedule` changes so the alarm scheduler picks up
+  // the latest configuration immediately.
+  setFocusConfig(config) {
+    this.focusConfig = {
+      manual: !!(config && config.manual),
+      schedule: config && config.schedule ? config.schedule : null,
+    };
+  }
+
+  // Legacy setter — kept so anything still calling the old API works.
   setFocusMode(on) {
-    this.focusMode = !!on;
+    this.focusConfig = { ...(this.focusConfig || {}), manual: !!on };
+  }
+
+  // Effective focus state = manual OR inside a scheduled window right now.
+  isFocusActive(now = new Date()) {
+    const cfg = this.focusConfig || {};
+    if (cfg.manual) return true;
+    return isInFocusWindow(now, cfg.schedule);
   }
 
   // -------- permissions --------------------------------------------------
@@ -252,7 +322,7 @@ class NotificationService {
     // ringtone, and the vibration. We also pass `silent: true` to the
     // OS notification so the phone's default notification sound
     // doesn't play either.
-    const quiet = this.focusMode === true;
+    const quiet = this.isFocusActive();
     try {
       // Fire-and-forget: showNotification is async but we don't await
       // it (nothing here depends on the notification landing).
