@@ -275,15 +275,50 @@ export default function NotesApp() {
   // scoped surfaces (Home body, NoteModal quick-text, FullScreenNote
   // expanded-text). Uses a debounce via requestAnimationFrame so drag
   // updates don't hammer StorageService.
+  //
+  // 🔒 LOCKED (Home Page brightness — flush-on-hide added 2026-02-27 with pw 2020)
+  // A pending save is kept in `brightnessSavePending` so we can flush it
+  // synchronously when the tab becomes hidden / the page is about to
+  // unload — mobile browsers pause `setTimeout` when backgrounded,
+  // which used to eat the last slider drag before it reached disk.
   const brightnessSaveTimer = useRef(null);
+  const brightnessSavePending = useRef(null); // holds the latest `merged` awaiting save
+  const flushBrightnessSave = () => {
+    if (brightnessSavePending.current) {
+      const pending = brightnessSavePending.current;
+      brightnessSavePending.current = null;
+      if (brightnessSaveTimer.current) {
+        clearTimeout(brightnessSaveTimer.current);
+        brightnessSaveTimer.current = null;
+      }
+      StorageService.saveSettings(pending).catch(() => {});
+    }
+  };
   const handleBrightnessChange = (next) => {
     const merged = { ...(settings || {}), ui_brightness: next };
     setSettings(merged);
+    brightnessSavePending.current = merged;
     if (brightnessSaveTimer.current) clearTimeout(brightnessSaveTimer.current);
     brightnessSaveTimer.current = setTimeout(() => {
+      brightnessSavePending.current = null;
+      brightnessSaveTimer.current = null;
       StorageService.saveSettings(merged).catch(() => {});
     }, 250);
   };
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flushBrightnessSave(); };
+    const onPageHide = () => flushBrightnessSave();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onPageHide);
+      flushBrightnessSave(); // Also flush on component unmount just in case.
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keyboard shortcuts (desktop-only feel): n = new note, / = focus search,
   // g = toggle grid/list. Ignored when a form field is focused.

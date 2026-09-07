@@ -70,8 +70,32 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   // user hasn't touched the sliders on this note yet. Local edits stay
   // scoped to this modal instance and are persisted to the note on save,
   // so re-opening the same note restores the same slider positions.
+  //
+  // 🔒 LOCKED (Quick Edit brightness — flush-on-hide + new-note scratch added
+  // 2026-02-27 pw 2020). Brand new notes (no id) now also persist their
+  // in-progress brightness to `localStorage.ir_new_note_brightness_v1` so
+  // that closing/backgrounding the New Note modal doesn't lose the drag.
+  // The scratch key is cleared once the note is saved.
+  const NEW_NOTE_SCRATCH_KEY = "ir_new_note_brightness_v1";
+  const readNewNoteScratch = () => {
+    try {
+      const raw = localStorage.getItem(NEW_NOTE_SCRATCH_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.text === "number" && typeof parsed.bg === "number") return parsed;
+      return null;
+    } catch { return null; }
+  };
+  const writeNewNoteScratch = (val) => {
+    try { localStorage.setItem(NEW_NOTE_SCRATCH_KEY, JSON.stringify(val)); }
+    catch { /* ignore quota */ }
+  };
+  const clearNewNoteScratch = () => {
+    try { localStorage.removeItem(NEW_NOTE_SCRATCH_KEY); }
+    catch { /* ignore */ }
+  };
   const [noteBrightness, setNoteBrightness] = useState(
-    note?.ui_brightness || uiBrightness || { text: 0.7, bg: 0.3 }
+    note?.ui_brightness || (!note ? readNewNoteScratch() : null) || uiBrightness || { text: 0.7, bg: 0.3 }
   );
 
   // Belt-and-suspenders text color forcing: the textarea's inline `color`
@@ -143,13 +167,31 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   // requiring the user to hit "Update". Skips the initial mount and
   // any note-switch reset so we don't re-save just-loaded values, and
   // only fires when the user has actually touched the sliders in this
-  // modal instance. New notes (no id yet) still fall through to the
-  // normal Save path so nothing persists on Cancel.
+  // modal instance.
+  //
+  // For NEW notes (no id yet) we ALSO persist the in-progress value to
+  // a localStorage scratch key so closing/backgrounding preserves the
+  // drag until the user actually hits Save. Cleared on successful save.
+  //
+  // Flush-on-hide: `pendingBrightness` holds the latest value awaiting
+  // save; on unmount, `visibilitychange` (hidden), and `pagehide` we
+  // fire the save synchronously so a mobile browser suspending
+  // setTimeout can't eat the last drag.
   const brightnessAutoSaveRef = useRef({ noteId: null, dirty: false });
+  const pendingBrightness = useRef(null);
   useEffect(() => {
     // Reset the dirty flag whenever the note being edited changes.
     brightnessAutoSaveRef.current = { noteId: note?.id || null, dirty: false };
   }, [note?.id]);
+  const flushBrightnessSave = () => {
+    const pending = pendingBrightness.current;
+    if (!pending) return;
+    pendingBrightness.current = null;
+    if (pending.kind === "note-save" && pending.noteId && onSaveInline) {
+      onSaveInline(pending.noteId, { ui_brightness: pending.value });
+    }
+    // Scratch writes are synchronous anyway; nothing to flush here.
+  };
   useEffect(() => {
     if (!isOpen) return undefined;
     const state = brightnessAutoSaveRef.current;
@@ -159,13 +201,38 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       state.dirty = true;
       return undefined;
     }
-    if (!note?.id || !onSaveInline) return undefined;
+    // Brand-new notes: persist to scratch key IMMEDIATELY so the drag
+    // survives a Cancel/close/backgrounding round-trip.
+    if (!note?.id) {
+      writeNewNoteScratch(noteBrightness);
+      return undefined;
+    }
+    if (!onSaveInline) return undefined;
+    pendingBrightness.current = { kind: "note-save", noteId: note.id, value: noteBrightness };
     const t = setTimeout(() => {
+      pendingBrightness.current = null;
       onSaveInline(note.id, { ui_brightness: noteBrightness });
     }, 250);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteBrightness?.text, noteBrightness?.bg, isOpen, note?.id]);
+  // Flush pending save on unmount / hide / pagehide so mobile browsers
+  // pausing setTimeout during backgrounding don't drop the last drag.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onHide = () => { if (document.visibilityState === "hidden") flushBrightnessSave(); };
+    const onPageHide = () => flushBrightnessSave();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onPageHide);
+      flushBrightnessSave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
   const [translateOpen, setTranslateOpen] = useState(false);
   const voice = useVoiceInput();
 
@@ -283,6 +350,11 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       ui_brightness: noteBrightness,
     };
     await onSave(noteData, note?.id);
+    // If this was a brand-new note, its brightness scratch buffer has
+    // now been folded into the note itself — clear the scratch key so
+    // the NEXT new note starts from the global default instead of the
+    // previous note's colour choices.
+    if (!note?.id) clearNewNoteScratch();
     setSaving(false);
     onClose();
   };

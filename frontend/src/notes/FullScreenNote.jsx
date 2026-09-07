@@ -159,12 +159,28 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // sanitised through the HTML allowlist right before it hits storage so
   // no <script> or event-handler HTML can ever be persisted, even if it
   // was pasted or entered via HTML source mode.
+  //
+  // 🔒 LOCKED (Fullscreen brightness — flush-on-hide added 2026-02-27 pw 2020).
+  // `pendingSave` holds the latest patch awaiting the debounce; we flush
+  // it synchronously on `visibilitychange` (hidden), `pagehide`, and
+  // `beforeunload` so mobile browsers pausing setTimeout while
+  // backgrounded can't drop the last slider drag.
+  const pendingSave = useRef(null);
+  const flushBrightnessSave = () => {
+    if (!pendingSave.current) return;
+    const p = pendingSave.current;
+    pendingSave.current = null;
+    onSaveInline(p.noteId, p.patch);
+  };
   useEffect(() => {
     if (!dirty || !note) return;
+    const safe = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+    const patch = { title: title.trim() || "Untitled", content: safe, ui_brightness: noteBrightness };
+    pendingSave.current = { noteId: note.id, patch };
     const t = setTimeout(async () => {
       setSaving(true);
-      const safe = looksLikeHtml(content) ? sanitizeHtml(content) : content;
-      await onSaveInline(note.id, { title: title.trim() || "Untitled", content: safe, ui_brightness: noteBrightness });
+      pendingSave.current = null;
+      await onSaveInline(note.id, patch);
       setSaving(false);
       setSavedAt(Date.now());
       setDirty(false);
@@ -172,6 +188,21 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, content, noteBrightness, dirty]);
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onHide = () => { if (document.visibilityState === "hidden") flushBrightnessSave(); };
+    const onPageHide = () => flushBrightnessSave();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onPageHide);
+      flushBrightnessSave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen || !note) return null;
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
