@@ -333,7 +333,18 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               minRows={1}
               maxRows={6}
               tabIndex={titlePanelOpen ? 0 : -1}
-              className={`fs-title-input w-full bg-transparent border-0 outline-none text-xl font-bold resize-none leading-snug ${isDark ? 'text-white placeholder:text-slate-500' : 'text-gray-900 placeholder:text-gray-400'}`}
+              className={`fs-title-input w-full bg-transparent border-0 outline-none text-xl font-bold resize-none leading-snug placeholder:text-slate-500`}
+              // Title inside the drop-down panel is ALWAYS bright pure
+              // white in every state (opening, open, closing) — the
+              // rest of the fullscreen surface / content area is
+              // unaffected. `WebkitTextFillColor` is required to beat
+              // the inherited `-webkit-text-fill-color` from ancestor
+              // `text-white` classes on WebKit / mobile browsers.
+              style={{
+                color: "#ffffff",
+                WebkitTextFillColor: "#ffffff",
+                textShadow: "0 1px 2px rgba(0,0,0,0.55)",
+              }}
               data-testid="fullscreen-title-input"
               aria-label="Note title"
             />
