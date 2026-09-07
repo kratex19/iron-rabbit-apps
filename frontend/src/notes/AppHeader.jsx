@@ -10,6 +10,7 @@ import { haptic } from "../utils/haptic";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import DisplayControlsButton from "./DisplayControlsButton";
+import FocusStatusChip from "./FocusStatusChip";
 import { resolveBackgroundStyle } from "../utils/bgValue";
 import ViewportWarning from "./ViewportWarning";
 
@@ -47,6 +48,8 @@ export default function AppHeader({
   onDashboard,
   uiBrightness,
   onBrightnessChange,
+  focusStatus,
+  onCancelFocus,
 }) {
   const { t, i18n } = useTranslation();
   const languageCode = (i18n.language || "en").split("-")[0];
@@ -85,6 +88,11 @@ export default function AppHeader({
               <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
             </a>
           )}
+          {/* Focus-Mode status pill — visible only when Focus is active
+              (manual toggle, running timer, or a scheduled window).
+              Ticks its own countdown so parent doesn't need to re-render
+              every second. */}
+          <FocusStatusChip status={focusStatus} onCancel={onCancelFocus} />
         </div>
         <div className="shrink-0 flex items-start gap-2">
           {settings?.logo_url && (

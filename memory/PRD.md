@@ -1,5 +1,19 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28 — Focus Status Chip)
+
+### ✅ Focus Status Chip shipped
+- New component: `frontend/src/notes/FocusStatusChip.jsx` — small pill under the app title (below ironrabbitapps.com URL).
+- Renders ONLY when Focus is active. Auto-picks the label:
+  - Timer mode: `Focus · Xh Ym left` (live countdown, self-ticks every 30s).
+  - Manual mode: `Focus · ON`.
+  - Schedule-only: `Focus · scheduled`.
+- Cancel `✕` chip clears manual + timer in one tap; NOT rendered when only a schedule window is active (user must toggle the schedule in Settings to override — prevents an unusable "cancel immediately re-actives" loop).
+- Wired via `AppHeader` props `focusStatus` + `onCancelFocus` from NotesApp.
+- **NotesApp refactor**: switched `focusActiveNow` from `notificationService.isFocusActive()` to a local `useMemo` calling `isInFocusWindow`. Root cause: `useMemo` runs during render while `setFocusConfig` fires in a post-commit `useEffect`, so reading the service was one render behind on setting changes. Local math is a mirror of the service's OR-chain (`manual || (until && now<until) || isInFocusWindow`).
+
+
+
 ## 📌 Session state (2026-02-28 — Focus Now + Night Visuals)
 
 ### ✅ Focus Now Timer shipped

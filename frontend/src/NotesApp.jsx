@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 import StorageService from "./storage/storageService";
-import notificationService from "./notifications/notificationService";
+import notificationService, { isInFocusWindow } from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
 import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
@@ -543,7 +543,21 @@ export default function NotesApp() {
   // saved home-page sliders whenever Focus Mode is active — the user's
   // per-note brightness is preserved (this only fills in for surfaces
   // that already fell back to the global default).
-  const focusActiveNow = useMemo(() => notificationService.isFocusActive(new Date()), [
+  //
+  // We compute the active state LOCALLY from settings (mirrors the
+  // notification-service logic) instead of calling
+  // `notificationService.isFocusActive()` because `useMemo` runs during
+  // render while `setFocusConfig` fires in a post-commit `useEffect` —
+  // reading the service here would use a stale config on the first
+  // render after a settings change and the chip / dim would lag one
+  // render behind.
+  const focusActiveNow = useMemo(() => {
+    if (settings?.focus_mode) return true;
+    if (typeof settings?.focus_until === "number"
+        && Number.isFinite(settings.focus_until)
+        && Date.now() < settings.focus_until) return true;
+    return isInFocusWindow(new Date(), settings?.focus_schedule);
+  }, [
     settings?.focus_mode, settings?.focus_until, settings?.focus_schedule, focusTick,
   ]);
   const effectiveBrightness = useMemo(() => {
@@ -1816,6 +1830,21 @@ export default function NotesApp() {
         onDashboard={() => navigate("/dashboard")}
         uiBrightness={settings?.ui_brightness}
         onBrightnessChange={handleBrightnessChange}
+        focusStatus={{
+          active: focusActiveNow,
+          manual: !!settings?.focus_mode,
+          until: (typeof settings?.focus_until === "number" && Number.isFinite(settings?.focus_until) && Date.now() < settings.focus_until) ? settings.focus_until : null,
+          scheduleActive: !settings?.focus_mode && !(typeof settings?.focus_until === "number" && Date.now() < settings.focus_until) && focusActiveNow,
+        }}
+        onCancelFocus={() => {
+          // One-tap "kill Focus" from the header pill. Clears both the
+          // manual toggle AND the Focus-Now timer so the pill goes
+          // away immediately. Schedule is left alone — user's clearly
+          // told us they want quiet later; we just override the
+          // current window until the schedule's next start boundary.
+          const next = { ...(settings || {}), focus_mode: false, focus_until: 0 };
+          handleSaveSettings(next);
+        }}
       />
 
       {/* 🔒 LOCKED (Home Page brightness) — see /app/memory/LOCKED_SURFACES.md
