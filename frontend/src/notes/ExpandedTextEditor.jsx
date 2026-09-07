@@ -152,6 +152,22 @@ export default function ExpandedTextEditor({
     try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch { /* noop */ }
   }, [mode]);
 
+  // Ref-force the slider colour on the forwarded `textareaRef` for
+  // Regular (text) and HTML modes. The parent's own colour-forcing
+  // effect only reruns when the brightness value changes — NOT on
+  // mode switch — so a fresh textarea mounted by switching modes
+  // was picking up the global `textarea { color: hsl(var(--foreground)) }`
+  // rule and rendering black. This effect fires on every mode +
+  // textColor change so the newly-mounted textarea gets `!important`
+  // colour + `-webkit-text-fill-color` on first paint.
+  useLayoutEffect(() => {
+    if (mode !== "text" && mode !== "html") return;
+    const el = textareaRef && textareaRef.current;
+    if (!el || !textColor) return;
+    el.style.setProperty("color", textColor, "important");
+    el.style.setProperty("-webkit-text-fill-color", textColor, "important");
+  }, [mode, textColor, textareaRef]);
+
   const handleEditableInput = useCallback(() => {
     const el = editableRef.current;
     if (!el) return;

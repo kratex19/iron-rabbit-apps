@@ -518,6 +518,13 @@ export default function NotesApp() {
   }, [notes]);
   useEffect(() => { notificationService.requestPermission(); }, []);
 
+  // Push the Focus Mode setting into the notification service every
+  // time it changes so the next alarm honours the toggle immediately
+  // without waiting for the next interval tick.
+  useEffect(() => {
+    notificationService.setFocusMode(!!settings?.focus_mode);
+  }, [settings?.focus_mode]);
+
   // Handle alarm actions coming back from the Service Worker (either
   // via `postMessage` when the app was already open, or via URL params
   // when a cold-launch was needed). Powers the "Snooze 5m" and

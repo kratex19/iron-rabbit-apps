@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
-  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, MessageSquareQuote,
+  Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, BellOff, MessageSquareQuote,
   Palette, Paperclip, Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -366,6 +366,38 @@ export default function SettingsModal({
               <Bell className="w-3.5 h-3.5" /> Notifications
             </label>
             <NotificationsPanel isDark={isDark} />
+          </div>
+
+          {/* Focus Mode row — user-facing "quiet hours" toggle. When ON:
+              in-app alarm popups + sound + haptic are all silenced;
+              OS notifications still land on the lock screen but with
+              `silent: true` so nothing beeps. Ideal for late-night use. */}
+          <div>
+            <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+              <BellOff className="w-3.5 h-3.5" /> Focus Mode
+            </label>
+            <div
+              className={`rounded-md p-3 flex items-center gap-3 ${
+                isDark ? "bg-black/20 border border-white/10" : "bg-gray-50 border border-gray-200"
+              }`}
+              data-testid="focus-mode-panel"
+            >
+              <BellOff className={`w-4 h-4 shrink-0 ${settings.focus_mode ? "text-indigo-400" : (isDark ? "text-slate-500" : "text-gray-400")}`} />
+              <div className="flex-1 min-w-0">
+                <div className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-800"}`}>
+                  Silence in-app popups
+                </div>
+                <div className={`text-[11px] leading-snug ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                  Alarm popups, sound, and haptics are muted. Lock-screen notifications still fire silently so you never miss a reminder.
+                </div>
+              </div>
+              <Switch
+                checked={!!settings.focus_mode}
+                onCheckedChange={(v) => onSave({ ...settings, focus_mode: v })}
+                data-testid="focus-mode-toggle"
+                aria-label="Toggle Focus Mode"
+              />
+            </div>
           </div>
 
           {/* Community Dashboard row — hidden admin surface. Present in Settings

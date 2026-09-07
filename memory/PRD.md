@@ -1,5 +1,27 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28 — continued)
+
+### ✅ Focus Mode shipped
+- New user setting `settings.focus_mode` (boolean). Toggle lives in `SettingsModal.jsx` directly under the Notifications row with `BellOff` icon and clear helper copy ("Silence in-app popups").
+- When ON:
+  - `notificationService.triggerAlarm()` skips the in-app sonner toast, the alarm sound, and the haptic vibration.
+  - Passes `silent: true` to the OS notification so Android/iOS don't play their default notification sound. Lock-screen banner still lands.
+- Wiring: `notificationService.setFocusMode(bool)` setter + `focusMode` instance field. `NotesApp.jsx` pushes `settings.focus_mode` into the service on every change via a dedicated `useEffect`.
+- Files touched: `notificationService.js`, `NotesApp.jsx`, `SettingsModal.jsx`.
+
+### ✅ HTML mode text-color slider hardened
+- Removed the hard-coded `text-emerald-300`/`text-emerald-800` classes.
+- Applied inline `color` + `WebkitTextFillColor` and added a self-contained `useLayoutEffect` inside `ExpandedTextEditor.jsx` that fires on `mode` + `textColor` changes so the newly-mounted HTML/Text textarea gets `!important` colour before first paint. Fixes bug where HTML mode text stayed black after switching modes without moving the slider.
+
+### ✅ Iron Rabbit icon set generated & wired
+- Downloaded user's 1024x1024 rusted-metal rabbit PNG. Auto-generated 12 variants and wrote to `frontend/public/`: `favicon.ico` (16/32/48), `favicon.png`, `icon-16/32/96/180/192/512/1024.png`, `apple-touch-icon.png`, `icon-192-maskable.png` + `icon-512-maskable.png` (72% safe zone on `#020617` bg), `icon-foreground-432.png` + `icon-background-432.png`, `notification-badge-96.png`.
+- `index.html`: added explicit `rel="icon"` links for 16/32 PNG + `favicon.ico`, and `apple-touch-icon` 180x180.
+- `notificationService.js`: banner icon → `/icon-192.png`; badge → `/notification-badge-96.png`.
+- Service Worker bumped to `iron-rabbit-v100` so PWA users pick up the new icons.
+
+
+
 ## 📌 Session state (2026-02-28)
 
 ### ✅ Nested sub-category background — reverted (per user)

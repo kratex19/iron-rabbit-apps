@@ -68,6 +68,22 @@ class NotificationService {
     // Shared audio context — created lazily on first user gesture.
     this._audioCtx = null;
     this._primeBound = false;
+    // Focus Mode — user-settable via Settings. When true:
+    //   - No in-app alarm toast popup
+    //   - No alarm sound
+    //   - No haptic vibration
+    //   - OS notification still fires, but with `silent: true` so
+    //     Android/iOS don't play their default notification sound.
+    // Perfect for late-night use: the reminder still lands on your
+    // lock screen but nothing beeps or flashes on the open tab.
+    this.focusMode = false;
+  }
+
+  // Called from NotesApp when `settings.focus_mode` changes so the
+  // alarm scheduler picks up the toggle immediately without waiting
+  // for the next interval tick.
+  setFocusMode(on) {
+    this.focusMode = !!on;
   }
 
   // -------- permissions --------------------------------------------------
@@ -228,6 +244,15 @@ class NotificationService {
     // vibrate() throws on desktop) must NOT propagate out of the
     // 15-second scheduler tick — otherwise it takes the whole React
     // tree down and produces the "black tar" screen users saw before.
+    //
+    // Focus Mode: user-facing "quiet" toggle. When active the OS
+    // notification STILL fires (so the reminder lands on the lock
+    // screen) but everything else that would grab your attention on
+    // the open tab is suppressed: the in-app popup toast, the alarm
+    // ringtone, and the vibration. We also pass `silent: true` to the
+    // OS notification so the phone's default notification sound
+    // doesn't play either.
+    const quiet = this.focusMode === true;
     try {
       // Fire-and-forget: showNotification is async but we don't await
       // it (nothing here depends on the notification landing).
@@ -235,6 +260,7 @@ class NotificationService {
         body: note.content?.substring(0, 100) || "Time for your task!",
         tag: `alarm-${note.id}`,
         requireInteraction: true,
+        silent: quiet,
         data: { noteId: note.id, kind: "alarm" },
         actions: [
           { action: "snooze-5", title: "Snooze 5m" },
@@ -243,17 +269,20 @@ class NotificationService {
       });
     } catch (err) { console.warn("showNotification threw:", err); }
 
-    try {
-      if (note.alarm?.sound) this.playSound(note.alarm.sound);
-    } catch (err) { console.warn("playSound threw:", err); }
+    if (!quiet) {
+      try {
+        if (note.alarm?.sound) this.playSound(note.alarm.sound);
+      } catch (err) { console.warn("playSound threw:", err); }
 
-    try {
-      if (note.alarm?.haptic) this.triggerHaptic();
-    } catch (err) { console.warn("triggerHaptic threw:", err); }
+      try {
+        if (note.alarm?.haptic) this.triggerHaptic();
+      } catch (err) { console.warn("triggerHaptic threw:", err); }
+    }
 
     // In-app snooze toast (only shows when app is focused). Skip for
     // synthetic per-event alarms (id contains "-") since they aren't
-    // stored as top-level notes.
+    // stored as top-level notes. Also skipped entirely in Focus Mode.
+    if (quiet) return;
     try {
       const isEventAlarm = typeof note.id === "string" && note.id.includes("-") && note.id.split("-").length > 5;
       if (!isEventAlarm) {
