@@ -471,6 +471,11 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     style={{
                       background: brightnessToBg(noteBrightness?.bg ?? 0.3),
                       color: brightnessToText(noteBrightness?.text ?? 0.7),
+                      // Belt-and-suspenders: WebKit inherits
+                      // `-webkit-text-fill-color` from ancestors and
+                      // overrides plain `color`. Match it explicitly
+                      // so the slider value survives re-mounts.
+                      WebkitTextFillColor: brightnessToText(noteBrightness?.text ?? 0.7),
                     }}
                     data-testid="note-content-input-html"
                   />
@@ -486,6 +491,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     style={{
                       background: brightnessToBg(noteBrightness?.bg ?? 0.3),
                       color: brightnessToText(noteBrightness?.text ?? 0.7),
+                      // WebKit / mobile browsers keep an inherited
+                      // `-webkit-text-fill-color` from the tree that
+                      // beats plain `color`. Setting it explicitly here
+                      // makes the slider value survive re-mounts even
+                      // if the useLayoutEffect ref-force hasn't landed
+                      // yet on the first paint after reopening the note.
+                      WebkitTextFillColor: brightnessToText(noteBrightness?.text ?? 0.7),
                     }}
                     data-testid="note-content-input"
                   />
