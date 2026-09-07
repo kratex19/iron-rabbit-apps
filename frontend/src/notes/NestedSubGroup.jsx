@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Bell, ChevronDown, CornerDownRight } from "lucide-react";
+import { Bell, ChevronDown, CornerDownRight, GripVertical } from "lucide-react";
+import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import AccordionNoteItem from "./AccordionNoteItem";
 
@@ -13,29 +14,43 @@ function getPath(n) {
   return [n?.category, n?.subcategory].map((s) => String(s || "").trim()).filter(Boolean);
 }
 
+// Droppable-id scheme for nested paths. `notes-at-path::A|B|C` means
+// "drop lands as a note whose category_path === [A, B, C]".
+export const NESTED_DROPPABLE_PREFIX = "notes-at-path::";
+export const NESTED_DROPPABLE_SEP = "|";
+export function encodeNestedDroppableId(pathArr) {
+  return NESTED_DROPPABLE_PREFIX + pathArr
+    .map((s) => String(s || "").replace(NESTED_DROPPABLE_SEP, "/"))
+    .join(NESTED_DROPPABLE_SEP);
+}
+
 /**
  * Recursive smoked-glass sub-group renderer used INSIDE CategoryGroup.
  * Rendering starts at `depth = 1` (level 0 = the top-level category
  * already handled by CategoryGroup itself).
+ *
+ * Drag-and-drop is enabled: this sub-group is itself a Droppable
+ * (dropping a note here reassigns its `category_path` to this level's
+ * full path), and every note attached AT this depth is a Draggable.
  */
 export default function NestedSubGroup(props) {
   const {
     label, notes: bucketNotes, depth, isDark,
+    ancestorPath = [],
     onEdit, onDelete, onShare, onFullScreen, onTogglePin,
     selectMode, isSelected, onToggleSelect, onSwipeSelect,
   } = props;
-  // Local alias for the recursive call. Referencing the component by a
-  // different local identifier in JSX sidesteps a Babel + react-refresh
-  // traversal bug that infinite-loops on JSX self-references.
   const Self = NestedSubGroup;
+
   const [isOpen, setIsOpen] = useState(false);
 
-  // Notes belonging to THIS exact depth (no deeper path segment).
+  const fullPath = useMemo(() => [...ancestorPath, label], [ancestorPath, label]);
+  const droppableId = useMemo(() => encodeNestedDroppableId(fullPath), [fullPath]);
+
   const directNotes = useMemo(
     () => bucketNotes.filter((n) => getPath(n).length === depth + 1),
     [bucketNotes, depth]
   );
-  // Notes with deeper paths, bucketed by the next segment.
   const deeperBuckets = useMemo(() => {
     const m = new Map();
     for (const n of bucketNotes) {
@@ -99,47 +114,85 @@ export default function NestedSubGroup(props) {
       </button>
 
       {isOpen && (
-        <div className={`px-2 pb-1.5 pt-1 border-t ${shellBorder}`}>
-          {deeperBuckets.map(([subLabel, subNotes]) => (
-            <Self
-              key={subLabel}
-              label={subLabel}
-              notes={subNotes}
-              depth={depth + 1}
-              isDark={isDark}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onShare={onShare}
-              onFullScreen={onFullScreen}
-              onTogglePin={onTogglePin}
-              selectMode={selectMode}
-              isSelected={isSelected}
-              onToggleSelect={onToggleSelect}
-              onSwipeSelect={onSwipeSelect}
-            />
-          ))}
-          {directNotes.map((note) => (
-            <AccordionNoteItem
-              key={note.id}
-              note={note}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onShare={onShare}
-              onFullScreen={onFullScreen}
-              onTogglePin={onTogglePin}
-              isDark={isDark}
-              selectMode={selectMode}
-              selected={isSelected ? isSelected(note.id) : false}
-              onToggleSelect={onToggleSelect}
-              onSwipeSelect={onSwipeSelect}
-            />
-          ))}
-          {directNotes.length === 0 && deeperBuckets.length === 0 && (
-            <div className={`text-center text-[11px] italic py-1.5 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
-              No notes
+        <Droppable droppableId={droppableId} type="note">
+          {(dropProv, dropSnap) => (
+            <div
+              ref={dropProv.innerRef}
+              {...dropProv.droppableProps}
+              className={`px-2 pb-1.5 pt-1 border-t transition-colors ${shellBorder} ${
+                dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""
+              }`}
+              data-testid={`nested-subgroup-body-${label}`}
+            >
+              {deeperBuckets.map(([subLabel, subNotes]) => (
+                <Self
+                  key={subLabel}
+                  label={subLabel}
+                  notes={subNotes}
+                  depth={depth + 1}
+                  ancestorPath={fullPath}
+                  isDark={isDark}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onShare={onShare}
+                  onFullScreen={onFullScreen}
+                  onTogglePin={onTogglePin}
+                  selectMode={selectMode}
+                  isSelected={isSelected}
+                  onToggleSelect={onToggleSelect}
+                  onSwipeSelect={onSwipeSelect}
+                />
+              ))}
+              {directNotes.map((note, idx) => (
+                <Draggable
+                  key={note.id}
+                  draggableId={`note-${note.id}`}
+                  index={idx}
+                  isDragDisabled={selectMode}
+                >
+                  {(prov, snap) => (
+                    <div ref={prov.innerRef} {...prov.draggableProps}>
+                      <div className="flex items-start gap-1">
+                        <span
+                          {...prov.dragHandleProps}
+                          className={`mt-2 shrink-0 touch-none cursor-grab active:cursor-grabbing ${
+                            isDark ? "text-slate-500 hover:text-white" : "text-gray-400 hover:text-gray-700"
+                          }`}
+                          aria-label="Drag note"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <AccordionNoteItem
+                            note={note}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            onShare={onShare}
+                            onFullScreen={onFullScreen}
+                            onTogglePin={onTogglePin}
+                            isDark={isDark}
+                            isDragging={snap.isDragging}
+                            selectMode={selectMode}
+                            selected={isSelected ? isSelected(note.id) : false}
+                            onToggleSelect={onToggleSelect}
+                            onSwipeSelect={onSwipeSelect}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {dropProv.placeholder}
+              {directNotes.length === 0 && deeperBuckets.length === 0 && (
+                <div className={`text-center text-[11px] italic py-1.5 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  {dropSnap.isDraggingOver ? "Drop note here" : "No notes"}
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </Droppable>
       )}
     </div>
   );

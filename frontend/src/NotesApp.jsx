@@ -29,6 +29,7 @@ import WeeklyDigest from "./notes/WeeklyDigest";
 import AppSearchBar from "./notes/AppSearchBar";
 import { useEffectiveGridColumns } from "./notes/TilesColumnsButton";
 import FeaturedTipStrip from "./notes/FeaturedTipStrip";
+import UpcomingAlarmsRail from "./notes/UpcomingAlarmsRail";
 import AppModals from "./notes/AppModals";
 import ThemeChooserModal from "./onboarding/ThemeChooserModal";
 import { brightnessToText, brightnessToBg } from "./notes/BrightnessSliders";
@@ -913,6 +914,60 @@ export default function NotesApp() {
       // 2) NOTE MOVE
       const noteId = draggableId.replace(/^note-/, "");
       const CAT_PREFIX = "notes-in-";
+      const NESTED_PREFIX = "notes-at-path::";
+      const NESTED_SEP = "|";
+
+      // 2a) NESTED-PATH DROP — dropped INSIDE a deep sub-group. Rewrite
+      // the note's `category_path` (and legacy category/subcategory) to
+      // match the destination sub-group's full path.
+      if (destination.droppableId.startsWith(NESTED_PREFIX)) {
+        const dstPath = destination.droppableId
+          .slice(NESTED_PREFIX.length)
+          .split(NESTED_SEP)
+          .map((s) => s.replace("/", NESTED_SEP)) // reverse of encode
+          .filter((s) => s && s.trim());
+        // No-op if source is exactly the same path
+        const srcPath = source.droppableId.startsWith(NESTED_PREFIX)
+          ? source.droppableId.slice(NESTED_PREFIX.length).split(NESTED_SEP)
+          : null;
+        if (srcPath && srcPath.join("\u241E") === dstPath.join("\u241E")) return;
+
+        const original = notes.find((n) => n.id === noteId);
+        if (!original) return;
+        const prevPath = Array.isArray(original.category_path) && original.category_path.length > 0
+          ? original.category_path
+          : [original.category, original.subcategory].filter((s) => s && String(s).trim());
+
+        await StorageService.saveNote({
+          ...original,
+          category: dstPath[0] || "",
+          subcategory: dstPath[1] || "",
+          category_path: dstPath,
+          updated_at: new Date().toISOString(),
+        });
+        await fetchData();
+        haptic("success");
+        toast.success(`Moved to "${dstPath.join(" › ")}"`, {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              const back = await StorageService.getNote(noteId);
+              if (!back) return;
+              await StorageService.saveNote({
+                ...back,
+                category: prevPath[0] || "",
+                subcategory: prevPath[1] || "",
+                category_path: prevPath,
+                updated_at: new Date().toISOString(),
+              });
+              fetchData();
+            },
+          },
+          duration: 6000,
+        });
+        return;
+      }
+
       const srcCat = source.droppableId.startsWith(CAT_PREFIX) ? source.droppableId.slice(CAT_PREFIX.length) : null;
       const dstCat = destination.droppableId.startsWith(CAT_PREFIX) ? destination.droppableId.slice(CAT_PREFIX.length) : null;
 
@@ -1697,6 +1752,14 @@ export default function NotesApp() {
         />
 
         {renderPinnedRail()}
+        <UpcomingAlarmsRail
+          notes={notes}
+          isDark={isDark}
+          onOpenNote={(noteId) => {
+            const n = notes.find((x) => x.id === noteId);
+            if (n) openEditModal(n);
+          }}
+        />
         <FeaturedTipStrip isDark={isDark} />
         {renderNotes()}
       </main>
