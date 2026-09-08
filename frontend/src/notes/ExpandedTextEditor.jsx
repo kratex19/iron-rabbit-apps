@@ -160,6 +160,11 @@ export default function ExpandedTextEditor({
   // rule and rendering black. This effect fires on every mode +
   // textColor change so the newly-mounted textarea gets `!important`
   // colour + `-webkit-text-fill-color` on first paint.
+  //
+  // We ALSO run a matching plain `useEffect` after commit so if the
+  // browser paint happens before the layout effect flushes (rare, but
+  // reported on some Android WebViews / iOS PWAs) the second pass
+  // still catches it. Idempotent — both effects set the same values.
   useLayoutEffect(() => {
     if (mode !== "text" && mode !== "html") return;
     const el = textareaRef && textareaRef.current;
@@ -167,6 +172,13 @@ export default function ExpandedTextEditor({
     el.style.setProperty("color", textColor, "important");
     el.style.setProperty("-webkit-text-fill-color", textColor, "important");
   }, [mode, textColor, textareaRef]);
+  useEffect(() => {
+    if (mode !== "text" && mode !== "html") return;
+    const el = textareaRef && textareaRef.current;
+    if (!el || !textColor) return;
+    el.style.setProperty("color", textColor, "important");
+    el.style.setProperty("-webkit-text-fill-color", textColor, "important");
+  }, [mode, textColor, textareaRef, value]);
 
   const handleEditableInput = useCallback(() => {
     const el = editableRef.current;
