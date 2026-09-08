@@ -26,6 +26,13 @@ export default function GlobalFocusChip() {
   const [tileOpen, setTileOpen] = useState(
     typeof document !== "undefined" && document.body.classList.contains("ir-tile-open")
   );
+  // Measured header height. Mobile has a hero banner + icon strip so
+  // the header can be 200-300px tall; desktop is ~90-120px. Hard-
+  // coding `top-[74px]` clipped the chip into the icon strip on
+  // mobile/landscape. We ResizeObserver the real header and set our
+  // top exactly at `header.bottom + 8px` so the chip always sits in
+  // the safe zone directly under the header on every viewport.
+  const [headerBottom, setHeaderBottom] = useState(76);
 
   const load = useCallback(async () => {
     try {
@@ -49,10 +56,66 @@ export default function GlobalFocusChip() {
       setTileOpen(document.body.classList.contains("ir-tile-open"));
     });
     bodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+
+    // Measure the real header height so the chip always docks JUST
+    // below it — safe across portrait / landscape / tablet / desktop.
+    // Falls back to 76px when the header hasn't rendered yet.
+    const measure = () => {
+      const header = document.querySelector(".ir-app-shell > header, header.header-compact");
+      if (!header) return;
+      const rect = header.getBoundingClientRect();
+      setHeaderBottom(Math.round(rect.bottom));
+    };
+    measure();
+    // Kick a couple of rAF-delayed measures so the initial hero
+    // image / URL row landing gets reflected. The header height on
+    // portrait mobile depends on the hero banner image loading, so
+    // one immediate measure alone can leave the chip clipped inside
+    // the icon strip.
+    let raf1, raf2;
+    raf1 = requestAnimationFrame(() => {
+      measure();
+      raf2 = requestAnimationFrame(measure);
+    });
+    // Window `load` fires after images finish downloading — one more
+    // safety net for the hero banner case.
+    const onLoad = () => measure();
+    if (document.readyState !== "complete") {
+      window.addEventListener("load", onLoad);
+    }
+    // React can mount `.ir-app-shell` AFTER this effect runs. Watch
+    // the body's child list so we can attach the header ResizeObserver
+    // once it finally arrives.
+    let ro;
+    const attachHeaderObserver = () => {
+      const header = document.querySelector(".ir-app-shell > header, header.header-compact");
+      if (header && ro) {
+        try { ro.observe(header); } catch { /* already observed */ }
+      }
+    };
+    try {
+      ro = new ResizeObserver(measure);
+      ro.observe(document.body);
+      attachHeaderObserver();
+    } catch { /* Safari <13.4 fallback */ }
+    const domObserver = new MutationObserver(() => {
+      attachHeaderObserver();
+      measure();
+    });
+    domObserver.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
     return () => {
       window.removeEventListener("ir:settings-changed", onChange);
       clearInterval(iv);
       bodyObserver.disconnect();
+      if (ro) ro.disconnect();
+      domObserver.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+      window.removeEventListener("load", onLoad);
+      if (raf1) cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
     };
   }, [load]);
 
@@ -85,15 +148,22 @@ export default function GlobalFocusChip() {
           // right so the chip stays visible without overlapping the
           // editor's own toolbar.
           ? "fixed top-2 right-2 z-[70] pointer-events-none"
-          // Default home layout: dock the chip UNDER THE LOGO (the
-          // rusted rabbit icon on the top-right of the header), not
-          // under the title text. Uses the same horizontal padding
-          // variable the header uses for its content edges so the
-          // chip's right edge is precisely aligned with the logo's
-          // right edge on every viewport width.
-          : "fixed top-[74px] z-[70] pointer-events-none"
+          // Default home layout: dock the chip JUST BELOW THE HEADER
+          // on the right (same side as the rusty rabbit logo). The
+          // top position is measured from the real header rect at
+          // runtime — so this works cleanly on mobile portrait,
+          // mobile landscape, tablet, and desktop without any hard-
+          // coded pixel value that could clip into the icon strip.
+          : "fixed z-[70] pointer-events-none"
       }
-      style={tileOpen ? undefined : { right: "var(--ir-container-pad-x, 1rem)" }}
+      style={
+        tileOpen
+          ? undefined
+          : {
+              top: `${headerBottom + 6}px`,
+              right: "var(--ir-container-pad-x, 1rem)",
+            }
+      }
       data-testid="global-focus-chip-wrap"
     >
       <div className="pointer-events-auto">
