@@ -102,6 +102,7 @@ export default function AppModals(p) {
         allTags={p.allTags}
         uiBrightness={p.uiBrightness}
         onBrightnessChange={p.onBrightnessChange}
+        focusOverrideBrightness={p.focusOverrideBrightness}
       />
       <CalculatorWidget
         isOpen={p.calculatorOpen}
@@ -156,6 +157,7 @@ export default function AppModals(p) {
         isDark={p.isDark}
         uiBrightness={p.uiBrightness}
         onBrightnessChange={p.onBrightnessChange}
+        focusOverrideBrightness={p.focusOverrideBrightness}
       />
       <IconPicker
         isOpen={p.quickAddOpen}

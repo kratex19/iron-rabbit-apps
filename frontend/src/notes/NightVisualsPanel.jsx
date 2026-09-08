@@ -64,6 +64,28 @@ export default function NightVisualsPanel({
 
       {cfg.enabled && (
         <div className={`mt-3 pt-3 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+          {/* Apply-to-notes toggle — when ON, every note surface
+              (Quick Edit + FullScreen) paints with the night look
+              during Focus, not just the home page. Saved per-note
+              brightness values are untouched — this only overrides
+              the painted colours while Focus is active. */}
+          <div className={`mb-3 flex items-center gap-2 px-2 py-1.5 rounded ${isDark ? "bg-black/20" : "bg-white/60"}`}>
+            <div className="flex-1 min-w-0">
+              <div className={`text-xs font-medium ${isDark ? "text-slate-200" : "text-gray-700"}`}>
+                Apply to all notes
+              </div>
+              <div className={`text-[10px] leading-snug ${isDark ? "text-slate-500" : "text-gray-500"}`}>
+                Extends the night look to Quick Edit and Expanded Text views. Off = home page only.
+              </div>
+            </div>
+            <Switch
+              checked={cfg.apply_to_notes !== false}
+              onCheckedChange={(v) => onChange({ ...cfg, apply_to_notes: v })}
+              data-testid="night-visuals-apply-to-notes"
+              aria-label="Apply Night Visuals to all notes"
+            />
+          </div>
+
           {/* Live preview swatch */}
           <div className="flex items-center gap-2 mb-3">
             <span className={`text-[10px] uppercase tracking-wider ${isDark ? "text-slate-500" : "text-gray-500"}`}>

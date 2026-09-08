@@ -198,6 +198,14 @@ export const StorageService = {
     const current = await this.getSettings();
     const updated = { ...current, ...settings };
     await settingsStore.setItem('app_settings', updated);
+    // Fire a global event so components living outside of NotesApp
+    // (e.g. GlobalFocusChip mounted at the App root, other routes)
+    // can react to setting changes without polling.
+    try {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("ir:settings-changed", { detail: updated }));
+      }
+    } catch { /* noop — happens in SSR / test envs */ }
     return updated;
   },
 

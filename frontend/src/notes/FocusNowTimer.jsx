@@ -26,6 +26,36 @@ function nextSunrise(now = new Date()) {
   return target.getTime();
 }
 
+// Fetch the next real local sunrise from Open-Meteo when the user's
+// weather location is known. Falls back to the 06:00 heuristic on
+// error / when lat & lng aren't set.
+async function fetchNextSunrise(location) {
+  if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude)) {
+    return nextSunrise();
+  }
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&daily=sunrise&timezone=auto&forecast_days=2`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Sunrise fetch HTTP ${res.status}`);
+    const data = await res.json();
+    const items = data?.daily?.sunrise;
+    if (Array.isArray(items)) {
+      const now = Date.now();
+      for (const s of items) {
+        // Open-Meteo returns ISO local time strings without timezone
+        // (e.g. "2026-02-28T06:12"). Because we requested timezone=auto
+        // the JS Date constructor will parse them as local, which is
+        // exactly what we want.
+        const t = new Date(s).getTime();
+        if (Number.isFinite(t) && t > now) return t;
+      }
+    }
+  } catch (err) {
+    console.warn("fetchNextSunrise failed, falling back to 6am heuristic:", err);
+  }
+  return nextSunrise();
+}
+
 function formatRemaining(ms) {
   if (ms <= 0) return "0m";
   const totalMins = Math.round(ms / 60000);
@@ -36,7 +66,7 @@ function formatRemaining(ms) {
   return `${h}h ${m}m`;
 }
 
-export default function FocusNowTimer({ value, onChange, isDark }) {
+export default function FocusNowTimer({ value, onChange, isDark, location }) {
   const until = typeof value === "number" && Number.isFinite(value) ? value : null;
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -61,7 +91,10 @@ export default function FocusNowTimer({ value, onChange, isDark }) {
     : "border border-indigo-300 bg-indigo-50 text-indigo-800";
 
   const setTimer = (deltaMs) => onChange(Date.now() + deltaMs);
-  const setSunrise = () => onChange(nextSunrise());
+  const setSunrise = async () => {
+    const ts = await fetchNextSunrise(location);
+    onChange(ts);
+  };
   const cancel = () => onChange(null);
 
   return (

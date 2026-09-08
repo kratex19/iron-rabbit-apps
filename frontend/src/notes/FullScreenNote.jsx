@@ -23,7 +23,7 @@ import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
  * Full-screen note editor with inline auto-save.
  * Debounces title/content changes and flushes on close.
  */
-export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, onDelete, onShare, isDark, uiBrightness, onBrightnessChange }) {
+export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, onDelete, onShare, isDark, uiBrightness, onBrightnessChange, focusOverrideBrightness = null }) {
   const [title, setTitle] = useState(note?.title || "");
   const [content, setContent] = useState(note?.content || "");
   const [dirty, setDirty] = useState(false);
@@ -105,13 +105,20 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // webviews. Setting both properties with `!important` via a ref+layout
   // effect guarantees the paint tracks the slider in real time.
   const contentTextareaRef = useRef(null);
+  // Effective brightness used ONLY for painting text + backdrop colours.
+  // Falls through to per-note `noteBrightness` unless Focus Mode is
+  // active AND Night Visuals is enabled with "Apply to all notes"
+  // — in which case NotesApp passes the night-visuals object via
+  // `focusOverrideBrightness`. Sliders and save flow continue to
+  // reference `noteBrightness` so per-note preferences aren't lost.
+  const paintBrightness = focusOverrideBrightness || noteBrightness;
   useLayoutEffect(() => {
     const el = contentTextareaRef.current;
     if (!el) return;
-    const c = brightnessToText(noteBrightness?.text ?? 0.7);
+    const c = brightnessToText(paintBrightness?.text ?? 0.7);
     el.style.setProperty("color", c, "important");
     el.style.setProperty("-webkit-text-fill-color", c, "important");
-  }, [noteBrightness?.text]);
+  }, [paintBrightness?.text]);
 
   // Expanded Text editing mode — session-only preference for THIS open of
   // the note. Auto-selects "format" when the stored content already
@@ -247,7 +254,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           double-darken and the slider would appear to "do nothing". */}
       <div
         className="absolute inset-0 backdrop-blur-sm"
-        style={{ background: brightnessToBg(noteBrightness?.bg ?? 0.3) }}
+        style={{ background: brightnessToBg(paintBrightness?.bg ?? 0.3) }}
         onClick={handleClose}
         data-testid="fullscreen-backdrop"
       />
@@ -388,7 +395,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         <div
           className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 ir-brightness-scope"
           style={{
-            color: brightnessToText(noteBrightness?.text ?? 0.7),
+            color: brightnessToText(paintBrightness?.text ?? 0.7),
           }}
         >
           <div
@@ -408,7 +415,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               value={content}
               onChange={(next) => { setContent(next); setDirty(true); }}
               mode={mode}
-              textColor={brightnessToText(noteBrightness?.text ?? 0.7)}
+              textColor={brightnessToText(paintBrightness?.text ?? 0.7)}
               textareaRef={contentTextareaRef}
               isDark={isDark}
               placeholder="Start writing…"

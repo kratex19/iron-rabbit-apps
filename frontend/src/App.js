@@ -27,6 +27,7 @@ import EventsPage from "./dashboard/pages/Events";
 import Traffic from "./dashboard/pages/Traffic";
 import DashboardSettings from "./dashboard/pages/DashboardSettings";
 import { BackGuard } from "./hooks/useBackGuard";
+import GlobalFocusChip from "./components/GlobalFocusChip";
 
 function NotFound() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
     <BrowserRouter>
       <BackGuard />
       <Toaster position="bottom-right" />
+      <GlobalFocusChip />
       <Routes>
         {/* Notes App — default landing */}
         <Route path="/" element={<NotesApp />} />

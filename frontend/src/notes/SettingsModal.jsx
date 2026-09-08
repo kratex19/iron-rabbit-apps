@@ -408,6 +408,7 @@ export default function SettingsModal({
               <FocusNowTimer
                 value={settings.focus_until}
                 onChange={(next) => onSave({ ...settings, focus_until: next })}
+                location={settings.location}
                 isDark={isDark}
               />
             </div>

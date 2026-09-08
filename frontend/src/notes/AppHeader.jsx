@@ -88,11 +88,6 @@ export default function AppHeader({
               <span className="truncate">{settings.website_url.replace(/^https?:\/\//, "")}</span>
             </a>
           )}
-          {/* Focus-Mode status pill — visible only when Focus is active
-              (manual toggle, running timer, or a scheduled window).
-              Ticks its own countdown so parent doesn't need to re-render
-              every second. */}
-          <FocusStatusChip status={focusStatus} onCancel={onCancelFocus} />
         </div>
         <div className="shrink-0 flex items-start gap-2">
           {settings?.logo_url && (

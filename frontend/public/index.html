@@ -14,6 +14,11 @@
         <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="%PUBLIC_URL%/icon-192.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="%PUBLIC_URL%/icon-512.png" />
+        <!-- Preload the splash-screen rabbit so it paints instantly on
+             cold boot. Uses the 192px variant (~77 KB) so it fits in
+             one round-trip and doesn't leave the splash empty during
+             download. -->
+        <link rel="preload" as="image" href="%PUBLIC_URL%/icon-192.png" fetchpriority="high" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
@@ -107,6 +112,73 @@
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
+        <!-- Iron Rabbit boot splash. Rendered inline as the very first
+             thing the browser can paint so the branded rusty rabbit
+             greets the user before React finishes hydrating. Fades out
+             1.4s after load, then removes itself from the DOM. Keeps
+             the same #020617 background as the manifest so there's no
+             flash between splash and app. -->
+        <style>
+          #ir-boot-splash {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; gap: 20px;
+            background: radial-gradient(ellipse at center, #10162b 0%, #020617 65%, #000 100%);
+            transition: opacity 380ms ease, visibility 0s linear 380ms;
+          }
+          #ir-boot-splash.ir-splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+          #ir-boot-splash .ir-splash-rabbit {
+            width: min(38vw, 200px); height: auto;
+            filter: drop-shadow(0 0 40px rgba(180, 90, 40, 0.35));
+            animation: ir-splash-breathe 2.2s ease-in-out infinite;
+          }
+          #ir-boot-splash .ir-splash-glow {
+            position: absolute; width: 60vmin; height: 60vmin;
+            background: radial-gradient(circle, rgba(200, 90, 40, 0.18) 0%, rgba(200, 90, 40, 0) 65%);
+            filter: blur(20px); pointer-events: none;
+            animation: ir-splash-glow 3s ease-in-out infinite;
+          }
+          #ir-boot-splash .ir-splash-title {
+            font: 700 15px/1 -apple-system, "Segoe UI", system-ui, sans-serif;
+            letter-spacing: 0.28em; text-transform: uppercase;
+            color: rgba(230, 180, 140, 0.85);
+            text-shadow: 0 0 20px rgba(180, 90, 40, 0.5);
+          }
+          @keyframes ir-splash-breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+          }
+          @keyframes ir-splash-glow {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.15); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            #ir-boot-splash .ir-splash-rabbit,
+            #ir-boot-splash .ir-splash-glow { animation: none; }
+          }
+        </style>
+        <div id="ir-boot-splash" aria-hidden="true">
+          <div class="ir-splash-glow"></div>
+          <img class="ir-splash-rabbit" src="/icon-192.png" alt="Iron Rabbit" />
+          <div class="ir-splash-title">Iron Rabbit</div>
+        </div>
+        <script>
+          (function () {
+            // Fade the splash 1.4s after the DOM is ready, then rip
+            // it from the DOM half a second later. Keeps time for the
+            // React tree to mount underneath so there's no visible
+            // white flash when we swap.
+            var hide = function () {
+              var el = document.getElementById('ir-boot-splash');
+              if (!el) return;
+              el.classList.add('ir-splash-hide');
+              setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 500);
+            };
+            var kickoff = function () { setTimeout(hide, 1400); };
+            if (document.readyState === 'complete' || document.readyState === 'interactive') kickoff();
+            else document.addEventListener('DOMContentLoaded', kickoff);
+          })();
+        </script>
         <div id="root"></div>
         <!--
       This HTML file is a template.

@@ -1,5 +1,36 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28 — Focus/Rabbit 5-pack)
+
+### ✅ #1 Chip on all screens — GlobalFocusChip
+- New `frontend/src/components/GlobalFocusChip.jsx` mounted at App.js root inside `<BrowserRouter>`. Fixed top-right, `z-[70]`, `pointer-events-none` wrapper with inner `pointer-events-auto`.
+- Reads settings from IndexedDB via `StorageService.getSettings()` on mount.
+- Subscribes to `window` custom event `ir:settings-changed` (fired inside `StorageService.saveSettings`) so it updates instantly on any settings change from any route.
+- 30-second `tick` interval so schedule transitions and timer elapse re-render live.
+- Removed the header-embedded `FocusStatusChip` from `AppHeader.jsx` — global chip replaces it everywhere.
+
+### ✅ #2 Night Visuals — global apply-to-notes
+- New setting `settings.focus_night_visuals.apply_to_notes` (default true when Night Visuals is enabled). Toggle in `NightVisualsPanel.jsx`.
+- New prop `focusOverrideBrightness` on `NoteModal` + `FullScreenNote` (via `AppModals.jsx`). NotesApp computes: `focusActiveNow && night_visuals.enabled && apply_to_notes !== false ? night_visuals.ui_brightness : null`.
+- Each modal introduces `paintBrightness = focusOverrideBrightness || noteBrightness` and swaps it at PAINT sites only (textarea inline style, HTML editable inline style, useLayoutEffect ref-forcing, backdrop bg, scope color). Per-note saved brightness, sliders and save flow unchanged.
+- 🔒 Both `NoteModal.jsx` and `FullScreenNote.jsx` unlocked with password `2020` for this patch.
+
+### ✅ #3 Real sunrise for "Until sunrise" chip
+- `FocusNowTimer.jsx` now accepts a `location` prop. When location is set (via weather module), the sunrise button async-fetches the next sunrise from Open-Meteo (`daily=sunrise, timezone=auto, forecast_days=2`) and pins `focus_until` to that ISO timestamp. Falls back to the 06:00-local heuristic on error or when lat/lng missing.
+
+### ✅ #4 Rabbit boot splash
+- Full-screen splash in `index.html` before React mounts. Uses the rusted-metal rabbit icon (`/icon-192.png`, preloaded via `<link rel="preload">`). Radial-gradient dark background (`#020617` matching manifest), rusty glow halo animating gently, "IRON RABBIT" letter-spaced label. Breathe + glow keyframes; `prefers-reduced-motion` disables them.
+- Auto-fades 1.4s after DOMContentLoaded, removed from DOM 500ms later.
+
+### ✅ #5 Rabbit in empty-note state
+- Home `renderNotes()` empty state now shows a 80px rusted rabbit with a warm drop-shadow instead of the generic 📝 emoji. Preserves the copy + "Create first" CTA below.
+
+### Files touched this pass
+- New: `components/GlobalFocusChip.jsx`.
+- Modified: `App.js`, `AppHeader.jsx`, `AppModals.jsx`, `NightVisualsPanel.jsx`, `FocusNowTimer.jsx`, `SettingsModal.jsx`, `NoteModal.jsx` (locked, pw 2020), `FullScreenNote.jsx` (locked, pw 2020), `NotesApp.jsx`, `storageService.js`, `index.html`.
+
+
+
 ## 📌 Session state (2026-02-28 — Focus Status Chip)
 
 ### ✅ Focus Status Chip shipped

@@ -1491,7 +1491,15 @@ export default function NotesApp() {
         : t("app.empty_title");
       return (
         <div className="text-center py-12">
-          <div className="text-5xl mb-3 opacity-25">📝</div>
+          {/* Rusty rabbit greets the user in place of a generic 📝
+              emoji so empty views feel on-brand instead of default. */}
+          <img
+            src="/icon-192.png"
+            alt="Iron Rabbit"
+            className="mx-auto mb-4 w-20 h-20 opacity-70 select-none"
+            style={{ filter: "drop-shadow(0 8px 24px rgba(180, 90, 40, 0.25))" }}
+            data-testid="empty-state-rabbit"
+          />
           <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{emptyCopy}</p>
           {!searchQuery && filterBy === "all" && (
             <Button onClick={() => { setEditingNote(null); setNoteModalOpen(true); haptic("tap"); }} size="sm" className="bg-indigo-500 hover:bg-indigo-600 text-white">
@@ -1959,6 +1967,14 @@ export default function NotesApp() {
         onOpenThemeChooser={() => setThemeChooserOpen(true)}
         uiBrightness={settings?.ui_brightness}
         onBrightnessChange={handleBrightnessChange}
+        focusOverrideBrightness={
+          focusActiveNow
+            && settings?.focus_night_visuals?.enabled
+            && settings?.focus_night_visuals?.apply_to_notes !== false
+            && settings?.focus_night_visuals?.ui_brightness
+            ? settings.focus_night_visuals.ui_brightness
+            : null
+        }
         fullScreenNote={fullScreenNote} setFullScreenNote={setFullScreenNote}
         quickAddOpen={quickAddOpen} setQuickAddOpen={setQuickAddOpen}
         tilePacksOpen={tilePacksOpen} setTilePacksOpen={setTilePacksOpen}

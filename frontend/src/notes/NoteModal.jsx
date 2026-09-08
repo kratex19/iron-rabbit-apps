@@ -37,7 +37,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
-export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange, focusOverrideBrightness = null }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -118,8 +118,16 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const htmlEditableRef = useRef(null);
   const lastAppliedHtmlRef = useRef(null);
   const isHtml = looksLikeHtml(content);
+  // Effective brightness used ONLY for painting text + underlay colours.
+  // Falls through to the note's own `noteBrightness` unless Focus Mode is
+  // active AND the user has enabled Night Visuals with "Apply to all notes"
+  // — in which case NotesApp hands us the override object via
+  // `focusOverrideBrightness`. Slider UI, save-on-close, and the ledger
+  // continue to reference `noteBrightness` so the note's OWN preference
+  // is never overwritten by the override.
+  const paintBrightness = focusOverrideBrightness || noteBrightness;
   useLayoutEffect(() => {
-    const c = brightnessToText(noteBrightness?.text ?? 0.7);
+    const c = brightnessToText(paintBrightness?.text ?? 0.7);
     const ta = contentTextareaRef.current;
     if (ta) {
       ta.style.setProperty("color", c, "important");
@@ -130,7 +138,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       he.style.setProperty("color", c, "important");
       he.style.setProperty("-webkit-text-fill-color", c, "important");
     }
-  }, [noteBrightness?.text, isHtml]);
+  }, [paintBrightness?.text, isHtml]);
 
   // Sync `content` → contentEditable innerHTML when the value changes
   // externally (mode swap, note switch, translate) — but NEVER while the
@@ -469,13 +477,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     onPaste={handleHtmlPaste}
                     className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[5.5rem] max-h-[26rem] overflow-y-auto ${isDark ? 'border-white/10' : 'border-gray-200'}`}
                     style={{
-                      background: brightnessToBg(noteBrightness?.bg ?? 0.3),
-                      color: brightnessToText(noteBrightness?.text ?? 0.7),
+                      background: brightnessToBg(paintBrightness?.bg ?? 0.3),
+                      color: brightnessToText(paintBrightness?.text ?? 0.7),
                       // Belt-and-suspenders: WebKit inherits
                       // `-webkit-text-fill-color` from ancestors and
                       // overrides plain `color`. Match it explicitly
                       // so the slider value survives re-mounts.
-                      WebkitTextFillColor: brightnessToText(noteBrightness?.text ?? 0.7),
+                      WebkitTextFillColor: brightnessToText(paintBrightness?.text ?? 0.7),
                     }}
                     data-testid="note-content-input-html"
                   />
@@ -489,15 +497,15 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     maxRows={20}
                     className={`ir-brightness-scope relative w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
                     style={{
-                      background: brightnessToBg(noteBrightness?.bg ?? 0.3),
-                      color: brightnessToText(noteBrightness?.text ?? 0.7),
+                      background: brightnessToBg(paintBrightness?.bg ?? 0.3),
+                      color: brightnessToText(paintBrightness?.text ?? 0.7),
                       // WebKit / mobile browsers keep an inherited
                       // `-webkit-text-fill-color` from the tree that
                       // beats plain `color`. Setting it explicitly here
                       // makes the slider value survive re-mounts even
                       // if the useLayoutEffect ref-force hasn't landed
                       // yet on the first paint after reopening the note.
-                      WebkitTextFillColor: brightnessToText(noteBrightness?.text ?? 0.7),
+                      WebkitTextFillColor: brightnessToText(paintBrightness?.text ?? 0.7),
                     }}
                     data-testid="note-content-input"
                   />
