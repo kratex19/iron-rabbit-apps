@@ -18,6 +18,14 @@ import FocusStatusChip from "../notes/FocusStatusChip";
 export default function GlobalFocusChip() {
   const [settings, setSettings] = useState(null);
   const [, setTick] = useState(0);
+  // Position mode — swaps with the presence of body.ir-tile-open which
+  // full-screen tiles (FullScreenNote today, other overlays later) add
+  // while open. Off → dock the chip under the "Iron Rabbit" logo where
+  // it fits inside the header without overlapping content. On → float
+  // it top-right so it doesn't cover the fullscreen editor area.
+  const [tileOpen, setTileOpen] = useState(
+    typeof document !== "undefined" && document.body.classList.contains("ir-tile-open")
+  );
 
   const load = useCallback(async () => {
     try {
@@ -34,9 +42,17 @@ export default function GlobalFocusChip() {
     };
     window.addEventListener("ir:settings-changed", onChange);
     const iv = setInterval(() => setTick((t) => t + 1), 30 * 1000);
+    // Watch <body> for the `ir-tile-open` class so we can move the pill
+    // out of the way when a fullscreen editor opens without needing
+    // any prop plumbing from those surfaces.
+    const bodyObserver = new MutationObserver(() => {
+      setTileOpen(document.body.classList.contains("ir-tile-open"));
+    });
+    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     return () => {
       window.removeEventListener("ir:settings-changed", onChange);
       clearInterval(iv);
+      bodyObserver.disconnect();
     };
   }, [load]);
 
@@ -63,7 +79,18 @@ export default function GlobalFocusChip() {
 
   return (
     <div
-      className="fixed top-2 right-2 z-[70] pointer-events-none"
+      className={
+        tileOpen
+          // Fullscreen tile is open (e.g. Expanded Text) — float top-
+          // right so the chip stays visible without overlapping the
+          // editor's own toolbar.
+          ? "fixed top-2 right-2 z-[70] pointer-events-none"
+          // Default: dock the chip under the app title so it sits
+          // inside the header rail beside the "ironrabbitapps.com" URL
+          // without covering any content. Uses left-side layout to
+          // mirror the logo's alignment.
+          : "fixed top-[74px] left-4 sm:left-6 md:left-8 z-[70] pointer-events-none"
+      }
       data-testid="global-focus-chip-wrap"
     >
       <div className="pointer-events-auto">

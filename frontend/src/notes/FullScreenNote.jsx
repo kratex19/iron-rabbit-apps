@@ -162,6 +162,16 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id]);
 
+  // Signal that a fullscreen tile is open so `GlobalFocusChip` can
+  // reposition itself to the top-right corner (out of the way of the
+  // Expanded Text editor). Removed on close/unmount so the chip drops
+  // back under the header logo on the home page.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    document.body.classList.add("ir-tile-open");
+    return () => document.body.classList.remove("ir-tile-open");
+  }, [isOpen]);
+
   // Auto-save when title/content change (debounced 700ms). Content is
   // sanitised through the HTML allowlist right before it hits storage so
   // no <script> or event-handler HTML can ever be persisted, even if it
