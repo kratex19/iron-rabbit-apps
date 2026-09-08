@@ -401,13 +401,20 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         {/* Editable content — brightness scope. Text color is applied
             directly on the textarea (with ref-forced !important for iOS/
             Android WebViews). Background is driven by the outer modal
-            container so "fully transparent" truly reveals the page. */}
+            container so "fully transparent" truly reveals the page.
+            The scroll container is FLUSH to the card edge (no padding
+            on the overflow div itself) so the scrollbar sits right at
+            the modal border. All content padding lives on the single
+            inner wrapper below — this eliminates the visual "double
+            scroll" gap between the modal border and the scrollbar the
+            user was seeing. */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 ir-brightness-scope"
+          className="flex-1 min-h-0 overflow-y-auto ir-brightness-scope"
           style={{
             color: brightnessToText(paintBrightness?.text ?? 0.7),
           }}
         >
+          <div className="p-6 flex flex-col gap-4 min-h-full">
           <div
             className="pb-24"
             style={{
@@ -539,6 +546,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
                 />
               </div>
             )}
+          </div>
           </div>
         </div>
         {/* Footer */}
