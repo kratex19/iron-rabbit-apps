@@ -19,9 +19,24 @@ import { useQuickGuideContext } from "../quickguide/QuickGuideProvider";
 import { trackCommunityEvent } from "../utils/communityAnalytics";
 
 const HIDDEN_KEY = "irr.featured_tip_hidden_date";
+// Per-tip view counter used to auto-dim the strip after the user has
+// seen the same tip a few times so it stops competing with the notes
+// list. Not dismissed — just faded so it's still one tap away.
+const VIEWS_KEY = "irr.featured_tip_views";
+const DIM_AFTER_VIEWS = 3;
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD, UTC-ish (browser TZ close enough for a soft dismiss)
+}
+
+function readViews() {
+  try {
+    const raw = localStorage.getItem(VIEWS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+function writeViews(v) {
+  try { localStorage.setItem(VIEWS_KEY, JSON.stringify(v)); } catch { /* quota */ }
 }
 
 export default function FeaturedTipStrip({ isDark = true }) {
@@ -29,6 +44,10 @@ export default function FeaturedTipStrip({ isDark = true }) {
   const [hiddenToday, setHiddenToday] = useState(() => {
     try { return localStorage.getItem(HIDDEN_KEY) === todayKey(); } catch { return false; }
   });
+  // Persisted per-tip view counter. When the counter for the currently
+  // shown tip clears DIM_AFTER_VIEWS, the strip renders in a subdued
+  // "seen-enough" style so it stops shouting at the user.
+  const [viewCount, setViewCount] = useState(0);
   const { open, getArticle } = useQuickGuideContext();
 
   useEffect(() => {
@@ -47,7 +66,15 @@ export default function FeaturedTipStrip({ isDark = true }) {
           // re-firing the effect on dismiss.
           let hidden = false;
           try { hidden = localStorage.getItem(HIDDEN_KEY) === todayKey(); } catch (e) { /* ignore */ }
-          if (!hidden) trackCommunityEvent("impression", data.tip.id);
+          if (!hidden) {
+            trackCommunityEvent("impression", data.tip.id);
+            // Bump the per-tip view counter so we can auto-dim once
+            // the user has clearly noticed the same tip enough times.
+            const views = readViews();
+            const next = { ...views, [data.tip.id]: (views[data.tip.id] || 0) + 1 };
+            writeViews(next);
+            setViewCount(next[data.tip.id]);
+          }
         }
       } catch (e) {
         // Silent — the strip degrades to invisible when offline.
@@ -64,18 +91,25 @@ export default function FeaturedTipStrip({ isDark = true }) {
 
   if (!tip || hiddenToday) return null;
 
+  // Auto-dim after N impressions so tips the user has clearly noticed
+  // stop competing with their notes. Still tappable — dimming lowers
+  // opacity + collapses the body/description but keeps the strip
+  // present so contributors always feel seen.
+  const seenEnough = viewCount > DIM_AFTER_VIEWS;
+
   // Only offer the "Open guide" affordance when the tip's home guide still
   // ships — never link to a stale/removed resource id.
   const canOpen = !!(tip.resource_id && getArticle(tip.resource_id));
 
   return (
     <div
-      className={`mb-3 rounded-xl border overflow-hidden group ${
+      className={`mb-3 rounded-xl border overflow-hidden group transition-opacity duration-300 ${
         isDark
           ? "bg-emerald-500/[0.06] border-emerald-400/25"
           : "bg-emerald-50 border-emerald-200"
-      }`}
+      } ${seenEnough ? "opacity-45 hover:opacity-100 focus-within:opacity-100" : ""}`}
       data-testid="featured-tip-strip"
+      data-seen-enough={seenEnough ? "true" : "false"}
     >
       <div className="flex items-start gap-3 p-3">
         <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#10b981 0%,#0284c7 100%)" }}>
@@ -93,7 +127,7 @@ export default function FeaturedTipStrip({ isDark = true }) {
           <div className={`text-sm font-semibold mt-0.5 truncate ${isDark ? "text-white" : "text-gray-900"}`} data-testid="featured-tip-heading">
             {tip.heading}
           </div>
-          {tip.body && (
+          {tip.body && !seenEnough && (
             <div className={`text-xs mt-0.5 line-clamp-2 ${isDark ? "text-slate-300" : "text-gray-600"}`} data-testid="featured-tip-body">
               {tip.body}
             </div>
