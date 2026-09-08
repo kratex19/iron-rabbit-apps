@@ -593,7 +593,11 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             {!subcategory.trim() && (
               <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <label className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                  <label className={`text-xs flex items-center gap-1.5 ${
+                    pinned
+                      ? (isDark ? 'text-amber-400' : 'text-amber-600')
+                      : (isDark ? 'text-slate-400' : 'text-gray-500')
+                  }`}>
                     <Pin className="w-3.5 h-3.5" /> Pin to top
                   </label>
                   <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />

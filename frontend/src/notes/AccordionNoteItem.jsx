@@ -135,7 +135,7 @@ export default function AccordionNoteItem({
             )}
           </span>
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
-          {note.pinned && <Pin className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} title="Pinned" />}
+          {note.pinned && <Pin className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} title="Pinned" />}
           <span className={`font-medium truncate flex-1 text-left ${isDark ? 'text-white' : 'text-gray-900'}`}>{note.title || "Untitled"}</span>
           {note.category && <Badge variant="outline" className={`text-xs hidden sm:inline-flex ${isDark ? '' : 'text-gray-800 border-gray-300'}`}>{note.category}</Badge>}
           {hasAlarm && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
@@ -151,7 +151,7 @@ export default function AccordionNoteItem({
                 </div>
               )}
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colorConfig.accent }} />
-              {note.pinned && <Pin className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} title="Pinned" />}
+              {note.pinned && <Pin className={`w-3 h-3 flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} title="Pinned" />}
               <span
                 className={`truncate flex-1 text-left transition-colors ${
                   isOpen
@@ -238,7 +238,19 @@ export default function AccordionNoteItem({
                 <div className="flex items-center gap-1">
                   <button onClick={() => onFullScreen(note)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`} title="Full screen" data-testid={`accordion-fullscreen-${note.id}`}><Maximize2 className="w-4 h-4" /></button>
                   {onTogglePin && !note.subcategory?.trim() && (
-                    <button onClick={() => onTogglePin(note.id)} className={`p-1.5 rounded transition-all ${isDark ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`} title={note.pinned ? "Unpin" : "Pin"} data-testid={`toggle-pin-${note.id}`}>
+                    <button
+                      onClick={() => onTogglePin(note.id)}
+                      className={`p-1.5 rounded transition-all ${
+                        note.pinned
+                          // Amber highlight when currently pinned so the
+                          // state is obvious at a glance and matches the
+                          // small amber pin marker beside the title.
+                          ? (isDark ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50')
+                          : (isDark ? 'hover:bg-white/10 text-slate-400 hover:text-amber-300' : 'hover:bg-gray-100 text-gray-500 hover:text-amber-600')
+                      }`}
+                      title={note.pinned ? "Unpin" : "Pin"}
+                      data-testid={`toggle-pin-${note.id}`}
+                    >
                       {note.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
                     </button>
                   )}
