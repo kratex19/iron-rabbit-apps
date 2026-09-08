@@ -130,6 +130,14 @@ export default function GlobalFocusChip() {
   const active = manual || !!until || scheduleActive;
   if (!active) return null;
 
+  // Home-layout placement is now handled INLINE inside `AppHeader.jsx`
+  // (chip renders directly to the left of the rusty-rabbit logo so it
+  // sits in the header flex row instead of overlapping the icon strip
+  // or search bar on mobile/landscape). This global overlay ONLY takes
+  // over when a fullscreen tile (Expanded Text) is open, where the
+  // header itself is hidden — the top-right float stays perfect there.
+  if (!tileOpen) return null;
+
   const cancel = async () => {
     // Kill manual + timer. Schedule keeps working — that's a Settings
     // action, not a header action.
@@ -142,28 +150,7 @@ export default function GlobalFocusChip() {
 
   return (
     <div
-      className={
-        tileOpen
-          // Fullscreen tile is open (e.g. Expanded Text) — float top-
-          // right so the chip stays visible without overlapping the
-          // editor's own toolbar.
-          ? "fixed top-2 right-2 z-[70] pointer-events-none"
-          // Default home layout: dock the chip JUST BELOW THE HEADER
-          // on the right (same side as the rusty rabbit logo). The
-          // top position is measured from the real header rect at
-          // runtime — so this works cleanly on mobile portrait,
-          // mobile landscape, tablet, and desktop without any hard-
-          // coded pixel value that could clip into the icon strip.
-          : "fixed z-[70] pointer-events-none"
-      }
-      style={
-        tileOpen
-          ? undefined
-          : {
-              top: `${headerBottom + 6}px`,
-              right: "var(--ir-container-pad-x, 1rem)",
-            }
-      }
+      className="fixed top-2 right-2 z-[70] pointer-events-none"
       data-testid="global-focus-chip-wrap"
     >
       <div className="pointer-events-auto">

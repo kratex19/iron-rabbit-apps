@@ -90,6 +90,13 @@ export default function AppHeader({
           )}
         </div>
         <div className="shrink-0 flex items-start gap-2">
+          {/* Focus-Mode status pill — INLINE placement, appears to the
+              left of the rusty-rabbit logo whenever Focus is active.
+              Renders nothing when Focus is off. Lives in the header
+              flex row so it flows with the layout on every viewport
+              (portrait / landscape / tablet / desktop) with zero
+              overlap risk against the icon strip below. */}
+          <FocusStatusChip status={focusStatus} onCancel={onCancelFocus} />
           {settings?.logo_url && (
             <a
               href={settings?.website_url || "#"}
