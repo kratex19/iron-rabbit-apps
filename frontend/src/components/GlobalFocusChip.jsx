@@ -85,15 +85,15 @@ export default function GlobalFocusChip() {
           // right so the chip stays visible without overlapping the
           // editor's own toolbar.
           ? "fixed top-2 right-2 z-[70] pointer-events-none"
-          // Default: dock the chip under the app title so it sits
-          // inside the header rail beside the "ironrabbitapps.com" URL
-          // without covering any content. Uses the SAME horizontal
-          // padding variable as the header itself so the chip's left
-          // edge is exactly aligned with the Iron Rabbit logo/title,
-          // regardless of viewport width.
+          // Default home layout: dock the chip UNDER THE LOGO (the
+          // rusted rabbit icon on the top-right of the header), not
+          // under the title text. Uses the same horizontal padding
+          // variable the header uses for its content edges so the
+          // chip's right edge is precisely aligned with the logo's
+          // right edge on every viewport width.
           : "fixed top-[74px] z-[70] pointer-events-none"
       }
-      style={tileOpen ? undefined : { left: "var(--ir-container-pad-x, 1rem)" }}
+      style={tileOpen ? undefined : { right: "var(--ir-container-pad-x, 1rem)" }}
       data-testid="global-focus-chip-wrap"
     >
       <div className="pointer-events-auto">
