@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import AccordionNoteItem from "./AccordionNoteItem";
 import NestedSubGroup, { encodeNestedDroppableId } from "./NestedSubGroup";
+import AccordionBody from "../components/AccordionBody";
 
 function getPath(n) {
   const modern = Array.isArray(n?.category_path) ? n.category_path : null;
@@ -108,8 +109,7 @@ export default function CategoryGroup({
       {hasNestedPaths ? (
         <Droppable droppableId={encodeNestedDroppableId([category])} type="note">
           {(dropProv, dropSnap) => (
-            <div className={`ir-fold ${isOpen ? "is-open" : ""}`}>
-              <div className="ir-fold-inner">
+            <AccordionBody open={isOpen}>
             <div
               ref={dropProv.innerRef}
               {...dropProv.droppableProps}
@@ -167,15 +167,13 @@ export default function CategoryGroup({
               ))}
               {dropProv.placeholder}
             </div>
-              </div>
-            </div>
+            </AccordionBody>
           )}
         </Droppable>
       ) : (
         <Droppable droppableId={`notes-in-${category}`} type="note">
           {(dropProv, dropSnap) => (
-            <div className={`ir-fold ${isOpen ? "is-open" : ""}`}>
-              <div className="ir-fold-inner">
+            <AccordionBody open={isOpen}>
             <div
               ref={dropProv.innerRef}
               {...dropProv.droppableProps}
@@ -214,8 +212,7 @@ export default function CategoryGroup({
                 </div>
               )}
             </div>
-              </div>
-            </div>
+            </AccordionBody>
           )}
         </Droppable>
       )}

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import StorageService from "./storage/storageService";
 import notificationService, { isInFocusWindow } from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
+import AccordionBody from "./components/AccordionBody";
 import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
@@ -1544,8 +1545,7 @@ export default function NotesApp() {
                             onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
                             isOpen={useAccordion ? open : undefined}
                           />
-                          <div className={`ir-fold ${!useAccordion || open ? "is-open" : ""}`}>
-                            <div className="ir-fold-inner">
+                          <AccordionBody open={!useAccordion || open}>
                           <Droppable droppableId={`notes-in-${cat}`} type="note">
                             {(prov, snap) => (
                               <div
@@ -1572,8 +1572,7 @@ export default function NotesApp() {
                               </div>
                             )}
                           </Droppable>
-                            </div>
-                          </div>
+                          </AccordionBody>
                         </div>
                         );
                       }}
@@ -1594,8 +1593,7 @@ export default function NotesApp() {
                     isOpen={uncategorizedOpen}
                   />
                 )}
-                <div className={`ir-fold ${grouped.length === 0 || uncategorizedOpen ? "is-open" : ""}`}>
-                  <div className="ir-fold-inner">
+                <AccordionBody open={grouped.length === 0 || uncategorizedOpen}>
                 <Droppable droppableId="notes-in-" type="note">
                   {(prov, snap) => (
                     <div
@@ -1623,8 +1621,7 @@ export default function NotesApp() {
                     </div>
                   )}
                 </Droppable>
-                  </div>
-                </div>
+                </AccordionBody>
               </div>
             )}
           </DragDropContext>
@@ -1746,8 +1743,7 @@ export default function NotesApp() {
                             isOpen={uncategorizedOpen}
                           />
                         </div>
-                        <div className={`ir-fold ${uncategorizedOpen ? "is-open" : ""}`}>
-                          <div className="ir-fold-inner">
+                        <AccordionBody open={uncategorizedOpen}>
                         {uncategorized.map((note, idx) => (
                           <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx} isDragDisabled={inSelectMode}>
                             {(prov2, snap2) => (
@@ -1772,8 +1768,7 @@ export default function NotesApp() {
                           </Draggable>
                         ))}
                         {uncProv.placeholder}
-                          </div>
-                        </div>
+                        </AccordionBody>
                       </div>
                     )}
                   </Droppable>
