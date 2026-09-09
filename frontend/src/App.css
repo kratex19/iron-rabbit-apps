@@ -670,23 +670,28 @@
 .ir-fold {
     display: grid;
     grid-template-rows: 0fr;
-    /* Slow enough that the user sees the motion — not a snap.
-       Cubic-bezier gives a subtle ease-out at the end so the
-       content settles rather than stops abruptly. */
-    transition: grid-template-rows 340ms cubic-bezier(0.22, 1, 0.36, 1),
-                opacity          260ms ease-out;
+    /* 500 ms so the motion feels intentional. Cubic-bezier gives a
+       subtle ease-out at the end so the content settles instead of
+       stopping abruptly. */
+    transition: grid-template-rows 500ms cubic-bezier(0.22, 1, 0.36, 1),
+                opacity          420ms ease-out;
     opacity: 0;
-    /* When collapsed, don't allow content to spill or trap clicks. */
-    pointer-events: none;
 }
 .ir-fold.is-open {
     grid-template-rows: 1fr;
     opacity: 1;
-    pointer-events: auto;
 }
 .ir-fold-inner {
     min-height: 0;
+    /* `overflow: clip` clips overflow WITHOUT establishing a scroll
+       container — hello-pangea/dnd walks the ancestor chain looking
+       for scrollables, and `overflow: hidden` was tricking it into
+       thinking the Droppable had a scrollable parent, which killed
+       tile drag-and-drop after we introduced the fold wrapper.
+       `clip` is supported in all modern engines (Chromium 90 / Firefox
+       81 / Safari 15.4+); we keep `hidden` as a legacy fallback. */
     overflow: hidden;
+    overflow: clip;
 }
 
 .notes-grid {
