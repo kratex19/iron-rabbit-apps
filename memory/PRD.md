@@ -1,5 +1,20 @@
 # Iron Rabbit Apps - Company Website + Notes App
 
+## 📌 Session state (2026-02-28 — Focus chip always-visible + tap-to-activate)
+
+### ✅ Focus chip is now always visible with ON / OFF states
+- `FocusStatusChip.jsx` rewritten: no more `return null` when Focus is off. Two visual states:
+  - **OFF** — dim/muted pill (`Bell` icon, "Focus · off", grey border, translucent bg). Single-tap opens a self-contained dropdown menu with **30 minutes · 1 hour · 2 hours · Until sunrise · Turn ON (indefinite)**. Picking any option calls new prop `onActivate(patch)` where patch merges into settings (`focus_mode` / `focus_until`).
+  - **ON** — indigo pill (`BellOff` icon, "Focus · ON" / "Focus · Xm left" / "Focus · scheduled") with X-only cancel (label tap is a no-op by design).
+- Menu closes on outside click / touch / Escape.
+- "Until sunrise" fetches next real sunrise from Open-Meteo when `settings.location` is set, else falls back to 06:00-local heuristic.
+- `AppHeader.jsx` now receives `onActivateFocus` and `focusLocation` props (from NotesApp) and forwards them to the chip so the Home-inline placement gets full on/off control.
+- `GlobalFocusChip.jsx` no longer returns null when Focus is inactive — as long as `body.ir-tile-open` is set (Expanded Text view), the chip stays visible in the top-right so the user can flip Focus from the fullscreen editor. Passes `onActivate` writing directly to StorageService.
+
+### Files touched this pass
+- Rewritten: `notes/FocusStatusChip.jsx`
+- Modified: `notes/AppHeader.jsx`, `components/GlobalFocusChip.jsx`, `NotesApp.jsx`
+
 ## 📌 Session state (2026-02-28 — Focus/Rabbit 5-pack)
 
 ### ✅ #1 Chip on all screens — GlobalFocusChip

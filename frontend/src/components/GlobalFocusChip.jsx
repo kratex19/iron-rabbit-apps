@@ -128,7 +128,6 @@ export default function GlobalFocusChip() {
   const manual = !!settings.focus_mode;
   const scheduleActive = isInFocusWindow(new Date(), settings.focus_schedule);
   const active = manual || !!until || scheduleActive;
-  if (!active) return null;
 
   // Home-layout placement is now handled INLINE inside `AppHeader.jsx`
   // (chip renders directly to the left of the rusty-rabbit logo so it
@@ -136,6 +135,8 @@ export default function GlobalFocusChip() {
   // or search bar on mobile/landscape). This global overlay ONLY takes
   // over when a fullscreen tile (Expanded Text) is open, where the
   // header itself is hidden — the top-right float stays perfect there.
+  // Renders in BOTH on and off states so the user can flip Focus from
+  // the fullscreen editor without exiting back to Home.
   if (!tileOpen) return null;
 
   const cancel = async () => {
@@ -148,6 +149,10 @@ export default function GlobalFocusChip() {
     });
   };
 
+  const activate = async (patch) => {
+    await StorageService.saveSettings({ ...settings, ...patch });
+  };
+
   return (
     <div
       className="fixed top-2 right-2 z-[70] pointer-events-none"
@@ -157,6 +162,8 @@ export default function GlobalFocusChip() {
         <FocusStatusChip
           status={{ active, manual, until, scheduleActive }}
           onCancel={cancel}
+          onActivate={activate}
+          location={settings.location}
         />
       </div>
     </div>

@@ -50,6 +50,8 @@ export default function AppHeader({
   onBrightnessChange,
   focusStatus,
   onCancelFocus,
+  onActivateFocus,
+  focusLocation,
 }) {
   const { t, i18n } = useTranslation();
   const languageCode = (i18n.language || "en").split("-")[0];
@@ -96,7 +98,12 @@ export default function AppHeader({
               flex row so it flows with the layout on every viewport
               (portrait / landscape / tablet / desktop) with zero
               overlap risk against the icon strip below. */}
-          <FocusStatusChip status={focusStatus} onCancel={onCancelFocus} />
+          <FocusStatusChip
+            status={focusStatus}
+            onCancel={onCancelFocus}
+            onActivate={onActivateFocus}
+            location={focusLocation}
+          />
           {settings?.logo_url && (
             <a
               href={settings?.website_url || "#"}

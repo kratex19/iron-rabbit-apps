@@ -1853,6 +1853,15 @@ export default function NotesApp() {
           const next = { ...(settings || {}), focus_mode: false, focus_until: 0 };
           handleSaveSettings(next);
         }}
+        onActivateFocus={(patch) => {
+          // Header chip menu picked an activation option (30m / 1h /
+          // 2h / until sunrise / manual). Merge the patch into the
+          // current settings so the pill flips to its ON state on
+          // the next tick.
+          const next = { ...(settings || {}), ...patch };
+          handleSaveSettings(next);
+        }}
+        focusLocation={settings?.location}
       />
 
       {/* 🔒 LOCKED (Home Page brightness) — see /app/memory/LOCKED_SURFACES.md
