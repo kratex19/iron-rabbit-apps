@@ -1,0 +1,70 @@
+/* Compact Header */
+.header-compact {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+/* Overlay gradients — light enough to let the preset image show clearly
+   yet strong enough at the bottom to keep the icon row legible. Text
+   inside the header carries its own drop-shadow (below) so it stays
+   readable regardless of preset. */
+.header-compact::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(2, 6, 23, 0.15), rgba(2, 6, 23, 0.55));
+    pointer-events: none;
+}
+
+.header-compact.light::before {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(249, 250, 251, 0.6));
+}
+
+/* Text / logo legibility over any image */
+.header-compact h1 {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65), 0 0 8px rgba(0, 0, 0, 0.35);
+}
+.header-compact a,
+.header-compact a span {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.header-compact.light h1,
+.header-compact.light a {
+    color: #111827 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85), 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+/* Header icon buttons — force dark color in light mode so they show up
+   against the white overlay. Overrides the inline `text-white/70`. */
+.header-compact.light button {
+    color: rgb(31, 41, 55) !important;
+}
+.header-compact.light button:hover {
+    color: rgb(17, 24, 39) !important;
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}
+.header-compact.light button svg {
+    color: inherit !important;
+}
+
+/* Icon-row inner layer sits INSIDE the outer glass strip
+   (`.ir-header-glass-strip`) which already provides the frosted
+   surface. Keep the inner row essentially transparent so the strip
+   reads as a single subtle pane — a soft 6 %/12 % tint just enough
+   to keep the row visible against very busy header artwork. */
+.header-compact [data-testid="header-icon-row"] {
+    background: rgba(0, 0, 0, 0.02);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-radius: 10px;
+    padding: 2px 6px;
+}
+.header-compact.light [data-testid="header-icon-row"] {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Accordion Note Item */
+.accordion-note {
+    transition: all 0.2s ease;

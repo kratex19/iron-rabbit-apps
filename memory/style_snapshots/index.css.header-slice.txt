@@ -1,0 +1,96 @@
+   underneath. No max-width cap here — the shell is the boundary. */
+.ir-app-shell > header,
+.ir-app-shell > .header-compact {
+    width: 100%;
+}
+
+/* Header inner content also fills 100% of the shell width so title
+   (left-aligned) and icon-row (right-aligned) sit exactly above the
+   left/right edges of the body content below. Fluid horizontal
+   padding matches --ir-container-pad-x so header and body content
+   share the same visual gutter. */
+.ir-header-inner {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: 0;
+    padding-inline: var(--ir-container-pad-x);
+    padding-top: calc(env(safe-area-inset-top, 0px) + var(--ir-container-pad-y));
+    padding-bottom: var(--ir-container-pad-y);
+}
+
+/* When there are two consecutive `.ir-header-inner` rows (branding
+   row + glass icon strip), the second row should reset its top
+   safe-area padding — the notch offset was already consumed by the
+   first row. Uses `:not(:first-of-type)` so the rule is inherently
+   safe and doesn't require a modifier class. */
+.ir-header-inner + .ir-header-inner {
+    padding-top: var(--ir-container-pad-y);
+}
+
+/* Icon buttons inside the glass strip — force a truly transparent
+   background at every interaction state (no chip / hover fill) and
+   shrink each button so 21 icons wrap into a maximum of 2 rows on
+   even the smallest supported phone. Fluid sizing keeps the icons
+   comfortable on tablets and desktops. */
+.ir-header-glass-strip button {
+    background: transparent !important;
+    background-color: transparent !important;
+    /* Icon-button dimensions: 26 px on tightest phones → 32 px on
+       desktops. Preserves tap-target ergonomics without wasting
+       horizontal space. */
+    width:  clamp(1.625rem, 3.4vw, 2rem) !important;
+    height: clamp(1.625rem, 3.4vw, 2rem) !important;
+    padding: 0 !important;
+    border-radius: 0.5rem;
+    transition: color 0.15s ease, transform 0.1s ease;
+}
+.ir-header-glass-strip button:hover {
+    background: transparent !important;
+    background-color: transparent !important;
+    transform: translateY(-1px);
+}
+.ir-header-glass-strip button svg {
+    width:  clamp(0.85rem, 1.8vw, 1.05rem);
+    height: clamp(0.85rem, 1.8vw, 1.05rem);
+}
+/* Tighter gap between icons so more fit per row. */
+.ir-header-glass-strip > div {
+    gap: clamp(0.15rem, 0.4vw, 0.35rem) !important;
+}
+
+/* Row 2 of the header — a full-width glass strip containing every
+   icon button. Nested inside an `.ir-header-inner` wrapper so it
+   inherits the fluid outer container padding automatically. The
+   strip itself provides the glass surface and its own compact
+   internal padding for the icons. */
+.ir-header-glass-strip {
+    /* Pure glass surface: white "background" layer is fully transparent
+       so the backdrop-filter blur is the only visual, giving a clean
+       frosted-glass look over whatever header art sits behind. */
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 0.75rem;
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset,
+                0 6px 16px -14px rgba(0, 0, 0, 0.4);
+    /* Compact vertical padding — ~25 % shorter than the previous rev.
+       Just enough breathing room around the 32-px icon buttons. */
+    padding: 0 var(--ir-space-2);
+    line-height: 1;
+    /* Sits directly under the branding row with a subtle gap. */
+    margin-top: var(--ir-space-2);
+    width: 100%;
+}
+
+/* Light mode variant — border only, no visible white background so
+   the blur is the sole surface treatment. */
+.header-compact.light .ir-header-glass-strip {
+    background: transparent;
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset,
+                0 6px 16px -14px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================================
+   Viewport-warning sentinel — pulsing red button that appears in
