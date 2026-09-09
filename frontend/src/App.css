@@ -658,6 +658,17 @@
     gap: var(--ir-gap);
 }
 
+/* Accordion-collapse override — Tailwind's `.hidden { display: none }`
+   utility has the same specificity as `.notes-grid { display: grid }`
+   above, so whichever loads later wins. When the accordion-collapse
+   state adds `hidden` to a `.notes-grid`, force the intended
+   display:none using a higher-specificity selector so the pack
+   contents actually collapse. Drag-and-drop is unaffected — the
+   Droppable's ref-div stays in the DOM, only its display flips. */
+.notes-grid.hidden {
+    display: none;
+}
+
 /* =============================================================
    TV / ULTRAWIDE MODE — genuine layout change at ≥ 2000 px
    Not a patch: this is a legitimate responsive breakpoint per
