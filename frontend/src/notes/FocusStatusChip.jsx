@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon } from "lucide-react";
 
 /**
@@ -56,7 +57,9 @@ async function fetchNextSunrise(location) {
 export default function FocusStatusChip({ status, onActivate, onCancel, location }) {
   const [, setTick] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const wrapRef = useRef(null);
+  const btnRef = useRef(null);
 
   useEffect(() => {
     if (!status?.active) return undefined;
@@ -67,17 +70,36 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
   // Close the OFF-state menu on outside click / Escape.
   useEffect(() => {
     if (!menuOpen) return undefined;
+    // Re-anchor the fixed menu to the chip's current viewport rect so
+    // it sits flush under the pill. Handles scroll / resize while open.
+    const anchor = () => {
+      const el = btnRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setMenuPos({
+        top: Math.round(r.bottom + 4),
+        right: Math.round(window.innerWidth - r.right),
+      });
+    };
+    anchor();
     const onDown = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setMenuOpen(false);
+      if (wrapRef.current && wrapRef.current.contains(e.target)) return;
+      // Portaled menu lives outside wrapRef — treat clicks on it as inside.
+      if (e.target && e.target.closest && e.target.closest('[data-focus-menu-portal="1"]')) return;
+      setMenuOpen(false);
     };
     const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("touchstart", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", anchor);
+    window.addEventListener("scroll", anchor, true);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("touchstart", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", anchor);
+      window.removeEventListener("scroll", anchor, true);
     };
   }, [menuOpen]);
 
@@ -105,6 +127,7 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
     return (
       <div ref={wrapRef} className="relative inline-flex mt-1 shrink-0">
         <button
+          ref={btnRef}
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
           className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.06] text-slate-300 border border-white/15 backdrop-blur-sm hover:bg-white/[0.12] hover:text-white transition-colors"
@@ -117,10 +140,23 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
           <span>Focus · off</span>
         </button>
 
-        {menuOpen && (
+        {menuOpen && typeof document !== "undefined" && createPortal(
           <div
             role="menu"
-            className="absolute top-full right-0 mt-1 z-[80] min-w-[160px] rounded-lg border border-white/15 bg-slate-900/95 backdrop-blur-md shadow-xl py-1"
+            ref={(el) => {
+              // Outside-click needs to know about the portaled node too
+              // (wrapRef.contains would miss it since it lives in body).
+              // We stash it as a data attr and check both refs on click.
+              if (el) el.setAttribute("data-focus-menu-portal", "1");
+            }}
+            style={{
+              position: "fixed",
+              top: menuPos.top,
+              right: menuPos.right,
+              zIndex: 2147483000,
+              backgroundColor: "rgb(15 23 42)", // slate-900 opaque
+            }}
+            className="min-w-[160px] rounded-lg border border-white/15 shadow-2xl py-1"
             data-testid="focus-status-menu"
           >
             <MenuRow icon={<Timer className="w-3.5 h-3.5" />} label="30 minutes" onClick={() => pick("30m")} testid="focus-status-menu-30m" />
@@ -129,7 +165,8 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
             <MenuRow icon={<Sunrise className="w-3.5 h-3.5" />} label="Until sunrise" onClick={() => pick("sunrise")} testid="focus-status-menu-sunrise" />
             <div className="h-px bg-white/10 my-1" />
             <MenuRow icon={<InfinityIcon className="w-3.5 h-3.5" />} label="Turn ON (indefinite)" onClick={() => pick("manual")} testid="focus-status-menu-manual" />
-          </div>
+          </div>,
+          document.body
         )}
       </div>
     );
