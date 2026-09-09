@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon } from "lucide-react";
+import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon, BookOpen } from "lucide-react";
 
 /**
  * FocusStatusChip — header pill that is ALWAYS visible so the user can
@@ -165,6 +165,16 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
             <MenuRow icon={<Sunrise className="w-3.5 h-3.5" />} label="Until sunrise" onClick={() => pick("sunrise")} testid="focus-status-menu-sunrise" />
             <div className="h-px bg-white/10 my-1" />
             <MenuRow icon={<InfinityIcon className="w-3.5 h-3.5" />} label="Turn ON (indefinite)" onClick={() => pick("manual")} testid="focus-status-menu-manual" />
+            <div className="h-px bg-white/10 my-1" />
+            <MenuRow
+              icon={<BookOpen className="w-3.5 h-3.5" />}
+              label="How Focus works"
+              onClick={() => {
+                setMenuOpen(false);
+                window.open("/focus-mode-guide.html", "_blank", "noopener");
+              }}
+              testid="focus-status-menu-guide"
+            />
           </div>,
           document.body
         )}

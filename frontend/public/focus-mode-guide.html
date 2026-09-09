@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iron Rabbit — Focus Mode Guide</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #a78bfa;
+    --accent-soft: rgba(167, 139, 250, 0.15);
+    --border: rgba(255, 255, 255, 0.10);
+    --amber: #fbbf24;
+    --success: #34d399;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+  header {
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+  }
+  h1 {
+    font-size: 2.6rem;
+    line-height: 1.15;
+    margin: 0 0 0.75rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  h1 .accent { color: var(--amber); }
+  .tagline {
+    font-size: 1.1rem;
+    color: var(--muted);
+    font-style: italic;
+    margin: 0;
+  }
+  h2 {
+    font-size: 1.6rem;
+    margin: 3rem 0 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+  h3 {
+    font-size: 1.15rem;
+    margin: 1.75rem 0 0.5rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  p { margin: 0 0 1.1rem; }
+  ul, ol { padding-left: 1.5rem; }
+  ul li, ol li { margin-bottom: 0.4rem; }
+  code {
+    background: var(--panel);
+    color: var(--amber);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+  strong { color: #fff; }
+  em { color: var(--muted); }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.5rem;
+    background: var(--panel);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: rgba(167, 139, 250, 0.10);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  tr:last-child td { border-bottom: none; }
+  .pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0 0.25rem;
+    vertical-align: middle;
+  }
+  .pill.off {
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .pill.on {
+    background: rgba(99, 102, 241, 0.25);
+    color: #c7d2fe;
+    border: 1px solid rgba(129, 140, 248, 0.4);
+  }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding: 0.5rem 1.25rem;
+    margin: 1.5rem 0;
+    background: var(--accent-soft);
+    border-radius: 0 8px 8px 0;
+    color: var(--text);
+  }
+  .callout {
+    background: rgba(52, 211, 153, 0.12);
+    border-left: 3px solid var(--success);
+    padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+  }
+  .callout .title {
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  .toc {
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin: 2rem 0;
+    border: 1px solid var(--border);
+  }
+  .toc-title {
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .toc ol { margin: 0; padding-left: 1.25rem; }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--border);
+  }
+  .toc a:hover { color: var(--amber); }
+  @media print {
+    body { background: white; color: black; }
+    .wrap { max-width: none; padding: 1cm; }
+    h1, h2, h3 { color: black !important; }
+    .pill.off { border-color: #999; color: #666; }
+    .pill.on { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+    a { color: black; }
+    .toc { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1><span class="accent">Iron Rabbit</span> — Focus Mode: Complete Guide</h1>
+  <p class="tagline">A calm, uninterrupted way to work, sleep and unplug — without silencing your device.</p>
+</header>
+
+<nav class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#what">What is Focus Mode?</a></li>
+    <li><a href="#three-ways">Three Ways to Turn Focus On</a></li>
+    <li><a href="#silenced">What Actually Gets Silenced?</a></li>
+    <li><a href="#night-visuals">Night Visuals — Pair Focus with a Calmer Look</a></li>
+    <li><a href="#alarms-tomorrow">Focus + Alarms — What Happens Tomorrow?</a></li>
+    <li><a href="#recipes">Common Recipes</a></li>
+    <li><a href="#trouble">Troubleshooting</a></li>
+    <li><a href="#reference">Quick Reference Card</a></li>
+  </ol>
+</nav>
+
+<h2 id="what">What is Focus Mode?</h2>
+<p>Focus Mode is Iron Rabbit's built-in quiet-time system. When Focus is active, the app <strong>silences its own alarm pop-ups, sounds and haptics</strong> — but your phone's normal notifications and calls continue to work. It's designed for three moments in your day:</p>
+<ul>
+  <li><strong>Deep work sessions</strong> — no reminder pop-ups jumping onto your screen while you're concentrating</li>
+  <li><strong>Sleep</strong> — your recurring morning alarms stay armed and ready for tomorrow, but overnight reminders don't wake you</li>
+  <li><strong>Downtime</strong> — evenings, meals, moments away from your to-do list</li>
+</ul>
+<p>Nothing is deleted. Nothing is missed. Alarms that would have fired during Focus are simply marked as "silenced" and available in your history the moment Focus ends.</p>
+
+<h2 id="three-ways">Three Ways to Turn Focus On</h2>
+<p>There's a <strong>Focus chip</strong> in the top-right of every screen (right beside the rusty rabbit logo on the home view, floating top-right when you're inside an Expanded Text note). The chip has two visual states:</p>
+<ul>
+  <li><strong>OFF</strong> — <span class="pill off">🔔 Focus · off</span> a dim grey pill</li>
+  <li><strong>ON</strong> — <span class="pill on">🔕 Focus · 45m left</span> a solid indigo pill with a small × cancel button</li>
+</ul>
+
+<h3>Method 1 — Quick Timer (single tap)</h3>
+<p>Tap the OFF pill. A small menu appears:</p>
+<table>
+  <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><strong>30 minutes</strong></td><td>Focus turns on for exactly half an hour, then turns off automatically</td></tr>
+    <tr><td><strong>1 hour</strong></td><td>Focus for one hour</td></tr>
+    <tr><td><strong>2 hours</strong></td><td>Focus for two hours</td></tr>
+    <tr><td><strong>Until sunrise</strong></td><td>Focus stays on until sunrise at your current location tomorrow morning (uses the same location as your weather widget)</td></tr>
+    <tr><td><strong>Turn ON (indefinite)</strong></td><td>Focus stays on until you manually cancel it</td></tr>
+  </tbody>
+</table>
+<p>Pick one — the pill instantly flips to its ON state and starts counting down. Tap the <code>×</code> on the pill to cancel early at any time.</p>
+
+<h3>Method 2 — Nightly Schedule (automatic every night)</h3>
+<p>Open <strong>Settings → Focus Mode → Nightly Schedule</strong>. You can set:</p>
+<ul>
+  <li><strong>Enabled per day</strong> — pick which nights the schedule should run (Sunday–Saturday individually). Weekdays only? Weekends only? All seven? Your call.</li>
+  <li><strong>Start time</strong> — the moment Focus should switch itself on (e.g. <code>22:00</code>)</li>
+  <li><strong>End time</strong> — the moment Focus should switch itself off (e.g. <code>06:30</code> next morning)</li>
+  <li><strong>Crosses midnight</strong> — the schedule handles overnight windows automatically. <code>22:00 → 06:30</code> means Focus is on from 10 PM tonight until 6:30 AM tomorrow</li>
+</ul>
+<p>When a scheduled window is active, the Focus pill shows <span class="pill on">Focus · scheduled</span> in indigo. You cannot cancel the schedule from the pill (that would be a Settings action) — but you <em>can</em> layer a manual override on top: tap the pill's × when scheduled, and you'll get a one-time exception for tonight only. Tomorrow the schedule runs as usual.</p>
+
+<h3>Method 3 — Manual Toggle (Settings)</h3>
+<p>Open <strong>Settings → Focus Mode → Focus Mode</strong> and flip the master switch. This is functionally identical to picking "Turn ON (indefinite)" from the Focus chip menu. Stays on until you flip it off.</p>
+
+<h2 id="silenced">What Actually Gets Silenced?</h2>
+<p>When Focus is active, the following in-app things go quiet:</p>
+<ul>
+  <li><strong>Alarm pop-up cards</strong> — the usual full-screen "Time's up!" card doesn't show. The alarm is logged silently.</li>
+  <li><strong>Alarm sounds</strong> — no ringing, chiming or vibrating from the app.</li>
+  <li><strong>Haptic feedback</strong> — long-press pulses, drag confirmations, etc. stay silent.</li>
+  <li><strong>Toast notifications</strong> — the small "Saved!" / "Reminder set for 3 PM" pop-ups are suppressed.</li>
+</ul>
+<div class="callout">
+  <div class="title">Not affected</div>
+  Your phone's system notifications from other apps, incoming calls and texts, alarms you scheduled in your phone's native Clock app, or anything happening outside of Iron Rabbit. Focus is a <strong>library silence</strong>, not a <strong>phone silence</strong>.
+</div>
+
+<h2 id="night-visuals">Night Visuals — Pair Focus with a Calmer Look</h2>
+<p>Under <strong>Settings → Focus Mode → Night Visuals</strong>, you can attach a visual "night skin" that applies automatically whenever Focus is active. Snapshot your favourite dim wallpaper + reduced brightness + warmer text tint, save it, and every time Focus turns on the app will silently switch to that visual state. When Focus ends, your daytime look returns.</p>
+<p>Common combinations:</p>
+<ul>
+  <li><strong>Sleeping</strong> — pitch-black background, brightness 10%, extra-warm text tint</li>
+  <li><strong>Deep work</strong> — deep navy background, medium brightness, cool text tint (helps concentration)</li>
+  <li><strong>Reading</strong> — cream wallpaper, brightness 60%, warm text tint (easy on the eyes)</li>
+</ul>
+
+<h2 id="alarms-tomorrow">Focus + Alarms — What Happens Tomorrow?</h2>
+<p>Focus Mode never disables your alarms. It only silences the <em>delivery</em> of alarms that fire <em>during</em> the Focus window. Two important behaviours:</p>
+<ol>
+  <li><strong>Recurring alarms</strong> — if you have "Water break every 30 min" and Focus is on for 2 hours, that alarm fires 4 times silently. When Focus ends, the alarm resumes ringing normally at its next scheduled time.</li>
+  <li><strong>One-shot alarms</strong> — if you set "Call Mum at 8 PM" and Focus is on at 8 PM, the alarm fires silently at 8 PM and is marked complete. <strong>It does not re-fire when Focus ends.</strong> If you want to be reminded again, set another alarm.</li>
+</ol>
+<p>A history strip in <strong>Settings → Focus Mode → Silenced Alarms</strong> shows every alarm that Focus intercepted in the last 24 hours, so you can catch up on what you missed with one glance.</p>
+
+<h2 id="recipes">Common Recipes</h2>
+
+<h3>"I want to sleep from 10 PM to 7 AM every night"</h3>
+<ol>
+  <li>Settings → Focus Mode → Nightly Schedule</li>
+  <li>Enable all seven days</li>
+  <li>Start: <code>22:00</code> · End: <code>07:00</code></li>
+  <li>Under Night Visuals, save a dim/dark snapshot</li>
+</ol>
+<p>Every night at 10 PM the app silences itself; every morning at 7 AM it wakes up bright and ready.</p>
+
+<h3>"I want a distraction-free 90-minute work sprint right now"</h3>
+<ol>
+  <li>Tap the Focus chip</li>
+  <li>Pick <strong>1 hour</strong> (or <strong>2 hours</strong> if you're feeling ambitious)</li>
+  <li>Work</li>
+</ol>
+<p>Focus turns itself off automatically when your sprint ends. If you finish early, tap the × on the pill to cancel manually.</p>
+
+<h3>"Weekend brunch — no reminders 10 AM to 2 PM Saturdays"</h3>
+<ol>
+  <li>Settings → Focus Mode → Nightly Schedule</li>
+  <li>Enable <strong>Saturday only</strong></li>
+  <li>Start: <code>10:00</code> · End: <code>14:00</code></li>
+  <li>Save</li>
+</ol>
+<p>Every Saturday your Iron Rabbit stays quiet during brunch. Weekdays remain business as usual.</p>
+
+<h3>"I'm heading into a meeting — no notifications until it ends"</h3>
+<ol>
+  <li>Tap the Focus chip</li>
+  <li>Pick <strong>Turn ON (indefinite)</strong></li>
+  <li>When the meeting ends, tap the ×</li>
+</ol>
+<p>Simple. No timer to guess.</p>
+
+<h2 id="trouble">Troubleshooting</h2>
+
+<h3>"The Focus pill is dim but no menu opens when I tap it"</h3>
+<p>The menu is portaled to <code>document.body</code> at very high z-index. If it's not showing, try closing and reopening the Iron Rabbit tab/app fully — the service-worker cache might be serving an older bundle. On phones, swipe the app away from recents and reopen.</p>
+
+<h3>"I set a schedule for 22:00–06:30 but it didn't activate at 10 PM"</h3>
+<p>Two checks:</p>
+<ol>
+  <li>Confirm the current day-of-week toggle is on (Settings → Focus Mode → Nightly Schedule → check the day you're on)</li>
+  <li>Confirm your device clock time zone is correct — schedules use local time</li>
+</ol>
+
+<h3>"An alarm rang during Focus — why?"</h3>
+<p>Focus silences alarms only for the <strong>in-app</strong> delivery layer. If you allowed the app to send system push notifications and one arrived through the OS channel while Focus was on, that's a browser/OS-level fallback that Focus can't control. Turn off push notifications in your device settings if you want absolute quiet.</p>
+
+<h3>"Can I set multiple different Focus windows in one day?"</h3>
+<p>Currently one nightly schedule window per day, plus any number of manual-timer overrides layered on top. If you need a lunch window and a dinner window on the same day, use two Quick Timer sessions.</p>
+
+<h2 id="reference">Quick Reference Card</h2>
+<table>
+  <thead><tr><th>I want to…</th><th>Do this</th></tr></thead>
+  <tbody>
+    <tr><td>Turn Focus on for 30 minutes</td><td>Tap Focus chip → <strong>30 minutes</strong></td></tr>
+    <tr><td>Turn Focus on until sunrise</td><td>Tap Focus chip → <strong>Until sunrise</strong></td></tr>
+    <tr><td>Turn Focus on indefinitely</td><td>Tap Focus chip → <strong>Turn ON (indefinite)</strong></td></tr>
+    <tr><td>Cancel Focus now</td><td>Tap <code>×</code> on the indigo pill</td></tr>
+    <tr><td>Auto-Focus every night 22:00–06:30</td><td>Settings → Focus Mode → Nightly Schedule</td></tr>
+    <tr><td>See what alarms Focus silenced</td><td>Settings → Focus Mode → Silenced Alarms</td></tr>
+    <tr><td>Dim the app while Focus is on</td><td>Settings → Focus Mode → Night Visuals</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  Iron Rabbit · Focus Mode Guide · Version 1.0<br>
+  Questions or feedback? Tap the chat icon in the app or visit ironrabbit.app/support
+</footer>
+
+</div>
+</body>
+</html>

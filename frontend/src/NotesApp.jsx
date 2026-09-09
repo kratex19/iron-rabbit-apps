@@ -19,6 +19,7 @@ import StorageService from "./storage/storageService";
 import notificationService, { isInFocusWindow } from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
 import AccordionBody from "./components/AccordionBody";
+import SortableTileGrid from "./components/SortableTileGrid";
 import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
@@ -1217,6 +1218,39 @@ export default function NotesApp() {
     }
   };
 
+  // dnd-kit reorder handler — used by SortableTileGrid in grid view
+  // to persist a 2D drop. Mirrors the same-list reorder branch of
+  // handleDragEnd. `localList` is the source list (either a specific
+  // category's notes or the ungrouped `processedNotes` if category is
+  // null); `newLocalOrder` is the same list after arrayMove.
+  const handleSortableReorder = async (localList, newLocalOrder) => {
+    try {
+      const localIds = new Set(localList.map((n) => n.id));
+      const isFlat = localList === processedNotes;
+      let finalOrderIds;
+      if (isFlat) {
+        finalOrderIds = newLocalOrder.map((n) => n.id);
+      } else {
+        const globalSorted = [...notes].sort(
+          (a, b) => ((a.order ?? 0) - (b.order ?? 0)) ||
+                    ((a.created_at || "") < (b.created_at || "") ? 1 : -1)
+        );
+        const queue = [...newLocalOrder];
+        finalOrderIds = globalSorted.map((n) => (localIds.has(n.id) ? queue.shift().id : n.id));
+      }
+      await StorageService.reorderNotes(finalOrderIds);
+      if (sortBy !== "custom") {
+        setSortBy("custom");
+        toast.success("Custom order enabled");
+      }
+      fetchData();
+      haptic("success");
+    } catch (err) {
+      console.error("Sortable reorder error:", err);
+      toast.error("Could not move");
+    }
+  };
+
   const handleBackup = async () => {
     try {
       const data = await StorageService.exportAllData();
@@ -1546,31 +1580,18 @@ export default function NotesApp() {
                             isOpen={useAccordion ? open : undefined}
                           />
                           <AccordionBody open={!useAccordion || open}>
-                          <Droppable droppableId={`notes-in-${cat}`} type="note">
-                            {(prov, snap) => (
-                              <div
-                                ref={prov.innerRef}
-                                {...prov.droppableProps}
-                                className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
-                                style={gridStyle}
-                              >
-                                {items.map((note, idx) => (
-                                  <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
-                                    {(dp, ds) => (
-                                      <div
-                                        ref={dp.innerRef}
-                                        {...dp.draggableProps}
-                                        className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
-                                      >
-                                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} dragHandleProps={dp.dragHandleProps} />
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))}
-                                {prov.placeholder}
-                              </div>
-                            )}
-                          </Droppable>
+                          <SortableTileGrid
+                            notes={items}
+                            onReorder={(_from, _to, next) => handleSortableReorder(items, next)}
+                            isDark={isDark}
+                            selectMode={inSelectMode}
+                            isSelected={isSelected}
+                            onToggleSelect={toggleSelect}
+                            onOpen={openFullScreen}
+                            onEdit={openEditModal}
+                            gridStyle={gridStyle}
+                            testId={`sortable-tiles-${cat}`}
+                          />
                           </AccordionBody>
                         </div>
                         );
@@ -1593,32 +1614,18 @@ export default function NotesApp() {
                   />
                 )}
                 <AccordionBody open={grouped.length === 0 || uncategorizedOpen}>
-                <Droppable droppableId="notes-in-" type="note">
-                  {(prov, snap) => (
-                    <div
-                      ref={prov.innerRef}
-                      {...prov.droppableProps}
-                      className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
-                      style={gridStyle}
-                      data-testid="notes-icon-uncategorized"
-                    >
-                      {uncategorized.map((note, idx) => (
-                        <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
-                          {(dp, ds) => (
-                            <div
-                              ref={dp.innerRef}
-                              {...dp.draggableProps}
-                              className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
-                            >
-                              <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} dragHandleProps={dp.dragHandleProps} />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {prov.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                <SortableTileGrid
+                  notes={uncategorized}
+                  onReorder={(_from, _to, next) => handleSortableReorder(uncategorized, next)}
+                  isDark={isDark}
+                  selectMode={inSelectMode}
+                  isSelected={isSelected}
+                  onToggleSelect={toggleSelect}
+                  onOpen={openFullScreen}
+                  onEdit={openEditModal}
+                  gridStyle={gridStyle}
+                  testId="notes-icon-uncategorized"
+                />
                 </AccordionBody>
               </div>
             )}
@@ -1626,28 +1633,18 @@ export default function NotesApp() {
         );
       }
       return (
-        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <Droppable droppableId="notes-grid" type="note">
-            {(prov) => (
-              <div ref={prov.innerRef} {...prov.droppableProps} className="notes-grid" style={gridStyle} data-testid="notes-icon-flat">
-                {processedNotes.map((note, idx) => (
-                  <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx}>
-                    {(dp, ds) => (
-                      <div
-                        ref={dp.innerRef}
-                        {...dp.draggableProps}
-                        className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
-                      >
-                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} dragHandleProps={dp.dragHandleProps} />
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {prov.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+        <SortableTileGrid
+          notes={processedNotes}
+          onReorder={(_from, _to, next) => handleSortableReorder(processedNotes, next)}
+          isDark={isDark}
+          selectMode={inSelectMode}
+          isSelected={isSelected}
+          onToggleSelect={toggleSelect}
+          onOpen={openFullScreen}
+          onEdit={openEditModal}
+          gridStyle={gridStyle}
+          testId="notes-icon-flat"
+        />
       );
     }
 
