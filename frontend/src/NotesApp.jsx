@@ -1560,10 +1560,9 @@ export default function NotesApp() {
                                       <div
                                         ref={dp.innerRef}
                                         {...dp.draggableProps}
-                                        {...dp.dragHandleProps}
                                         className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                                       >
-                                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} dragHandleProps={dp.dragHandleProps} />
                                       </div>
                                     )}
                                   </Draggable>
@@ -1609,10 +1608,9 @@ export default function NotesApp() {
                             <div
                               ref={dp.innerRef}
                               {...dp.draggableProps}
-                              {...dp.dragHandleProps}
                               className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                             >
-                              <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                              <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} dragHandleProps={dp.dragHandleProps} />
                             </div>
                           )}
                         </Draggable>
@@ -1638,10 +1636,9 @@ export default function NotesApp() {
                       <div
                         ref={dp.innerRef}
                         {...dp.draggableProps}
-                        {...dp.dragHandleProps}
                         className={ds.isDragging ? "scale-105 shadow-2xl opacity-90 rotate-1" : ""}
                       >
-                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                        <NoteTile note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} dragHandleProps={dp.dragHandleProps} />
                       </div>
                     )}
                   </Draggable>

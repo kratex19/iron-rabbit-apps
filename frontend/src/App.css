@@ -710,9 +710,13 @@
     overflow: hidden;
     cursor: pointer;
     display: block;
-    transition: transform 180ms cubic-bezier(.2,.9,.3,1),
-                box-shadow 180ms ease,
-                filter 180ms ease;
+    /* Transition applies to box-shadow / filter only — NOT transform.
+       Animating `transform` on the tile was fighting with
+       hello-pangea/dnd, which sets `transform: translate(X, Y)` on
+       the draggable during drag. The 180 ms interpolation caused
+       drops to "jump around". Hover lift is still animated via
+       box-shadow + filter, which read as depth without a transform. */
+    transition: box-shadow 180ms ease, filter 180ms ease;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35),
                 inset 0 1px 0 rgba(255, 255, 255, 0.08);
     text-align: center;
@@ -724,7 +728,6 @@
 }
 
 .note-tile:hover {
-    transform: translateY(-2px) scale(1.015);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5),
                 inset 0 1px 0 rgba(255, 255, 255, 0.12);
     filter: brightness(1.06);
@@ -733,6 +736,36 @@
 .note-tile:focus-visible {
     outline: 2px solid #6366f1;
     outline-offset: 3px;
+}
+
+/* Visible drag grip on grid tiles — only rendered when the parent
+   passes `dragHandleProps`. Owns the drag zone so hello-pangea/dnd
+   sensor never fights with the tile's own click-to-open button. */
+.note-tile-grip {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    z-index: 3;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    touch-action: none;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: background 150ms ease, transform 150ms ease;
+}
+.note-tile-grip:hover,
+.note-tile-grip:focus-visible {
+    background: rgba(0, 0, 0, 0.75);
+}
+.note-tile-grip:active {
+    cursor: grabbing;
 }
 
 .note-tile-overlay {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, Pin, ChevronDown } from "lucide-react";
+import { Sparkles, Pin, ChevronDown, GripVertical } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
 
 /**
@@ -75,28 +75,50 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
     </>
   );
 
+  // Visible drag grip — only when the parent passes dragHandleProps.
+  // Splits the drag surface from the click surface so RBD's pointer
+  // sensor never fights with the collapsible toggle's onClick.
+  const gripEl = dragHandleProps ? (
+    <span
+      {...dragHandleProps}
+      role="button"
+      tabIndex={-1}
+      aria-label={`Drag to reorder ${title}`}
+      onClick={(e) => e.stopPropagation()}
+      className={`shrink-0 -ml-0.5 mr-1 w-6 h-6 inline-flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing touch-none ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5"}`}
+      data-testid={`category-drag-${title}`}
+    >
+      <GripVertical className="w-4 h-4" />
+    </span>
+  ) : null;
+
   if (isCollapsible) {
     return (
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!!isOpen}
-        className={`w-full flex items-center gap-2 px-1 mb-2 rounded-md transition-colors ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"} ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2" : "py-1"}`}
+      <div
+        className={`w-full flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : "py-1"}`}
         data-testid={`category-header-${title}`}
-        {...(dragHandleProps || {})}
       >
-        {inner}
-      </button>
+        {gripEl}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!!isOpen}
+          className={`flex-1 flex items-center gap-2 rounded-md transition-colors text-left ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"} py-1 px-1`}
+          data-testid={`category-toggle-${title}`}
+        >
+          {inner}
+        </button>
+      </div>
     );
   }
 
   return (
     <div
-      className={`flex items-center gap-2 px-1 mb-2 rounded-md ${dragHandleProps ? "cursor-grab active:cursor-grabbing select-none py-1 -mx-1 px-2 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
+      className={`flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : ""}`}
       data-testid={`category-header-${title}`}
-      {...(dragHandleProps || {})}
     >
-      {inner}
+      {gripEl}
+      <div className="flex-1 flex items-center gap-2">{inner}</div>
     </div>
   );
 }

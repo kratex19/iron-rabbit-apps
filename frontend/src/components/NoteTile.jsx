@@ -1,6 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, Pin, CalendarDays, CheckSquare, Trophy, Flame } from "lucide-react";
+import { Bell, Repeat, Pin, CalendarDays, CheckSquare, Trophy, Flame, GripVertical } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
 import { computeNoteStreak } from "../notes/streakUtils";
 import { haptic } from "../utils/haptic";
@@ -11,8 +11,15 @@ import { haptic } from "../utils/haptic";
  * - Editable per-note background (color / gradient / image)
  * - Small alarm/recurring indicators
  * - Click: open full-screen editor; edit btn on hover
+ * - When `dragHandleProps` is passed, renders a visible grip in the
+ *   top-left corner that owns the drag start. The rest of the tile
+ *   stays as a click-to-open button. Splitting the drag surface from
+ *   the click surface fixes hello-pangea/dnd's conflict with the
+ *   tile's own `<button>` element + hover `transform` — previously
+ *   this made drops "jump around" and forced the user to click far
+ *   from the tile body to grab.
  */
-export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMode = false, selected = false, onToggleSelect }) {
+export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMode = false, selected = false, onToggleSelect, dragHandleProps = null }) {
   // When the user explicitly picks "No icon", `note.icon` is null → render
   // no icon at all (keeps the tile clean instead of showing a placeholder).
   const IconComp = note.icon && LucideIcons[note.icon] ? LucideIcons[note.icon] : null;
@@ -42,6 +49,24 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
       data-testid={`note-tile-${note.id}`}
       aria-label={`Open ${note.title || "Untitled"}`}
     >
+      {/* Drag grip — top-left corner, only rendered when the parent
+          passes drag-handle props. Owns the pointer/touch listeners
+          for RBD so the rest of the tile can stay a click-to-open
+          button without event conflicts. */}
+      {dragHandleProps && (
+        <span
+          {...dragHandleProps}
+          role="button"
+          tabIndex={-1}
+          aria-label="Drag to reorder"
+          onClick={(e) => e.stopPropagation()}
+          className="note-tile-grip"
+          data-testid={`note-tile-grip-${note.id}`}
+        >
+          <GripVertical className="w-4 h-4" />
+        </span>
+      )}
+
       {/* Dark overlay for readability over images/light colors */}
       <span className="note-tile-overlay" aria-hidden="true" />
 
