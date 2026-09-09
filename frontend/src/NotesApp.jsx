@@ -1544,12 +1544,14 @@ export default function NotesApp() {
                             onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
                             isOpen={useAccordion ? open : undefined}
                           />
+                          <div className={`ir-fold ${!useAccordion || open ? "is-open" : ""}`}>
+                            <div className="ir-fold-inner">
                           <Droppable droppableId={`notes-in-${cat}`} type="note">
                             {(prov, snap) => (
                               <div
                                 ref={prov.innerRef}
                                 {...prov.droppableProps}
-                                className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""} ${useAccordion && !open ? "hidden" : ""}`}
+                                className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
                                 style={gridStyle}
                               >
                                 {items.map((note, idx) => (
@@ -1570,6 +1572,8 @@ export default function NotesApp() {
                               </div>
                             )}
                           </Droppable>
+                            </div>
+                          </div>
                         </div>
                         );
                       }}
@@ -1590,12 +1594,14 @@ export default function NotesApp() {
                     isOpen={uncategorizedOpen}
                   />
                 )}
+                <div className={`ir-fold ${grouped.length === 0 || uncategorizedOpen ? "is-open" : ""}`}>
+                  <div className="ir-fold-inner">
                 <Droppable droppableId="notes-in-" type="note">
                   {(prov, snap) => (
                     <div
                       ref={prov.innerRef}
                       {...prov.droppableProps}
-                      className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""} ${grouped.length > 0 && !uncategorizedOpen ? "hidden" : ""}`}
+                      className={`notes-grid rounded-lg transition-colors ${snap.isDraggingOver ? (isDark ? "ring-2 ring-indigo-400/50 bg-indigo-500/5" : "ring-2 ring-indigo-400/50 bg-indigo-50") : ""}`}
                       style={gridStyle}
                       data-testid="notes-icon-uncategorized"
                     >
@@ -1617,6 +1623,8 @@ export default function NotesApp() {
                     </div>
                   )}
                 </Droppable>
+                  </div>
+                </div>
               </div>
             )}
           </DragDropContext>
@@ -1738,7 +1746,8 @@ export default function NotesApp() {
                             isOpen={uncategorizedOpen}
                           />
                         </div>
-                        <div className={uncategorizedOpen ? "" : "hidden"}>
+                        <div className={`ir-fold ${uncategorizedOpen ? "is-open" : ""}`}>
+                          <div className="ir-fold-inner">
                         {uncategorized.map((note, idx) => (
                           <Draggable key={note.id} draggableId={`note-${note.id}`} index={idx} isDragDisabled={inSelectMode}>
                             {(prov2, snap2) => (
@@ -1763,6 +1772,7 @@ export default function NotesApp() {
                           </Draggable>
                         ))}
                         {uncProv.placeholder}
+                          </div>
                         </div>
                       </div>
                     )}

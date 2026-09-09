@@ -108,12 +108,14 @@ export default function CategoryGroup({
       {hasNestedPaths ? (
         <Droppable droppableId={encodeNestedDroppableId([category])} type="note">
           {(dropProv, dropSnap) => (
+            <div className={`ir-fold ${isOpen ? "is-open" : ""}`}>
+              <div className="ir-fold-inner">
             <div
               ref={dropProv.innerRef}
               {...dropProv.droppableProps}
               className={`category-children pl-3 pr-1 pb-1.5 pt-1.5 border-t transition-colors ${
                 isDark ? "border-white/10" : "border-gray-200"
-              } ${dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""} ${isOpen ? "" : "hidden"}`}
+              } ${dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""}`}
               data-testid={`category-children-${category}`}
             >
               {nestedBuckets.map(([subLabel, subNotes]) => (
@@ -165,17 +167,21 @@ export default function CategoryGroup({
               ))}
               {dropProv.placeholder}
             </div>
+              </div>
+            </div>
           )}
         </Droppable>
       ) : (
         <Droppable droppableId={`notes-in-${category}`} type="note">
           {(dropProv, dropSnap) => (
+            <div className={`ir-fold ${isOpen ? "is-open" : ""}`}>
+              <div className="ir-fold-inner">
             <div
               ref={dropProv.innerRef}
               {...dropProv.droppableProps}
               className={`category-children pl-4 pr-1 pb-1 pt-1 border-t transition-colors ${
                 isDark ? "border-white/10" : "border-gray-200"
-              } ${dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""} ${isOpen ? "" : "hidden"}`}
+              } ${dropSnap.isDraggingOver ? (isDark ? "bg-indigo-500/10" : "bg-indigo-50") : ""}`}
               data-testid={`category-children-${category}`}
             >
               {children.map((note, index) => (
@@ -207,6 +213,8 @@ export default function CategoryGroup({
                   {dropSnap.isDraggingOver ? "Drop note here" : "No notes"}
                 </div>
               )}
+            </div>
+              </div>
             </div>
           )}
         </Droppable>
