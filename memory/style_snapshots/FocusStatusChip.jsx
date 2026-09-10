@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon, BookOpen } from "lucide-react";
+import { haptic } from "../utils/haptic";
 
 /**
  * FocusStatusChip — header pill that is ALWAYS visible so the user can
@@ -110,6 +111,7 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
     const pick = async (kind) => {
       setMenuOpen(false);
       if (!onActivate) return;
+      haptic("milestone");
       if (kind === "manual") {
         onActivate({ focus_mode: true, focus_until: 0 });
         return;

@@ -801,7 +801,7 @@ export default function NotesApp() {
           last_viewed: now,
         });
       }
-      haptic("success");
+      haptic("milestone");
       toast.success(`Applied "${pack.name}" — ${pack.notes.length} tiles added`, { duration: 5000 });
       setTilePacksOpen(false);
       fetchData();
@@ -1081,7 +1081,7 @@ export default function NotesApp() {
 
         await StorageService.saveCategoryOrder(items);
         await fetchData();
-        haptic("success");
+        haptic("milestone");
         toast.success(`Moved "${draggedName}"`);
         return;
       }
@@ -1121,7 +1121,7 @@ export default function NotesApp() {
           updated_at: new Date().toISOString(),
         });
         await fetchData();
-        haptic("success");
+        haptic("milestone");
         toast.success(`Moved to "${dstPath.join(" › ")}"`, {
           action: {
             label: "Undo",
@@ -1297,7 +1297,7 @@ export default function NotesApp() {
       if (mode === "move") {
         const prev = await StorageService.moveNoteToCategory(noteId, dstPack, "");
         await fetchData();
-        haptic("success");
+        haptic("milestone");
         toast.success(`Moved to "${dstPack || "Uncategorized"}"`, {
           action: prev ? {
             label: "Undo",
@@ -1325,7 +1325,7 @@ export default function NotesApp() {
       };
       await StorageService.saveNote(copy);
       await fetchData();
-      haptic("success");
+      haptic("milestone");
       toast.success(`Copied to "${dstPack || "Uncategorized"}" · Hold ⌘/Ctrl to move`, {
         action: {
           label: "Undo",
@@ -1350,7 +1350,7 @@ export default function NotesApp() {
       const list = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
       const next = list.includes(cat) ? list.filter((n) => n !== cat) : [...list, cat];
       await StorageService.saveSettings({ ...(settings || {}), sticky_categories: next });
-      haptic("tap");
+      haptic("milestone");
       toast.success(next.includes(cat) ? `"${cat}" pinned` : `"${cat}" unpinned`);
       fetchData();
     } catch (err) {

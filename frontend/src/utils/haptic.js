@@ -19,10 +19,14 @@ const IS_NATIVE = (() => {
 const VIBRATE = typeof navigator !== "undefined" ? navigator?.vibrate?.bind(navigator) : null;
 
 const patterns = {
-  tap:     10,           // light tap on any interactive element
-  success: [10, 40, 20],
-  error:   [30, 60, 30],
-  long:    35,           // long press / delete
+  tap:       10,             // light tap on any interactive element
+  success:   [10, 40, 20],
+  error:     [30, 60, 30],
+  long:      35,             // long press / delete
+  milestone: [40, 80, 40, 80, 40],  // strong "you're done!" pulse for
+                                    // pack apply, focus timer expire,
+                                    // backup export, cross-pack drop,
+                                    // pin toggle, etc.
 };
 
 export function haptic(type = "tap") {
@@ -31,9 +35,10 @@ export function haptic(type = "tap") {
     nativeHaptics().then((mod) => {
       if (!mod) return;
       try {
-        if (type === "success") return mod.Haptics.notification({ type: mod.NotificationType.Success });
-        if (type === "error")   return mod.Haptics.notification({ type: mod.NotificationType.Error });
-        if (type === "long")    return mod.Haptics.impact({ style: mod.ImpactStyle.Medium });
+        if (type === "success")   return mod.Haptics.notification({ type: mod.NotificationType.Success });
+        if (type === "error")     return mod.Haptics.notification({ type: mod.NotificationType.Error });
+        if (type === "long")      return mod.Haptics.impact({ style: mod.ImpactStyle.Medium });
+        if (type === "milestone") return mod.Haptics.impact({ style: mod.ImpactStyle.Heavy });
         return mod.Haptics.impact({ style: mod.ImpactStyle.Light });
       } catch { /* ignore */ }
     });

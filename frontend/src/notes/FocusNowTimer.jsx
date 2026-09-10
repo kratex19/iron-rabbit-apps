@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Timer, Sunrise, X } from "lucide-react";
+import { toast } from "sonner";
+import { haptic } from "../utils/haptic";
 
 /**
  * FocusNowTimer — quick chip row to pin Focus Mode ON for a limited
@@ -77,9 +79,15 @@ export default function FocusNowTimer({ value, onChange, isDark, location }) {
 
   const active = until && Date.now() < until;
   // Clean up an elapsed timer once we notice it so `settings.focus_until`
-  // doesn't linger stale in storage.
+  // doesn't linger stale in storage. Also fire a strong "focus done"
+  // haptic pulse + toast so the user knows the quiet window has
+  // ended even if their eyes were elsewhere.
   useEffect(() => {
-    if (until && Date.now() >= until) onChange(null);
+    if (until && Date.now() >= until) {
+      onChange(null);
+      haptic("milestone");
+      toast.success("Focus session complete");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, until]);
 
