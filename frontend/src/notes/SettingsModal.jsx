@@ -527,6 +527,32 @@ export default function SettingsModal({
             </div>
           </div>
 
+          {/* Keep pack visible when empty — makes empty packs stay on
+              screen so users can drop tiles into a freshly-emptied
+              destination without the pack disappearing. */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <label className={`text-xs flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                <Sparkles className="w-3.5 h-3.5" /> Keep pack visible when empty
+              </label>
+              <div className={`text-[10px] mt-0.5 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                Empty packs stay on the home grid as a drop-only zone. Handy when reorganizing.
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!formData.keep_empty_categories}
+              onClick={() => setFormData((prev) => ({ ...prev, keep_empty_categories: !prev.keep_empty_categories }))}
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${formData.keep_empty_categories ? "bg-indigo-500" : (isDark ? "bg-white/10" : "bg-gray-200")}`}
+              data-testid="settings-keep-empty-categories"
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${formData.keep_empty_categories ? "translate-x-5" : "translate-x-0.5"}`}
+              />
+            </button>
+          </div>
+
           <div>
             <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("settings.company_name")}</label>
             <Input value={formData.company_name} onChange={(e) => setFormData(prev => ({ ...prev, company_name: e.target.value }))} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white' : ''}`} data-testid="settings-company-name" />

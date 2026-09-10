@@ -107,14 +107,7 @@ export default function CategoryPathAccordion({
       >
         <FolderTree className={`w-4 h-4 ${isDark ? "text-indigo-300" : "text-indigo-500"}`} />
         <span
-          className={`text-xs transition-colors ${
-            open
-              ? "font-bold"
-              : isDark ? "text-slate-200 font-medium" : "text-gray-700 font-medium"
-          }`}
-          style={open
-            ? { color: "#ffffff", WebkitTextFillColor: "#ffffff", textShadow: "0 1px 2px rgba(0,0,0,0.6)" }
-            : undefined}
+          className={`text-[11px] font-medium ${isDark ? "text-indigo-200" : "text-indigo-700"}`}
         >
           Category path
         </span>

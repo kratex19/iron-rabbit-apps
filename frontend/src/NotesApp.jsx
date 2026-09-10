@@ -1416,6 +1416,24 @@ export default function NotesApp() {
         uncat.push(n);
       }
     });
+    // "Keep pack visible when empty" — if the setting is on, seed the
+    // grouped map with every category name we've ever seen (from
+    // `category_order`, `sticky_categories`, and the full notes list
+    // including pinned + filtered-out notes) so empty packs stay on
+    // screen as drop-only destinations. Users can drop tiles into
+    // them without the pack disappearing.
+    if (settings?.keep_empty_categories) {
+      const savedOrder = Array.isArray(settings?.category_order) ? settings.category_order : [];
+      const sticky = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
+      const everSeen = new Set();
+      for (const n of notes) {
+        if (n?.archived_at || n?.deleted_at) continue;
+        if (n?.category && n.category.trim()) everSeen.add(n.category.trim());
+      }
+      for (const name of [...savedOrder, ...sticky, ...everSeen]) {
+        if (name && name.trim() && !map.has(name)) map.set(name, []);
+      }
+    }
     // Respect user-defined category order stored in settings
     const savedOrder = Array.isArray(settings?.category_order) ? settings.category_order : [];
     const entries = Array.from(map.entries());
@@ -1428,7 +1446,7 @@ export default function NotesApp() {
       return ai - bi;
     });
     return { grouped: entries, uncategorized: uncat };
-  }, [processedNotes, settings]);
+  }, [processedNotes, settings, notes]);
 
   const pinnedNotes = useMemo(
     () => processedNotes.filter(n => n.pinned),
