@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Sparkles, Pin, ChevronDown, GripVertical } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
 
@@ -22,7 +22,12 @@ import { NOTE_COLORS } from "./constants";
  *                right. Parent owns the open/closed state.
  *   isOpen     – open/closed state paired with onToggle.
  */
-export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark, dragHandleProps = null, onToggle, isOpen, isSticky = false, onToggleSticky = null }) {
+export default function CategoryHeader({
+  title, accent, notes, count, pinned = false, isDark,
+  dragHandleProps = null, onToggle, isOpen,
+  isSticky = false, onToggleSticky = null,
+  isPinnedTop = false, onTogglePinTop = null,
+}) {
   const derived = accent || (() => {
     // 1. Prefer the pack's own accent if any note in this group was applied
     //    from a Tile Pack (kept in sync with the pack card in TilePacksModal).
@@ -92,23 +97,73 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
     </span>
   ) : null;
 
-  // Optional "pin" toggle — parent supplies onToggleSticky to enable.
-  // Visually mirrors the drag grip: same size, matching hover states.
-  // Filled amber icon when pinned, outlined muted when not.
-  const pinEl = onToggleSticky ? (
+  // Pin button with two behaviors:
+  //   • Tap        → toggle sticky-position (locked at current index)
+  //   • Long-press → toggle pin-to-top     (bubble above non-pinned)
+  // Colour states are mutually exclusive:
+  //   amber (filled) = pinned to top
+  //   indigo (outline) = sticky-locked
+  //   muted (outline)  = neither
+  const longPressTimerRef = useRef(null);
+  const longPressFiredRef = useRef(false);
+
+  const startLongPress = () => {
+    longPressFiredRef.current = false;
+    if (!onTogglePinTop) return;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      onTogglePinTop();
+    }, 500);
+  };
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+  const onPinClick = (e) => {
+    e.stopPropagation();
+    if (longPressFiredRef.current) {
+      // Long-press already fired the top-pin toggle — don't also
+      // fire the sticky tap.
+      longPressFiredRef.current = false;
+      return;
+    }
+    onToggleSticky?.();
+  };
+
+  const pinEl = (onToggleSticky || onTogglePinTop) ? (
     <button
       type="button"
-      onClick={(e) => { e.stopPropagation(); onToggleSticky(); }}
-      aria-label={isSticky ? `Unpin ${title}` : `Pin ${title} to this position`}
+      onClick={onPinClick}
+      onPointerDown={startLongPress}
+      onPointerUp={cancelLongPress}
+      onPointerLeave={cancelLongPress}
+      onPointerCancel={cancelLongPress}
+      aria-label={isPinnedTop
+        ? `Unpin ${title} from top`
+        : isSticky
+          ? `Unlock ${title} position`
+          : `Tap to lock ${title} position, long-press to pin to top`}
       className={`shrink-0 ml-1 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
-        isSticky
-          ? "text-amber-400 hover:bg-white/10"
-          : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
+        isPinnedTop
+          ? "text-amber-400 hover:bg-amber-500/10"
+          : isSticky
+            ? (isDark ? "text-indigo-300 hover:bg-white/10" : "text-indigo-500 hover:bg-black/5")
+            : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
       }`}
-      title={isSticky ? "Pinned — click to unpin" : "Pin category to this position"}
+      title={isPinnedTop
+        ? "Pinned to top — tap to unpin, long-press again to lock in place"
+        : isSticky
+          ? "Locked in place — tap to unlock, long-press to pin to top"
+          : "Tap to lock position · Long-press to pin to top"}
       data-testid={`category-pin-${title}`}
     >
-      <Pin className="w-4 h-4" strokeWidth={2.4} fill={isSticky ? "currentColor" : "none"} />
+      <Pin
+        className="w-4 h-4"
+        strokeWidth={2.4}
+        fill={isPinnedTop || isSticky ? "currentColor" : "none"}
+      />
     </button>
   ) : null;
 

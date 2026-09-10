@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Bell, ChevronDown, GripVertical, Sparkles, Pin } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ export default function CategoryGroup({
   isDark, dragHandleProps, isDragging,
   selectMode = false, isSelected, onToggleSelect, onSwipeSelect,
   isSticky = false, onToggleSticky = null,
+  isPinnedTop = false, onTogglePinTop = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const colorConfig = useMemo(() => {
@@ -105,21 +106,15 @@ export default function CategoryGroup({
           {alarmCount > 0 && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
           <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />
         </button>
-        {onToggleSticky && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onToggleSticky(); }}
-            aria-label={isSticky ? `Unpin ${category}` : `Pin ${category} to this position`}
-            className={`shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
-              isSticky
-                ? "text-amber-400 hover:bg-white/10"
-                : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
-            }`}
-            title={isSticky ? "Pinned — click to unpin" : "Pin category to this position"}
-            data-testid={`category-pin-${category}`}
-          >
-            <Pin className="w-4 h-4" strokeWidth={2.4} fill={isSticky ? "currentColor" : "none"} />
-          </button>
+        {(onToggleSticky || onTogglePinTop) && (
+          <PinToggle
+            title={category}
+            isDark={isDark}
+            isSticky={isSticky}
+            isPinnedTop={isPinnedTop}
+            onToggleSticky={onToggleSticky}
+            onTogglePinTop={onTogglePinTop}
+          />
         )}
       </div>
 
@@ -234,5 +229,51 @@ export default function CategoryGroup({
         </Droppable>
       )}
     </div>
+  );
+}
+
+// Small helper — same long-press-vs-tap logic as the grid CategoryHeader
+// pin button. Tap → sticky-lock; long-press → pin-to-top.
+function PinToggle({ title, isDark, isSticky, isPinnedTop, onToggleSticky, onTogglePinTop }) {
+  const timerRef = useRef(null);
+  const firedRef = useRef(false);
+  const start = () => {
+    firedRef.current = false;
+    if (!onTogglePinTop) return;
+    timerRef.current = setTimeout(() => { firedRef.current = true; onTogglePinTop(); }, 500);
+  };
+  const cancel = () => { if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; } };
+  const click = (e) => {
+    e.stopPropagation();
+    if (firedRef.current) { firedRef.current = false; return; }
+    onToggleSticky?.();
+  };
+  return (
+    <button
+      type="button"
+      onClick={click}
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      aria-label={isPinnedTop
+        ? `Unpin ${title} from top`
+        : isSticky ? `Unlock ${title} position` : `Tap to lock ${title} position, long-press to pin to top`}
+      className={`shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
+        isPinnedTop
+          ? "text-amber-400 hover:bg-amber-500/10"
+          : isSticky
+            ? (isDark ? "text-indigo-300 hover:bg-white/10" : "text-indigo-500 hover:bg-black/5")
+            : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
+      }`}
+      title={isPinnedTop
+        ? "Pinned to top — tap to unpin, long-press to lock in place"
+        : isSticky
+          ? "Locked in place — tap to unlock, long-press to pin to top"
+          : "Tap to lock position · Long-press to pin to top"}
+      data-testid={`category-pin-${title}`}
+    >
+      <Pin className="w-4 h-4" strokeWidth={2.4} fill={isPinnedTop || isSticky ? "currentColor" : "none"} />
+    </button>
   );
 }
