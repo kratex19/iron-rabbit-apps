@@ -20,6 +20,7 @@ import notificationService, { isInFocusWindow } from "./notifications/notificati
 import NoteTile from "./components/NoteTile";
 import AccordionBody from "./components/AccordionBody";
 import SortableTileGrid from "./components/SortableTileGrid";
+import SortableTilesProvider from "./components/SortableTilesProvider";
 import { haptic } from "./utils/haptic";
 import { presetForIcon } from "./data/quickAddTemplates";
 import useLanguageSuggest from "./i18n/useLanguageSuggest";
@@ -1251,6 +1252,61 @@ export default function NotesApp() {
     }
   };
 
+  // Cross-pack tile drop (dnd-kit). Mirrors the existing cross-category
+  // semantics of the hello-pangea handler: default is COPY, holding
+  // ⌘ / Ctrl during the drop switches to MOVE. srcPack / dstPack of
+  // "" mean the Uncategorized bucket.
+  const handleCrossPackMove = async (srcPack, dstPack, noteId, mode) => {
+    if (srcPack === dstPack) return;
+    try {
+      if (mode === "move") {
+        const prev = await StorageService.moveNoteToCategory(noteId, dstPack, "");
+        await fetchData();
+        haptic("success");
+        toast.success(`Moved to "${dstPack || "Uncategorized"}"`, {
+          action: prev ? {
+            label: "Undo",
+            onClick: async () => {
+              await StorageService.moveNoteToCategory(noteId, prev.category, prev.subcategory);
+              fetchData();
+            },
+          } : undefined,
+          duration: 6000,
+        });
+        return;
+      }
+      const original = notes.find((n) => n.id === noteId);
+      if (!original) return;
+      const now = new Date().toISOString();
+      const maxOrder = notes.reduce((m, n) => Math.max(m, n.order || 0), 0);
+      const copy = {
+        ...original,
+        id: uuidv4(),
+        category: dstPack,
+        subcategory: "",
+        created_at: now,
+        updated_at: now,
+        order: maxOrder + 1,
+      };
+      await StorageService.saveNote(copy);
+      await fetchData();
+      haptic("success");
+      toast.success(`Copied to "${dstPack || "Uncategorized"}" · Hold ⌘/Ctrl to move`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            await StorageService.deleteNote(copy.id);
+            fetchData();
+          },
+        },
+        duration: 6000,
+      });
+    } catch (err) {
+      console.error("Cross-pack move error:", err);
+      toast.error("Could not move");
+    }
+  };
+
   const handleBackup = async () => {
     try {
       const data = await StorageService.exportAllData();
@@ -1550,8 +1606,31 @@ export default function NotesApp() {
 
     if (viewMode === "icon") {
       if (groupByCategory) {
+        // Build the pack list for the shared dnd-kit context. Every
+        // rendered pack (categorised + uncategorised) contributes one
+        // SortableContext so tiles can move across pack boundaries.
+        const allPacks = [
+          ...grouped.map(([cat, items]) => ({ id: cat, notes: items })),
+          ...(uncategorized.length > 0 ? [{ id: "", notes: uncategorized }] : []),
+        ];
         return (
           <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <SortableTilesProvider
+              packs={allPacks}
+              onWithinPackReorder={(packId, _from, _to, next) => {
+                const pack = allPacks.find((p) => p.id === packId);
+                handleSortableReorder(pack ? pack.notes : next, next);
+              }}
+              onCrossPackMove={handleCrossPackMove}
+              isDark={isDark}
+              selectMode={inSelectMode}
+              isSelected={isSelected}
+              onToggleSelect={toggleSelect}
+              onOpen={openFullScreen}
+              onEdit={openEditModal}
+            >
+            {(api) => (
+              <>
             <Droppable droppableId="category-list-grid" type="category">
               {(catProv) => (
                 <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-icon-grouped">
@@ -1580,18 +1659,11 @@ export default function NotesApp() {
                             isOpen={useAccordion ? open : undefined}
                           />
                           <AccordionBody open={!useAccordion || open}>
-                          <SortableTileGrid
-                            notes={items}
-                            onReorder={(_from, _to, next) => handleSortableReorder(items, next)}
-                            isDark={isDark}
-                            selectMode={inSelectMode}
-                            isSelected={isSelected}
-                            onToggleSelect={toggleSelect}
-                            onOpen={openFullScreen}
-                            onEdit={openEditModal}
-                            gridStyle={gridStyle}
-                            testId={`sortable-tiles-${cat}`}
-                          />
+                            <api.Section
+                              pack={{ id: cat, notes: items }}
+                              gridStyle={gridStyle}
+                              testId={`sortable-tiles-${cat}`}
+                            />
                           </AccordionBody>
                         </div>
                         );
@@ -1614,21 +1686,17 @@ export default function NotesApp() {
                   />
                 )}
                 <AccordionBody open={grouped.length === 0 || uncategorizedOpen}>
-                <SortableTileGrid
-                  notes={uncategorized}
-                  onReorder={(_from, _to, next) => handleSortableReorder(uncategorized, next)}
-                  isDark={isDark}
-                  selectMode={inSelectMode}
-                  isSelected={isSelected}
-                  onToggleSelect={toggleSelect}
-                  onOpen={openFullScreen}
-                  onEdit={openEditModal}
-                  gridStyle={gridStyle}
-                  testId="notes-icon-uncategorized"
-                />
+                  <api.Section
+                    pack={{ id: "", notes: uncategorized }}
+                    gridStyle={gridStyle}
+                    testId="notes-icon-uncategorized"
+                  />
                 </AccordionBody>
               </div>
             )}
+              </>
+            )}
+            </SortableTilesProvider>
           </DragDropContext>
         );
       }
