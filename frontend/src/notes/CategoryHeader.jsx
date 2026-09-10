@@ -22,7 +22,7 @@ import { NOTE_COLORS } from "./constants";
  *                right. Parent owns the open/closed state.
  *   isOpen     – open/closed state paired with onToggle.
  */
-export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark, dragHandleProps = null, onToggle, isOpen }) {
+export default function CategoryHeader({ title, accent, notes, count, pinned = false, isDark, dragHandleProps = null, onToggle, isOpen, isSticky = false, onToggleSticky = null }) {
   const derived = accent || (() => {
     // 1. Prefer the pack's own accent if any note in this group was applied
     //    from a Tile Pack (kept in sync with the pack card in TilePacksModal).
@@ -85,11 +85,31 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
       tabIndex={-1}
       aria-label={`Drag to reorder ${title}`}
       onClick={(e) => e.stopPropagation()}
-      className={`shrink-0 -ml-0.5 mr-1 w-6 h-6 inline-flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing touch-none ${isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5"}`}
+      className={`shrink-0 -ml-0.5 mr-1 w-9 h-9 inline-flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing touch-none ${isDark ? "text-slate-400 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-700 hover:bg-black/5"}`}
       data-testid={`category-drag-${title}`}
     >
-      <GripVertical className="w-4 h-4" />
+      <GripVertical className="w-5 h-5" strokeWidth={2.2} />
     </span>
+  ) : null;
+
+  // Optional "pin" toggle — parent supplies onToggleSticky to enable.
+  // Visually mirrors the drag grip: same size, matching hover states.
+  // Filled amber icon when pinned, outlined muted when not.
+  const pinEl = onToggleSticky ? (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onToggleSticky(); }}
+      aria-label={isSticky ? `Unpin ${title}` : `Pin ${title} to this position`}
+      className={`shrink-0 ml-1 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
+        isSticky
+          ? "text-amber-400 hover:bg-white/10"
+          : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
+      }`}
+      title={isSticky ? "Pinned — click to unpin" : "Pin category to this position"}
+      data-testid={`category-pin-${title}`}
+    >
+      <Pin className="w-4 h-4" strokeWidth={2.4} fill={isSticky ? "currentColor" : "none"} />
+    </button>
   ) : null;
 
   if (isCollapsible) {
@@ -108,6 +128,7 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
         >
           {inner}
         </button>
+        {pinEl}
       </div>
     );
   }
@@ -119,6 +140,7 @@ export default function CategoryHeader({ title, accent, notes, count, pinned = f
     >
       {gripEl}
       <div className="flex-1 flex items-center gap-2">{inner}</div>
+      {pinEl}
     </div>
   );
 }

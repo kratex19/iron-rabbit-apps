@@ -1036,18 +1036,53 @@ export default function NotesApp() {
     try {
       // 1) CATEGORY REORDER
       if (type === "category") {
+        // Respect "sticky" categories — a sticky category is pinned to
+        // its current position and does not shift when other categories
+        // are dragged around. Dragging the sticky category itself is
+        // still permitted (that becomes its new pinned position).
         const currentOrder = grouped.map(([name]) => name);
-        const items = Array.from(currentOrder);
-        const [moved] = items.splice(source.index, 1);
-        items.splice(destination.index, 0, moved);
+        const sticky = new Set(Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : []);
+        const draggedName = currentOrder[source.index];
+        const draggedIsSticky = sticky.has(draggedName);
+
+        let items;
+        if (draggedIsSticky || sticky.size === 0) {
+          // Simple path — sticky item being repositioned, or no
+          // sticky items at all. Standard arrayMove.
+          items = Array.from(currentOrder);
+          const [moved] = items.splice(source.index, 1);
+          items.splice(destination.index, 0, moved);
+        } else {
+          // Non-sticky drag with sticky pins present. Freeze sticky
+          // positions and reorder only the non-sticky slice, then
+          // reweave the sticky items back at their original indices.
+          const stickyAt = new Map(); // originalIndex -> categoryName
+          currentOrder.forEach((n, i) => { if (sticky.has(n)) stickyAt.set(i, n); });
+          const nonSticky = currentOrder.filter((n) => !sticky.has(n));
+          const nsOld = nonSticky.indexOf(draggedName);
+          // Translate `destination.index` from full-list-index space
+          // to non-sticky-list-index space by subtracting the sticky
+          // items positioned before it.
+          const stickyBefore = Array.from(stickyAt.keys()).filter((k) => k < destination.index).length;
+          let nsNew = Math.max(0, destination.index - stickyBefore);
+          nsNew = Math.min(nsNew, nonSticky.length - 1);
+          const [moved] = nonSticky.splice(nsOld, 1);
+          nonSticky.splice(nsNew, 0, moved);
+          // Reweave: iterate slot-by-slot, plug sticky back at their
+          // original indices, fill the rest with the reordered
+          // non-sticky sequence.
+          items = [];
+          let nsIdx = 0;
+          for (let i = 0; i < currentOrder.length; i++) {
+            if (stickyAt.has(i)) items.push(stickyAt.get(i));
+            else items.push(nonSticky[nsIdx++]);
+          }
+        }
+
         await StorageService.saveCategoryOrder(items);
-        // IMPORTANT: await fetchData() so the settings state (and therefore
-        // the `grouped` memo dependent on it) is fully re-hydrated before
-        // React re-renders. Previously this was fire-and-forget, causing
-        // the toast to appear while the DOM still showed stale order.
         await fetchData();
         haptic("success");
-        toast.success(`Moved "${moved}"`);
+        toast.success(`Moved "${draggedName}"`);
         return;
       }
 
@@ -1304,6 +1339,22 @@ export default function NotesApp() {
     } catch (err) {
       console.error("Cross-pack move error:", err);
       toast.error("Could not move");
+    }
+  };
+
+  // Toggle a category's sticky (pinned-position) state. Sticky
+  // categories don't shift when other categories are dragged — they
+  // stay wherever the user placed them until the user drags THEM.
+  const handleToggleSticky = async (cat) => {
+    try {
+      const list = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
+      const next = list.includes(cat) ? list.filter((n) => n !== cat) : [...list, cat];
+      await StorageService.saveSettings({ ...(settings || {}), sticky_categories: next });
+      haptic("tap");
+      toast.success(next.includes(cat) ? `"${cat}" pinned` : `"${cat}" unpinned`);
+      fetchData();
+    } catch (err) {
+      console.error("Toggle sticky error:", err);
     }
   };
 
@@ -1675,6 +1726,8 @@ export default function NotesApp() {
                             dragHandleProps={catDp.dragHandleProps}
                             onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
                             isOpen={useAccordion ? open : undefined}
+                            isSticky={(settings?.sticky_categories || []).includes(cat)}
+                            onToggleSticky={() => handleToggleSticky(cat)}
                           />
                           <AccordionBody open={!useAccordion || open}>
                             <api.Section
@@ -1797,6 +1850,8 @@ export default function NotesApp() {
                           isSelected={isSelected}
                           onToggleSelect={toggleSelect}
                           onSwipeSelect={handleSwipeSelect}
+                          isSticky={(settings?.sticky_categories || []).includes(cat)}
+                          onToggleSticky={() => handleToggleSticky(cat)}
                         />
                       </div>
                     )}

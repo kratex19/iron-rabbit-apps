@@ -63,8 +63,11 @@ export default function SortableTilesProvider({
   children,
 }) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    // Grip is a dedicated zone so we can drop the touch delay to zero
+    // and rely on movement distance alone — feels instant on phones
+    // while still preventing accidental drags on tap.
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor),
   );
 
@@ -198,7 +201,7 @@ function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, 
     <SortableContext items={ids} strategy={rectSortingStrategy}>
       <div
         ref={setNodeRef}
-        className={`notes-grid rounded-lg transition-colors ${isOver ? (isDark ? "ring-2 ring-indigo-400/60 bg-indigo-500/10" : "ring-2 ring-indigo-400/60 bg-indigo-50") : ""}`}
+        className={`notes-grid rounded-lg transition-colors ${pack.notes.length === 0 ? "min-h-[140px]" : ""} ${isOver ? (isDark ? "ring-2 ring-indigo-400/60 bg-indigo-500/10" : "ring-2 ring-indigo-400/60 bg-indigo-50") : ""}`}
         style={gridStyle}
         data-testid={testId}
       >
@@ -216,9 +219,16 @@ function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, 
         ))}
         {pack.notes.length === 0 && (
           <div
-            className={`text-center text-xs italic py-4 col-span-full ${isDark ? "text-slate-500" : "text-gray-400"}`}
+            className={`col-span-full flex items-center justify-center rounded-lg border-2 border-dashed transition-colors ${
+              isOver
+                ? (isDark ? "border-indigo-400 bg-indigo-500/15 text-indigo-100" : "border-indigo-400 bg-indigo-50 text-indigo-700")
+                : (isDark ? "border-white/15 text-slate-500" : "border-gray-300 text-gray-400")
+            }`}
+            style={{ minHeight: "140px", gridColumn: "1 / -1" }}
           >
-            {isOver ? "Drop tile here" : "Drop tiles here"}
+            <span className="text-sm italic">
+              {isOver ? "Drop tile here" : "Drop tiles here"}
+            </span>
           </div>
         )}
       </div>

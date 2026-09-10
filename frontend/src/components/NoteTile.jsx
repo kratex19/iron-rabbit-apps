@@ -63,7 +63,7 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
           className="note-tile-grip"
           data-testid={`note-tile-grip-${note.id}`}
         >
-          <GripVertical className="w-4 h-4" />
+          <GripVertical className="w-5 h-5" strokeWidth={2.2} />
         </span>
       )}
 

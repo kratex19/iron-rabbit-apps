@@ -743,14 +743,18 @@
    sensor never fights with the tile's own click-to-open button. */
 .note-tile-grip {
     position: absolute;
-    bottom: 8px;
-    left: 8px;
+    bottom: 6px;
+    left: 6px;
     z-index: 3;
-    width: 28px;
-    height: 28px;
+    /* 40 x 40 tap target — Apple / Google both recommend ≥ 44 px for
+       one-finger grabs. We land at 40 to preserve visual balance on
+       the smallest tile widths (170 px) while staying comfortably
+       hittable. */
+    width: 40px;
+    height: 40px;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.55);
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
