@@ -1,6 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Bell, Repeat, Pin, CalendarDays, CheckSquare, Trophy, Flame, GripVertical } from "lucide-react";
+import { Bell, Repeat, Pin, CalendarDays, CheckSquare, Trophy, Flame, GripHorizontal } from "lucide-react";
 import { getBackgroundStyle } from "./BackgroundPicker";
 import { computeNoteStreak } from "../notes/streakUtils";
 import { haptic } from "../utils/haptic";
@@ -63,7 +63,7 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
           className="note-tile-grip"
           data-testid={`note-tile-grip-${note.id}`}
         >
-          <GripVertical className="w-5 h-5" strokeWidth={2.2} />
+          <GripHorizontal className="w-5 h-5" strokeWidth={2.2} />
         </span>
       )}
 

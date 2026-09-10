@@ -746,30 +746,32 @@
     bottom: 6px;
     left: 6px;
     z-index: 3;
-    /* 40 x 40 tap target — Apple / Google both recommend ≥ 44 px for
-       one-finger grabs. We land at 40 to preserve visual balance on
-       the smallest tile widths (170 px) while staying comfortably
-       hittable. */
+    /* Same 40 x 40 tap target so hit reliability is unchanged, but
+       the circle background is now fully transparent so the tile
+       title stays readable. Dots are drawn at high opacity + a soft
+       text-shadow so they remain punchy against any wallpaper. */
     width: 40px;
     height: 40px;
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.55);
+    background: transparent;
     color: rgba(255, 255, 255, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: grab;
     touch-action: none;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    transition: background 150ms ease, transform 150ms ease;
+    /* Text-shadow keeps the six dots legible over both very light
+       and very dark tile backgrounds without adding a visible pill. */
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
+    transition: filter 150ms ease, transform 150ms ease;
 }
 .note-tile-grip:hover,
 .note-tile-grip:focus-visible {
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.28);
 }
 .note-tile-grip:active {
     cursor: grabbing;
+    transform: scale(0.94);
 }
 
 .note-tile-overlay {
