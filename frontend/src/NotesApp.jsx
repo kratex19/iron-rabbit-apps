@@ -287,9 +287,15 @@ export default function NotesApp() {
       });
       return;
     }
-    // Stash the pending path so post-archive/trash we clean pinned refs.
-    setPendingCategoryDelete({ path });
-    setDeleteChoice({ ids: affectedIds });
+    // Notes exist under this path — surface a pre-step warning that
+    // offers "Move to Uncategorized" as a safe alternative before
+    // handing off to the standard Archive/Trash chooser.
+    setCategoryDeleteWarning({
+      path,
+      ids: affectedIds,
+      label: path[path.length - 1],
+      kind: path.length === 1 ? "category" : "subcategory",
+    });
   };
   const cleanupPinnedRefsForPath = async (path) => {
     const p = (Array.isArray(path) ? path : []).map((s) => String(s || "").trim()).filter(Boolean);
@@ -981,6 +987,11 @@ export default function NotesApp() {
   // actual action. `recentAction` drives the persistent floating pill.
   const [deleteChoice, setDeleteChoice] = useState(null); // { ids: string[] } | null
   const [pendingCategoryDelete, setPendingCategoryDelete] = useState(null); // { path[] }
+  // Pre-step warning shown BEFORE deleteChoice when the user taps the
+  // trash icon on a category or subcategory header. Offers "Move to
+  // Uncategorized" as an escape hatch that saves the underlying notes.
+  const [categoryDeleteWarning, setCategoryDeleteWarning] = useState(null);
+  // { path: string[], ids: string[], label: string, kind: 'category'|'subcategory' }
 
   // Clear pendingCategoryDelete if the user cancels the delete-choice dialog.
   useEffect(() => {
@@ -1038,6 +1049,51 @@ export default function NotesApp() {
     setRecentAction(null);
     fetchData();
     toast.success("Restored");
+  };
+
+  // Category-warning handlers ------------------------------------------------
+  // "Move to Uncategorized" — strip category / subcategory / category_path
+  // on every affected note so they resurface at the top-level ungrouped
+  // list. Also clears any pinned refs that used to point at the vanishing
+  // category so no ghost pin lingers.
+  const moveIdsToUncategorized = async (ids, path) => {
+    for (const id of ids) {
+      const prev = await StorageService.getNote(id);
+      if (!prev) continue;
+      const patched = {
+        ...prev,
+        category: "",
+        subcategory: "",
+        category_path: [],
+        updated_at: new Date().toISOString(),
+      };
+      await StorageService.saveNote(patched);
+    }
+    await cleanupPinnedRefsForPath(path);
+  };
+
+  const handleCategoryWarningMove = async () => {
+    const cur = categoryDeleteWarning;
+    setCategoryDeleteWarning(null);
+    if (!cur) return;
+    try {
+      await moveIdsToUncategorized(cur.ids, cur.path);
+      haptic("tap");
+      toast.success(`Moved ${cur.ids.length} note${cur.ids.length === 1 ? "" : "s"} to Uncategorized`);
+      fetchData();
+    } catch (e) {
+      toast.error("Could not move notes");
+    }
+  };
+
+  const handleCategoryWarningContinue = () => {
+    const cur = categoryDeleteWarning;
+    setCategoryDeleteWarning(null);
+    if (!cur) return;
+    // Hand off to the standard Archive/Trash chooser. Stash the pending
+    // path so post-action we also clean pinned refs.
+    setPendingCategoryDelete({ path: cur.path });
+    setDeleteChoice({ ids: cur.ids });
   };
 
   const handleTogglePin = async (noteId) => {
@@ -2615,6 +2671,10 @@ export default function NotesApp() {
         pendingCopyTarget={pendingCopyTarget} setPendingCopyTarget={setPendingCopyTarget}
         batchStudioOpen={batchStudioOpen} setBatchStudioOpen={setBatchStudioOpen}
         deleteChoice={deleteChoice} setDeleteChoice={setDeleteChoice}
+        categoryDeleteWarning={categoryDeleteWarning}
+        setCategoryDeleteWarning={setCategoryDeleteWarning}
+        handleCategoryWarningMove={handleCategoryWarningMove}
+        handleCategoryWarningContinue={handleCategoryWarningContinue}
         recentAction={recentAction} setRecentAction={setRecentAction}
         archiveTrashOpen={archiveTrashOpen} setArchiveTrashOpen={setArchiveTrashOpen}
         quickAccessOpen={quickAccessOpen}

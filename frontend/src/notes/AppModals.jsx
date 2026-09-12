@@ -61,6 +61,7 @@ import CopySuffixDialog from "./CopySuffixDialog";
 import MultiSelectBar from "./MultiSelectBar";
 import BatchStudioSheet from "./BatchStudioSheet";
 import DeleteChoiceDialog from "./DeleteChoiceDialog";
+import CategoryDeleteWarningDialog from "./CategoryDeleteWarningDialog";
 import RecentActionPill from "./RecentActionPill";
 import ArchiveTrashModal from "./ArchiveTrashModal";
 import QuickAccessModal from "./QuickAccessModal";
@@ -489,6 +490,21 @@ export default function AppModals(p) {
         onExportPDF={p.bulkExportPDF}
         onExportMarkdown={p.bulkExportMarkdown}
         onDelete={() => p.setDeleteChoice({ ids: Array.from(p.selectedIds), fromBulk: true })}
+        isDark={p.isDark}
+      />
+
+      {/* Pre-step warning shown when the user taps the trash icon on a
+          category or subcategory header. Lets them either preserve notes
+          by moving them to Uncategorized, or continue into the standard
+          Archive/Trash chooser below. */}
+      <CategoryDeleteWarningDialog
+        isOpen={p.categoryDeleteWarning !== null}
+        onClose={() => p.setCategoryDeleteWarning(null)}
+        targetLabel={p.categoryDeleteWarning?.label || ""}
+        targetKind={p.categoryDeleteWarning?.kind || "category"}
+        count={p.categoryDeleteWarning?.ids?.length || 0}
+        onMoveToUncategorized={p.handleCategoryWarningMove}
+        onContinueToTrash={p.handleCategoryWarningContinue}
         isDark={p.isDark}
       />
 
