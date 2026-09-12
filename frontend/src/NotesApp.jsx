@@ -257,6 +257,41 @@ export default function NotesApp() {
     setPinnedSubOpenState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Open state for the three top-level pinned SECTION accordions
+  // (Blue tiles, Yellow categories, Green subcategories). Tapping the
+  // Pinned header expands/collapses that whole section. Default:
+  // closed. Persisted per-device so the choice sticks across reloads.
+  const [pinnedTilesSectionOpen, setPinnedTilesSectionOpen] = useState(() => {
+    try { return localStorage.getItem("ir_pinned_tiles_open") === "1"; } catch { return false; }
+  });
+  const [pinnedCatsSectionOpen, setPinnedCatsSectionOpen] = useState(() => {
+    try { return localStorage.getItem("ir_pinned_cats_open") === "1"; } catch { return false; }
+  });
+  const [pinnedSubsSectionOpen, setPinnedSubsSectionOpen] = useState(() => {
+    try { return localStorage.getItem("ir_pinned_subs_open") === "1"; } catch { return false; }
+  });
+  const togglePinnedTilesSection = () => {
+    setPinnedTilesSectionOpen((v) => {
+      const next = !v;
+      try { localStorage.setItem("ir_pinned_tiles_open", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const togglePinnedCatsSection = () => {
+    setPinnedCatsSectionOpen((v) => {
+      const next = !v;
+      try { localStorage.setItem("ir_pinned_cats_open", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+  const togglePinnedSubsSection = () => {
+    setPinnedSubsSectionOpen((v) => {
+      const next = !v;
+      try { localStorage.setItem("ir_pinned_subs_open", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
   // Q8: Tile Pack accordion — Grid view only. Setting lives at
   // `settings.pack_accordion_mode`: "off" | "open" | "closed". Off keeps the
   // legacy always-visible behaviour; open/closed set the initial fold state
@@ -1682,29 +1717,38 @@ export default function NotesApp() {
     if (pinnedNotes.length === 0) return null;
     return (
       <div className="mb-4" data-testid="pinned-rail">
-        <CategoryHeader title="Pinned" notes={pinnedNotes} pinned isDark={isDark} />
-        {viewMode === "icon" ? (
-          <div className="notes-grid" style={gridStyle}>
-            {pinnedNotes.map(note => (
-              <NoteTile key={note.id} note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
-            ))}
-          </div>
-        ) : (
-          <div>
-            {pinnedNotes.map(note => (
-              <AccordionNoteItem
-                key={note.id}
-                note={note}
-                onEdit={openEditModal}
-                onDelete={handleDeleteNote}
-                onShare={openShareModal}
-                onFullScreen={openFullScreen}
-                onTogglePin={handleTogglePin}
-                isDark={isDark}
-              />
-            ))}
-          </div>
-        )}
+        <CategoryHeader
+          title="Pinned"
+          notes={pinnedNotes}
+          pinned
+          isDark={isDark}
+          onToggle={togglePinnedTilesSection}
+          isOpen={pinnedTilesSectionOpen}
+        />
+        <AccordionBody open={pinnedTilesSectionOpen}>
+          {viewMode === "icon" ? (
+            <div className="notes-grid" style={gridStyle}>
+              {pinnedNotes.map(note => (
+                <NoteTile key={note.id} note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+              ))}
+            </div>
+          ) : (
+            <div>
+              {pinnedNotes.map(note => (
+                <AccordionNoteItem
+                  key={note.id}
+                  note={note}
+                  onEdit={openEditModal}
+                  onDelete={handleDeleteNote}
+                  onShare={openShareModal}
+                  onFullScreen={openFullScreen}
+                  onTogglePin={handleTogglePin}
+                  isDark={isDark}
+                />
+              ))}
+            </div>
+          )}
+        </AccordionBody>
       </div>
     );
   };
@@ -1731,7 +1775,10 @@ export default function NotesApp() {
           accent={GREEN_ACCENT}
           pinned
           isDark={isDark}
+          onToggle={togglePinnedSubsSection}
+          isOpen={pinnedSubsSectionOpen}
         />
+        <AccordionBody open={pinnedSubsSectionOpen}>
         <div>
           {pinnedSubcategoryBuckets.map(({ path, notes: bucketNotes }) => {
             const key = path.map((s) => String(s || "").trim()).join("\u241E");
@@ -1820,6 +1867,7 @@ export default function NotesApp() {
             );
           })}
         </div>
+        </AccordionBody>
       </div>
     );
   };
@@ -1895,22 +1943,61 @@ export default function NotesApp() {
                         accent="linear-gradient(135deg, #f59e0b 0%, #eab308 100%)"
                         pinned
                         isDark={isDark}
+                        onToggle={togglePinnedCatsSection}
+                        isOpen={pinnedCatsSectionOpen}
                       />
                     </div>
                   )}
                   {pinnedCategoryCount === 0 && renderPinnedSubcategoriesRail()}
-                  {grouped.map(([cat, items], catIdx) => {
-                    const isLastPinned =
-                      pinnedCategoryCount > 0 && catIdx === pinnedCategoryCount - 1;
+                  {pinnedCategoryCount > 0 && (
+                    <AccordionBody open={pinnedCatsSectionOpen}>
+                      {grouped.slice(0, pinnedCategoryCount).map(([cat, items], pIdx) => (
+                        <Draggable key={cat} draggableId={`cat-${cat}`} index={pIdx}>
+                          {(catDp, catSnap) => {
+                            const accordionMode = settings?.pack_accordion_mode || "off";
+                            const hasPack = items.some((n) => n?.pack_id);
+                            const useAccordion = hasPack ? (accordionMode !== "off") : true;
+                            const packKey = items.find((n) => n?.pack_id)?.pack_id || cat;
+                            const open = useAccordion ? isPackOpen(packKey) : true;
+                            return (
+                              <div
+                                ref={catDp.innerRef}
+                                {...catDp.draggableProps}
+                                className={`mb-5 ${catSnap.isDragging ? "opacity-90 shadow-2xl ring-2 ring-indigo-400/60 rounded-lg" : ""}`}
+                              >
+                                <CategoryHeader
+                                  title={cat}
+                                  notes={items}
+                                  isDark={isDark}
+                                  dragHandleProps={catDp.dragHandleProps}
+                                  onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
+                                  isOpen={useAccordion ? open : undefined}
+                                  isPinnedTop
+                                  onTogglePinTop={() => handleTogglePinTop(cat)}
+                                />
+                                <AccordionBody open={!useAccordion || open}>
+                                  <api.Section
+                                    pack={{ id: cat, notes: items }}
+                                    gridStyle={gridStyle}
+                                    testId={`sortable-tiles-${cat}`}
+                                  />
+                                </AccordionBody>
+                              </div>
+                            );
+                          }}
+                        </Draggable>
+                      ))}
+                    </AccordionBody>
+                  )}
+                  {pinnedCategoryCount > 0 && renderPinnedSubcategoriesRail()}
+                  {grouped.slice(pinnedCategoryCount).map(([cat, items], uIdx) => {
+                    const catIdx = pinnedCategoryCount + uIdx;
                     return (
-                    <React.Fragment key={cat}>
-                    <Draggable draggableId={`cat-${cat}`} index={catIdx}>
+                    <Draggable key={cat} draggableId={`cat-${cat}`} index={catIdx}>
                       {(catDp, catSnap) => {
-                        // Q8 accordion — only wire toggle when the setting is
-                        // on AND this category has notes from a Tile Pack.
                         const accordionMode = settings?.pack_accordion_mode || "off";
                         const hasPack = items.some((n) => n?.pack_id);
-                        const useAccordion = accordionMode !== "off" && hasPack;
+                        const useAccordion = hasPack ? (accordionMode !== "off") : true;
                         const packKey = items.find((n) => n?.pack_id)?.pack_id || cat;
                         const open = useAccordion ? isPackOpen(packKey) : true;
                         return (
@@ -1926,7 +2013,7 @@ export default function NotesApp() {
                             dragHandleProps={catDp.dragHandleProps}
                             onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
                             isOpen={useAccordion ? open : undefined}
-                            isPinnedTop={(settings?.pinned_categories || []).includes(cat)}
+                            isPinnedTop={false}
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                           />
                           <AccordionBody open={!useAccordion || open}>
@@ -1940,8 +2027,6 @@ export default function NotesApp() {
                         );
                       }}
                     </Draggable>
-                    {isLastPinned && renderPinnedSubcategoriesRail()}
-                    </React.Fragment>
                     );
                   })}
                   {catProv.placeholder}
@@ -2043,16 +2128,49 @@ export default function NotesApp() {
                       accent="linear-gradient(135deg, #f59e0b 0%, #eab308 100%)"
                       pinned
                       isDark={isDark}
+                      onToggle={togglePinnedCatsSection}
+                      isOpen={pinnedCatsSectionOpen}
                     />
                   </div>
                 )}
                 {pinnedCategoryCount === 0 && renderPinnedSubcategoriesRail()}
-                {grouped.map(([cat, items], index) => {
-                  const isLastPinned =
-                    pinnedCategoryCount > 0 && index === pinnedCategoryCount - 1;
+                {pinnedCategoryCount > 0 && (
+                  <AccordionBody open={pinnedCatsSectionOpen}>
+                    {grouped.slice(0, pinnedCategoryCount).map(([cat, items], pIdx) => (
+                      <Draggable key={cat} draggableId={`cat-${cat}`} index={pIdx}>
+                        {(prov, snap) => (
+                          <div ref={prov.innerRef} {...prov.draggableProps}>
+                            <CategoryGroup
+                              category={cat}
+                              notes={items}
+                              onEdit={openEditModal}
+                              onDelete={handleDeleteNote}
+                              onShare={openShareModal}
+                              onFullScreen={openFullScreen}
+                              onTogglePin={handleTogglePin}
+                              isDark={isDark}
+                              dragHandleProps={prov.dragHandleProps}
+                              isDragging={snap.isDragging}
+                              selectMode={inSelectMode}
+                              isSelected={isSelected}
+                              onToggleSelect={toggleSelect}
+                              onSwipeSelect={handleSwipeSelect}
+                              isPinnedTop
+                              onTogglePinTop={() => handleTogglePinTop(cat)}
+                              pinnedSubKeys={pinnedSubcategoryKeys}
+                              onTogglePinSub={handleTogglePinSubcategory}
+                            />
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                  </AccordionBody>
+                )}
+                {pinnedCategoryCount > 0 && renderPinnedSubcategoriesRail()}
+                {grouped.slice(pinnedCategoryCount).map(([cat, items], uIdx) => {
+                  const index = pinnedCategoryCount + uIdx;
                   return (
-                  <React.Fragment key={cat}>
-                  <Draggable draggableId={`cat-${cat}`} index={index}>
+                  <Draggable key={cat} draggableId={`cat-${cat}`} index={index}>
                     {(prov, snap) => (
                       <div ref={prov.innerRef} {...prov.draggableProps}>
                         <CategoryGroup
@@ -2070,7 +2188,7 @@ export default function NotesApp() {
                           isSelected={isSelected}
                           onToggleSelect={toggleSelect}
                           onSwipeSelect={handleSwipeSelect}
-                          isPinnedTop={(settings?.pinned_categories || []).includes(cat)}
+                          isPinnedTop={false}
                           onTogglePinTop={() => handleTogglePinTop(cat)}
                           pinnedSubKeys={pinnedSubcategoryKeys}
                           onTogglePinSub={handleTogglePinSubcategory}
@@ -2078,8 +2196,6 @@ export default function NotesApp() {
                       </div>
                     )}
                   </Draggable>
-                  {isLastPinned && renderPinnedSubcategoriesRail()}
-                  </React.Fragment>
                   );
                 })}
                 {catProv.placeholder}
