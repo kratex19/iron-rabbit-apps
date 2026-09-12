@@ -1034,50 +1034,13 @@ export default function NotesApp() {
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
     try {
-      // 1) CATEGORY REORDER
+      // 1) CATEGORY REORDER — standard arrayMove.
       if (type === "category") {
-        // Respect "sticky" categories — a sticky category is pinned to
-        // its current position and does not shift when other categories
-        // are dragged around. Dragging the sticky category itself is
-        // still permitted (that becomes its new pinned position).
         const currentOrder = grouped.map(([name]) => name);
-        const sticky = new Set(Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : []);
         const draggedName = currentOrder[source.index];
-        const draggedIsSticky = sticky.has(draggedName);
-
-        let items;
-        if (draggedIsSticky || sticky.size === 0) {
-          // Simple path — sticky item being repositioned, or no
-          // sticky items at all. Standard arrayMove.
-          items = Array.from(currentOrder);
-          const [moved] = items.splice(source.index, 1);
-          items.splice(destination.index, 0, moved);
-        } else {
-          // Non-sticky drag with sticky pins present. Freeze sticky
-          // positions and reorder only the non-sticky slice, then
-          // reweave the sticky items back at their original indices.
-          const stickyAt = new Map(); // originalIndex -> categoryName
-          currentOrder.forEach((n, i) => { if (sticky.has(n)) stickyAt.set(i, n); });
-          const nonSticky = currentOrder.filter((n) => !sticky.has(n));
-          const nsOld = nonSticky.indexOf(draggedName);
-          // Translate `destination.index` from full-list-index space
-          // to non-sticky-list-index space by subtracting the sticky
-          // items positioned before it.
-          const stickyBefore = Array.from(stickyAt.keys()).filter((k) => k < destination.index).length;
-          let nsNew = Math.max(0, destination.index - stickyBefore);
-          nsNew = Math.min(nsNew, nonSticky.length - 1);
-          const [moved] = nonSticky.splice(nsOld, 1);
-          nonSticky.splice(nsNew, 0, moved);
-          // Reweave: iterate slot-by-slot, plug sticky back at their
-          // original indices, fill the rest with the reordered
-          // non-sticky sequence.
-          items = [];
-          let nsIdx = 0;
-          for (let i = 0; i < currentOrder.length; i++) {
-            if (stickyAt.has(i)) items.push(stickyAt.get(i));
-            else items.push(nonSticky[nsIdx++]);
-          }
-        }
+        const items = Array.from(currentOrder);
+        const [moved] = items.splice(source.index, 1);
+        items.splice(destination.index, 0, moved);
 
         await StorageService.saveCategoryOrder(items);
         await fetchData();
@@ -1342,44 +1305,15 @@ export default function NotesApp() {
     }
   };
 
-  // Toggle a category's sticky (pinned-position) state. Sticky
-  // categories don't shift when other categories are dragged — they
-  // stay wherever the user placed them until the user drags THEM.
-  const handleToggleSticky = async (cat) => {
-    try {
-      const list = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
-      const isSticky = list.includes(cat);
-      // Mutually exclusive with pin-to-top — clearing the other list
-      // if the user is switching modes.
-      const pinnedTop = Array.isArray(settings?.pinned_categories) ? settings.pinned_categories : [];
-      const next = isSticky ? list.filter((n) => n !== cat) : [...list, cat];
-      const patch = { ...(settings || {}), sticky_categories: next };
-      if (!isSticky && pinnedTop.includes(cat)) {
-        patch.pinned_categories = pinnedTop.filter((n) => n !== cat);
-      }
-      await StorageService.saveSettings(patch);
-      haptic("milestone");
-      toast.success(isSticky ? `"${cat}" unlocked` : `"${cat}" locked in place`);
-      fetchData();
-    } catch (err) {
-      console.error("Toggle sticky error:", err);
-    }
-  };
-
-  // Long-press on the pin toggles "pinned to top" — the category
-  // bubbles above every non-pinned category in the grid. Multiple
-  // pinned-top categories keep the order they were pinned. Mutually
-  // exclusive with sticky-lock (which freezes at the CURRENT slot).
+  // Toggle a category's pinned-to-top state. Pinned categories bubble
+  // above every non-pinned category in the grid. Multiple pinned
+  // categories keep the order they were pinned.
   const handleTogglePinTop = async (cat) => {
     try {
       const list = Array.isArray(settings?.pinned_categories) ? settings.pinned_categories : [];
       const wasPinned = list.includes(cat);
-      const sticky = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
       const next = wasPinned ? list.filter((n) => n !== cat) : [...list, cat];
       const patch = { ...(settings || {}), pinned_categories: next };
-      if (!wasPinned && sticky.includes(cat)) {
-        patch.sticky_categories = sticky.filter((n) => n !== cat);
-      }
       await StorageService.saveSettings(patch);
       haptic("milestone");
       toast.success(wasPinned ? `"${cat}" unpinned from top` : `"${cat}" pinned to top`);
@@ -1768,8 +1702,6 @@ export default function NotesApp() {
                             dragHandleProps={catDp.dragHandleProps}
                             onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
                             isOpen={useAccordion ? open : undefined}
-                            isSticky={(settings?.sticky_categories || []).includes(cat)}
-                            onToggleSticky={() => handleToggleSticky(cat)}
                             isPinnedTop={(settings?.pinned_categories || []).includes(cat)}
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                           />
@@ -1894,8 +1826,6 @@ export default function NotesApp() {
                           isSelected={isSelected}
                           onToggleSelect={toggleSelect}
                           onSwipeSelect={handleSwipeSelect}
-                          isSticky={(settings?.sticky_categories || []).includes(cat)}
-                          onToggleSticky={() => handleToggleSticky(cat)}
                           isPinnedTop={(settings?.pinned_categories || []).includes(cat)}
                           onTogglePinTop={() => handleTogglePinTop(cat)}
                         />

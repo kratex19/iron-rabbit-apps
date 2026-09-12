@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Sparkles, Pin, ChevronDown, GripVertical } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
 
@@ -25,7 +25,6 @@ import { NOTE_COLORS } from "./constants";
 export default function CategoryHeader({
   title, accent, notes, count, pinned = false, isDark,
   dragHandleProps = null, onToggle, isOpen,
-  isSticky = false, onToggleSticky = null,
   isPinnedTop = false, onTogglePinTop = null,
 }) {
   const derived = accent || (() => {
@@ -97,72 +96,33 @@ export default function CategoryHeader({
     </span>
   ) : null;
 
-  // Pin button with two behaviors:
-  //   • Tap        → toggle sticky-position (locked at current index)
-  //   • Long-press → toggle pin-to-top     (bubble above non-pinned)
-  // Colour states are mutually exclusive:
+  // Pin button — single behavior:
+  //   tap = Pin to Top (bubble above non-pinned categories)
+  // Colour states:
   //   amber (filled) = pinned to top
-  //   indigo (outline) = sticky-locked
-  //   muted (outline)  = neither
-  const longPressTimerRef = useRef(null);
-  const longPressFiredRef = useRef(false);
-
-  const startLongPress = () => {
-    longPressFiredRef.current = false;
-    if (!onTogglePinTop) return;
-    longPressTimerRef.current = setTimeout(() => {
-      longPressFiredRef.current = true;
-      onTogglePinTop();
-    }, 500);
-  };
-  const cancelLongPress = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
+  //   muted (outline)  = not pinned
   const onPinClick = (e) => {
     e.stopPropagation();
-    if (longPressFiredRef.current) {
-      // Long-press already fired the top-pin toggle — don't also
-      // fire the sticky tap.
-      longPressFiredRef.current = false;
-      return;
-    }
-    onToggleSticky?.();
+    onTogglePinTop?.();
   };
 
-  const pinEl = (onToggleSticky || onTogglePinTop) ? (
+  const pinEl = onTogglePinTop ? (
     <button
       type="button"
       onClick={onPinClick}
-      onPointerDown={startLongPress}
-      onPointerUp={cancelLongPress}
-      onPointerLeave={cancelLongPress}
-      onPointerCancel={cancelLongPress}
-      aria-label={isPinnedTop
-        ? `Unpin ${title} from top`
-        : isSticky
-          ? `Unlock ${title} position`
-          : `Tap to lock ${title} position, long-press to pin to top`}
+      aria-label={isPinnedTop ? `Unpin ${title} from top` : `Pin ${title} to top`}
       className={`shrink-0 ml-1 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
         isPinnedTop
           ? "text-amber-400 hover:bg-amber-500/10"
-          : isSticky
-            ? (isDark ? "text-indigo-300 hover:bg-white/10" : "text-indigo-500 hover:bg-black/5")
-            : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
+          : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
       }`}
-      title={isPinnedTop
-        ? "Pinned to top — tap to unpin, long-press again to lock in place"
-        : isSticky
-          ? "Locked in place — tap to unlock, long-press to pin to top"
-          : "Tap to lock position · Long-press to pin to top"}
+      title={isPinnedTop ? "Pinned to top — tap to unpin" : "Tap to pin to top"}
       data-testid={`category-pin-${title}`}
     >
       <Pin
         className="w-4 h-4"
         strokeWidth={2.4}
-        fill={isPinnedTop || isSticky ? "currentColor" : "none"}
+        fill={isPinnedTop ? "currentColor" : "none"}
       />
     </button>
   ) : null;
