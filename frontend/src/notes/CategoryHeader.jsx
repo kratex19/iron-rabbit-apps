@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, Pin, ChevronDown, GripVertical } from "lucide-react";
+import { Sparkles, Pin, ChevronDown, GripVertical, Trash2 } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
 
 /**
@@ -26,6 +26,7 @@ export default function CategoryHeader({
   title, accent, notes, count, pinned = false, isDark,
   dragHandleProps = null, onToggle, isOpen,
   isPinnedTop = false, onTogglePinTop = null,
+  onDeleteCategory = null,
   countNoun = { singular: "tile", plural: "tiles" },
 }) {
   const derived = accent || (() => {
@@ -141,10 +142,39 @@ export default function CategoryHeader({
           aria-expanded={!!isOpen}
           className={`flex-1 flex items-center gap-2 rounded-md transition-colors text-left ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"} py-1 px-1`}
           data-testid={`category-toggle-${title}`}
+  const trashEl = onDeleteCategory ? (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onDeleteCategory(); }}
+      aria-label={`Delete category ${title}`}
+      title={`Delete category "${title}"`}
+      className={`shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
+        isDark ? "text-slate-500 hover:text-red-300 hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 hover:bg-red-500/10"
+      }`}
+      data-testid={`category-delete-${title}`}
+    >
+      <Trash2 className="w-4 h-4" strokeWidth={2.2} />
+    </button>
+  ) : null;
+
+  if (isCollapsible) {
+    return (
+      <div
+        className={`flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : ""}`}
+        data-testid={`category-header-${title}`}
+      >
+        {gripEl}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className="flex-1 flex items-center gap-2 text-left rounded-md p-1 -m-1 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
+          data-testid={`category-toggle-${title}`}
         >
           {inner}
         </button>
         {pinEl}
+        {trashEl}
       </div>
     );
   }
@@ -157,6 +187,7 @@ export default function CategoryHeader({
       {gripEl}
       <div className="flex-1 flex items-center gap-2">{inner}</div>
       {pinEl}
+      {trashEl}
     </div>
   );
 }

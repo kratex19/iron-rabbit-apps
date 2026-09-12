@@ -60,6 +60,7 @@ export default function SortableTilesProvider({
   onToggleSelect,
   onOpen,
   onEdit,
+  onDelete,
   children,
 }) {
   const sensors = useSensors(
@@ -155,6 +156,7 @@ export default function SortableTilesProvider({
         onToggleSelect={onToggleSelect}
         onOpen={onOpen}
         onEdit={onEdit}
+        onDelete={onDelete}
       />
     ),
   };
@@ -190,7 +192,7 @@ function cascadedCollision(args) {
   return closestCenter(args);
 }
 
-function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, onToggleSelect, onOpen, onEdit }) {
+function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, onToggleSelect, onOpen, onEdit, onDelete }) {
   // useDroppable makes the whole grid container a valid drop target
   // even when it has zero tiles, so users can move a note INTO an
   // empty pack.
@@ -215,6 +217,7 @@ function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, 
             onToggleSelect={onToggleSelect}
             onOpen={onOpen}
             onEdit={onEdit}
+            onDelete={onDelete}
           />
         ))}
         {pack.notes.length === 0 && (
@@ -236,7 +239,7 @@ function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, 
   );
 }
 
-function SortableTile({ note, isDark, selectMode, selected, onToggleSelect, onOpen, onEdit }) {
+function SortableTile({ note, isDark, selectMode, selected, onToggleSelect, onOpen, onEdit, onDelete }) {
   const {
     attributes,
     listeners,
@@ -263,6 +266,7 @@ function SortableTile({ note, isDark, selectMode, selected, onToggleSelect, onOp
         onToggleSelect={onToggleSelect}
         onOpen={onOpen}
         onEdit={onEdit}
+        onDelete={onDelete}
         dragHandleProps={listeners}
       />
     </div>

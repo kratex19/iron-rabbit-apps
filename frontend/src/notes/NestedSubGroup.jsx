@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Bell, ChevronDown, CornerDownRight, GripVertical, Pin } from "lucide-react";
+import { Bell, ChevronDown, CornerDownRight, GripVertical, Pin, Trash2 } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import AccordionNoteItem from "./AccordionNoteItem";
@@ -48,6 +48,7 @@ export default function NestedSubGroup(props) {
     onEdit, onDelete, onShare, onFullScreen, onTogglePin,
     selectMode, isSelected, onToggleSelect, onSwipeSelect,
     pinnedSubKeys = null, onTogglePinSub = null,
+    onDeleteSubcategory = null,
   } = props;
   const Self = NestedSubGroup;
 
@@ -95,7 +96,7 @@ export default function NestedSubGroup(props) {
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors ${
-          onTogglePinSub ? "pr-9" : ""
+          onTogglePinSub && onDeleteSubcategory ? "pr-16" : onTogglePinSub || onDeleteSubcategory ? "pr-9" : ""
         } ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}
         data-testid={`nested-subgroup-toggle-${label}`}
       >
@@ -144,6 +145,20 @@ export default function NestedSubGroup(props) {
           <Pin className="w-3.5 h-3.5" strokeWidth={2.4} fill={isPinnedSub ? "currentColor" : "none"} />
         </button>
       )}
+      {onDeleteSubcategory && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDeleteSubcategory(fullPath); }}
+          aria-label={`Delete subcategory ${label}`}
+          title={`Delete subcategory "${label}"`}
+          className={`absolute right-9 top-1 w-7 h-7 inline-flex items-center justify-center rounded-md transition-colors ${
+            isDark ? "text-slate-500 hover:text-red-300 hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 hover:bg-red-500/10"
+          }`}
+          data-testid={`subcategory-delete-${label}`}
+        >
+          <Trash2 className="w-3.5 h-3.5" strokeWidth={2.2} />
+        </button>
+      )}
 
       {isOpen && (
         <Droppable droppableId={droppableId} type="note">
@@ -175,6 +190,7 @@ export default function NestedSubGroup(props) {
                   onSwipeSelect={onSwipeSelect}
                   pinnedSubKeys={pinnedSubKeys}
                   onTogglePinSub={onTogglePinSub}
+                  onDeleteSubcategory={onDeleteSubcategory}
                 />
               ))}
               {directNotes.map((note, idx) => (

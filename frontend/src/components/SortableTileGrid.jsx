@@ -48,6 +48,7 @@ export default function SortableTileGrid({
   onToggleSelect,
   onOpen,
   onEdit,
+  onDelete,
   gridStyle,
   testId,
 }) {
@@ -86,6 +87,7 @@ export default function SortableTileGrid({
               onToggleSelect={onToggleSelect}
               onOpen={onOpen}
               onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </div>
@@ -94,7 +96,7 @@ export default function SortableTileGrid({
   );
 }
 
-function SortableTile({ note, isDark, selectMode, selected, onToggleSelect, onOpen, onEdit }) {
+function SortableTile({ note, isDark, selectMode, selected, onToggleSelect, onOpen, onEdit, onDelete }) {
   const {
     attributes,
     listeners,
@@ -126,6 +128,7 @@ function SortableTile({ note, isDark, selectMode, selected, onToggleSelect, onOp
         onToggleSelect={onToggleSelect}
         onOpen={onOpen}
         onEdit={onEdit}
+        onDelete={onDelete}
         // dnd-kit `listeners` become the grip's drag handle props.
         // The NoteTile renders a small ⋮⋮ pill and only THAT element
         // owns the drag. Rest of the tile stays click-to-open.

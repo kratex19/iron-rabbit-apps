@@ -887,6 +887,45 @@
     }
 }
 
+/* Trash affordance (bottom-right on the tile) */
+.note-tile-trash {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 2;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity 150ms ease, transform 150ms ease, background 150ms ease;
+    cursor: pointer;
+}
+
+.note-tile:hover .note-tile-trash,
+.note-tile:focus-within .note-tile-trash {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.note-tile-trash:hover {
+    background: rgba(239, 68, 68, 0.85);
+}
+
+@media (hover: none) {
+    .note-tile-trash {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* View mode toggle group in top bar */
 .view-toggle {
     display: inline-flex;

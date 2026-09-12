@@ -35,6 +35,7 @@ import { useEffectiveGridColumns } from "./notes/TilesColumnsButton";
 import FeaturedTipStrip from "./notes/FeaturedTipStrip";
 import UpcomingAlarmsRail from "./notes/UpcomingAlarmsRail";
 import AppModals from "./notes/AppModals";
+import DeleteCategoryConfirmModal from "./notes/DeleteCategoryConfirmModal";
 import ThemeChooserModal from "./onboarding/ThemeChooserModal";
 import { brightnessToText, brightnessToBg } from "./notes/BrightnessSliders";
 import { isScreenshotMode } from "./utils/screenshotMode";
@@ -249,10 +250,136 @@ export default function NotesApp() {
     });
   };
 
-  // Open state for each pinned subcategory accordion in the Green rail.
-  // Keyed by joined-path string. Default: closed (matches Blue tiles rail
-  // pattern of tapping the header to expand).
   const [pinnedSubOpenState, setPinnedSubOpenState] = useState({});
+
+  // Category/subcategory delete confirmation modal state.
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
+  // Shape: { name, path[], descendantCount, subChildCount }
+
+  // Build the delete-confirmation payload for a top-level category.
+  const openDeleteCategoryConfirm = (cat) => {
+    const descendants = notes.filter((n) => {
+      const p = Array.isArray(n?.category_path) && n.category_path.length > 0
+        ? n.category_path
+        : [n?.category].filter(Boolean);
+      return (p[0] || "") === cat;
+    });
+    const subLabels = new Set();
+    for (const n of descendants) {
+      const p = Array.isArray(n?.category_path) ? n.category_path : [];
+      if (p.length >= 2) subLabels.add(String(p[1] || "").trim());
+    }
+    setDeleteConfirmTarget({
+      name: cat,
+      path: [cat],
+      descendantCount: descendants.length,
+      subChildCount: subLabels.size,
+    });
+  };
+
+  // Build the delete-confirmation payload for a nested subcategory
+  // path (e.g. ['Cat Sub', 'Sub Catt']).
+  const openDeleteSubcategoryConfirm = (path) => {
+    const cleanPath = (Array.isArray(path) ? path : []).map((s) => String(s || "").trim()).filter(Boolean);
+    if (cleanPath.length < 2) return;
+    const startsWith = (arr, prefix) => {
+      if (!Array.isArray(arr) || arr.length < prefix.length) return false;
+      for (let i = 0; i < prefix.length; i++) {
+        if (String(arr[i] || "").trim() !== prefix[i]) return false;
+      }
+      return true;
+    };
+    const descendants = notes.filter((n) => {
+      const p = Array.isArray(n?.category_path) && n.category_path.length > 0
+        ? n.category_path
+        : [n?.category, n?.subcategory].filter(Boolean);
+      return startsWith(p, cleanPath);
+    });
+    const nestedSubs = new Set();
+    for (const n of descendants) {
+      const p = Array.isArray(n?.category_path) ? n.category_path : [];
+      if (p.length > cleanPath.length) nestedSubs.add(String(p[cleanPath.length] || "").trim());
+    }
+    setDeleteConfirmTarget({
+      name: cleanPath[cleanPath.length - 1],
+      path: cleanPath,
+      descendantCount: descendants.length,
+      subChildCount: nestedSubs.size,
+    });
+  };
+
+  // Execute the delete after user confirmation.
+  // mode = "cascade" → delete all notes underneath
+  // mode = "moveUp"  → strip this path segment from descendants' category_path
+  const runDeleteConfirm = async (mode) => {
+    const target = deleteConfirmTarget;
+    if (!target) return;
+    const { name, path } = target;
+    try {
+      const startsWith = (arr, prefix) => {
+        if (!Array.isArray(arr) || arr.length < prefix.length) return false;
+        for (let i = 0; i < prefix.length; i++) {
+          if (String(arr[i] || "").trim() !== prefix[i]) return false;
+        }
+        return true;
+      };
+      const affected = notes.filter((n) => {
+        const p = Array.isArray(n?.category_path) && n.category_path.length > 0
+          ? n.category_path
+          : [n?.category, n?.subcategory].filter(Boolean);
+        return startsWith(p, path);
+      });
+
+      if (mode === "moveUp" && path.length >= 2) {
+        // Reassign each affected note's category_path minus this segment.
+        const dropIdx = path.length - 1;
+        for (const n of affected) {
+          const p = Array.isArray(n?.category_path) && n.category_path.length > 0
+            ? n.category_path.slice()
+            : [n?.category, n?.subcategory].filter(Boolean);
+          p.splice(dropIdx, 1); // remove the segment being deleted
+          await StorageService.updateNote(n.id, {
+            category_path: p,
+            category: p[0] || "",
+            subcategory: p[1] || "",
+          });
+        }
+      } else {
+        // Cascade delete.
+        for (const n of affected) {
+          await StorageService.deleteNote(n.id);
+        }
+      }
+
+      // Clean up settings — remove this path from pinned lists too.
+      const currentSettings = settings || {};
+      const patch = { ...currentSettings };
+      if (path.length === 1) {
+        const pc = Array.isArray(currentSettings.pinned_categories) ? currentSettings.pinned_categories : [];
+        if (pc.includes(name)) patch.pinned_categories = pc.filter((x) => x !== name);
+      }
+      const psp = Array.isArray(currentSettings.pinned_subcategory_paths) ? currentSettings.pinned_subcategory_paths : [];
+      const key = path.join("\u241E");
+      const filteredPsp = psp.filter((p) => {
+        const arr = (Array.isArray(p) ? p : []).map((s) => String(s || "").trim());
+        // Drop any pinned sub path that starts with (or equals) the deleted path.
+        return !(arr.join("\u241E").startsWith(key));
+      });
+      if (filteredPsp.length !== psp.length) patch.pinned_subcategory_paths = filteredPsp;
+      if (patch !== currentSettings) await StorageService.saveSettings(patch);
+
+      haptic("milestone");
+      const noun = path.length >= 2 ? "Subcategory" : "Category";
+      toast.success(mode === "moveUp"
+        ? `${noun} "${name}" removed — ${affected.length} note${affected.length === 1 ? "" : "s"} moved up`
+        : `${noun} "${name}" and ${affected.length} note${affected.length === 1 ? "" : "s"} deleted`);
+      setDeleteConfirmTarget(null);
+      fetchData();
+    } catch (err) {
+      console.error("Delete category/subcategory error:", err);
+      toast.error("Delete failed — see console");
+    }
+  };
   const togglePinnedSubOpen = (key) => {
     setPinnedSubOpenState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -1752,7 +1879,7 @@ export default function NotesApp() {
           {viewMode === "icon" ? (
             <div className="notes-grid" style={gridStyle}>
               {pinnedNotes.map(note => (
-                <NoteTile key={note.id} note={note} onOpen={openFullScreen} onEdit={openEditModal} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
+                <NoteTile key={note.id} note={note} onOpen={openFullScreen} onEdit={openEditModal} onDelete={handleDeleteNote} isDark={isDark} selectMode={inSelectMode} selected={isSelected(note.id)} onToggleSelect={toggleSelect} />
               ))}
             </div>
           ) : (
@@ -1951,6 +2078,7 @@ export default function NotesApp() {
               onToggleSelect={toggleSelect}
               onOpen={openFullScreen}
               onEdit={openEditModal}
+              onDelete={handleDeleteNote}
             >
             {(api) => (
               <>
@@ -1997,6 +2125,7 @@ export default function NotesApp() {
                                   isOpen={useAccordion ? open : undefined}
                                   isPinnedTop
                                   onTogglePinTop={() => handleTogglePinTop(cat)}
+                                  onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                                 />
                                 <AccordionBody open={!useAccordion || open}>
                                   <api.Section
@@ -2038,6 +2167,7 @@ export default function NotesApp() {
                             isOpen={useAccordion ? open : undefined}
                             isPinnedTop={false}
                             onTogglePinTop={() => handleTogglePinTop(cat)}
+                            onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                           />
                           <AccordionBody open={!useAccordion || open}>
                             <api.Section
@@ -2182,6 +2312,8 @@ export default function NotesApp() {
                               onTogglePinTop={() => handleTogglePinTop(cat)}
                               pinnedSubKeys={pinnedSubcategoryKeys}
                               onTogglePinSub={handleTogglePinSubcategory}
+                              onDeleteCategory={openDeleteCategoryConfirm}
+                              onDeleteSubcategory={openDeleteSubcategoryConfirm}
                             />
                           </div>
                         )}
@@ -2215,6 +2347,8 @@ export default function NotesApp() {
                           onTogglePinTop={() => handleTogglePinTop(cat)}
                           pinnedSubKeys={pinnedSubcategoryKeys}
                           onTogglePinSub={handleTogglePinSubcategory}
+                          onDeleteCategory={openDeleteCategoryConfirm}
+                          onDeleteSubcategory={openDeleteSubcategoryConfirm}
                         />
                       </div>
                     )}
@@ -2452,6 +2586,16 @@ export default function NotesApp() {
       <ThemeChooserModal
         isOpen={themeChooserOpen}
         onPick={handleThemeChooserPick}
+      />
+      <DeleteCategoryConfirmModal
+        isOpen={!!deleteConfirmTarget}
+        onClose={() => setDeleteConfirmTarget(null)}
+        name={deleteConfirmTarget?.name || ""}
+        path={deleteConfirmTarget?.path || []}
+        descendantCount={deleteConfirmTarget?.descendantCount || 0}
+        subChildCount={deleteConfirmTarget?.subChildCount || 0}
+        isDark={isDark}
+        onConfirm={runDeleteConfirm}
       />
       <AppModals
         // — data —

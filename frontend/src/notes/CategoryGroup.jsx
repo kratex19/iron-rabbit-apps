@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Bell, ChevronDown, GripVertical, Sparkles, Pin } from "lucide-react";
+import { Bell, ChevronDown, GripVertical, Sparkles, Pin, Trash2 } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
@@ -28,6 +28,7 @@ export default function CategoryGroup({
   selectMode = false, isSelected, onToggleSelect, onSwipeSelect,
   isPinnedTop = false, onTogglePinTop = null,
   pinnedSubKeys = null, onTogglePinSub = null,
+  onDeleteCategory = null, onDeleteSubcategory = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const colorConfig = useMemo(() => {
@@ -118,6 +119,20 @@ export default function CategoryGroup({
             onTogglePinTop={onTogglePinTop}
           />
         )}
+        {onDeleteCategory && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDeleteCategory(category); }}
+            aria-label={`Delete category ${category}`}
+            title={`Delete category "${category}"`}
+            className={`shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-md transition-colors ${
+              isDark ? "text-slate-500 hover:text-red-300 hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 hover:bg-red-500/10"
+            }`}
+            data-testid={`category-delete-${category}`}
+          >
+            <Trash2 className="w-4 h-4" strokeWidth={2.2} />
+          </button>
+        )}
       </div>
 
       {hasNestedPaths ? (
@@ -151,6 +166,7 @@ export default function CategoryGroup({
                   onSwipeSelect={onSwipeSelect}
                   pinnedSubKeys={pinnedSubKeys}
                   onTogglePinSub={onTogglePinSub}
+                  onDeleteSubcategory={onDeleteSubcategory}
                 />
               ))}
               {directTopLevelNotes.map((note, idx) => (

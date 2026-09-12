@@ -19,7 +19,7 @@ import { haptic } from "../utils/haptic";
  *   this made drops "jump around" and forced the user to click far
  *   from the tile body to grab.
  */
-export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMode = false, selected = false, onToggleSelect, dragHandleProps = null }) {
+export default function NoteTile({ note, onOpen, onEdit, onDelete, isDark = true, selectMode = false, selected = false, onToggleSelect, dragHandleProps = null }) {
   // When the user explicitly picks "No icon", `note.icon` is null → render
   // no icon at all (keeps the tile clean instead of showing a placeholder).
   const IconComp = note.icon && LucideIcons[note.icon] ? LucideIcons[note.icon] : null;
@@ -147,6 +147,30 @@ export default function NoteTile({ note, onOpen, onEdit, isDark = true, selectMo
       >
         <LucideIcons.Pencil className="w-3.5 h-3.5" />
       </span>
+
+      {/* Trash affordance (bottom-right) */}
+      {onDelete && !selectMode && (
+        <span
+          role="button"
+          tabIndex={-1}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(note.id);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+              e.preventDefault();
+              onDelete(note.id);
+            }
+          }}
+          className="note-tile-trash"
+          data-testid={`note-tile-trash-${note.id}`}
+          aria-label="Delete note"
+        >
+          <LucideIcons.Trash2 className="w-3.5 h-3.5" />
+        </span>
+      )}
     </button>
   );
 }
