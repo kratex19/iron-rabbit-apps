@@ -305,6 +305,13 @@ export default function NotesApp() {
     if (p.length === 1) {
       const pc = Array.isArray(settings?.pinned_categories) ? settings.pinned_categories : [];
       if (pc.includes(p[0])) { patch.pinned_categories = pc.filter((x) => x !== p[0]); changed = true; }
+      // Also strip from `category_order` and `sticky_categories` so
+      // `keep_empty_categories` doesn't keep an empty ghost card
+      // visible after the notes have been moved / trashed.
+      const co = Array.isArray(settings?.category_order) ? settings.category_order : [];
+      if (co.includes(p[0])) { patch.category_order = co.filter((x) => x !== p[0]); changed = true; }
+      const sc = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
+      if (sc.includes(p[0])) { patch.sticky_categories = sc.filter((x) => x !== p[0]); changed = true; }
     }
     const psp = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
     const key = p.join("\u241E");
@@ -1079,6 +1086,10 @@ export default function NotesApp() {
     try {
       await moveIdsToUncategorized(cur.ids, cur.path);
       haptic("tap");
+      // Auto-expand the Uncategorized bucket so the user immediately
+      // sees the moved notes land there.
+      setUncategorizedOpen(true);
+      try { localStorage.setItem("ir_uncategorized_open", "1"); } catch { /* ignore */ }
       toast.success(`Moved ${cur.ids.length} note${cur.ids.length === 1 ? "" : "s"} to Uncategorized`);
       fetchData();
     } catch (e) {
