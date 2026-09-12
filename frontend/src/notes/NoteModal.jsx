@@ -37,7 +37,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
-export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange, focusOverrideBrightness = null }) {
+export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange, focusOverrideBrightness = null, pinnedSubcategoryKeys = null }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -257,18 +257,26 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     if (note) {
       setTitle(note.title || ""); setContent(note.content || ""); setColor(note.color || "purple");
       setIcon(note.icon || null); setBackground(note.background || null);
-      setPinned(!!note.pinned);
+      // Infinite path: prefer the modern `category_path` if present, else
+      // migrate from legacy category/subcategory. Trim trailing empties.
+      const initialPath = Array.isArray(note.category_path) && note.category_path.length > 0
+        ? note.category_path
+        : [note.category, note.subcategory].filter((s) => s && String(s).trim());
+      // Pin state — for nested paths (>= 2), pin means "this subcategory
+      // is in Green rail"; for flat paths, pin means "this note is in Blue rail".
+      const cleanInitPath = initialPath.map((s) => String(s || "").trim()).filter(Boolean);
+      if (cleanInitPath.length >= 2 && pinnedSubcategoryKeys) {
+        const key = cleanInitPath.join("\u241E");
+        setPinned(pinnedSubcategoryKeys.has(key));
+      } else {
+        setPinned(!!note.pinned);
+      }
       setTags(Array.isArray(note.tags) ? note.tags.map(t => String(t).toLowerCase()) : []);
       setTagDraft("");
       setAttachments(Array.isArray(note.attachments) ? note.attachments : []);
       setEvents(Array.isArray(note.events) ? note.events : []);
       setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
-      // Infinite path: prefer the modern `category_path` if present, else
-      // migrate from legacy category/subcategory. Trim trailing empties.
-      const initialPath = Array.isArray(note.category_path) && note.category_path.length > 0
-        ? note.category_path
-        : [note.category, note.subcategory].filter((s) => s && String(s).trim());
       setCategoryPath(initialPath);
       if (note.alarm) {
         setAlarm(note.alarm);
@@ -343,9 +351,16 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     const legacySub = cleanPath[1] || subcategory.trim();
     const noteData = {
       title: title.trim(), content: safeContent, color, icon, background,
-      // Pin only allowed on main-category (or uncategorized) notes.
-      // If a subcategory is set, force pinned=false so old state is cleaned up.
-      pinned: legacySub ? false : pinned,
+      // Pin semantics depend on where the note lives:
+      //   - flat path (length < 2) → drives note.pinned (Blue rail)
+      //   - nested path (>= 2)     → drives Green rail (settings.pinned_subcategory_paths)
+      // We always ship note.pinned so a nested→flat move preserves clean
+      // state, plus an intent field consumed by handleSaveNote.
+      pinned: cleanPath.length >= 2 ? false : pinned,
+      _pin_intent: {
+        wants: !!pinned,
+        path: cleanPath,
+      },
       tags: finalTags,
       attachments,
       events,
@@ -590,20 +605,35 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
               </div>
             </div>
 
-            {!subcategory.trim() && (
-              <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <label className={`text-xs flex items-center gap-1.5 ${
-                    pinned
-                      ? (isDark ? 'text-amber-400' : 'text-amber-600')
-                      : (isDark ? 'text-slate-400' : 'text-gray-500')
-                  }`}>
-                    <Pin className="w-3.5 h-3.5" /> Pin to top
-                  </label>
-                  <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />
+            {(() => {
+              const cleanPath = (Array.isArray(categoryPath) ? categoryPath : [])
+                .map((s) => String(s || "").trim())
+                .filter(Boolean);
+              const isNested = cleanPath.length >= 2;
+              // Dynamic label so the user knows exactly what they're
+              // pinning based on the current path.
+              const pinLabel = !isNested
+                ? "Pin note to top"
+                : cleanPath.length === 2
+                  ? `Pin subcategory: ${cleanPath[0]} / ${cleanPath[1]}`
+                  : `Pin subcategory: ${cleanPath[0]} / … / ${cleanPath[cleanPath.length - 2]} / ${cleanPath[cleanPath.length - 1]}`;
+              const pinColor = pinned
+                ? isNested
+                  ? (isDark ? "text-emerald-400" : "text-emerald-600")
+                  : (isDark ? "text-amber-400" : "text-amber-600")
+                : (isDark ? "text-slate-400" : "text-gray-500");
+              return (
+                <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <label className={`text-xs flex items-center gap-1.5 min-w-0 ${pinColor}`}>
+                      <Pin className="w-3.5 h-3.5 flex-shrink-0" fill={pinned ? "currentColor" : "none"} />
+                      <span className="truncate">{pinLabel}</span>
+                    </label>
+                    <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Tags */}
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>

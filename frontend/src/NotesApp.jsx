@@ -734,6 +734,14 @@ export default function NotesApp() {
     try {
       const now = new Date().toISOString();
 
+      // Extract the pin-intent metadata added by NoteModal so it doesn't
+      // leak into the persisted note doc. Applied to settings.pinned_subcategory_paths
+      // below (Green rail) when the note lives at a nested path.
+      const pinIntent = noteData._pin_intent;
+      const cleanedNoteData = { ...noteData };
+      delete cleanedNoteData._pin_intent;
+      noteData = cleanedNoteData;
+
       // ---- Natural-language reminder detection ----
       // Only runs on BRAND-NEW notes (no noteId) that don't already
       // have an alarm configured, and never when the user has
@@ -787,6 +795,21 @@ export default function NotesApp() {
           toast.success(`Created — reminder set for ${new Date(enriched.alarm.datetime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`, { duration: 5000 });
         } else {
           toast.success("Created!");
+        }
+      }
+      // Apply pin-intent (from NoteModal) to settings.pinned_subcategory_paths.
+      // Only relevant for nested paths (length >= 2). Flat paths use the
+      // note.pinned field (already persisted above → Blue rail).
+      if (pinIntent && Array.isArray(pinIntent.path) && pinIntent.path.length >= 2) {
+        const path = pinIntent.path.map((s) => String(s || "").trim()).filter(Boolean);
+        const key = path.join("\u241E");
+        const list = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+        const already = list.some((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") === key);
+        let next = list;
+        if (pinIntent.wants && !already) next = [...list, path];
+        else if (!pinIntent.wants && already) next = list.filter((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") !== key);
+        if (next !== list) {
+          await StorageService.saveSettings({ ...(settings || {}), pinned_subcategory_paths: next });
         }
       }
       fetchData();
@@ -2443,6 +2466,7 @@ export default function NotesApp() {
         grouped={grouped}
         selectedIds={selectedIds}
         autoLock={autoLock}
+        pinnedSubcategoryKeys={pinnedSubcategoryKeys}
         // — open/close state + setters —
         noteModalOpen={noteModalOpen} setNoteModalOpen={setNoteModalOpen}
         editingNote={editingNote} setEditingNote={setEditingNote}

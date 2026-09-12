@@ -103,6 +103,7 @@ export default function AppModals(p) {
         uiBrightness={p.uiBrightness}
         onBrightnessChange={p.onBrightnessChange}
         focusOverrideBrightness={p.focusOverrideBrightness}
+        pinnedSubcategoryKeys={p.pinnedSubcategoryKeys}
       />
       <CalculatorWidget
         isOpen={p.calculatorOpen}
