@@ -129,19 +129,6 @@ export default function CategoryHeader({
     </button>
   ) : null;
 
-  if (isCollapsible) {
-    return (
-      <div
-        className={`w-full flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : "py-1"}`}
-        data-testid={`category-header-${title}`}
-      >
-        {gripEl}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={!!isOpen}
-          className={`flex-1 flex items-center gap-2 rounded-md transition-colors text-left ${isDark ? "hover:bg-white/5" : "hover:bg-black/5"} py-1 px-1`}
-          data-testid={`category-toggle-${title}`}
   const trashEl = onDeleteCategory ? (
     <button
       type="button"
