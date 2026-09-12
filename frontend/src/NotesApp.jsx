@@ -11,9 +11,10 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, ExternalLink, Sun, Moon,
-  Download, Pin, Package, CalendarDays, Archive,
+  Download, Pin, Package, CalendarDays, Archive, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 import StorageService from "./storage/storageService";
 import notificationService, { isInFocusWindow } from "./notifications/notificationService";
@@ -246,6 +247,14 @@ export default function NotesApp() {
       try { localStorage.setItem("ir_uncategorized_open", next ? "1" : "0"); } catch { /* ignore */ }
       return next;
     });
+  };
+
+  // Open state for each pinned subcategory accordion in the Green rail.
+  // Keyed by joined-path string. Default: closed (matches Blue tiles rail
+  // pattern of tapping the header to expand).
+  const [pinnedSubOpenState, setPinnedSubOpenState] = useState({});
+  const togglePinnedSubOpen = (key) => {
+    setPinnedSubOpenState((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   // Q8: Tile Pack accordion — Grid view only. Setting lives at
@@ -1323,6 +1332,31 @@ export default function NotesApp() {
     }
   };
 
+  // Toggle a subcategory's pinned state. Pinned subcategories are
+  // removed from their parent hierarchy and rendered inside the Green
+  // "Pinned N subcategories" rail at the top of the page. Path is
+  // stored as an array of strings; comparisons use a joined key.
+  const handleTogglePinSubcategory = async (path) => {
+    try {
+      const arr = Array.isArray(path) ? path : [];
+      if (arr.length < 2) return; // must be a subcategory, not a top-level cat
+      const key = arr.map((s) => String(s || "").trim()).join("\u241E");
+      const list = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+      const has = list.some((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") === key);
+      const next = has
+        ? list.filter((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") !== key)
+        : [...list, arr.map((s) => String(s || "").trim())];
+      const patch = { ...(settings || {}), pinned_subcategory_paths: next };
+      await StorageService.saveSettings(patch);
+      haptic("milestone");
+      const label = arr[arr.length - 1];
+      toast.success(has ? `"${label}" unpinned` : `"${label}" pinned to top`);
+      fetchData();
+    } catch (err) {
+      console.error("Toggle pin-subcategory error:", err);
+    }
+  };
+
   const handleBackup = async () => {
     try {
       const data = await StorageService.exportAllData();
@@ -1489,6 +1523,55 @@ export default function NotesApp() {
     return grouped.filter(([n]) => set.has(n)).length;
   }, [grouped, settings]);
 
+  // Pinned subcategory paths (each = array of strings). A subcategory
+  // is any node with path.length >= 2. Duplicates are keyed by joined
+  // string. Only paths whose notes still exist are kept for display.
+  const pinnedSubcategoryPathKey = (arr) =>
+    (Array.isArray(arr) ? arr : []).map((s) => String(s || "").trim()).join("\u241E");
+  const pinnedSubcategoryPaths = useMemo(() => {
+    const raw = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+    return raw
+      .map((p) => (Array.isArray(p) ? p.map((s) => String(s || "").trim()).filter(Boolean) : []))
+      .filter((p) => p.length >= 2);
+  }, [settings]);
+  const pinnedSubcategoryKeys = useMemo(() => {
+    const s = new Set();
+    for (const p of pinnedSubcategoryPaths) s.add(pinnedSubcategoryPathKey(p));
+    return s;
+  }, [pinnedSubcategoryPaths]);
+  // For each pinned path, gather all notes whose category_path starts
+  // with the pinned path (equal or deeper).
+  const pinnedSubcategoryBuckets = useMemo(() => {
+    if (pinnedSubcategoryPaths.length === 0) return [];
+    const buckets = pinnedSubcategoryPaths.map((path) => ({ path, notes: [] }));
+    const norm = (n) => {
+      const modern = Array.isArray(n?.category_path) ? n.category_path : null;
+      if (modern && modern.length > 0) return modern.map((s) => String(s || "").trim()).filter(Boolean);
+      return [n?.category, n?.subcategory].map((s) => String(s || "").trim()).filter(Boolean);
+    };
+    const startsWith = (p, prefix) => {
+      if (p.length < prefix.length) return false;
+      for (let i = 0; i < prefix.length; i++) if (p[i] !== prefix[i]) return false;
+      return true;
+    };
+    for (const n of processedNotes) {
+      const p = norm(n);
+      if (p.length < 2) continue;
+      // Attach note to the DEEPEST matching pinned bucket only, so a
+      // note nested under two pinned prefixes doesn't duplicate.
+      let bestIdx = -1;
+      let bestLen = -1;
+      for (let i = 0; i < buckets.length; i++) {
+        if (startsWith(p, buckets[i].path) && buckets[i].path.length > bestLen) {
+          bestIdx = i; bestLen = buckets[i].path.length;
+        }
+      }
+      if (bestIdx >= 0) buckets[bestIdx].notes.push(n);
+    }
+    return buckets;
+  }, [pinnedSubcategoryPaths, processedNotes]);
+  const pinnedSubcategoryCount = pinnedSubcategoryBuckets.length;
+
   // Every unique tag across active notes — used for autocomplete in NoteModal
   // and for the InsightsModal top-tag cloud.
   const allTags = useMemo(() => {
@@ -1626,6 +1709,121 @@ export default function NotesApp() {
     );
   };
 
+  // Format a pinned subcategory path for the Green rail header:
+  //   len == 2  →  "Category / SubName"
+  //   len >= 3  →  "Category / … / DirectParent / SubName"
+  const formatPinnedSubLabel = (path) => {
+    const p = Array.isArray(path) ? path : [];
+    if (p.length <= 1) return p.join(" / ");
+    if (p.length === 2) return `${p[0]} / ${p[1]}`;
+    return `${p[0]} / … / ${p[p.length - 2]} / ${p[p.length - 1]}`;
+  };
+
+  const renderPinnedSubcategoriesRail = () => {
+    if (pinnedSubcategoryBuckets.length === 0) return null;
+    const GREEN_ACCENT = "linear-gradient(135deg, #10b981 0%, #14b8a6 100%)";
+    return (
+      <div className="mb-4" data-testid="pinned-subcategories-rail">
+        <CategoryHeader
+          title="Pinned"
+          count={pinnedSubcategoryCount}
+          countNoun={{ singular: "subcategory", plural: "subcategories" }}
+          accent={GREEN_ACCENT}
+          pinned
+          isDark={isDark}
+        />
+        <div>
+          {pinnedSubcategoryBuckets.map(({ path, notes: bucketNotes }) => {
+            const key = path.map((s) => String(s || "").trim()).join("\u241E");
+            const isOpen = !!pinnedSubOpenState[key];
+            const label = formatPinnedSubLabel(path);
+            const testLabel = path[path.length - 1];
+            return (
+              <div
+                key={key}
+                className={`relative rounded-md border overflow-hidden bg-transparent mb-1.5 ${isDark ? "border-white/10" : "border-gray-200"}`}
+                data-testid={`pinned-sub-item-${testLabel}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => togglePinnedSubOpen(key)}
+                  aria-expanded={isOpen}
+                  className={`w-full flex items-center gap-2 px-2.5 py-2 pr-9 text-left transition-colors ${
+                    isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"
+                  }`}
+                  data-testid={`pinned-sub-toggle-${testLabel}`}
+                >
+                  <div
+                    className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 shadow"
+                    style={{ background: GREEN_ACCENT }}
+                    aria-hidden="true"
+                  >
+                    <Pin className="w-3 h-3 text-white" strokeWidth={2.6} fill="currentColor" />
+                  </div>
+                  <span
+                    className={`text-sm truncate flex-1 transition-colors ${
+                      isOpen
+                        ? 'font-bold'
+                        : isDark ? 'text-white font-medium' : 'text-gray-800 font-medium'
+                    }`}
+                    style={isOpen
+                      ? { color: '#ffffff', WebkitTextFillColor: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }
+                      : undefined}
+                  >
+                    {label}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] flex-shrink-0 ${isDark ? "" : "text-gray-800 border-gray-300"}`}
+                  >
+                    {bucketNotes.length}
+                  </Badge>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""} ${
+                      isDark ? "text-slate-400" : "text-gray-500"
+                    }`}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleTogglePinSubcategory(path); }}
+                  aria-label={`Unpin ${testLabel} from top`}
+                  title="Pinned subcategory — tap to unpin"
+                  className="absolute right-1 top-1 w-7 h-7 inline-flex items-center justify-center rounded-md text-emerald-400 hover:bg-emerald-500/10"
+                  data-testid={`pinned-sub-unpin-${testLabel}`}
+                >
+                  <Pin className="w-3.5 h-3.5" strokeWidth={2.4} fill="currentColor" />
+                </button>
+                <AccordionBody open={isOpen}>
+                  <div className={`px-3 pb-2 pt-1 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}>
+                    {bucketNotes.length === 0 ? (
+                      <div className={`text-center text-[11px] italic py-2 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                        No notes in this subcategory
+                      </div>
+                    ) : (
+                      bucketNotes.map((note) => (
+                        <AccordionNoteItem
+                          key={note.id}
+                          note={note}
+                          onEdit={openEditModal}
+                          onDelete={handleDeleteNote}
+                          onShare={openShareModal}
+                          onFullScreen={openFullScreen}
+                          onTogglePin={handleTogglePin}
+                          isDark={isDark}
+                        />
+                      ))
+                    )}
+                  </div>
+                </AccordionBody>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const renderNotes = () => {
     if (processedNotes.length === 0) {
       const emptyCopy = searchQuery
@@ -1700,8 +1898,13 @@ export default function NotesApp() {
                       />
                     </div>
                   )}
-                  {grouped.map(([cat, items], catIdx) => (
-                    <Draggable key={cat} draggableId={`cat-${cat}`} index={catIdx}>
+                  {pinnedCategoryCount === 0 && renderPinnedSubcategoriesRail()}
+                  {grouped.map(([cat, items], catIdx) => {
+                    const isLastPinned =
+                      pinnedCategoryCount > 0 && catIdx === pinnedCategoryCount - 1;
+                    return (
+                    <React.Fragment key={cat}>
+                    <Draggable draggableId={`cat-${cat}`} index={catIdx}>
                       {(catDp, catSnap) => {
                         // Q8 accordion — only wire toggle when the setting is
                         // on AND this category has notes from a Tile Pack.
@@ -1737,7 +1940,10 @@ export default function NotesApp() {
                         );
                       }}
                     </Draggable>
-                  ))}
+                    {isLastPinned && renderPinnedSubcategoriesRail()}
+                    </React.Fragment>
+                    );
+                  })}
                   {catProv.placeholder}
                 </div>
               )}
@@ -1840,8 +2046,13 @@ export default function NotesApp() {
                     />
                   </div>
                 )}
-                {grouped.map(([cat, items], index) => (
-                  <Draggable key={cat} draggableId={`cat-${cat}`} index={index}>
+                {pinnedCategoryCount === 0 && renderPinnedSubcategoriesRail()}
+                {grouped.map(([cat, items], index) => {
+                  const isLastPinned =
+                    pinnedCategoryCount > 0 && index === pinnedCategoryCount - 1;
+                  return (
+                  <React.Fragment key={cat}>
+                  <Draggable draggableId={`cat-${cat}`} index={index}>
                     {(prov, snap) => (
                       <div ref={prov.innerRef} {...prov.draggableProps}>
                         <CategoryGroup
@@ -1861,11 +2072,16 @@ export default function NotesApp() {
                           onSwipeSelect={handleSwipeSelect}
                           isPinnedTop={(settings?.pinned_categories || []).includes(cat)}
                           onTogglePinTop={() => handleTogglePinTop(cat)}
+                          pinnedSubKeys={pinnedSubcategoryKeys}
+                          onTogglePinSub={handleTogglePinSubcategory}
                         />
                       </div>
                     )}
                   </Draggable>
-                ))}
+                  {isLastPinned && renderPinnedSubcategoriesRail()}
+                  </React.Fragment>
+                  );
+                })}
                 {catProv.placeholder}
                 {uncategorized.length > 0 && (
                   <Droppable droppableId="notes-in-" type="note">

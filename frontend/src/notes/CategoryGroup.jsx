@@ -4,7 +4,7 @@ import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import AccordionNoteItem from "./AccordionNoteItem";
-import NestedSubGroup, { encodeNestedDroppableId } from "./NestedSubGroup";
+import NestedSubGroup, { encodeNestedDroppableId, subcatPathKey } from "./NestedSubGroup";
 import AccordionBody from "../components/AccordionBody";
 
 function getPath(n) {
@@ -27,6 +27,7 @@ export default function CategoryGroup({
   isDark, dragHandleProps, isDragging,
   selectMode = false, isSelected, onToggleSelect, onSwipeSelect,
   isPinnedTop = false, onTogglePinTop = null,
+  pinnedSubKeys = null, onTogglePinSub = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const colorConfig = useMemo(() => {
@@ -52,8 +53,12 @@ export default function CategoryGroup({
       if (!m.has(key)) m.set(key, []);
       m.get(key).push(n);
     }
-    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [children, hasNestedPaths]);
+    const arr = Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+    // Filter out L1 subs that are pinned — they render in the Green
+    // pinned-subcategories rail at the top of the page.
+    if (!pinnedSubKeys) return arr;
+    return arr.filter(([subLabel]) => !pinnedSubKeys.has(subcatPathKey([category, subLabel])));
+  }, [children, hasNestedPaths, pinnedSubKeys, category]);
   const directTopLevelNotes = useMemo(
     () => (hasNestedPaths ? children.filter((n) => getPath(n).length <= 1) : children),
     [children, hasNestedPaths]
@@ -144,6 +149,8 @@ export default function CategoryGroup({
                   isSelected={isSelected}
                   onToggleSelect={onToggleSelect}
                   onSwipeSelect={onSwipeSelect}
+                  pinnedSubKeys={pinnedSubKeys}
+                  onTogglePinSub={onTogglePinSub}
                 />
               ))}
               {directTopLevelNotes.map((note, idx) => (

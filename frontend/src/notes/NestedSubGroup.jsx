@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Bell, ChevronDown, CornerDownRight, GripVertical } from "lucide-react";
+import { Bell, ChevronDown, CornerDownRight, GripVertical, Pin } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import AccordionNoteItem from "./AccordionNoteItem";
@@ -24,6 +24,14 @@ export function encodeNestedDroppableId(pathArr) {
     .join(NESTED_DROPPABLE_SEP);
 }
 
+// Path serialization used to key pinned subcategory paths.
+export const SUBCAT_KEY_SEP = "\u241E";
+export function subcatPathKey(arr) {
+  return (Array.isArray(arr) ? arr : [])
+    .map((s) => String(s || "").trim())
+    .join(SUBCAT_KEY_SEP);
+}
+
 /**
  * Recursive smoked-glass sub-group renderer used INSIDE CategoryGroup.
  * Rendering starts at `depth = 1` (level 0 = the top-level category
@@ -39,12 +47,15 @@ export default function NestedSubGroup(props) {
     ancestorPath = [],
     onEdit, onDelete, onShare, onFullScreen, onTogglePin,
     selectMode, isSelected, onToggleSelect, onSwipeSelect,
+    pinnedSubKeys = null, onTogglePinSub = null,
   } = props;
   const Self = NestedSubGroup;
 
   const [isOpen, setIsOpen] = useState(false);
 
   const fullPath = useMemo(() => [...ancestorPath, label], [ancestorPath, label]);
+  const fullPathKey = useMemo(() => subcatPathKey(fullPath), [fullPath]);
+  const isPinnedSub = !!(pinnedSubKeys && pinnedSubKeys.has(fullPathKey));
   const droppableId = useMemo(() => encodeNestedDroppableId(fullPath), [fullPath]);
 
   const directNotes = useMemo(
@@ -60,8 +71,12 @@ export default function NestedSubGroup(props) {
       if (!m.has(key)) m.set(key, []);
       m.get(key).push(n);
     }
-    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [bucketNotes, depth]);
+    // Filter out sub-buckets that are pinned — they render in the
+    // Green pinned-subcategories rail at the top of the page.
+    const arr = Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
+    if (!pinnedSubKeys) return arr;
+    return arr.filter(([subLabel]) => !pinnedSubKeys.has(subcatPathKey([...fullPath, subLabel])));
+  }, [bucketNotes, depth, fullPath, pinnedSubKeys]);
 
   const alarmCount = bucketNotes.filter((n) => n.alarm?.enabled).length;
 
@@ -72,7 +87,7 @@ export default function NestedSubGroup(props) {
 
   return (
     <div
-      className={`rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5`}
+      className={`relative rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5`}
       data-testid={`nested-subgroup-${depth}-${label}`}
     >
       <button
@@ -80,8 +95,8 @@ export default function NestedSubGroup(props) {
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors ${
-          isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"
-        }`}
+          onTogglePinSub ? "pr-9" : ""
+        } ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}
         data-testid={`nested-subgroup-toggle-${label}`}
       >
         <CornerDownRight className={`w-3.5 h-3.5 shrink-0 ${isDark ? "text-slate-400" : "text-gray-400"}`} />
@@ -113,6 +128,22 @@ export default function NestedSubGroup(props) {
           }`}
         />
       </button>
+      {onTogglePinSub && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onTogglePinSub(fullPath); }}
+          aria-label={isPinnedSub ? `Unpin subcategory ${label}` : `Pin subcategory ${label}`}
+          title={isPinnedSub ? "Pinned subcategory — tap to unpin" : "Tap to pin subcategory to top"}
+          className={`absolute right-1 top-1 w-7 h-7 inline-flex items-center justify-center rounded-md transition-colors ${
+            isPinnedSub
+              ? "text-emerald-400 hover:bg-emerald-500/10"
+              : (isDark ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-gray-400 hover:text-gray-700 hover:bg-black/5")
+          }`}
+          data-testid={`subcategory-pin-${label}`}
+        >
+          <Pin className="w-3.5 h-3.5" strokeWidth={2.4} fill={isPinnedSub ? "currentColor" : "none"} />
+        </button>
+      )}
 
       {isOpen && (
         <Droppable droppableId={droppableId} type="note">
@@ -142,6 +173,8 @@ export default function NestedSubGroup(props) {
                   isSelected={isSelected}
                   onToggleSelect={onToggleSelect}
                   onSwipeSelect={onSwipeSelect}
+                  pinnedSubKeys={pinnedSubKeys}
+                  onTogglePinSub={onTogglePinSub}
                 />
               ))}
               {directNotes.map((note, idx) => (
