@@ -26,6 +26,7 @@ export default function CategoryHeader({
   title, accent, notes, count, pinned = false, isDark,
   dragHandleProps = null, onToggle, isOpen,
   isPinnedTop = false, onTogglePinTop = null,
+  countNoun = { singular: "tile", plural: "tiles" },
 }) {
   const derived = accent || (() => {
     // 1. Prefer the pack's own accent if any note in this group was applied
@@ -66,7 +67,7 @@ export default function CategoryHeader({
         </div>
         {typeof displayCount === "number" && (
           <div className={`text-[11px] ${isDark ? "text-slate-400" : "text-gray-500"}`}>
-            {displayCount} {displayCount === 1 ? "tile" : "tiles"}
+            {displayCount} {displayCount === 1 ? countNoun.singular : countNoun.plural}
           </div>
         )}
       </div>

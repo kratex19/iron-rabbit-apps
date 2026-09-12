@@ -1480,6 +1480,15 @@ export default function NotesApp() {
     [processedNotes]
   );
 
+  // Number of currently-pinned categories that actually exist in the
+  // rendered `grouped` list. Drives the yellow "Pinned N categories"
+  // section header that sits above the first pinned category row.
+  const pinnedCategoryCount = useMemo(() => {
+    const pinned = Array.isArray(settings?.pinned_categories) ? settings.pinned_categories : [];
+    const set = new Set(pinned);
+    return grouped.filter(([n]) => set.has(n)).length;
+  }, [grouped, settings]);
+
   // Every unique tag across active notes — used for autocomplete in NoteModal
   // and for the InsightsModal top-tag cloud.
   const allTags = useMemo(() => {
@@ -1679,6 +1688,18 @@ export default function NotesApp() {
             <Droppable droppableId="category-list-grid" type="category">
               {(catProv) => (
                 <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-icon-grouped">
+                  {pinnedCategoryCount > 0 && (
+                    <div className="mb-2" data-testid="pinned-categories-rail-icon">
+                      <CategoryHeader
+                        title="Pinned"
+                        count={pinnedCategoryCount}
+                        countNoun={{ singular: "category", plural: "categories" }}
+                        accent="linear-gradient(135deg, #f59e0b 0%, #eab308 100%)"
+                        pinned
+                        isDark={isDark}
+                      />
+                    </div>
+                  )}
                   {grouped.map(([cat, items], catIdx) => (
                     <Draggable key={cat} draggableId={`cat-${cat}`} index={catIdx}>
                       {(catDp, catSnap) => {
@@ -1807,6 +1828,18 @@ export default function NotesApp() {
           <Droppable droppableId="category-list" type="category">
             {(catProv) => (
               <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-grouped">
+                {pinnedCategoryCount > 0 && (
+                  <div className="mb-2" data-testid="pinned-categories-rail">
+                    <CategoryHeader
+                      title="Pinned"
+                      count={pinnedCategoryCount}
+                      countNoun={{ singular: "category", plural: "categories" }}
+                      accent="linear-gradient(135deg, #f59e0b 0%, #eab308 100%)"
+                      pinned
+                      isDark={isDark}
+                    />
+                  </div>
+                )}
                 {grouped.map(([cat, items], index) => (
                   <Draggable key={cat} draggableId={`cat-${cat}`} index={index}>
                     {(prov, snap) => (
