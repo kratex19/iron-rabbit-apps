@@ -1819,6 +1819,7 @@ export default function NotesApp() {
           isDark={isDark}
           onToggle={togglePinnedTilesSection}
           isOpen={pinnedTilesSectionOpen}
+          frameTone="blue"
         />
         <AccordionBody open={pinnedTilesSectionOpen}>
           {viewMode === "icon" ? (
@@ -1872,6 +1873,7 @@ export default function NotesApp() {
           isDark={isDark}
           onToggle={togglePinnedSubsSection}
           isOpen={pinnedSubsSectionOpen}
+          frameTone="green"
         />
         <AccordionBody open={pinnedSubsSectionOpen}>
         <div>
@@ -2041,6 +2043,7 @@ export default function NotesApp() {
                         isDark={isDark}
                         onToggle={togglePinnedCatsSection}
                         isOpen={pinnedCatsSectionOpen}
+                        frameTone="yellow"
                       />
                     </div>
                   )}
@@ -2228,6 +2231,7 @@ export default function NotesApp() {
                       isDark={isDark}
                       onToggle={togglePinnedCatsSection}
                       isOpen={pinnedCatsSectionOpen}
+                      frameTone="yellow"
                     />
                   </div>
                 )}

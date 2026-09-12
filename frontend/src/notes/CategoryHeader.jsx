@@ -28,7 +28,25 @@ export default function CategoryHeader({
   isPinnedTop = false, onTogglePinTop = null,
   onDeleteCategory = null,
   countNoun = { singular: "tile", plural: "tiles" },
+  frameTone = null,
 }) {
+  // Optional colored frame around the header row itself (used by the
+  // Blue / Yellow / Green pinned rails so each pinned section is
+  // visually associated with its color).
+  const FRAME_STYLES = {
+    blue: isDark
+      ? "border-2 border-blue-400/70 bg-blue-500/10"
+      : "border-2 border-blue-400 bg-blue-50",
+    yellow: isDark
+      ? "border-2 border-amber-400/70 bg-amber-500/10"
+      : "border-2 border-amber-400 bg-amber-50",
+    green: isDark
+      ? "border-2 border-emerald-400/70 bg-emerald-500/10"
+      : "border-2 border-emerald-400 bg-emerald-50",
+  };
+  const frameClasses = frameTone && FRAME_STYLES[frameTone]
+    ? `${FRAME_STYLES[frameTone]} rounded-2xl px-2 py-1.5`
+    : "";
   const derived = accent || (() => {
     // 1. Prefer the pack's own accent if any note in this group was applied
     //    from a Tile Pack (kept in sync with the pack card in TilePacksModal).
@@ -147,7 +165,7 @@ export default function CategoryHeader({
   if (isCollapsible) {
     return (
       <div
-        className={`flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : ""}`}
+        className={`flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : ""} ${frameClasses}`}
         data-testid={`category-header-${title}`}
       >
         {gripEl}
@@ -168,7 +186,7 @@ export default function CategoryHeader({
 
   return (
     <div
-      className={`flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : ""}`}
+      className={`flex items-center gap-1 px-1 mb-2 rounded-md ${dragHandleProps ? "py-1 -mx-1 px-2" : ""} ${frameClasses}`}
       data-testid={`category-header-${title}`}
     >
       {gripEl}
