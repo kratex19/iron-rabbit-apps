@@ -1960,8 +1960,8 @@ export default function NotesApp() {
   };
 
   const renderPinnedSubcategoriesRail = () => {
-    if (pinnedSubcategoryBuckets.length === 0) return null;
     const GREEN_ACCENT = "linear-gradient(135deg, #10b981 0%, #14b8a6 100%)";
+    const isEmpty = pinnedSubcategoryBuckets.length === 0;
     return (
       <div className="mb-4" data-testid="pinned-subcategories-rail">
         <CategoryHeader
@@ -1977,7 +1977,19 @@ export default function NotesApp() {
         />
         <AccordionBody open={pinnedSubsSectionOpen}>
         <div>
-          {pinnedSubcategoryBuckets.map(({ path, notes: bucketNotes }) => {
+          {isEmpty && (
+            <div
+              className={`text-xs px-3 py-3 rounded-md border border-dashed ${
+                isDark ? "text-slate-400 border-white/10 bg-white/[0.02]" : "text-gray-500 border-gray-200 bg-gray-50"
+              }`}
+              data-testid="pinned-subs-empty"
+            >
+              No subcategories pinned yet — open any note that lives in a
+              category / subcategory and tap the pin toggle to bring the
+              whole subcategory up here.
+            </div>
+          )}
+          {!isEmpty && pinnedSubcategoryBuckets.map(({ path, notes: bucketNotes }) => {
             const key = path.map((s) => String(s || "").trim()).join("\u241E");
             const isOpen = !!pinnedSubOpenState[key];
             const label = formatPinnedSubLabel(path);
