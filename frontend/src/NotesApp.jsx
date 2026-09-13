@@ -1959,6 +1959,41 @@ export default function NotesApp() {
     return `${p[0]} / … / ${p[p.length - 2]} / ${p[p.length - 1]}`;
   };
 
+  // Always-visible Yellow rail header for pinned CATEGORIES. Renders
+  // with "0 categories" and a friendly hint when no category is pinned,
+  // so the user has a consistent visual anchor and can confirm that a
+  // pin tap actually landed something into the pinned bucket.
+  const renderPinnedCategoriesHeader = (testId = "pinned-categories-rail") => {
+    const YELLOW_ACCENT = "linear-gradient(135deg, #f59e0b 0%, #eab308 100%)";
+    const isEmpty = pinnedCategoryCount === 0;
+    return (
+      <div className="mb-2" data-testid={testId}>
+        <CategoryHeader
+          title="Pinned"
+          count={pinnedCategoryCount}
+          countNoun={{ singular: "category", plural: "categories" }}
+          accent={YELLOW_ACCENT}
+          pinned
+          isDark={isDark}
+          onToggle={togglePinnedCatsSection}
+          isOpen={pinnedCatsSectionOpen}
+          frameTone="yellow"
+        />
+        {isEmpty && pinnedCatsSectionOpen && (
+          <div
+            className={`mt-1 mb-3 text-xs px-3 py-3 rounded-md border border-dashed ${
+              isDark ? "text-slate-400 border-white/10 bg-white/[0.02]" : "text-gray-500 border-gray-200 bg-gray-50"
+            }`}
+            data-testid="pinned-categories-empty"
+          >
+            No categories pinned yet — tap the pin icon on any category
+            header below to bring it up here.
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderPinnedSubcategoriesRail = () => {
     const GREEN_ACCENT = "linear-gradient(135deg, #10b981 0%, #14b8a6 100%)";
     const isEmpty = pinnedSubcategoryBuckets.length === 0;
@@ -2144,22 +2179,7 @@ export default function NotesApp() {
             <Droppable droppableId="category-list-grid" type="category">
               {(catProv) => (
                 <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-icon-grouped">
-                  {pinnedCategoryCount > 0 && (
-                    <div className="mb-2" data-testid="pinned-categories-rail-icon">
-                      <CategoryHeader
-                        title="Pinned"
-                        count={pinnedCategoryCount}
-                        countNoun={{ singular: "category", plural: "categories" }}
-                        accent="linear-gradient(135deg, #f59e0b 0%, #eab308 100%)"
-                        pinned
-                        isDark={isDark}
-                        onToggle={togglePinnedCatsSection}
-                        isOpen={pinnedCatsSectionOpen}
-                        frameTone="yellow"
-                      />
-                    </div>
-                  )}
-                  {pinnedCategoryCount === 0 && renderPinnedSubcategoriesRail()}
+                  {renderPinnedCategoriesHeader("pinned-categories-rail-icon")}
                   {pinnedCategoryCount > 0 && (
                     <AccordionBody open={pinnedCatsSectionOpen}>
                       {grouped.slice(0, pinnedCategoryCount).map(([cat, items], pIdx) => (
@@ -2201,7 +2221,7 @@ export default function NotesApp() {
                       ))}
                     </AccordionBody>
                   )}
-                  {pinnedCategoryCount > 0 && renderPinnedSubcategoriesRail()}
+                  {renderPinnedSubcategoriesRail()}
                   {grouped.slice(pinnedCategoryCount).map(([cat, items], uIdx) => {
                     const catIdx = pinnedCategoryCount + uIdx;
                     return (
@@ -2332,22 +2352,7 @@ export default function NotesApp() {
           <Droppable droppableId="category-list" type="category">
             {(catProv) => (
               <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-grouped">
-                {pinnedCategoryCount > 0 && (
-                  <div className="mb-2" data-testid="pinned-categories-rail">
-                    <CategoryHeader
-                      title="Pinned"
-                      count={pinnedCategoryCount}
-                      countNoun={{ singular: "category", plural: "categories" }}
-                      accent="linear-gradient(135deg, #f59e0b 0%, #eab308 100%)"
-                      pinned
-                      isDark={isDark}
-                      onToggle={togglePinnedCatsSection}
-                      isOpen={pinnedCatsSectionOpen}
-                      frameTone="yellow"
-                    />
-                  </div>
-                )}
-                {pinnedCategoryCount === 0 && renderPinnedSubcategoriesRail()}
+                {renderPinnedCategoriesHeader("pinned-categories-rail")}
                 {pinnedCategoryCount > 0 && (
                   <AccordionBody open={pinnedCatsSectionOpen}>
                     {grouped.slice(0, pinnedCategoryCount).map(([cat, items], pIdx) => (
@@ -2382,7 +2387,7 @@ export default function NotesApp() {
                     ))}
                   </AccordionBody>
                 )}
-                {pinnedCategoryCount > 0 && renderPinnedSubcategoriesRail()}
+                {renderPinnedSubcategoriesRail()}
                 {grouped.slice(pinnedCategoryCount).map(([cat, items], uIdx) => {
                   const index = pinnedCategoryCount + uIdx;
                   return (
