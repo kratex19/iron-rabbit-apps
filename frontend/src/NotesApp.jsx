@@ -869,13 +869,21 @@ export default function NotesApp() {
       if (pinIntent && Array.isArray(pinIntent.path) && pinIntent.path.length >= 2) {
         const path = pinIntent.path.map((s) => String(s || "").trim()).filter(Boolean);
         const key = path.join("\u241E");
-        const list = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+        // Read the freshest settings from storage — the React `settings`
+        // closure captured at render time can be stale mid-save (esp.
+        // right after another Green-rail pin), causing the new path to
+        // be dropped or duplicated. IndexedDB is the source of truth.
+        const currentSettings = (await StorageService.getSettings()) || {};
+        const list = Array.isArray(currentSettings.pinned_subcategory_paths) ? currentSettings.pinned_subcategory_paths : [];
         const already = list.some((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") === key);
         let next = list;
         if (pinIntent.wants && !already) next = [...list, path];
         else if (!pinIntent.wants && already) next = list.filter((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") !== key);
         if (next !== list) {
-          await StorageService.saveSettings({ ...(settings || {}), pinned_subcategory_paths: next });
+          await StorageService.saveSettings({ pinned_subcategory_paths: next });
+          // Auto-expand the Green rail so the freshly pinned sub is
+          // immediately visible to the user.
+          if (pinIntent.wants && !already) setPinnedSubsSectionOpen(true);
         }
       }
       fetchData();
@@ -1122,7 +1130,8 @@ export default function NotesApp() {
       const cleanPath = path.map((s) => String(s || "").trim()).filter(Boolean);
       if (cleanPath.length >= 2) {
         const key = cleanPath.join("\u241E");
-        const list = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+        const current = (await StorageService.getSettings()) || {};
+        const list = Array.isArray(current.pinned_subcategory_paths) ? current.pinned_subcategory_paths : [];
         const alreadySubPinned = list.some((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") === key);
         // If either the note itself is (legacy) pinned OR the sub is
         // pinned, this tap is an "unpin" — otherwise it's a "pin".
@@ -1130,7 +1139,7 @@ export default function NotesApp() {
         const nextList = alreadySubPinned
           ? list.filter((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") !== key)
           : (isCurrentlyPinned ? list : [...list, cleanPath]);
-        await StorageService.saveSettings({ ...(settings || {}), pinned_subcategory_paths: nextList });
+        await StorageService.saveSettings({ pinned_subcategory_paths: nextList });
         // Always sync the note's own pin flag off — the Green rail is
         // the source of truth for nested paths.
         if (existing.pinned) {
@@ -1549,12 +1558,15 @@ export default function NotesApp() {
   // categories keep the order they were pinned.
   const handleTogglePinTop = async (cat) => {
     try {
-      const list = Array.isArray(settings?.pinned_categories) ? settings.pinned_categories : [];
+      // Read fresh from IndexedDB to avoid clobbering pins made in the
+      // last few ms by other flows (editor save / tile pin).
+      const current = (await StorageService.getSettings()) || {};
+      const list = Array.isArray(current.pinned_categories) ? current.pinned_categories : [];
       const wasPinned = list.includes(cat);
       const next = wasPinned ? list.filter((n) => n !== cat) : [...list, cat];
-      const patch = { ...(settings || {}), pinned_categories: next };
-      await StorageService.saveSettings(patch);
+      await StorageService.saveSettings({ pinned_categories: next });
       haptic("milestone");
+      if (!wasPinned) setPinnedCatsSectionOpen(true);
       toast.success(wasPinned ? `"${cat}" unpinned from top` : `"${cat}" pinned to top`);
       fetchData();
     } catch (err) {
@@ -1571,14 +1583,15 @@ export default function NotesApp() {
       const arr = Array.isArray(path) ? path : [];
       if (arr.length < 2) return; // must be a subcategory, not a top-level cat
       const key = arr.map((s) => String(s || "").trim()).join("\u241E");
-      const list = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+      const current = (await StorageService.getSettings()) || {};
+      const list = Array.isArray(current.pinned_subcategory_paths) ? current.pinned_subcategory_paths : [];
       const has = list.some((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") === key);
       const next = has
         ? list.filter((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") !== key)
         : [...list, arr.map((s) => String(s || "").trim())];
-      const patch = { ...(settings || {}), pinned_subcategory_paths: next };
-      await StorageService.saveSettings(patch);
+      await StorageService.saveSettings({ pinned_subcategory_paths: next });
       haptic("milestone");
+      if (!has) setPinnedSubsSectionOpen(true);
       const label = arr[arr.length - 1];
       toast.success(has ? `"${label}" unpinned` : `"${label}" pinned to top`);
       fetchData();
