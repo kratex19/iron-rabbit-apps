@@ -1111,6 +1111,39 @@ export default function NotesApp() {
     try {
       const existing = await StorageService.getNote(noteId);
       if (!existing) return;
+      // Smart pin — same semantics as the pin toggle inside NoteModal:
+      //   flat note (path < 2)   → toggles note.pinned (Blue rail)
+      //   nested note (path >= 2) → toggles subcategory pin (Green rail),
+      //                              adds/removes the full category_path
+      //                              in settings.pinned_subcategory_paths
+      const path = Array.isArray(existing.category_path) && existing.category_path.length > 0
+        ? existing.category_path
+        : [existing.category, existing.subcategory].filter(Boolean);
+      const cleanPath = path.map((s) => String(s || "").trim()).filter(Boolean);
+      if (cleanPath.length >= 2) {
+        const key = cleanPath.join("\u241E");
+        const list = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
+        const alreadySubPinned = list.some((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") === key);
+        // If either the note itself is (legacy) pinned OR the sub is
+        // pinned, this tap is an "unpin" — otherwise it's a "pin".
+        const isCurrentlyPinned = !!existing.pinned || alreadySubPinned;
+        const nextList = alreadySubPinned
+          ? list.filter((p) => (Array.isArray(p) ? p : []).map((s) => String(s || "").trim()).join("\u241E") !== key)
+          : (isCurrentlyPinned ? list : [...list, cleanPath]);
+        await StorageService.saveSettings({ ...(settings || {}), pinned_subcategory_paths: nextList });
+        // Always sync the note's own pin flag off — the Green rail is
+        // the source of truth for nested paths.
+        if (existing.pinned) {
+          await StorageService.saveNote({ ...existing, pinned: false, updated_at: new Date().toISOString() });
+        }
+        // Auto-expand the Green pinned-subcategories accordion so the
+        // user sees the freshly pinned subcategory land at the top.
+        if (!isCurrentlyPinned) setPinnedSubsSectionOpen(true);
+        haptic("tap");
+        toast.success(isCurrentlyPinned ? "Unpinned subcategory" : "Pinned subcategory to top");
+        fetchData();
+        return;
+      }
       const updated = { ...existing, pinned: !existing.pinned, updated_at: new Date().toISOString() };
       await StorageService.saveNote(updated);
       haptic("tap");
