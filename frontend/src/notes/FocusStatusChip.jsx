@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon, BookOpen } from "lucide-react";
+import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon, BookOpen, Download } from "lucide-react";
 import { haptic } from "../utils/haptic";
 
 /**
@@ -176,6 +176,21 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
                 window.open("/focus-mode-guide.html", "_blank", "noopener");
               }}
               testid="focus-status-menu-guide"
+            />
+            <MenuRow
+              icon={<Download className="w-3.5 h-3.5" />}
+              label="Download guide (ZIP)"
+              onClick={() => {
+                setMenuOpen(false);
+                // Trigger a browser download of the packaged offline guide.
+                const a = document.createElement("a");
+                a.href = "/focus-mode-guide.zip";
+                a.download = "iron-rabbit-focus-mode-guide.zip";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+              }}
+              testid="focus-status-menu-guide-zip"
             />
           </div>,
           document.body
