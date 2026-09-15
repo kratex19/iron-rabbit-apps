@@ -28,7 +28,7 @@ import { Columns3, Minus, Plus, X } from "lucide-react";
 // Device classes + their column-count limits (kept in sync with
 // `useEffectiveGridColumns` below).
 export const DEVICE_CLASSES = [
-  { key: "mobile_portrait",  label: "Mobile portrait",  min: 1, max: 4,  default: 3 },
+  { key: "mobile_portrait",  label: "Mobile portrait",  min: 1, max: 3,  default: 3 },
   { key: "mobile_landscape", label: "Mobile landscape", min: 2, max: 6,  default: 4 },
   { key: "tablet_portrait",  label: "Tablet portrait",  min: 2, max: 6,  default: 5 },
   { key: "tablet_landscape", label: "Tablet landscape", min: 3, max: 8,  default: 7 },
@@ -259,6 +259,12 @@ export function useEffectiveGridColumns(gridColumns) {
 
 function resolveColumns(gridColumns) {
   const merged = { ...DEFAULT_GRID_COLUMNS, ...(gridColumns || {}) };
+  // Hard cap: mobile portrait is never wider than 3 tiles, even if a
+  // legacy stored preference asked for 4. Prevents cramped tiles on
+  // phones held vertically.
+  if (typeof merged.mobile_portrait === "number" && merged.mobile_portrait > 3) {
+    merged.mobile_portrait = 3;
+  }
   const w = typeof window === "undefined" ? 1024 : window.innerWidth;
   const h = typeof window === "undefined" ? 768 : window.innerHeight;
   const portrait = h >= w;

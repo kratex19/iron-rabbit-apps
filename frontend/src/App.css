@@ -665,6 +665,17 @@
     gap: var(--ir-gap);
 }
 
+/* Hard cap on mobile portrait — never render more than 3 tiles per row
+   even when the fluid auto-fill would otherwise fit 4. Applies only to
+   phones held vertically; landscape / tablet / desktop continue to use
+   the fluid rule above. The user's stored preference (applied inline
+   on `.notes-grid`) has higher specificity and always wins. */
+@media (max-width: 600px) and (orientation: portrait) {
+    .notes-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 /* Legacy fallback — kept in case anything still toggles `hidden`
    directly on a `.notes-grid`. Newer code uses `AccordionBody`. */
 .notes-grid.hidden {
