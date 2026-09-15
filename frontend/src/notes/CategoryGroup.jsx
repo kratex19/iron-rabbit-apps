@@ -6,6 +6,7 @@ import { NOTE_COLORS, getNoteColorStyle } from "./constants";
 import AccordionNoteItem from "./AccordionNoteItem";
 import NestedSubGroup, { encodeNestedDroppableId, subcatPathKey } from "./NestedSubGroup";
 import AccordionBody from "../components/AccordionBody";
+import HierarchyPathButton from "./HierarchyPathButton";
 
 function getPath(n) {
   const modern = Array.isArray(n?.category_path) ? n.category_path : null;
@@ -107,6 +108,13 @@ export default function CategoryGroup({
               : undefined}
             data-testid="category-title"
           >{category}</span>
+          <HierarchyPathButton
+            path={[category]}
+            size="md"
+            isDark={isDark}
+            label={`Show hierarchy for ${category}`}
+            testid={`category-hierarchy-${category}`}
+          />
           <Badge variant="outline" className={`text-xs flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`} data-testid="category-count">{children.length}</Badge>
           {alarmCount > 0 && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
           <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''} ${isDark ? 'text-slate-400' : 'text-gray-500'}`} />

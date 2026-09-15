@@ -3,6 +3,7 @@ import { Bell, ChevronDown, CornerDownRight, GripVertical, Pin, Trash2 } from "l
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
 import AccordionNoteItem from "./AccordionNoteItem";
+import HierarchyPathButton from "./HierarchyPathButton";
 
 /**
  * Extract the nested category path off a note. Prefers the modern
@@ -104,6 +105,13 @@ export default function NestedSubGroup(props) {
         <span className={`text-[10px] uppercase tracking-wider shrink-0 ${isDark ? "text-slate-500" : "text-gray-400"}`}>
           L{depth + 1}
         </span>
+        <HierarchyPathButton
+          path={fullPath}
+          size="sm"
+          isDark={isDark}
+          label={`Show hierarchy for ${label}`}
+          testid={`subcategory-hierarchy-${label}`}
+        />
         <span
           className={`text-sm truncate flex-1 transition-colors ${
             isOpen
