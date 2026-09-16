@@ -1,5 +1,5 @@
 import React from "react";
-import { ListTree, Home } from "lucide-react";
+import { ListTree, Home, Folder, FileText } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /**
@@ -85,6 +85,10 @@ export default function HierarchyPathButton({
           )}
           {clean.map((seg, i) => {
             const isLast = i === clean.length - 1;
+            // Match the mockup's popup style: folder glyph for
+            // intermediate segments, file glyph for the current
+            // (leaf) item. Purely visual — hierarchy data is unchanged.
+            const NodeIcon = isLast ? FileText : Folder;
             return (
               <div
                 key={`${i}-${seg}`}
@@ -100,6 +104,14 @@ export default function HierarchyPathButton({
                 >
                   └──
                 </span>
+                <NodeIcon
+                  className={`w-3.5 h-3.5 mt-1 mr-1.5 shrink-0 ${
+                    isLast
+                      ? "text-blue-500"
+                      : isDark ? "text-amber-300" : "text-amber-500"
+                  }`}
+                  aria-hidden="true"
+                />
                 <span
                   className={`leading-6 break-words ${
                     isLast
