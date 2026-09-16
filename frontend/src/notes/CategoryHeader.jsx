@@ -1,6 +1,7 @@
 import React from "react";
 import { Sparkles, Pin, ChevronDown, GripVertical, Trash2 } from "lucide-react";
 import { NOTE_COLORS } from "./constants";
+import HierarchyPathButton from "./HierarchyPathButton";
 
 /**
  * Styled section header that mimics the pack-card header in
@@ -29,6 +30,7 @@ export default function CategoryHeader({
   onDeleteCategory = null,
   countNoun = { singular: "tile", plural: "tiles" },
   frameTone = null,
+  hierarchyPath = null,
 }) {
   // Optional colored frame around the header row itself (used by the
   // Blue / Yellow / Green pinned rails so each pinned section is
@@ -126,6 +128,21 @@ export default function CategoryHeader({
     onTogglePinTop?.();
   };
 
+  // Optional Grid-View hierarchy pop-out — reuses the same approved
+  // blue rounded-square tree button from List View. Renders only when
+  // caller supplies a non-empty `hierarchyPath`. Placed just before
+  // the pin/trash controls so the header action group stays visually
+  // aligned across the app.
+  const hierarchyEl = (Array.isArray(hierarchyPath) && hierarchyPath.length > 0) ? (
+    <HierarchyPathButton
+      path={hierarchyPath}
+      size="md"
+      isDark={isDark}
+      label={`Show hierarchy for ${title}`}
+      testid={`category-hierarchy-grid-${title}`}
+    />
+  ) : null;
+
   const pinEl = onTogglePinTop ? (
     <button
       type="button"
@@ -178,6 +195,7 @@ export default function CategoryHeader({
         >
           {inner}
         </button>
+        {hierarchyEl}
         {pinEl}
         {trashEl}
       </div>
@@ -191,6 +209,7 @@ export default function CategoryHeader({
     >
       {gripEl}
       <div className="flex-1 flex items-center gap-2">{inner}</div>
+      {hierarchyEl}
       {pinEl}
       {trashEl}
     </div>

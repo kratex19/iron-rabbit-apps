@@ -2252,6 +2252,7 @@ export default function NotesApp() {
                                   isPinnedTop
                                   onTogglePinTop={() => handleTogglePinTop(cat)}
                                   onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
+                                  hierarchyPath={[cat]}
                                 />
                                 <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                                   <api.Section
@@ -2294,6 +2295,7 @@ export default function NotesApp() {
                             isPinnedTop={false}
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                             onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
+                            hierarchyPath={[cat]}
                           />
                           <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                             <api.Section
