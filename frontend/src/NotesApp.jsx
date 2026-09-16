@@ -21,11 +21,10 @@ import notificationService, { isInFocusWindow } from "./notifications/notificati
 import NoteTile from "./components/NoteTile";
 import AccordionBody from "./components/AccordionBody";
 // Grid-View accordion timing — slightly slower than List View's 220 ms
-// because tile paint / gradient decode is heavier. Requested by user
-// on 2026-09-17: +30 % open, +35 % close vs the locked List-View
-// default. List View continues to use AccordionBody's built-in default.
-const GRID_ACCORDION_OPEN_MS = 286; // 220 × 1.30
-const GRID_ACCORDION_CLOSE_MS = 297; // 220 × 1.35
+// because tile paint / gradient decode is heavier. Tuned live with the
+// user; last request: still too fast at 286/297 → bumped to 360/400.
+const GRID_ACCORDION_OPEN_MS = 360; // ~+64 % vs List default
+const GRID_ACCORDION_CLOSE_MS = 400; // ~+82 % vs List default
 import SortableTileGrid from "./components/SortableTileGrid";
 import SortableTilesProvider from "./components/SortableTilesProvider";
 import { haptic } from "./utils/haptic";
