@@ -37,23 +37,27 @@ import React, { useEffect, useRef } from "react";
 // ─────────────────────────────────────────────────────────────────────
 // 🔒 LOCKED — approved List-View accordion timing (2026-09-16)
 //
-// Both List View AND Grid View use this shared component. Timing was
-// tuned to feel smooth on List View and locked with user approval:
+// Both List View AND Grid View use this shared component. Default
+// timing is the List-View approved value:
 //
 //   DURATION = 220 ms (open + close)
 //   EASE     = cubic-bezier(0.22, 1, 0.36, 1)
 //   fade / opacity = none — pure height slide
 //   rerenders during animation = 0 (ref-based, no setState)
 //
-// DO NOT change DURATION or EASE. If Grid View feels different in
-// future, it is NOT the accordion timing — investigate tile-paint
-// cost, image decode, or nested layout instead. Any change here
-// affects EVERY accordion in the app.
+// DO NOT change the DEFAULT_DURATION or EASE constants — List View
+// depends on them.
+//
+// If a caller needs a different duration (e.g. Grid View wants a
+// slightly slower open/close because tile paint takes more work),
+// pass explicit `openDuration` / `closeDuration` props in ms.
 // ─────────────────────────────────────────────────────────────────────
-const DURATION = 220;
+const DEFAULT_DURATION = 220;
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
-export default function AccordionBody({ open, children }) {
+export default function AccordionBody({ open, children, openDuration, closeDuration }) {
+  const openMs = typeof openDuration === "number" ? openDuration : DEFAULT_DURATION;
+  const closeMs = typeof closeDuration === "number" ? closeDuration : DEFAULT_DURATION;
   const ref = useRef(null);
   const firstRun = useRef(true);
   // Track any in-flight rAF / timeout so a rapid re-toggle cancels
@@ -93,13 +97,13 @@ export default function AccordionBody({ open, children }) {
       el.offsetHeight;
       const target = el.scrollHeight;
       const raf = requestAnimationFrame(() => {
-        el.style.transition = `height ${DURATION}ms ${EASE}`;
+        el.style.transition = `height ${openMs}ms ${EASE}`;
         el.style.height = `${target}px`;
       });
       const t = setTimeout(() => {
         // Drop every inline style so RBD sees a plain <div> when idle.
         el.style.cssText = "";
-      }, DURATION + 40);
+      }, openMs + 40);
       cleanupRef.current = () => {
         cancelAnimationFrame(raf);
         clearTimeout(t);
@@ -114,7 +118,7 @@ export default function AccordionBody({ open, children }) {
       // eslint-disable-next-line no-unused-expressions
       el.offsetHeight;
       const raf = requestAnimationFrame(() => {
-        el.style.transition = `height ${DURATION}ms ${EASE}`;
+        el.style.transition = `height ${closeMs}ms ${EASE}`;
         el.style.height = "0px";
       });
       cleanupRef.current = () => cancelAnimationFrame(raf);

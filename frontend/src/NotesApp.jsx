@@ -20,6 +20,12 @@ import StorageService from "./storage/storageService";
 import notificationService, { isInFocusWindow } from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
 import AccordionBody from "./components/AccordionBody";
+// Grid-View accordion timing — slightly slower than List View's 220 ms
+// because tile paint / gradient decode is heavier. Requested by user
+// on 2026-09-17: +30 % open, +35 % close vs the locked List-View
+// default. List View continues to use AccordionBody's built-in default.
+const GRID_ACCORDION_OPEN_MS = 286; // 220 × 1.30
+const GRID_ACCORDION_CLOSE_MS = 297; // 220 × 1.35
 import SortableTileGrid from "./components/SortableTileGrid";
 import SortableTilesProvider from "./components/SortableTilesProvider";
 import { haptic } from "./utils/haptic";
@@ -2207,7 +2213,7 @@ export default function NotesApp() {
                 <div ref={catProv.innerRef} {...catProv.droppableProps} data-testid="notes-icon-grouped">
                   {renderPinnedCategoriesHeader("pinned-categories-rail-icon")}
                   {pinnedCategoryCount > 0 && (
-                    <AccordionBody open={pinnedCatsSectionOpen}>
+                    <AccordionBody open={pinnedCatsSectionOpen} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                       {grouped.slice(0, pinnedCategoryCount).map(([cat, items], pIdx) => (
                         <Draggable key={cat} draggableId={`cat-${cat}`} index={pIdx}>
                           {(catDp, catSnap) => {
@@ -2237,7 +2243,7 @@ export default function NotesApp() {
                                   onTogglePinTop={() => handleTogglePinTop(cat)}
                                   onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                                 />
-                                <AccordionBody open={open}>
+                                <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                                   <api.Section
                                     pack={{ id: cat, notes: items }}
                                     gridStyle={gridStyle}
@@ -2279,7 +2285,7 @@ export default function NotesApp() {
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                             onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                           />
-                          <AccordionBody open={open}>
+                          <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                             <api.Section
                               pack={{ id: cat, notes: items }}
                               gridStyle={gridStyle}
@@ -2307,7 +2313,7 @@ export default function NotesApp() {
                     isOpen={uncategorizedOpen}
                   />
                 )}
-                <AccordionBody open={grouped.length === 0 || uncategorizedOpen}>
+                <AccordionBody open={grouped.length === 0 || uncategorizedOpen} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                   <api.Section
                     pack={{ id: "", notes: uncategorized }}
                     gridStyle={gridStyle}
