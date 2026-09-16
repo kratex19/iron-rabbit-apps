@@ -34,6 +34,22 @@ import React, { useEffect, useRef } from "react";
  *   `ref.current.style` directly and never calls setState during the
  *   animation, so children render exactly once.
  */
+// ─────────────────────────────────────────────────────────────────────
+// 🔒 LOCKED — approved List-View accordion timing (2026-09-16)
+//
+// Both List View AND Grid View use this shared component. Timing was
+// tuned to feel smooth on List View and locked with user approval:
+//
+//   DURATION = 220 ms (open + close)
+//   EASE     = cubic-bezier(0.22, 1, 0.36, 1)
+//   fade / opacity = none — pure height slide
+//   rerenders during animation = 0 (ref-based, no setState)
+//
+// DO NOT change DURATION or EASE. If Grid View feels different in
+// future, it is NOT the accordion timing — investigate tile-paint
+// cost, image decode, or nested layout instead. Any change here
+// affects EVERY accordion in the app.
+// ─────────────────────────────────────────────────────────────────────
 const DURATION = 220;
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
