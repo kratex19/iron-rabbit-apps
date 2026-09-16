@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 /**
  * AccordionBody — animated collapse/expand wrapper that doesn't
@@ -14,70 +14,104 @@ import React, { useEffect, useRef, useState } from "react";
  *   over the place" and category drag was disabled.
  *
  * How this fixes it:
- *   - When OPEN and idle, we render a plain `<div>` with no inline
- *     style at all — RBD sees a vanilla ancestor and its scroll /
- *     position math stays correct.
+ *   - When OPEN and idle, the wrapper `<div>` has no inline height /
+ *     overflow / transition — RBD sees a vanilla ancestor and its
+ *     scroll / position math stays correct.
  *   - When CLOSED and idle, `height: 0; overflow: hidden` — user
  *     can't drop into a collapsed section (matches intent).
  *   - During a transition, height is measured via `scrollHeight`
- *     and animated to/from 0 with a 500 ms cubic-bezier ease.
- *     Overflow is temporarily hidden to clip the growing content.
+ *     and animated to/from 0 with a short cubic-bezier ease. Overflow
+ *     is temporarily hidden to clip the growing content.
  *   - After the transition ends we drop the inline style so the
- *     open state returns to a plain `<div>` and any subsequent
- *     children additions (new tiles) size naturally.
+ *     open state returns to a plain `<div>`.
+ *
+ * Performance:
+ *   Previous implementation used React state (`setStyle`) for every
+ *   phase of the animation, causing **three full re-renders** of the
+ *   whole subtree on each toggle. With deeply nested tile packs that
+ *   meant hundreds of tiles re-rendering three times → visible
+ *   stagger / skittish feel. The new implementation mutates
+ *   `ref.current.style` directly and never calls setState during the
+ *   animation, so children render exactly once.
  */
 const DURATION = 220;
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 export default function AccordionBody({ open, children }) {
   const ref = useRef(null);
-  // Initial style is idle: `{}` if open (plain div → RBD-transparent),
-  // or `{height:0, overflow:'hidden'}` if closed. First-render is NOT
-  // an animation — we don't want packs to fly in on mount.
-  const [style, setStyle] = useState(open ? {} : { height: 0, overflow: "hidden" });
   const firstRun = useRef(true);
+  // Track any in-flight rAF / timeout so a rapid re-toggle cancels
+  // the previous animation cleanly.
+  const cleanupRef = useRef(null);
 
   useEffect(() => {
-    if (firstRun.current) {
-      firstRun.current = false;
-      // Keep the initial idle style — no animation on mount.
-      return undefined;
-    }
     const el = ref.current;
     if (!el) return undefined;
 
-    if (open) {
-      // FROM height:0 → measured target → auto (idle).
-      const target = el.scrollHeight;
-      setStyle({ height: 0, overflow: "hidden" });
-      const raf = requestAnimationFrame(() => {
-        setStyle({
-          height: `${target}px`,
-          overflow: "hidden",
-          transition: `height ${DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-        });
-      });
-      // After the animation completes, drop the inline style so the
-      // wrapper reverts to a plain <div>. RBD walks ancestors and
-      // finds nothing weird — drag-and-drop math stays correct.
-      const t = setTimeout(() => setStyle({}), DURATION + 40);
-      return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+    // Cancel any in-flight animation from a previous toggle.
+    if (cleanupRef.current) cleanupRef.current();
+    cleanupRef.current = null;
+
+    if (firstRun.current) {
+      firstRun.current = false;
+      // Set idle style with no animation — packs shouldn't fly in on
+      // first mount.
+      if (open) {
+        el.style.cssText = "";
+      } else {
+        el.style.height = "0px";
+        el.style.overflow = "hidden";
+      }
+      return undefined;
     }
 
-    // FROM height:auto → measured (fixed) → 0.
-    const current = el.scrollHeight;
-    setStyle({ height: `${current}px`, overflow: "hidden" });
-    const raf = requestAnimationFrame(() => {
-      setStyle({
-        height: 0,
-        overflow: "hidden",
-        transition: `height ${DURATION}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+    if (open) {
+      // FROM height:0 → measured target → clear (idle).
+      // Start pinned at 0 so the transition has a defined starting frame.
+      el.style.height = "0px";
+      el.style.overflow = "hidden";
+      el.style.transition = "";
+      // Force layout so the browser commits the 0px starting point
+      // before we set the target height.
+      // eslint-disable-next-line no-unused-expressions
+      el.offsetHeight;
+      const target = el.scrollHeight;
+      const raf = requestAnimationFrame(() => {
+        el.style.transition = `height ${DURATION}ms ${EASE}`;
+        el.style.height = `${target}px`;
       });
-    });
-    return () => cancelAnimationFrame(raf);
+      const t = setTimeout(() => {
+        // Drop every inline style so RBD sees a plain <div> when idle.
+        el.style.cssText = "";
+      }, DURATION + 40);
+      cleanupRef.current = () => {
+        cancelAnimationFrame(raf);
+        clearTimeout(t);
+      };
+    } else {
+      // FROM height:auto → measured (fixed) → 0.
+      const current = el.scrollHeight;
+      el.style.height = `${current}px`;
+      el.style.overflow = "hidden";
+      el.style.transition = "";
+      // Commit the fixed height first.
+      // eslint-disable-next-line no-unused-expressions
+      el.offsetHeight;
+      const raf = requestAnimationFrame(() => {
+        el.style.transition = `height ${DURATION}ms ${EASE}`;
+        el.style.height = "0px";
+      });
+      cleanupRef.current = () => cancelAnimationFrame(raf);
+    }
+
+    return () => {
+      if (cleanupRef.current) cleanupRef.current();
+      cleanupRef.current = null;
+    };
   }, [open]);
 
   return (
-    <div ref={ref} style={style} data-accordion-body={open ? "open" : "closed"}>
+    <div ref={ref} data-accordion-body={open ? "open" : "closed"}>
       {children}
     </div>
   );
