@@ -62,7 +62,15 @@ export default function HierarchyPathButton({
         align="start"
         side="bottom"
         sideOffset={6}
-        className={`w-72 max-w-[calc(100vw-2rem)] p-0 overflow-hidden ${
+        // 12-px viewport padding on all edges — Radix uses Floating UI
+        // under the hood, which will now automatically shift or flip
+        // the popover to stay fully in view instead of extending off
+        // the right side on narrower windows or when the trigger sits
+        // near the edge of the container.
+        collisionPadding={12}
+        avoidCollisions
+        sticky="always"
+        className={`w-[min(18rem,calc(100vw-1.5rem))] p-0 overflow-hidden ${
           isDark
             ? "bg-[#0B1221] border-white/10 text-slate-200"
             : "bg-white border-gray-200 text-gray-800"
