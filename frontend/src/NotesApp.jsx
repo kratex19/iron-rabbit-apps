@@ -2211,11 +2211,15 @@ export default function NotesApp() {
                       {grouped.slice(0, pinnedCategoryCount).map(([cat, items], pIdx) => (
                         <Draggable key={cat} draggableId={`cat-${cat}`} index={pIdx}>
                           {(catDp, catSnap) => {
-                            const accordionMode = settings?.pack_accordion_mode || "off";
-                            const hasPack = items.some((n) => n?.pack_id);
-                            const useAccordion = hasPack ? (accordionMode !== "off") : true;
+                            // Tile packs used to skip the accordion when
+                            // `pack_accordion_mode === "off"`. Users found
+                            // that inconsistent — every other category on
+                            // Home is collapsible, so packs should be too.
+                            // The setting now only controls the initial
+                            // open/closed state, never whether the toggle
+                            // exists.
                             const packKey = items.find((n) => n?.pack_id)?.pack_id || cat;
-                            const open = useAccordion ? isPackOpen(packKey) : true;
+                            const open = isPackOpen(packKey);
                             return (
                               <div
                                 ref={catDp.innerRef}
@@ -2227,13 +2231,13 @@ export default function NotesApp() {
                                   notes={items}
                                   isDark={isDark}
                                   dragHandleProps={catDp.dragHandleProps}
-                                  onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
-                                  isOpen={useAccordion ? open : undefined}
+                                  onToggle={() => togglePackOpen(packKey)}
+                                  isOpen={open}
                                   isPinnedTop
                                   onTogglePinTop={() => handleTogglePinTop(cat)}
                                   onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                                 />
-                                <AccordionBody open={!useAccordion || open}>
+                                <AccordionBody open={open}>
                                   <api.Section
                                     pack={{ id: cat, notes: items }}
                                     gridStyle={gridStyle}
@@ -2253,11 +2257,11 @@ export default function NotesApp() {
                     return (
                     <Draggable key={cat} draggableId={`cat-${cat}`} index={catIdx}>
                       {(catDp, catSnap) => {
-                        const accordionMode = settings?.pack_accordion_mode || "off";
-                        const hasPack = items.some((n) => n?.pack_id);
-                        const useAccordion = hasPack ? (accordionMode !== "off") : true;
+                        // Tile packs always render with the accordion —
+                        // `pack_accordion_mode` only affects the initial
+                        // open/closed state (see `isPackOpen`).
                         const packKey = items.find((n) => n?.pack_id)?.pack_id || cat;
-                        const open = useAccordion ? isPackOpen(packKey) : true;
+                        const open = isPackOpen(packKey);
                         return (
                         <div
                           ref={catDp.innerRef}
@@ -2269,13 +2273,13 @@ export default function NotesApp() {
                             notes={items}
                             isDark={isDark}
                             dragHandleProps={catDp.dragHandleProps}
-                            onToggle={useAccordion ? () => togglePackOpen(packKey) : undefined}
-                            isOpen={useAccordion ? open : undefined}
+                            onToggle={() => togglePackOpen(packKey)}
+                            isOpen={open}
                             isPinnedTop={false}
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                             onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                           />
-                          <AccordionBody open={!useAccordion || open}>
+                          <AccordionBody open={open}>
                             <api.Section
                               pack={{ id: cat, notes: items }}
                               gridStyle={gridStyle}

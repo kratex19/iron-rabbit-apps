@@ -26,7 +26,7 @@ import React, { useEffect, useRef, useState } from "react";
  *     open state returns to a plain `<div>` and any subsequent
  *     children additions (new tiles) size naturally.
  */
-const DURATION = 500;
+const DURATION = 220;
 
 export default function AccordionBody({ open, children }) {
   const ref = useRef(null);
