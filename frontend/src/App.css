@@ -666,11 +666,13 @@
 }
 
 /* Hard cap on mobile portrait — never render more than 3 tiles per row
-   even when the fluid auto-fill would otherwise fit 4. Applies only to
-   phones held vertically; landscape / tablet / desktop continue to use
-   the fluid rule above. The user's stored preference (applied inline
-   on `.notes-grid`) has higher specificity and always wins. */
-@media (max-width: 600px) and (orientation: portrait) {
+   even when the fluid auto-fill would otherwise fit 4. Applies to
+   phones held vertically and any portrait-shaped window ≤ 768px so
+   larger phones and narrow desktop windows are covered too.
+   Landscape / tablet-portrait / desktop continue to use the fluid rule
+   above. The user's stored preference (applied inline on `.notes-grid`)
+   has higher specificity and always wins. */
+@media (max-width: 768px) and (orientation: portrait) {
     .notes-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }

@@ -1217,6 +1217,19 @@ export default function NotesApp() {
   // Falls back to the fluid `.notes-grid` behaviour when the user has
   // never customised (initial gridColumns is undefined).
   const effectiveGridColumns = useEffectiveGridColumns(settings?.grid_columns);
+  // One-shot persistence clamp: if a legacy stored value asked for 4
+  // (or more) tiles per row on mobile portrait, rewrite it to 3 so the
+  // Tiles menu reflects the new cap and the setting is stable across
+  // reloads. Runs only when the stored value actually exceeds 3.
+  useEffect(() => {
+    const gc = settings?.grid_columns;
+    if (gc && typeof gc.mobile_portrait === "number" && gc.mobile_portrait > 3) {
+      const clamped = { ...gc, mobile_portrait: 3 };
+      StorageService.saveSettings({ grid_columns: clamped }).then((updated) => {
+        if (updated) setSettings(updated);
+      }).catch(() => { /* non-fatal */ });
+    }
+  }, [settings?.grid_columns?.mobile_portrait]);
   // Inline-style spread applied to every `.notes-grid` render — only
   // sets grid-template-columns when the user has actively customised;
   // otherwise stays empty so the fluid auto-fill CSS keeps working.
