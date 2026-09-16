@@ -268,8 +268,12 @@ function resolveColumns(gridColumns) {
   const w = typeof window === "undefined" ? 1024 : window.innerWidth;
   const h = typeof window === "undefined" ? 768 : window.innerHeight;
   const portrait = h >= w;
-  if (w < 600)  return portrait ? merged.mobile_portrait : merged.mobile_landscape;
-  if (w < 900)  return portrait ? merged.tablet_portrait : merged.mobile_landscape;
+  // Any portrait-oriented device up to 768 CSS-px wide is treated as a
+  // phone. Modern phones commonly report 400–700 CSS-px in portrait
+  // (Pixel Fold, iPhone Pro Max, Galaxy Ultra …) so a 600-px cutoff
+  // would mis-classify them as tablets and skip the 3-tile cap.
+  if (portrait && w < 768) return merged.mobile_portrait;
+  if (w < 900) return portrait ? merged.tablet_portrait : merged.mobile_landscape;
   if (w < 1400) return portrait ? merged.tablet_portrait : merged.tablet_landscape;
   return merged.desktop;
 }
