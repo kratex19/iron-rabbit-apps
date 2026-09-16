@@ -20,11 +20,22 @@ import StorageService from "./storage/storageService";
 import notificationService, { isInFocusWindow } from "./notifications/notificationService";
 import NoteTile from "./components/NoteTile";
 import AccordionBody from "./components/AccordionBody";
-// Grid-View accordion timing — slightly slower than List View's 220 ms
-// because tile paint / gradient decode is heavier. Tuned live with the
-// user; last request: still too fast at 286/297 → bumped to 360/400.
-const GRID_ACCORDION_OPEN_MS = 360; // ~+64 % vs List default
-const GRID_ACCORDION_CLOSE_MS = 400; // ~+82 % vs List default
+// ─────────────────────────────────────────────────────────────────────
+// 🔒 LOCKED — approved Grid-View accordion timing (2026-09-17)
+//
+// User-approved values after live tuning. Slower than List View's
+// 220 ms because Grid tiles have heavier paint work (gradients,
+// icons, images) and need a longer curve to feel smooth.
+//
+//   OPEN  = 360 ms
+//   CLOSE = 400 ms
+//   ease  = shared cubic-bezier(0.22, 1, 0.36, 1) from AccordionBody
+//
+// DO NOT change these values. List View still uses AccordionBody's
+// default 220 ms via the locked constant in AccordionBody.jsx.
+// ─────────────────────────────────────────────────────────────────────
+const GRID_ACCORDION_OPEN_MS = 360;
+const GRID_ACCORDION_CLOSE_MS = 400;
 import SortableTileGrid from "./components/SortableTileGrid";
 import SortableTilesProvider from "./components/SortableTilesProvider";
 import { haptic } from "./utils/haptic";
