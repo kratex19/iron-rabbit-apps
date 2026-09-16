@@ -346,9 +346,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       .map((s) => String(s || "").trim())
       .filter(Boolean);
     // Legacy fields stay in sync with the top two levels so grouping,
-    // filtering, PDF export and search keep working unchanged.
-    const legacyCat = cleanPath[0] || category.trim();
-    const legacySub = cleanPath[1] || subcategory.trim();
+    // filtering, PDF export and search keep working unchanged. When
+    // the path is populated we trust it as the sole source of truth —
+    // stale `category` / `subcategory` state from an existing note
+    // reload can never overwrite the fresh hierarchy the user just
+    // built (which was the "hierarchy collapses on Home" bug).
+    const legacyCat = cleanPath.length > 0 ? cleanPath[0] : category.trim();
+    const legacySub = cleanPath.length > 1 ? cleanPath[1] : (cleanPath.length > 0 ? "" : subcategory.trim());
     const noteData = {
       title: title.trim(), content: safeContent, color, icon, background,
       // Pin semantics depend on where the note lives:

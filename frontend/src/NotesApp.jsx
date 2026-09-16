@@ -1731,9 +1731,21 @@ export default function NotesApp() {
     const uncat = [];
     processedNotes.forEach(n => {
       if (n.pinned) return; // shown in the dedicated pinned rail
-      if (n.category?.trim()) {
-        if (!map.has(n.category)) map.set(n.category, []);
-        map.get(n.category).push(n);
+      // Prefer the modern `category_path[0]` as the top-level bucket
+      // key — it's the source of truth for hierarchy. Falls back to
+      // the legacy `category` field for older notes that never got a
+      // path array (or a migration edge case where `category` is
+      // empty but the path still carries the parent). This is what
+      // keeps a 4-level path like [Main, A, B, C] visible under Main
+      // even if legacy fields got out of sync.
+      const legacyCat = String(n.category || "").trim();
+      const pathTop = Array.isArray(n.category_path) && n.category_path.length > 0
+        ? String(n.category_path[0] || "").trim()
+        : "";
+      const catName = legacyCat || pathTop;
+      if (catName) {
+        if (!map.has(catName)) map.set(catName, []);
+        map.get(catName).push(n);
       } else {
         uncat.push(n);
       }
