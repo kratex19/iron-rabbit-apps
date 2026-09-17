@@ -825,8 +825,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={onClose} className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
-              <Button onClick={handleSave} disabled={saving} className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
+              <Button variant="outline" onClick={onClose} data-testid="note-modal-cancel" className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
+              <Button onClick={handleSave} disabled={saving} data-testid="note-modal-save" className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
                 {saving ? "..." : (note ? t("action.update") : t("action.create"))}
               </Button>
             </div>
