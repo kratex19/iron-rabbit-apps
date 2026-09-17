@@ -427,8 +427,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div>
+          <div className="space-y-3 min-w-0 overflow-x-hidden">
+            <div className="min-w-0">
               <label className={`text-xs mb-1 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.title")}</label>
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("note.title_placeholder")} className={`h-9 ${isDark ? 'bg-black/20 border-white/10 text-white placeholder:text-slate-600' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 caret-indigo-600'}`} data-testid="note-title-input" />
             </div>
