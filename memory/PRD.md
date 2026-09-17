@@ -57,8 +57,9 @@ English only.
 - `HierarchyPathButton` in List + Grid category/subcategory headers (v130–141).
 - Deep-hierarchy flattening bug fix (v142).
 - Post-v142 strict data+render verification (iteration_64 — 5/5 passed).
-- **Deep-Hierarchy Health Check** — Settings → "Fix orphaned notes" (idempotent scan-and-repair of pre-v142 notes whose legacy `category`/`subcategory` drifted from `category_path`) (v143).
-- **Hierarchy Jump Shortcut** — long-press (500 ms) the blue tree icon on any category or subcategory row to filter Home to just that `category_path` prefix; dismissible pill above the notes area; toast with inline "Clear" action; short tap still opens the popover (v143).
+- **Deep-Hierarchy Health Check** — Settings → "Fix orphaned notes" (v143).
+- **Hierarchy Jump Shortcut** — long-press blue tree icon filters Home to that `category_path` prefix (v143).
+- **Category/Subcategory pop-out redesign** — the Note Editor's Category-path picker is now a contained, viewport-safe floating panel matching the HierarchyPathButton visual language. Fixed 22rem cap (collapses to `100vw − 1.5rem` on narrow viewports), 60vh internal scroll for unlimited-depth chains, uniform w-4 tree-connector gutter so input width is identical at every depth, Enter-to-append shortcut. Data model + parent→child relationships + existing Hierarchy Pop-Out untouched (v144).
 
 ## Backlog / Roadmap
 - **P1**: Custom Menu Tile Prompt — waiting on user to provide prompt text for the 16th tile action.
