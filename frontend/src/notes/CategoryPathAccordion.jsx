@@ -227,25 +227,27 @@ export default function CategoryPathAccordion({
                 }`}
                 data-testid={`category-path-row-${depth}`}
               >
-                {/* Tree-connector prefix — communicates depth WITHOUT
-                    consuming horizontal room. `└──` glyph at level >0
+                {/* Tree-connector prefix — unified w-4 gutter so the
+                    input column width is IDENTICAL at every depth.
+                    L0 shows a folder glyph; L1+ shows `└──` which
                     matches the HierarchyPathButton popover style. */}
-                {depth === 0 ? (
-                  <FolderTree
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      isDark ? "text-blue-300" : "text-blue-500"
-                    }`}
-                  />
-                ) : (
-                  <span
-                    className={`font-mono text-[11px] leading-none shrink-0 select-none ${
-                      isDark ? "text-slate-500" : "text-gray-400"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    └──
-                  </span>
-                )}
+                <span className="w-4 shrink-0 inline-flex items-center justify-center" aria-hidden="true">
+                  {depth === 0 ? (
+                    <FolderTree
+                      className={`w-3.5 h-3.5 ${
+                        isDark ? "text-blue-300" : "text-blue-500"
+                      }`}
+                    />
+                  ) : (
+                    <span
+                      className={`font-mono text-[11px] leading-none select-none ${
+                        isDark ? "text-slate-500" : "text-gray-400"
+                      }`}
+                    >
+                      └
+                    </span>
+                  )}
+                </span>
                 <span
                   className={`text-[10px] uppercase tracking-wider shrink-0 tabular-nums ${
                     isDark ? "text-blue-300/80" : "text-blue-600/80"
