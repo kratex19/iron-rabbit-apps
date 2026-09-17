@@ -11,7 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as chrono from "chrono-node";
 import {
   Plus, Settings, ExternalLink, Sun, Moon,
-  Download, Pin, Package, CalendarDays, Archive, ChevronDown,
+  Download, Pin, Package, CalendarDays, Archive, ChevronDown, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +102,10 @@ export default function NotesApp() {
   const [viewMode, setViewMode] = useState("list");        // 'list' | 'icon'
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false); // legacy flag, no longer used
+  // Hierarchy Jump filter — when set (array of trimmed path segments)
+  // Home only shows notes whose category_path starts with this prefix.
+  // Fired from long-press on the blue tree icon in category rows.
+  const [activePathFilter, setActivePathFilter] = useState(null);
 
   // Modals
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -909,6 +913,70 @@ export default function NotesApp() {
     }
   };
 
+  // Hierarchy Jump: user long-pressed the blue tree icon in a category
+  // or subcategory row. Filter Home to only notes whose category_path
+  // starts with `path`. Clearing the filter is a tap on the pill or a
+  // second long-press. We also scroll to the top so the pill is visible.
+  const handleJumpToPath = (path) => {
+    const clean = (Array.isArray(path) ? path : [])
+      .map((s) => String(s || "").trim())
+      .filter(Boolean);
+    if (clean.length === 0) return;
+    setActivePathFilter(clean);
+    haptic("milestone");
+    toast.success(`Filtered to ${clean.join(" › ")}`, {
+      action: {
+        label: "Clear",
+        onClick: () => setActivePathFilter(null),
+      },
+      duration: 4500,
+    });
+    try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* noop */ }
+  };
+
+  // Deep-Hierarchy Health Check — one-tap safety net for legacy notes
+  // that carry a populated `category_path` but empty (or drifted)
+  // `category` / `subcategory` legacy fields. The v142 fix guarantees
+  // this never happens on NEW writes, but any note that predates that
+  // fix could still have stale legacy fields. Rewriting them here is
+  // idempotent: only notes whose legacy fields do NOT match
+  // category_path[0] / category_path[1] are touched.
+  const handleFixOrphanedNotes = async () => {
+    try {
+      const all = await StorageService.getAllNotes();
+      let fixed = 0;
+      for (const n of all) {
+        if (n.archived_at || n.deleted_at) continue;
+        const path = Array.isArray(n.category_path)
+          ? n.category_path.map((s) => String(s || "").trim()).filter(Boolean)
+          : [];
+        if (path.length === 0) continue;
+        const wantCat = path[0] || "";
+        const wantSub = path[1] || "";
+        const haveCat = String(n.category || "").trim();
+        const haveSub = String(n.subcategory || "").trim();
+        if (haveCat === wantCat && haveSub === wantSub) continue;
+        await StorageService.saveNote({
+          ...n,
+          category: wantCat,
+          subcategory: wantSub,
+          category_path: path,
+          updated_at: new Date().toISOString(),
+        });
+        fixed += 1;
+      }
+      if (fixed === 0) {
+        toast.success("All notes are healthy — no orphaned hierarchies found.");
+      } else {
+        toast.success(`Repaired ${fixed} note${fixed === 1 ? "" : "s"} — legacy fields now match category_path.`);
+        fetchData();
+      }
+    } catch (err) {
+      console.error("handleFixOrphanedNotes:", err);
+      toast.error("Could not run the health check");
+    }
+  };
+
   // Quick Add: user picked an icon in the library → create a preset note.
   const handleQuickAdd = async (icon) => {
     try {
@@ -1701,6 +1769,20 @@ export default function NotesApp() {
         return tags.includes(at);
       });
     }
+    // Hierarchy Jump: keep only notes whose category_path (or legacy
+    // category/subcategory) starts with the pinned filter prefix.
+    if (Array.isArray(activePathFilter) && activePathFilter.length > 0) {
+      const prefix = activePathFilter.map((s) => String(s || "").trim()).filter(Boolean);
+      result = result.filter((n) => {
+        const modern = Array.isArray(n.category_path) ? n.category_path : null;
+        const legacy = [n.category, n.subcategory].filter((s) => s && String(s).trim());
+        const path = (modern && modern.length > 0 ? modern : legacy)
+          .map((s) => String(s || "").trim())
+          .filter(Boolean);
+        if (path.length < prefix.length) return false;
+        return prefix.every((seg, i) => path[i] === seg);
+      });
+    }
     if (filterBy !== "all" && filterBy !== "archived" && filterBy !== "trash") {
       result = result.filter(n => {
         const date = parseISO(n.created_at);
@@ -1724,7 +1806,7 @@ export default function NotesApp() {
       }
     });
     return result;
-  }, [notes, searchQuery, filterBy, sortBy, activeTag, autoLock.panic, autoLock.safeCategory]);
+  }, [notes, searchQuery, filterBy, sortBy, activeTag, autoLock.panic, autoLock.safeCategory, activePathFilter]);
 
   const { grouped, uncategorized } = useMemo(() => {
     const map = new Map();
@@ -2265,6 +2347,7 @@ export default function NotesApp() {
                                   onTogglePinTop={() => handleTogglePinTop(cat)}
                                   onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                                   hierarchyPath={[cat]}
+                                  onJumpToPath={handleJumpToPath}
                                 />
                                 <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                                   <api.Section
@@ -2308,6 +2391,7 @@ export default function NotesApp() {
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                             onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
                             hierarchyPath={[cat]}
+                            onJumpToPath={handleJumpToPath}
                           />
                           <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
                             <api.Section
@@ -2440,6 +2524,7 @@ export default function NotesApp() {
                               onTogglePinSub={handleTogglePinSubcategory}
                               onDeleteCategory={openDeleteCategoryConfirm}
                               onDeleteSubcategory={openDeleteSubcategoryConfirm}
+                              onJumpToPath={handleJumpToPath}
                             />
                           </div>
                         )}
@@ -2475,6 +2560,7 @@ export default function NotesApp() {
                           onTogglePinSub={handleTogglePinSubcategory}
                           onDeleteCategory={openDeleteCategoryConfirm}
                           onDeleteSubcategory={openDeleteSubcategoryConfirm}
+                          onJumpToPath={handleJumpToPath}
                         />
                       </div>
                     )}
@@ -2694,6 +2780,34 @@ export default function NotesApp() {
           }}
         />
         <FeaturedTipStrip isDark={isDark} />
+        {Array.isArray(activePathFilter) && activePathFilter.length > 0 && (
+          <div
+            className={`mb-3 flex items-center gap-2 rounded-full pl-3 pr-1 py-1 border shadow-sm ${
+              isDark
+                ? "bg-blue-500/10 border-blue-400/40 text-blue-100"
+                : "bg-blue-50 border-blue-300 text-blue-800"
+            }`}
+            data-testid="active-path-filter-pill"
+          >
+            <span className={`text-[10px] uppercase tracking-wider shrink-0 ${isDark ? "text-blue-300/80" : "text-blue-600/80"}`}>
+              Filtered
+            </span>
+            <span className="text-xs font-medium truncate flex-1" title={activePathFilter.join(" › ")}>
+              {activePathFilter.join(" › ")}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setActivePathFilter(null); haptic("tap"); }}
+              aria-label="Clear hierarchy filter"
+              className={`shrink-0 w-7 h-7 inline-flex items-center justify-center rounded-full transition-colors ${
+                isDark ? "hover:bg-blue-500/20 text-blue-100" : "hover:bg-blue-100 text-blue-700"
+              }`}
+              data-testid="active-path-filter-clear"
+            >
+              <X className="w-4 h-4" strokeWidth={2.4} />
+            </button>
+          </div>
+        )}
         {renderNotes()}
       </main>
       </div>
@@ -2816,6 +2930,7 @@ export default function NotesApp() {
         handleInstallPWA={handleInstallPWA}
         handleRestoreFromServer={handleRestoreFromServer}
         handleSyncPackColors={handleSyncPackColors}
+        handleFixOrphanedNotes={handleFixOrphanedNotes}
         handleQuickAdd={handleQuickAdd}
         handleApplyPack={handleApplyPack}
         handleTourDismiss={handleTourDismiss}

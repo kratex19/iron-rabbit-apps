@@ -30,6 +30,7 @@ export default function CategoryGroup({
   isPinnedTop = false, onTogglePinTop = null,
   pinnedSubKeys = null, onTogglePinSub = null,
   onDeleteCategory = null, onDeleteSubcategory = null,
+  onJumpToPath = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const colorConfig = useMemo(() => {
@@ -114,6 +115,7 @@ export default function CategoryGroup({
             isDark={isDark}
             label={`Show hierarchy for ${category}`}
             testid={`category-hierarchy-${category}`}
+            onLongPress={onJumpToPath ? () => onJumpToPath([category]) : null}
           />
           <Badge variant="outline" className={`text-xs flex-shrink-0 ${isDark ? '' : 'text-gray-800 border-gray-300'}`} data-testid="category-count">{children.length}</Badge>
           {alarmCount > 0 && <Bell className="w-4 h-4 text-yellow-500 flex-shrink-0" />}
@@ -175,6 +177,7 @@ export default function CategoryGroup({
                   pinnedSubKeys={pinnedSubKeys}
                   onTogglePinSub={onTogglePinSub}
                   onDeleteSubcategory={onDeleteSubcategory}
+                  onJumpToPath={onJumpToPath}
                 />
               ))}
               {directTopLevelNotes.map((note, idx) => (

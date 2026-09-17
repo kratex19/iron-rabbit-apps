@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { ListTree, Home, Folder, FileText } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { haptic } from "../utils/haptic";
 
 /**
  * Compact "show hierarchy" button used in List View category and
@@ -14,16 +15,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
  * Interaction:
  *   • Tap on mobile / click on desktop opens a popover that renders
  *     the full path from Home → … → this item using indented
- *     connectors. Hovering (desktop) also opens the popover — moving
- *     away closes it unless the user clicked. The popover itself is
- *     scrollable (max-height) so extremely deep hierarchies do not
- *     stretch the row and never cause horizontal page overflow.
+ *     connectors. The popover is scrollable (max-height) so extremely
+ *     deep hierarchies do not stretch the row and never cause
+ *     horizontal page overflow.
+ *   • LONG-PRESS (≥ 500 ms) — if the caller supplies `onLongPress`,
+ *     the popover is suppressed and the callback fires instead. This
+ *     drives the "jump to this category" shortcut (Home filters to
+ *     just this path). Works with touch and mouse.
  *
  * Props:
  *   path — array of strings from the root category down to and
  *          including this item (e.g. ["Outdoors", "Weather", "Watch"]).
  *   size — "sm" (default for subcategories) | "md" (default for cats).
- *   label— accessible name shown by screen readers.
+ *   label — accessible name shown by screen readers.
+ *   onLongPress — optional callback fired on long-press. Receives no
+ *                 args; the caller has `path` in scope.
  *   isDark
  *   testid
  */
@@ -31,6 +37,7 @@ export default function HierarchyPathButton({
   path,
   size = "sm",
   label,
+  onLongPress = null,
   isDark = false,
   testid,
 }) {
@@ -42,21 +49,72 @@ export default function HierarchyPathButton({
     ? { box: "w-6 h-6 rounded-md", icon: "w-3.5 h-3.5" }
     : { box: "w-5 h-5 rounded-md", icon: "w-3 h-3" };
 
+  // Controlled popover state so long-press can suppress opening.
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef(null);
+  const firedLongPressRef = useRef(false);
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const onPointerDown = (e) => {
+    if (!onLongPress) return;
+    firedLongPressRef.current = false;
+    // Only left mouse button; touch has no `button` info so it passes.
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    clearTimer();
+    timerRef.current = setTimeout(() => {
+      firedLongPressRef.current = true;
+      try { haptic("milestone"); } catch { /* noop */ }
+      // Ensure popover stays closed
+      setOpen(false);
+      onLongPress();
+    }, 500);
+  };
+
+  const onPointerUpOrLeave = () => {
+    clearTimer();
+  };
+
+  const handleClick = (e) => {
+    // Never let the click bubble into the parent header toggle.
+    e.stopPropagation();
+    if (firedLongPressRef.current) {
+      // Consume the click that follows the long-press so the popover
+      // doesn't flash open right after we navigated / filtered.
+      e.preventDefault();
+      firedLongPressRef.current = false;
+      return;
+    }
+    setOpen((v) => !v);
+  };
+
   const buttonEl = (
     <button
       type="button"
-      onClick={(e) => e.stopPropagation()}
+      onClick={handleClick}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUpOrLeave}
+      onPointerLeave={onPointerUpOrLeave}
+      onPointerCancel={onPointerUpOrLeave}
+      onContextMenu={(e) => { if (onLongPress) e.preventDefault(); }}
       aria-label={label || "Show hierarchy"}
-      title={label || "Show hierarchy"}
+      title={onLongPress
+        ? `${label || "Show hierarchy"} — long-press to filter Home to this path`
+        : (label || "Show hierarchy")}
       data-testid={testid || "hierarchy-path-button"}
-      className={`shrink-0 inline-flex items-center justify-center ${sizes.box} bg-blue-500 hover:bg-blue-400 text-white shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300`}
+      className={`shrink-0 inline-flex items-center justify-center ${sizes.box} bg-blue-500 hover:bg-blue-400 text-white shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 select-none touch-none`}
     >
       <ListTree className={sizes.icon} strokeWidth={2.4} />
     </button>
   );
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{buttonEl}</PopoverTrigger>
       <PopoverContent
         align="start"
@@ -133,6 +191,15 @@ export default function HierarchyPathButton({
             );
           })}
         </div>
+        {onLongPress && clean.length > 0 && (
+          <div
+            className={`px-3 py-1.5 text-[10px] border-t ${
+              isDark ? "border-white/10 text-slate-500" : "border-gray-100 text-gray-400"
+            }`}
+          >
+            Tip — long-press this icon to filter Home to just this path.
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

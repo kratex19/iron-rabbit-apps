@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Settings, Upload, Image as ImageIcon, Download, HardDrive, Cloud,
   Smartphone, Trash2, Globe, ChevronRight, ShieldCheck, LayoutGrid, Sparkles, Bell, BellOff, MessageSquareQuote,
-  Palette, Paperclip, Flame,
+  Palette, Paperclip, Flame, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import { computeStreak } from "../utils/cleanupStreak";
  */
 export default function SettingsModal({
   isOpen, onClose, settings, onSave, onBackup, onRestore, onClearData,
-  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onOpenStorageCleanup, onOpenSmartCleanup, onSyncPackColors, isDark,
+  onInstallPWA, canInstallPWA, storageInfo, onRestoreFromServer, onOpenSecurity, onOpenOrganization, onOpenQuickAccess, onOpenBackup, onOpenThemeChooser, onOpenStorageCleanup, onOpenSmartCleanup, onSyncPackColors, onFixOrphanedNotes, isDark,
 }) {
   const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({ logo_url: "", header_bg: "", website_url: "", company_name: "" });
@@ -484,6 +484,36 @@ export default function SettingsModal({
                   <div className="text-sm font-medium">Sync pack colors</div>
                   <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
                     Match previously-applied tiles back to their pack accents
+                  </div>
+                </div>
+                <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />
+              </button>
+            </div>
+          )}
+
+          {/* Deep-Hierarchy Health Check row — one-tap safety net for
+              legacy notes with populated category_path but empty or
+              drifted legacy category/subcategory fields. Idempotent. */}
+          {onFixOrphanedNotes && (
+            <div>
+              <label className={`text-xs mb-1.5 block flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                <Wrench className="w-3.5 h-3.5" /> Hierarchy health
+              </label>
+              <button
+                type="button"
+                onClick={onFixOrphanedNotes}
+                className={`w-full flex items-center gap-3 rounded-md h-11 px-3 transition-colors ${
+                  isDark
+                    ? "bg-black/20 border border-white/10 hover:bg-white/5 text-white"
+                    : "bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-800"
+                }`}
+                data-testid="settings-fix-orphaned-notes"
+              >
+                <Wrench className="w-4 h-4 text-emerald-400" />
+                <div className="flex-1 text-left">
+                  <div className="text-sm font-medium">Fix orphaned notes</div>
+                  <div className={`text-[10px] ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                    Repairs any pre-v142 notes where legacy category / subcategory drifted from the deep category_path
                   </div>
                 </div>
                 <ChevronRight className={`w-4 h-4 ${isDark ? "text-slate-500" : "text-gray-400"}`} />

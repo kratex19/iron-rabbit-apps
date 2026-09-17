@@ -50,6 +50,7 @@ export default function NestedSubGroup(props) {
     selectMode, isSelected, onToggleSelect, onSwipeSelect,
     pinnedSubKeys = null, onTogglePinSub = null,
     onDeleteSubcategory = null,
+    onJumpToPath = null,
   } = props;
   const Self = NestedSubGroup;
 
@@ -111,6 +112,7 @@ export default function NestedSubGroup(props) {
           isDark={isDark}
           label={`Show hierarchy for ${label}`}
           testid={`subcategory-hierarchy-${label}`}
+          onLongPress={onJumpToPath ? () => onJumpToPath(fullPath) : null}
         />
         <span
           className={`text-sm truncate flex-1 transition-colors ${
@@ -199,6 +201,7 @@ export default function NestedSubGroup(props) {
                   pinnedSubKeys={pinnedSubKeys}
                   onTogglePinSub={onTogglePinSub}
                   onDeleteSubcategory={onDeleteSubcategory}
+                  onJumpToPath={onJumpToPath}
                 />
               ))}
               {directNotes.map((note, idx) => (

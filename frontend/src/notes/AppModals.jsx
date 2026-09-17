@@ -138,6 +138,7 @@ export default function AppModals(p) {
         onOpenStorageCleanup={() => { p.setSettingsModalOpen(false); p.setStorageCleanupOpen(true); }}
         onOpenSmartCleanup={() => { p.setSettingsModalOpen(false); p.setStorageCleanupSmart?.(true); p.setStorageCleanupOpen(true); }}
         onSyncPackColors={p.handleSyncPackColors}
+        onFixOrphanedNotes={p.handleFixOrphanedNotes}
         isDark={p.isDark}
       />
       <StorageCleanupModal

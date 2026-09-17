@@ -31,6 +31,7 @@ export default function CategoryHeader({
   countNoun = { singular: "tile", plural: "tiles" },
   frameTone = null,
   hierarchyPath = null,
+  onJumpToPath = null,
 }) {
   // Optional colored frame around the header row itself (used by the
   // Blue / Yellow / Green pinned rails so each pinned section is
@@ -140,6 +141,7 @@ export default function CategoryHeader({
       isDark={isDark}
       label={`Show hierarchy for ${title}`}
       testid={`category-hierarchy-grid-${title}`}
+      onLongPress={onJumpToPath ? () => onJumpToPath(hierarchyPath) : null}
     />
   ) : null;
 
