@@ -21,6 +21,13 @@ if ('serviceWorker' in navigator) {
       .then((registration) => {
         console.log('SW registered:', registration.scope);
 
+        // Force an update check on every page load, not just when the
+        // browser's own 24-hour timer says it's due. Combined with the
+        // network-first HTML strategy in the SW, this means a fresh
+        // deploy propagates within one reload — even if the PWA tab
+        // has been sitting idle for hours.
+        try { registration.update(); } catch { /* offline is fine */ }
+
         // When a new worker is found, ask it to skip waiting so it activates immediately.
         registration.addEventListener('updatefound', () => {
           const nw = registration.installing;

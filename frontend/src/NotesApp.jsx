@@ -934,6 +934,40 @@ export default function NotesApp() {
     try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* noop */ }
   };
 
+  // Force refresh — nuclear PWA cache-bust for users stuck on an old
+  // bundle. Unregisters every service worker, deletes every cache
+  // entry, then hard-reloads. Safe: user notes live in IndexedDB and
+  // are NOT touched. This is the recovery path when a bug fix ships
+  // but the user's Add-to-Home-Screen PWA won't pick it up.
+  const handleForceRefresh = async () => {
+    try {
+      toast.info("Clearing app cache and reloading…");
+      // Best-effort teardown; each step is independently guarded so
+      // one failure (e.g. serviceWorker unsupported) can't block the
+      // reload.
+      try {
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister().catch(() => null)));
+        }
+      } catch { /* noop */ }
+      try {
+        if (typeof caches !== "undefined") {
+          const names = await caches.keys();
+          await Promise.all(names.map((n) => caches.delete(n).catch(() => null)));
+        }
+      } catch { /* noop */ }
+      try { sessionStorage.removeItem("sw-reloaded"); } catch { /* noop */ }
+      // Give the toast a beat to render before the reload wipes it.
+      setTimeout(() => {
+        try { window.location.reload(); } catch { /* noop */ }
+      }, 400);
+    } catch (err) {
+      console.error("handleForceRefresh:", err);
+      toast.error("Could not force refresh — try closing and reopening the app manually.");
+    }
+  };
+
   // Deep-Hierarchy Health Check — one-tap safety net for legacy notes
   // that carry a populated `category_path` but empty (or drifted)
   // `category` / `subcategory` legacy fields. The v142 fix guarantees
@@ -2931,6 +2965,7 @@ export default function NotesApp() {
         handleRestoreFromServer={handleRestoreFromServer}
         handleSyncPackColors={handleSyncPackColors}
         handleFixOrphanedNotes={handleFixOrphanedNotes}
+        handleForceRefresh={handleForceRefresh}
         handleQuickAdd={handleQuickAdd}
         handleApplyPack={handleApplyPack}
         handleTourDismiss={handleTourDismiss}
