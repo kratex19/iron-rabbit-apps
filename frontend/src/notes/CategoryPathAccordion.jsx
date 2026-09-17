@@ -168,6 +168,15 @@ export default function CategoryPathAccordion({
             ? "bg-[#0B1221] border-blue-500/60 text-slate-200"
             : "bg-white border-blue-400 text-gray-800"
         }`}
+        style={{
+          // Belt-and-suspenders lock. Radix Floating UI can, in some
+          // browsers, size the panel to fit its intrinsic content
+          // width when a child (e.g. an <input> with a long value)
+          // reports a larger min-content. This inline maxWidth clamps
+          // the panel to always fit inside the viewport, no matter
+          // what the panel's children claim.
+          maxWidth: "calc(100vw - 1.5rem)",
+        }}
         onOpenAutoFocus={(e) => {
           // Don't yank focus onto a random button on open — let the
           // deepest input claim it if there is one, otherwise let the
@@ -220,7 +229,7 @@ export default function CategoryPathAccordion({
             return (
               <div
                 key={depth}
-                className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 ${
+                className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 min-w-0 w-full ${
                   isDark
                     ? "bg-white/[0.04] border-white/10"
                     : "bg-gray-50 border-gray-200"
@@ -258,6 +267,7 @@ export default function CategoryPathAccordion({
                 <input
                   ref={(el) => { inputRefs.current[depth] = el; }}
                   type="text"
+                  size={1}
                   value={seg}
                   list={listId}
                   onChange={(e) => setSegment(depth, e.target.value)}
@@ -271,7 +281,15 @@ export default function CategoryPathAccordion({
                     }
                   }}
                   placeholder={depth === 0 ? "e.g., Work" : "Sub-level name…"}
-                  className={`flex-1 min-w-0 w-0 bg-transparent outline-none text-sm px-1 ${
+                  // `size={1}` above forces the input's intrinsic min-
+                  // content width to just one character, so a long
+                  // typed value can never push the row (and therefore
+                  // the whole panel) wider than the popover's
+                  // `w-[min(22rem,…)]` cap. `min-w-0 w-0 flex-1` lets
+                  // it grow BACK up to fill the available flex space.
+                  // `truncate` clips any visual overflow inside the
+                  // input while the user is still typing.
+                  className={`flex-1 min-w-0 w-0 bg-transparent outline-none text-sm px-1 truncate ${
                     isDark
                       ? "text-white placeholder:text-slate-500"
                       : "text-gray-900 placeholder:text-gray-400"
