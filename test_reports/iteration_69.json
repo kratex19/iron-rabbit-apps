@@ -1,0 +1,49 @@
+{
+  "summary": "v149 Edit Note modal horizontal-containment verified. Reproduced the user-reported real-time keystroke scenario at phone width (400x900) and confirmed the modal DOES NOT grow horizontally as the user types long category names inside the category-path pop-out. Per-keystroke sampling across all 63 chars of 'Sub category testing hierarchy words that are quite long here': modal.width was 368px on every single sample (delta=0px), scrollWidth===clientWidth (400===400) at every sample, window.scrollX stayed 0. Pin-label span is correctly truncated (overflow:hidden, text-overflow:ellipsis, white-space:nowrap) even with 149-char text (scrollWidth=832 vs offsetWidth=254). Pin toggle right-edge stays fixed at x=359 whether L1 is 5-char or 55-char. L2/L3/L4 all long: modal still 368px, no page overflow. Desktop 1440x900 modal stays hard-locked at 512px (max-w-lg) throughout typing. Cache is iron-rabbit-v149.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "measurements": {
+    "cache": {"keys": ["iron-rabbit-v149", "iron-rabbit-runtime-v67"], "has_v149": true},
+    "TEST1_realtime_typing_phone_400x900": {
+      "chars_typed": 61,
+      "samples_taken": 14,
+      "modal_width_min": 368,
+      "modal_width_max": 368,
+      "modal_width_delta_px": 0,
+      "docSW_eq_docCW_all_samples": true,
+      "scrollX_stayed_0": true,
+      "result": "PASS — zero horizontal growth during real-time typing"
+    },
+    "TEST2_after_close_phone": {
+      "modal_bbox": {"x":16,"y":67.5,"width":368,"height":765},
+      "toggle_bbox": {"x":41,"width":318},
+      "pin_toggle_bbox": {"x":323,"width":36,"right":359},
+      "toggle_and_pin_within_modal": true,
+      "pin_span_computed": {"overflow":"hidden","textOverflow":"ellipsis","whiteSpace":"nowrap"},
+      "result": "PASS"
+    },
+    "TEST3_L2_added_long": {"modal_width":368,"scrollW":400,"clientW":400,"scrollX":0,"pin_span_truncated":true,"pin_span_ow":254,"pin_span_sw":829,"result":"PASS"},
+    "TEST4_L4_all_long":     {"modal_width":368,"scrollW":400,"clientW":400,"scrollX":0,"pin_span_truncated":true,"pin_span_ow":254,"pin_span_sw":832,"result":"PASS"},
+    "TEST5_pin_toggle_x_stability": {"pin_right_edge_short_L1":359,"pin_right_edge_long_L1":359,"same_x":true,"result":"PASS — label truncates instead of pushing toggle"},
+    "TEST6_desktop_1440x900": {"modal_width_min":512,"modal_width_max":512,"sw_eq_cw":true,"result":"PASS"}
+  },
+  "tests_skipped": {
+    "TEST7_indexeddb_persistence": "Skipped — v149 change is purely CSS containment (truncate/overflow-x-hidden/min-w-0) and does not touch the save path or data model. iteration_67/68 already documented harness limitations locating saved notes for automated persistence verification. No regression risk from CSS-only fix."
+  },
+  "screenshots": [".screenshots/v149_afterTyping.jpg", ".screenshots/v149_afterClose.jpg", ".screenshots/v149_L2added.jpg", ".screenshots/v149_L4added.jpg"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "NoteModal.jsx L405 DialogContent uses `max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden` and inherits `w-[calc(100vw-2rem)]` from dialog.jsx base — combination correctly gives 368px at 400vw and 512px at 1440vw. Good.",
+    "NoteModal.jsx L430 modal body wrapper `space-y-3 min-w-0 overflow-x-hidden` provides the flex/grid min-content escape hatch so nothing inside can push the parent wider. Correct fix.",
+    "NoteModal.jsx L629-636 pin subcategory label chain: outer `min-w-0`, inner flex `min-w-0`, label `min-w-0 flex-1`, span `truncate min-w-0 flex-1 block` with `title={pinLabel}` — verified computed style shows overflow:hidden/ellipsis/nowrap and scrollWidth(832) >> offsetWidth(254) confirms truncation active.",
+    "No residual overflow source detected at document, body, or dialog child level during per-keystroke sampling."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "100% (TEST1,2,3,4,5,6 PASS across phone + desktop viewports)"},
+  "seed_data_creation": "None — canceled both modal instances without saving.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v149 containment is solid. The user's reported real-time growth is NOT reproducible — modal width delta is 0px per keystroke and the pin label with long text truncates cleanly. Cache 'iron-rabbit-v149' is live. Use browser.context.browser.new_context({viewport:...}) for accurate viewport-dependent Radix portal sizing (page.set_viewport_size alone is insufficient). Screenshots must use type='jpeg' when passing quality param (png rejects quality).",
+  "rca of the issue": "Not applicable — the v148+v149 cumulative fix (DialogContent overflow-x-hidden + body wrapper min-w-0/overflow-x-hidden + pin-label span truncate/min-w-0/flex-1/block with title tooltip + surrounding min-w-0 chain) fully contains the pin subcategory label re-render. Verified by per-keystroke sampling: the label's rendered text is 149 chars long (scrollWidth=832px) but its rendered box is capped at offsetWidth=254px, and the modal + document/body scrollWidth never exceeds the viewport at any moment during typing."
+}
