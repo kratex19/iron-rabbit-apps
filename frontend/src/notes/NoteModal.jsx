@@ -402,7 +402,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className={`max-w-lg max-h-[85vh] overflow-y-auto ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
+        <DialogContent className={`max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
           <DialogHeader>
             <DialogTitle className={`font-semibold flex items-center justify-between ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <span>{note ? t("note.edit") : t("note.new")}</span>
@@ -627,11 +627,11 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                   : (isDark ? "text-amber-400" : "text-amber-600")
                 : (isDark ? "text-slate-400" : "text-gray-500");
               return (
-                <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                  <div className="flex items-center justify-between mb-2 gap-2">
-                    <label className={`text-xs flex items-center gap-1.5 min-w-0 ${pinColor}`}>
+                <div className={`border-t pt-3 min-w-0 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+                    <label className={`text-xs flex items-center gap-1.5 min-w-0 flex-1 ${pinColor}`}>
                       <Pin className="w-3.5 h-3.5 flex-shrink-0" fill={pinned ? "currentColor" : "none"} />
-                      <span className="truncate">{pinLabel}</span>
+                      <span className="truncate min-w-0 flex-1 block" title={pinLabel}>{pinLabel}</span>
                     </label>
                     <Switch checked={pinned} onCheckedChange={setPinned} data-testid="pin-toggle" />
                   </div>
