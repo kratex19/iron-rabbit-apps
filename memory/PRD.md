@@ -57,15 +57,15 @@ English only.
 - `HierarchyPathButton` in List + Grid category/subcategory headers (v130–141).
 - Deep-hierarchy flattening bug fix (v142).
 - Post-v142 strict data+render verification (iteration_64 — 5/5 passed).
+- **Deep-Hierarchy Health Check** — Settings → "Fix orphaned notes" (idempotent scan-and-repair of pre-v142 notes whose legacy `category`/`subcategory` drifted from `category_path`) (v143).
+- **Hierarchy Jump Shortcut** — long-press (500 ms) the blue tree icon on any category or subcategory row to filter Home to just that `category_path` prefix; dismissible pill above the notes area; toast with inline "Clear" action; short tap still opens the popover (v143).
 
 ## Backlog / Roadmap
 - **P1**: Custom Menu Tile Prompt — waiting on user to provide prompt text for the 16th tile action.
 - **P1**: Security — remove admin token exposed in test files.
 - **P2**: Move-to-Uncategorized Undo pill — one-tap reversal after bulk move.
-- **P2**: Fix nested-`<button>` hydration console warning in `CategoryGroup.jsx` (HierarchyPathButton inside `category-toggle` button). Non-blocking, but pollutes DevTools console.
+- **P2**: Fix nested-`<button>` hydration console warning in `CategoryGroup.jsx` (HierarchyPathButton inside `category-toggle` button). Non-blocking, but pollutes DevTools console. Flagged in iter_63, iter_64, iter_65.
 - **P3**: Rich Notification Icon monochrome mask review for OS push icons.
-- **P3**: Deep-Hierarchy Health Check — Settings action "Fix orphaned notes" to rewrite legacy fields for any pre-v142 records missing `category`/`subcategory` when `category_path` is populated.
-- **P3**: Hierarchy Jump Shortcut — long-press / right-click on the blue tree icon to filter Home to that path.
 
 ## Third-Party Integrations
 - Open-Meteo (Weather) — no key
