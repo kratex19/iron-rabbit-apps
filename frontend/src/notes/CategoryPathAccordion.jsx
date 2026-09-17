@@ -102,6 +102,17 @@ export default function CategoryPathAccordion({
     inputRefs.current.length = segments.length;
   }, [segments.length]);
 
+  // Re-measure textarea heights whenever the path changes so long
+  // pre-existing values (e.g. loading a saved note) wrap DOWN to their
+  // natural height on first render, not just while the user is typing.
+  useEffect(() => {
+    inputRefs.current.forEach((el) => {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+  }, [segments, open]);
+
   const preview = segments.filter(Boolean).join("  ›  ");
   const hasPath = segments.length > 0 && preview.length > 0;
 
@@ -224,12 +235,10 @@ export default function CategoryPathAccordion({
           )}
 
           {segments.map((seg, depth) => {
-            const listId = `cat-path-suggestions-${depth}`;
-            const suggestions = depthSuggestions[depth] || [];
             return (
               <div
                 key={depth}
-                className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 min-w-0 w-full ${
+                className={`flex items-start gap-1.5 rounded-md border px-2 py-1.5 min-w-0 w-full ${
                   isDark
                     ? "bg-white/[0.04] border-white/10"
                     : "bg-gray-50 border-gray-200"
@@ -264,45 +273,48 @@ export default function CategoryPathAccordion({
                 >
                   L{depth + 1}
                 </span>
-                <input
+                <textarea
                   ref={(el) => { inputRefs.current[depth] = el; }}
-                  type="text"
-                  size={1}
+                  rows={1}
+                  maxLength={120}
                   value={seg}
-                  list={listId}
                   onChange={(e) => setSegment(depth, e.target.value)}
                   onKeyDown={(e) => {
                     // Enter on a filled row appends a deeper level so
                     // the user can build a chain without reaching for
-                    // the mouse.
-                    if (e.key === "Enter" && String(seg || "").trim()) {
+                    // the mouse. We always swallow Enter here so a
+                    // stray newline never enters a category name.
+                    if (e.key === "Enter") {
                       e.preventDefault();
-                      addSegment();
+                      if (String(seg || "").trim()) addSegment();
                     }
                   }}
+                  onInput={(e) => {
+                    // Auto-grow height as the text wraps: reset first
+                    // so a shrink is picked up when the user deletes
+                    // content, then measure and lock to scrollHeight.
+                    const el = e.currentTarget;
+                    el.style.height = "auto";
+                    el.style.height = `${el.scrollHeight}px`;
+                  }}
                   placeholder={depth === 0 ? "e.g., Work" : "Sub-level name…"}
-                  // `size={1}` above forces the input's intrinsic min-
-                  // content width to just one character, so a long
-                  // typed value can never push the row (and therefore
-                  // the whole panel) wider than the popover's
-                  // `w-[min(22rem,…)]` cap. `min-w-0 w-0 flex-1` lets
-                  // it grow BACK up to fill the available flex space.
-                  // `truncate` clips any visual overflow inside the
-                  // input while the user is still typing.
-                  className={`flex-1 min-w-0 w-0 bg-transparent outline-none text-sm px-1 truncate ${
+                  // `rows={1}` starts compact; `overflow-hidden`
+                  // suppresses the native scrollbar; `resize-none`
+                  // stops the drag-handle; `whitespace-pre-wrap`
+                  // + `break-words` make long values wrap DOWN
+                  // instead of scrolling out horizontally, so the
+                  // pop-out never has to grow wider. `min-w-0 w-0
+                  // flex-1` lets the box flex-grow back up to fill
+                  // the row width. The row height grows naturally
+                  // and the panel body scrolls if the overall
+                  // hierarchy gets tall.
+                  className={`flex-1 min-w-0 w-0 bg-transparent outline-none text-sm px-1 py-0.5 resize-none overflow-hidden leading-snug whitespace-pre-wrap break-words ${
                     isDark
                       ? "text-white placeholder:text-slate-500"
                       : "text-gray-900 placeholder:text-gray-400"
                   }`}
                   data-testid={`category-path-input-${depth}`}
                 />
-                {suggestions.length > 0 && (
-                  <datalist id={listId}>
-                    {suggestions.map((s) => (
-                      <option key={s} value={s} />
-                    ))}
-                  </datalist>
-                )}
                 <button
                   type="button"
                   onClick={() => removeSegment(depth)}
