@@ -1,0 +1,24 @@
+{
+  "summary": "v151 REVERT regression check: AI Tools 100 Free pack is now visually and behaviorally identical to curated packs. All 7 tests PASSED. Cache 'iron-rabbit-v151' confirmed. No 'Installed' badge and no 'Remove Pack' button exist in DOM for ANY pack. Apply Pack is silent (no window.confirm dialog), toast fires, modal auto-closes. IndexedDB: 100 tiles, 20 categories x 5 each, sample has AI tag + external_url + open_external_url. Second apply is silent duplicate (200 tiles) matching curated pack behavior. Outbound URL for ChatGPT tile in Grid view opens https://chatgpt.com/ target=_blank features='noopener,noreferrer' with no edit modal. FAB (data-testid='fab-add-note') opens note editor. Existing curated pack (restaurants-galore) unchanged: no badge, no remove btn, 'Apply Pack' text, 'N tiles' subtitle.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home List view (category list)", "issues": ["Console hydration warning: <button> nested inside <button> in category-list Droppable. Pre-existing, not caused by v151 revert."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Nested <button> hydration warning in NotesApp category-list Droppable — should be fixed in a future iteration; unrelated to v151 revert."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "None required",
+  "seed_data_creation": "None (test cleaned up all pack tiles via IndexedDB after test run)",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "TilePacksModal has been reverted; AI Tools pack behaves like curated packs. FAB testid is 'fab-add-note'. View mode toggle testids: 'view-mode-list' and 'view-mode-icon' (icon = Grid). Header opens pack modal via 'header-tile-packs'. Outbound URLs work in Grid view (List view expands accordion instead).",
+  "rca of the issue": "N/A — all tests passed"
+}
