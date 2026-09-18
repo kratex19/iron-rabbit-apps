@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import * as LucideIcons from "lucide-react";
-import { Package, Sparkles, Pin, Search, Plus, Pencil, Star } from "lucide-react";
+import { Package, Sparkles, Pin, Search, Plus, Pencil, Star, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ import StorageService from "../storage/storageService";
  * notes so the caller can bulk-create them. Includes a search field to
  * filter across the 30+ packs by name or tagline.
  */
-export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
+export default function TilePacksModal({ isOpen, onClose, onApply, onRemove = null, installedPackIds = [], isDark }) {
   const [query, setQuery] = useState("");
   const [customPacks, setCustomPacks] = useState([]);
   const [pinnedPackIds, setPinnedPackIds] = useState([]);
@@ -120,10 +120,11 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
 
             const renderCard = (pack) => {
               const isPinned = pinnedPackIds.includes(pack.id);
+              const isInstalled = Array.isArray(installedPackIds) && installedPackIds.includes(pack.id);
               return (
               <div
                 key={pack.id}
-                className={`relative rounded-xl border p-4 flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'} ${isPinned ? 'ring-1 ring-amber-400/50' : ''}`}
+                className={`relative rounded-xl border p-4 flex flex-col gap-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'} ${isPinned ? 'ring-1 ring-amber-400/50' : ''} ${isInstalled ? 'ring-1 ring-emerald-400/60' : ''}`}
                 data-testid={`tile-pack-${pack.id}`}
               >
                 <button
@@ -145,13 +146,21 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                     <Sparkles className="w-4 h-4 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <div className={`font-semibold text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.name}</div>
                       {pack.custom && (
                         <span className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700'}`}>Custom</span>
                       )}
+                      {isInstalled && (
+                        <span
+                          className={`text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded font-semibold ${isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700'}`}
+                          data-testid={`pack-installed-badge-${pack.id}`}
+                        >Installed</span>
+                      )}
                     </div>
-                    <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{pack.notes.length} tiles</div>
+                    <div className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
+                      {pack.size_hint || `${pack.notes.length} tiles`}
+                    </div>
                   </div>
                 </div>
                 <p className={`text-xs leading-relaxed ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>{pack.tagline}</p>
@@ -178,8 +187,19 @@ export default function TilePacksModal({ isOpen, onClose, onApply, isDark }) {
                   className="w-full h-8 bg-indigo-500 hover:bg-indigo-600 text-white text-xs"
                   data-testid={`apply-pack-${pack.id}`}
                 >
-                  Apply Pack
+                  {isInstalled ? "Reinstall Pack" : "Apply Pack"}
                 </Button>
+                {isInstalled && onRemove && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onRemove(pack)}
+                    size="sm"
+                    className={`w-full h-7 text-xs ${isDark ? 'border-rose-500/40 text-rose-300 hover:bg-rose-500/10' : 'border-rose-300 text-rose-600 hover:bg-rose-50'}`}
+                    data-testid={`remove-pack-${pack.id}`}
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" /> Remove Pack
+                  </Button>
+                )}
                 {pack.custom && (
                   <Button
                     variant="outline"

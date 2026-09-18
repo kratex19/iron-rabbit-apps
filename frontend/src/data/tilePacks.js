@@ -4,6 +4,8 @@
 // Each pack has: id, name, tagline, accent color, notes[]. Every note is a
 // tile template (title, content, color, icon, background, [pinned]).
 
+import AI_TOOLS_100_PACK from "./aiToolsPack";
+
 // ---- Reusable background helpers (keeps the data compact) ---------------
 const G = {
   ocean:      "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
@@ -633,4 +635,9 @@ export const TILE_PACKS = [
       ];
     })(),
   },
+  // ---- AI Tools — 100 Free AI Tools (imported from aiToolsPack.raw.json) ----
+  // Registered at the tail so it appears alongside the other curated
+  // packs in TilePacksModal automatically. Every one of its 100 tiles is
+  // sourced verbatim from the authoritative JSON — no invented data.
+  AI_TOOLS_100_PACK,
 ];
