@@ -2827,6 +2827,7 @@ export default function NotesApp() {
           handleSaveSettings(next);
         }}
         focusLocation={settings?.location}
+        focusSchedule={settings?.focus_schedule}
       />
 
       {/* 🔒 LOCKED (Home Page brightness) — see /app/memory/LOCKED_SURFACES.md

@@ -52,6 +52,7 @@ export default function AppHeader({
   onCancelFocus,
   onActivateFocus,
   focusLocation,
+  focusSchedule,
 }) {
   const { t, i18n } = useTranslation();
   const languageCode = (i18n.language || "en").split("-")[0];
@@ -103,6 +104,7 @@ export default function AppHeader({
             onCancel={onCancelFocus}
             onActivate={onActivateFocus}
             location={focusLocation}
+            focusSchedule={focusSchedule}
           />
           {settings?.logo_url && (
             <a

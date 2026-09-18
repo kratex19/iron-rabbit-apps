@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BellOff, Bell, X, Sunrise, Timer, Infinity as InfinityIcon, BookOpen, Download } from "lucide-react";
+import { BellOff, Bell, X, Sunrise, Moon, Timer, Infinity as InfinityIcon, BookOpen, Download } from "lucide-react";
+import { toast } from "sonner";
 import { haptic } from "../utils/haptic";
 
 /**
@@ -55,7 +56,7 @@ async function fetchNextSunrise(location) {
   return nextSunriseFallback();
 }
 
-export default function FocusStatusChip({ status, onActivate, onCancel, location }) {
+export default function FocusStatusChip({ status, onActivate, onCancel, location, focusSchedule }) {
   const [, setTick] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
@@ -121,6 +122,40 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
         onActivate({ focus_mode: false, focus_until: ts });
         return;
       }
+      if (kind === "nightly") {
+        // Reuse the EXISTING recurring nightly schedule stored on
+        // `settings.focus_schedule` (see FocusModeSchedule.jsx). We do
+        // NOT create a new scheduler here — we simply flip the
+        // existing schedule's master `enabled` flag to `true` so its
+        // configured per-day windows (which correctly handle
+        // overnight ranges like 22:00 → 06:30 via isInFocusWindow)
+        // take effect. If the user hasn't configured any enabled
+        // days yet, we bail out with a clear toast rather than
+        // silently activating an empty schedule.
+        const sched = focusSchedule || null;
+        const days = sched?.days || {};
+        const anyDayEnabled = Object.values(days).some((d) => d && d.enabled);
+        if (!sched || !anyDayEnabled) {
+          toast.info("Configure a nightly schedule first", {
+            description: "Open Settings → Focus Mode → Schedule Focus Mode to set your nightly hours.",
+            duration: 5000,
+          });
+          return;
+        }
+        if (sched.enabled) {
+          toast.success("Nightly schedule is already active", {
+            description: "Follows your saved Focus Mode → Schedule Focus Mode times.",
+            duration: 4000,
+          });
+          return;
+        }
+        onActivate({ focus_schedule: { ...sched, enabled: true } });
+        toast.success("Nightly schedule enabled", {
+          description: "Focus will follow your saved schedule (edit in Settings).",
+          duration: 4000,
+        });
+        return;
+      }
       const map = { "30m": 30 * 60 * 1000, "1h": 60 * 60 * 1000, "2h": 2 * 60 * 60 * 1000 };
       const ms = map[kind];
       if (ms) onActivate({ focus_mode: false, focus_until: Date.now() + ms });
@@ -165,6 +200,7 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
             <MenuRow icon={<Timer className="w-3.5 h-3.5" />} label="1 hour" onClick={() => pick("1h")} testid="focus-status-menu-1h" />
             <MenuRow icon={<Timer className="w-3.5 h-3.5" />} label="2 hours" onClick={() => pick("2h")} testid="focus-status-menu-2h" />
             <MenuRow icon={<Sunrise className="w-3.5 h-3.5" />} label="Until sunrise" onClick={() => pick("sunrise")} testid="focus-status-menu-sunrise" />
+            <MenuRow icon={<Moon className="w-3.5 h-3.5" />} label="Nightly" onClick={() => pick("nightly")} testid="focus-status-menu-nightly" />
             <div className="h-px bg-white/10 my-1" />
             <MenuRow icon={<InfinityIcon className="w-3.5 h-3.5" />} label="Turn ON (indefinite)" onClick={() => pick("manual")} testid="focus-status-menu-manual" />
             <div className="h-px bg-white/10 my-1" />

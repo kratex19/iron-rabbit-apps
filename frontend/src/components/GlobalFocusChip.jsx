@@ -164,6 +164,7 @@ export default function GlobalFocusChip() {
           onCancel={cancel}
           onActivate={activate}
           location={settings.location}
+          focusSchedule={settings.focus_schedule}
         />
       </div>
     </div>
