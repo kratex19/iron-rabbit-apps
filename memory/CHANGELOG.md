@@ -1,3 +1,18 @@
+## 2026-02-28 — v156: Focus dropdown "🌙 Nightly" option reuses existing schedule
+
+- **NEW menu row** in `frontend/src/notes/FocusStatusChip.jsx` between "Until sunrise" and the divider before "Turn ON (indefinite)": `data-testid="focus-status-menu-nightly"` with the `Moon` lucide icon, matches existing row styling.
+- **Behavior — no new scheduling code**:
+  * If `settings.focus_schedule` is absent OR every day has `enabled=false` → informational toast: *"Configure a nightly schedule first — Open Settings → Focus Mode → Schedule Focus Mode to set your nightly hours."* No mutation.
+  * If schedule has an enabled day AND `schedule.enabled === false` → merges `{ focus_schedule: { ...schedule, enabled: true } }` via existing `onActivate`. Toast: *"Nightly schedule enabled."* Per-day config preserved untouched.
+  * If `schedule.enabled === true` already → toast *"Nightly schedule is already active."* No mutation.
+- **Reuses existing overnight math** (`isInFocusWindow` in `notifications/notificationService.js`) — no new time logic. Overnight windows (e.g. 22:00 → 06:30) already handled by the schedule engine.
+- **Wiring**: `focusSchedule={settings?.focus_schedule}` passed from `NotesApp.jsx` → `notes/AppHeader.jsx` → `FocusStatusChip`. `components/GlobalFocusChip.jsx` also passes `focusSchedule={settings.focus_schedule}` so the fullscreen-tile overlay chip works identically.
+- **Cache**: `service-worker.js` `CACHE_NAME` bumped `iron-rabbit-v155` → `v156`.
+- **Regression**: 30m / 1h / 2h / Until sunrise / Turn ON (indefinite) / How Focus works / Download guide (ZIP) unchanged. No Tile Pack, Pinned, hierarchy, tile ID, tile data-structure, drag-and-drop, or unrelated CSS changes.
+- **Tested via testing agent (iteration_75.json)**: 11/11 assertions PASS — menu order, Case A/B/C toasts + mutation checks, overnight math verified, Turn ON + 30m regression.
+
+
+
 ## 2026-02-28 — v85: PWA "Add to Home Screen" install prompt
 
 - **NEW `frontend/src/notes/InstallPrompt.jsx`**: subtle bottom-of-viewport toast that

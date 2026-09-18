@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only test of the new 'Nightly' option in the Focus chip dropdown (Iron Rabbit). Verified menu ordering, all three toast/mutation branches (no schedule, configured but master OFF, already active), regression on Turn ON + 30m timer, and overnight-window math used by the existing isInFocusWindow. All 11 assertions PASSED. No new scheduling logic introduced; Nightly only flips settings.focus_schedule.enabled when a day is configured, otherwise informs the user.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FocusStatusChip.jsx: Nightly branch is clean, no new scheduling logic (as requested); uses spread copy `{ ...sched, enabled: true }` so per-day config is preserved.",
+    "Minor: pre-existing React hydration warning in console ('<button> cannot be a descendant of <button>' inside category droppable) — unrelated to this task but worth fixing later.",
+    "Cosmetic: menu row order shows a divider between Nightly and 'Turn ON (indefinite)' which matches spec ('divider before Turn ON'). Correct."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A", "frontend": "100% (11/11)" },
+  "seed_data_creation": "Test seeded settings.focus_schedule directly into IndexedDB (IronRabbit → settings → app_settings) for Cases A/B/C and cleaned up at end. Also toggled focus_mode/focus_until back to defaults after regression checks.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Chip has two elements sharing data-testid='focus-status-chip' historically (FocusStatusChip + GlobalFocusChip). Only FocusStatusChip is mounted on the main list surface — count came back as 1. Clicking the chip via `page.click('[data-testid=...]', force=True)` occasionally does NOT toggle the menu (event handler seems to need a real click). Use `page.get_by_role('button').filter(has_text='Focus · off').first.click()` instead. IndexedDB shape: name='IronRabbit', store='settings', key='app_settings'. Focus schedule shape: {enabled, recurring, days:{sun..sat:{enabled,start,end}}}. Sonner toasts render duplicated (visually stacked) — assert with `any(substr in t for t in toasts)`.",
+  "detailed_results": {
+    "menu_order_correct": "PASS — order: 30m, 1h, 2h, sunrise, nightly, [divider], manual, [divider], guide, guide-zip. Nightly sits between 'Until sunrise' and 'Turn ON (indefinite)' with a divider before the manual option (matches spec).",
+    "case_A_toast_shown": "PASS — 'Configure a nightly schedule first' with description pointing to Settings → Focus Mode → Schedule Focus Mode.",
+    "case_A_no_mutation": "PASS — settings.focus_schedule remained absent after Nightly tap.",
+    "case_B_toast_shown": "PASS — 'Nightly schedule enabled'.",
+    "case_B_master_enabled_flipped": "PASS — settings.focus_schedule.enabled = true after tap.",
+    "case_B_days_unchanged": "PASS — per-day enabled/start/end deeply equal to input config after Nightly tap.",
+    "case_C_toast_shown": "PASS — 'Nightly schedule is already active'.",
+    "case_C_no_mutation": "PASS — settings.focus_schedule unchanged after tap.",
+    "case_D_overnight_math": "PASS — start=22:00 end=06:30 → active at 23:30, active at 05:00, inactive at 12:00. Confirms overnight handling used by isInFocusWindow.",
+    "regression_turn_on_indefinite": "PASS — focus_mode=true, focus_until=0.",
+    "regression_30m_timer": "PASS — focus_until ≈ Date.now()+30min (delta 1,800,009 ms), focus_mode=false."
+  }
+}
