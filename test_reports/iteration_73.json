@@ -1,0 +1,29 @@
+{
+  "summary": "v152 category/subcategory/tile drag-pan bug fix verified. All functional tests PASS on 420x900 mobile + 1440x900 desktop. D1 (right drag category), D2 (left drag category), D3 (vertical scroll outside drag), D4 (ir-dragging lock class toggle), D6 (tile drag), D7 (Escape cancel clears lock), D8 (desktop regression), D9 (adjacent UI unchanged: tree icon / FAB / Tile Packs header). D5 skipped - subcategory rows in this app do not expose their own @hello-pangea/dnd drag handle; only cat-* and note-* draggables exist (see rfd probe below). Cache 'iron-rabbit-v152' confirmed present. IMPORTANT CODE FINDING: index.css rule `[data-rbd-drag-handle-draggable-id] { touch-action: none }` (fix bullet c) is a NO-OP because @hello-pangea/dnd emits attributes with the `data-rfd-*` prefix (verified: `data-rfd-drag-handle-draggable-id`, `data-rfd-drag-handle-context-id`). The functional fix still works via the html.ir-dragging class flip + per-handle `touch-none` Tailwind class already present on the drag-handle spans, but the intended global attribute-selector safety net does NOT match any elements in the DOM.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home category list", "issues": ["Pre-existing hydration warning: <button> nested inside <button> in category-toggle / HierarchyPathButton (unchanged from prior iterations, unrelated to v152 fix)"]}
+    ]
+  },
+  "test_report_links": [".screenshots/v152_after_right_drag.jpg", ".screenshots/v152_after_left_drag.jpg", ".screenshots/v152_expanded.jpg", ".screenshots/v152_seeded.jpg"],
+  "action_items": [
+    "index.css bullet (c): change selector from `[data-rbd-drag-handle-draggable-id]` to `[data-rfd-drag-handle-draggable-id]` so the global touch-action:none actually applies. @hello-pangea/dnd uses the `rfd` (react-forked-dnd) prefix, not `rbd`. Current selector matches zero elements in the app.",
+    "Optional: expose a drag handle on subcategory rows if reordering subcategories is intended (currently only category-level and note-level rfd handles exist)."
+  ],
+  "critical_code_review_comments": [
+    "v152 CSS attribute selector uses wrong dnd library prefix (rbd vs rfd). Verified via DOM probe: `data-rbd-*` count=0, `data-rfd-drag-handle-draggable-id` count=6 (2 categories + 4 note tiles).",
+    "The runtime lock (html.ir-dragging via handleDragStart + try/finally handleDragCleanup in handleDragEnd) correctly toggles on both success and Escape-cancel paths (verified D4 and D7).",
+    "handleDragCleanup is called in the finally block – confirmed no stuck lock after normal drop, cancel drop, or Escape."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% of applicable tests (8/8 executed passed; D5 N/A)"},
+  "test_credentials": "None required",
+  "seed_data_creation": "Seeded 3-4 notes directly into IndexedDB (IronRabbit / notes store) to create DragCatA (with SubX subpath) and DragCatB categories. Seed script uses raw indexedDB.put with keys drag-a1/a2/a3/b1 and matches localforage default IndexedDB driver layout.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Category drag handle testid = `category-drag-<name>`; the actual dnd attribute is `data-rfd-drag-handle-draggable-id` (rfd, not rbd). Note tile drag handles carry id `note-drag-<noteId>`. Subcategory rows do NOT have their own rfd drag handle in this build. To seed test categories, open IndexedDB DB 'IronRabbit' object store 'notes' and put note objects with `category_path` arrays; then reload. After tile drag, wait ~1.5s for hello-pangea drop animation before asserting `.ir-dragging` is cleared.",
+  "rca of the issue": "Bug (page pans horizontally while dragging a category): originally the browser's touch handling would treat a horizontal finger drag as page pan alongside dnd. v152 fix pins html+body via `html.ir-dragging { touch-action: pan-y; overflow-x: hidden; overscroll-behavior: contain }` toggled by handleDragStart/handleDragEnd try/finally cleanup. This mechanism works and all functional tests pass. However, the CSS bullet (c) selector is mistyped as `[data-rbd-*]` while the library emits `[data-rfd-*]`, making that specific rule inert. Recommend renaming rbd→rfd."
+}

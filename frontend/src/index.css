@@ -106,10 +106,12 @@ html.ir-dragging body {
 
 /* Every @hello-pangea/dnd drag handle across the app — category rows,
    subcategory rows, note tile grips, pack headers — is tagged with
-   `data-rbd-drag-handle-draggable-id`. Force touch-action:none on those
+   `data-rfd-drag-handle-draggable-id`. Force touch-action:none on those
    so the browser hands the entire touch gesture to the dnd library
-   instead of interpreting a sideways drag as a page pan. */
-[data-rbd-drag-handle-draggable-id] {
+   instead of interpreting a sideways drag as a page pan. (Prefix is
+   `rfd` because @hello-pangea/dnd is the React-Forked-Dnd fork of
+   react-beautiful-dnd; the original library used `rbd`.) */
+[data-rfd-drag-handle-draggable-id] {
     touch-action: none;
 }
 
