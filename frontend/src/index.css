@@ -77,6 +77,11 @@ body {
        elements can still opt into horizontal scrolling (e.g. the Quick
        Guide strip) without leaking overflow to the whole page. */
     overflow-x: hidden;
+    /* Kill horizontal overscroll bounce so a sideways drag on a
+       category/subcategory handle never turns into a page pan. Vertical
+       overscroll still works (pull-to-refresh, rubber-band) because
+       we scope this to the X axis only. */
+    overscroll-behavior-x: contain;
 }
 
 html {
@@ -84,6 +89,28 @@ html {
        child (e.g. a stray absolute-positioned element) push the page
        sideways during transitions. */
     overflow-x: hidden;
+    overscroll-behavior-x: contain;
+}
+
+/* While a @hello-pangea/dnd drag is active the app root gets `.ir-dragging`
+   applied to the <html> element (see NotesApp.handleDragStart / handleDragEnd).
+   That fully locks horizontal touch gestures so the drag preview moves
+   independently and the underlying page can never be pan-scrolled sideways
+   by the same finger gesture. */
+html.ir-dragging,
+html.ir-dragging body {
+    touch-action: pan-y !important;      /* allow autoscroll while dragging up/down, block all X pans */
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+}
+
+/* Every @hello-pangea/dnd drag handle across the app — category rows,
+   subcategory rows, note tile grips, pack headers — is tagged with
+   `data-rbd-drag-handle-draggable-id`. Force touch-action:none on those
+   so the browser hands the entire touch gesture to the dnd library
+   instead of interpreting a sideways drag as a page pan. */
+[data-rbd-drag-handle-draggable-id] {
+    touch-action: none;
 }
 
 /* Reserve safe areas on the outermost viewport so notched devices and

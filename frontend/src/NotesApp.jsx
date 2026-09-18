@@ -1364,7 +1364,18 @@ export default function NotesApp() {
     } catch { /* non-fatal */ }
   };
 
-  const handleDragStart = () => { haptic("tap"); };
+  const handleDragStart = () => {
+    haptic("tap");
+    // Lock horizontal touch gestures for the duration of the drag so
+    // dragging a category / subcategory sideways can never pan the
+    // underlying page. `.ir-dragging` on <html> is picked up by the
+    // global CSS rule that forces `touch-action: pan-y` + hides any
+    // stray X overflow while a drag is in flight.
+    try { document.documentElement.classList.add("ir-dragging"); } catch { /* noop */ }
+  };
+  const handleDragCleanup = () => {
+    try { document.documentElement.classList.remove("ir-dragging"); } catch { /* noop */ }
+  };
 
   // Modifier-key state during drag. Hold ⌘ / Ctrl while dropping across
   // packs to switch the default COPY behaviour into a MOVE. The ref is
@@ -1408,6 +1419,11 @@ export default function NotesApp() {
   };
 
   const handleDragEnd = async (result) => {
+    // Always release the horizontal-gesture lock the moment the drag
+    // finishes — whether the user dropped on a valid target, cancelled,
+    // or the persistence step threw. Wrapping the entire body in
+    // try/finally guarantees `.ir-dragging` on <html> never gets stuck.
+    try {
     if (!result.destination) return;
     const { source, destination, draggableId, type } = result;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
@@ -1593,6 +1609,9 @@ export default function NotesApp() {
     } catch (err) {
       console.error("Reorder error:", err);
       toast.error("Could not move");
+    }
+    } finally {
+      handleDragCleanup();
     }
   };
 
