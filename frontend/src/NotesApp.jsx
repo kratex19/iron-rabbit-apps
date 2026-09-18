@@ -1375,6 +1375,16 @@ export default function NotesApp() {
   };
   const handleDragCleanup = () => {
     try { document.documentElement.classList.remove("ir-dragging"); } catch { /* noop */ }
+    // Belt-and-suspenders: if a rogue gesture ever slipped past the
+    // CSS locks and left the page shifted horizontally (older PWA
+    // shells reported this on some Android WebViews), snap it back
+    // to x=0 on every drop so the next drag release recovers the
+    // view without needing a reload.
+    try {
+      window.scrollTo({ left: 0, top: window.scrollY });
+      document.documentElement.scrollLeft = 0;
+      document.body.scrollLeft = 0;
+    } catch { /* noop */ }
   };
 
   // Modifier-key state during drag. Hold ⌘ / Ctrl while dropping across
