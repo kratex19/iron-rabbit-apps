@@ -1404,6 +1404,35 @@ export default function NotesApp() {
     };
   }, []);
 
+  // Pointer-type state at drag initiation. On touch devices there is no
+  // keyboard modifier available, so a finger drag across categories would
+  // otherwise fall through to the default COPY branch and duplicate the
+  // tile. Track whether the most recent gesture was a touch (finger /
+  // stylus) and treat those cross-category drops as MOVE by default —
+  // matching what a mobile user expects from a drag-to-reorganise gesture.
+  // Desktop mouse drops still default to COPY unless ⌘ / Ctrl is held.
+  const touchDragRef = useRef(false);
+  useEffect(() => {
+    const onPointerDown = (e) => {
+      const t = e.pointerType;
+      touchDragRef.current = t === "touch" || t === "pen";
+    };
+    const onTouchStart = () => {
+      touchDragRef.current = true;
+    };
+    const onMouseDown = () => {
+      touchDragRef.current = false;
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
+    window.addEventListener("mousedown", onMouseDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("touchstart", onTouchStart, true);
+      window.removeEventListener("mousedown", onMouseDown, true);
+    };
+  }, []);
+
   // Multi-select + bulk actions — every selection helper, modal flag,
   // and bulk handler is owned by the hook.
   const bulk = useBulkActions({ settings, fetchData });
@@ -1514,14 +1543,16 @@ export default function NotesApp() {
       const srcCat = source.droppableId.startsWith(CAT_PREFIX) ? source.droppableId.slice(CAT_PREFIX.length) : null;
       const dstCat = destination.droppableId.startsWith(CAT_PREFIX) ? destination.droppableId.slice(CAT_PREFIX.length) : null;
 
-      // Cross-category tile drag. DEFAULT = COPY (original stays, new
-      // duplicate lands in the destination). Hold ⌘ (Mac) or Ctrl
-      // (Windows/Linux) at drop time to switch to MOVE. Move is still
-      // available via NoteModal → Category field or Batch Studio → Move.
+      // Cross-category tile drag. DEFAULT on DESKTOP MOUSE = COPY
+      // (original stays, new duplicate lands in the destination). Hold
+      // ⌘ (Mac) or Ctrl (Windows/Linux) at drop time to switch to MOVE.
+      // DEFAULT on TOUCH devices = MOVE — a finger drag between
+      // categories reorganises the existing tile rather than cloning
+      // it, since there is no keyboard modifier available on mobile.
       if (srcCat !== null && dstCat !== null && srcCat !== dstCat) {
         const original = notes.find(n => n.id === noteId);
         if (!original) return;
-        const wantMove = modifierHeldRef.current === true;
+        const wantMove = modifierHeldRef.current === true || touchDragRef.current === true;
 
         if (wantMove) {
           const prev = await StorageService.moveNoteToCategory(noteId, dstCat, "");
