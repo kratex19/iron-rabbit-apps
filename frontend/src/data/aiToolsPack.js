@@ -105,9 +105,6 @@ const AI_TOOLS_100_PACK = {
   name: PACK_NAME,
   tagline: "20 categories × 5 tools each — 100 curated free AI utilities. Every tile opens the tool's official site.",
   accent: PACK_ACCENT,
-  // Header badge shown in TilePacksModal so users know this is a large
-  // pack before they hit Apply. Purely informational.
-  size_hint: `100 individual tiles · 20 categories · 5 tools per category`,
   notes,
 };
 

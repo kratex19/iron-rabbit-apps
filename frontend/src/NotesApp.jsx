@@ -1035,26 +1035,9 @@ export default function NotesApp() {
     }
   };
 
-  // Tile Pack: bulk-create every note in the pack. Also handles
-  // duplicate-install detection — if any active (non-deleted) note
-  // already carries this pack's `pack_id`, the user is asked whether
-  // they want to reinstall (adds a fresh copy alongside the existing
-  // tiles) or cancel.
+  // Tile Pack: bulk-create every note in the pack.
   const handleApplyPack = async (pack) => {
     try {
-      // Duplicate detection — do NOT silently create a second copy.
-      const alreadyInstalled = notes.some(
-        (n) => n?.pack_id === pack.id && !n?.deleted_at
-      );
-      if (alreadyInstalled) {
-        const proceed = window.confirm(
-          `"${pack.name}" is already installed. Reinstall a fresh copy alongside the existing tiles?`
-        );
-        if (!proceed) {
-          toast.info("Install cancelled — pack already present.");
-          return;
-        }
-      }
       const now = new Date().toISOString();
       let maxOrder = notes.reduce((max, n) => Math.max(max, n.order || 0), 0);
       // Attach pack-of-origin metadata so section headers can render the
@@ -1084,37 +1067,6 @@ export default function NotesApp() {
     } catch (err) {
       console.error("Apply pack error:", err);
       toast.error("Could not apply pack");
-    }
-  };
-
-  // Uninstall a Tile Pack — removes ONLY notes whose `pack_id` matches
-  // the pack being removed. User-created notes (which have no `pack_id`
-  // or a different `pack_id`) are never touched. Confirms before deleting.
-  const handleRemovePack = async (pack) => {
-    try {
-      const owned = notes.filter(
-        (n) => n?.pack_id === pack.id && !n?.deleted_at
-      );
-      if (owned.length === 0) {
-        toast.info(`"${pack.name}" is not currently installed.`);
-        return;
-      }
-      const proceed = window.confirm(
-        `Remove "${pack.name}"? This will delete ${owned.length} tile${owned.length === 1 ? "" : "s"} that were created by this pack. Your own notes and other packs are NOT affected.`
-      );
-      if (!proceed) return;
-      for (const n of owned) {
-        // Hard-delete pack-owned tiles rather than trash-route: the pack
-        // can be reinstalled at any time so we don't need a recovery
-        // window, and users expect Remove Pack to fully clean up.
-        await StorageService.deleteNote(n.id);
-      }
-      haptic("milestone");
-      toast.success(`Removed "${pack.name}" — ${owned.length} tile${owned.length === 1 ? "" : "s"} deleted`);
-      fetchData();
-    } catch (err) {
-      console.error("Remove pack error:", err);
-      toast.error("Could not remove pack");
     }
   };
 
@@ -3037,7 +2989,6 @@ export default function NotesApp() {
         handleForceRefresh={handleForceRefresh}
         handleQuickAdd={handleQuickAdd}
         handleApplyPack={handleApplyPack}
-        handleRemovePack={handleRemovePack}
         handleTourDismiss={handleTourDismiss}
         handleCloseQuickAccess={handleCloseQuickAccess}
         bulkMoveTo={bulkMoveTo}

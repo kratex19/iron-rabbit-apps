@@ -175,14 +175,6 @@ export default function AppModals(p) {
         isOpen={p.tilePacksOpen}
         onClose={() => p.setTilePacksOpen(false)}
         onApply={p.handleApplyPack}
-        onRemove={p.handleRemovePack}
-        installedPackIds={
-          Array.from(new Set(
-            (p.notes || [])
-              .filter((n) => n?.pack_id && !n?.deleted_at)
-              .map((n) => n.pack_id)
-          ))
-        }
         isDark={p.isDark}
       />
       <FloatingCalendarModal
