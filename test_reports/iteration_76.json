@@ -1,0 +1,39 @@
+{
+  "summary": "Iron Rabbit v157 — verified (1) Nightly Countdown Chip and (2) Uncategorized cross-category toast label. Countdown chip cases 1-5 all PASS via IndexedDB seeding + reload. Regression on OFF menu/Turn ON/Cancel PASS. Service worker cache name confirmed iron-rabbit-v157. Uncategorized toast: code path verified via source review at NotesApp.jsx L1560 (MOVE) and L1588 (COPY) — both compute `dstLabel = dstCat || 'Uncategorized'` so empty-string dstCat now renders as 'Uncategorized' in both toasts; trailing '· Hold ⌘/Ctrl to move' preserved on COPY. Live rbd drag simulation was not executed (droppables not available post-reload in test surface).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "notificationService.js `nextFocusStart` correctly iterates 0..7 day offsets, honours master schedule.enabled, skips today when start <= curMinutes, and returns null when nothing scheduled in the next 7 days. Reuses DAY_KEYS + parseHHMM cleanly.",
+    "FocusStatusChip.jsx OFF-state label logic gated by `nextStartTs && (nextStartTs - Date.now()) <= 24*60*60*1000` — falls back to 'Focus · off' otherwise, matching spec.",
+    "Countdown tick useEffect: interval runs when `active || (!active && focusSchedule?.enabled)`. Uses 30 s cadence — spec says '~30 s', matches.",
+    "NotesApp.jsx L1560 & L1588: `const dstLabel = dstCat || 'Uncategorized'` applied to both MOVE and COPY toasts. Trailing ' · Hold ⌘/Ctrl to move' on COPY unchanged.",
+    "service-worker.js CACHE_NAME = 'iron-rabbit-v157' — verified live via caches.keys() (['iron-rabbit-v157']).",
+    "Pre-existing (unrelated) hydration warning: <button> inside <button> in CategoryGroup/HierarchyPathButton persists. Not introduced by this iteration but should be fixed."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A", "frontend": "100% for countdown + regression; toast branch verified by source review only" },
+  "seed_data_creation": "Seeded IndexedDB (IronRabbit → settings store, key 'app_settings' out-of-line) with 5 different focus_schedule shapes and reloaded page between cases. NOTE for next agent: `store.put(value, 'app_settings')` — must pass explicit key since keyPath is null.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "IndexedDB 'IronRabbit' → store 'settings' has keyPath=null, autoIncrement=false — pass key explicitly to put(). Chip data-testid='focus-status-chip'; inner_text() on the button element yields the label. `nextFocusStart` skips today when start <= curMinutes (STRICT >, not >=). Uncategorized droppableId = CAT_PREFIX + '' (i.e. 'notes-in-'), producing dstCat === ''.",
+  "detailed_results": {
+    "case1_2h5m_ahead": "PASS — chip: 'Focus · in 2h 4m' (within ±1min tolerance of 2h5m)",
+    "case2_45m_ahead": "PASS — chip: 'Focus · in 44m' (minutes-only, no 'h' segment)",
+    "case3_over_24h_ahead": "PASS — chip: 'Focus · off' (30h out fell back to off correctly)",
+    "case4_schedule_master_disabled": "PASS — chip: 'Focus · off' despite near-future enabled day",
+    "case5_no_day_enabled": "PASS — chip: 'Focus · off'",
+    "regression_menu_rows_present": "PASS — 30m/1h/2h/sunrise/nightly/manual/guide/guide-zip all found",
+    "regression_turn_on": "PASS — chip flipped to 'Focus · ON'",
+    "regression_cancel_returns_off": "PASS — chip: 'Focus · off'",
+    "service_worker_cache_name": "PASS — caches.keys() = ['iron-rabbit-v157']",
+    "uncategorized_move_toast": "CODE-VERIFIED (not live-dragged) — NotesApp.jsx L1560 emits 'Moved to \"Uncategorized\"' when dstCat===''",
+    "uncategorized_copy_toast": "CODE-VERIFIED (not live-dragged) — NotesApp.jsx L1588 emits 'Copied to \"Uncategorized\" · Hold ⌘/Ctrl to move' when dstCat===''",
+    "named_category_regression": "CODE-VERIFIED — same L1560/1588 branch uses dstLabel=dstCat when non-empty, preserving prior behavior"
+  }
+}
