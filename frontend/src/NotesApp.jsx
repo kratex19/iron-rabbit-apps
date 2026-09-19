@@ -1557,7 +1557,8 @@ export default function NotesApp() {
         if (wantMove) {
           const prev = await StorageService.moveNoteToCategory(noteId, dstCat, "");
           await fetchData();
-          toast.success(`Moved to "${dstCat}"`, {
+          const dstLabel = dstCat || "Uncategorized";
+          toast.success(`Moved to "${dstLabel}"`, {
             action: prev ? {
               label: "Undo",
               onClick: async () => {
@@ -1583,7 +1584,8 @@ export default function NotesApp() {
         };
         await StorageService.saveNote(copy);
         await fetchData();
-        toast.success(`Copied to "${dstCat}" · Hold ⌘/Ctrl to move`, {
+        const dstLabel = dstCat || "Uncategorized";
+        toast.success(`Copied to "${dstLabel}" · Hold ⌘/Ctrl to move`, {
           action: {
             label: "Undo",
             onClick: async () => {

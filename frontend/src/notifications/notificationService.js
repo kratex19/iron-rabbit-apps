@@ -108,6 +108,33 @@ export function isInFocusWindow(now, schedule) {
   return false;
 }
 
+// Compute the timestamp (ms) at which the NEXT scheduled Focus-Mode window
+// will begin, starting from `now`. Returns null when there is no upcoming
+// window within the next 7 days (schedule disabled, empty, or every day
+// disabled). Used by the header chip to show a "Focus · in Xh Ym"
+// countdown so users see how soon quiet hours arrive. Does NOT count a
+// window that is currently active (returns the NEXT start, not the
+// current one) — callers can gate on `isInFocusWindow` first.
+export function nextFocusStart(now, schedule) {
+  if (!schedule || !schedule.enabled) return null;
+  const days = schedule.days || {};
+  const curDay = now.getDay();
+  const curMinutes = now.getHours() * 60 + now.getMinutes();
+  for (let offset = 0; offset < 8; offset += 1) {
+    const dayIdx = (curDay + offset) % 7;
+    const d = days[DAY_KEYS[dayIdx]];
+    if (!d || !d.enabled) continue;
+    const s = parseHHMM(d.start);
+    if (s == null) continue;
+    if (offset === 0 && s <= curMinutes) continue; // already started today
+    const target = new Date(now);
+    target.setDate(target.getDate() + offset);
+    target.setHours(Math.floor(s / 60), s % 60, 0, 0);
+    return target.getTime();
+  }
+  return null;
+}
+
 class NotificationService {
   constructor() {
     this.checkInterval = null;

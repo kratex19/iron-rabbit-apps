@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { BellOff, Bell, X, Sunrise, Moon, Timer, Infinity as InfinityIcon, BookOpen, Download } from "lucide-react";
 import { toast } from "sonner";
 import { haptic } from "../utils/haptic";
+import { nextFocusStart } from "../notifications/notificationService";
 
 /**
  * FocusStatusChip — header pill that is ALWAYS visible so the user can
@@ -64,10 +65,16 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
   const btnRef = useRef(null);
 
   useEffect(() => {
-    if (!status?.active) return undefined;
+    // Tick once a minute whenever there's a live countdown to render —
+    // either Focus is ACTIVE (existing behaviour: "3h 12m left") OR
+    // Focus is OFF but a schedule is enabled and a next-start exists
+    // ("Focus · in 2h 04m") so the OFF-state countdown decrements in
+    // real time. Ticks every 30 s to keep minute rollovers snappy.
+    const hasScheduledCountdown = !status?.active && !!focusSchedule && !!focusSchedule.enabled;
+    if (!status?.active && !hasScheduledCountdown) return undefined;
     const iv = setInterval(() => setTick((t) => t + 1), 30 * 1000);
     return () => clearInterval(iv);
-  }, [status?.active]);
+  }, [status?.active, focusSchedule]);
 
   // Close the OFF-state menu on outside click / Escape.
   useEffect(() => {
@@ -161,6 +168,26 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
       if (ms) onActivate({ focus_mode: false, focus_until: Date.now() + ms });
     };
 
+    // OFF-state label — if a nightly schedule is enabled AND its next
+    // start is within the next 24 hours, show "Focus · in Xh Ym" so
+    // users see the countdown at a glance. Otherwise fall back to
+    // "Focus · off". Recomputes every 30 s via the countdown tick above.
+    const nextStartTs = nextFocusStart(new Date(), focusSchedule);
+    const withinDay = nextStartTs && (nextStartTs - Date.now()) <= 24 * 60 * 60 * 1000;
+    let offLabel = "Focus · off";
+    let offTitle = "Focus Mode is OFF — tap to silence alarms";
+    if (withinDay) {
+      const msLeft = Math.max(0, nextStartTs - Date.now());
+      const mins = Math.max(0, Math.round(msLeft / 60000));
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      const dur = h === 0 ? `${m}m` : (m === 0 ? `${h}h` : `${h}h ${m}m`);
+      offLabel = `Focus · in ${dur}`;
+      const startDate = new Date(nextStartTs);
+      const startTxt = startDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      offTitle = `Next scheduled Focus window starts at ${startTxt} — tap to silence alarms sooner`;
+    }
+
     return (
       <div ref={wrapRef} className="relative inline-flex mt-1 shrink-0">
         <button
@@ -171,10 +198,10 @@ export default function FocusStatusChip({ status, onActivate, onCancel, location
           data-testid="focus-status-chip"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          title="Focus Mode is OFF — tap to silence alarms"
+          title={offTitle}
         >
           <Bell className="w-3 h-3" strokeWidth={2.4} />
-          <span>Focus · off</span>
+          <span>{offLabel}</span>
         </button>
 
         {menuOpen && typeof document !== "undefined" && createPortal(
