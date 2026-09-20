@@ -545,7 +545,7 @@ export default function NotesApp() {
       // its inline rule editor visible. Only accepts known values so
       // legacy data cannot force an invalid mode.
       if (settingsData?.sort_by) {
-        const ok = ["custom","priority","newest","oldest","a-z","z-a","recently-viewed","recently-edited","category"];
+        const ok = ["custom","priority","newest","oldest","a-z","z-a","recently-viewed","viewed-oldest","recently-edited","edited-oldest","category"];
         if (ok.includes(settingsData.sort_by)) setSortBy(settingsData.sort_by);
       }
       // Apply user-adjusted attachment limits (images/files/MB) at boot
@@ -1927,7 +1927,9 @@ export default function NotesApp() {
         case "a-z":             return (a.title || "").localeCompare(b.title || "");
         case "z-a":             return (b.title || "").localeCompare(a.title || "");
         case "recently-viewed": return new Date(b.last_viewed || b.updated_at) - new Date(a.last_viewed || a.updated_at);
+        case "viewed-oldest":   return new Date(a.last_viewed || a.updated_at) - new Date(b.last_viewed || b.updated_at);
         case "recently-edited": return new Date(b.updated_at) - new Date(a.updated_at);
+        case "edited-oldest":   return new Date(a.updated_at) - new Date(b.updated_at);
         case "category":        return (a.category || "").localeCompare(b.category || "");
         default:                return 0;
       }
@@ -1948,7 +1950,9 @@ export default function NotesApp() {
         case "a-z":               return (a.title || "").localeCompare(b.title || "");
         case "z-a":               return (b.title || "").localeCompare(a.title || "");
         case "recently-viewed":   return new Date(b.last_viewed || b.updated_at) - new Date(a.last_viewed || a.updated_at);
+        case "viewed-oldest":     return new Date(a.last_viewed || a.updated_at) - new Date(b.last_viewed || b.updated_at);
         case "recently-edited":   return new Date(b.updated_at) - new Date(a.updated_at);
+        case "edited-oldest":     return new Date(a.updated_at) - new Date(b.updated_at);
         case "category":          return (a.category || "").localeCompare(b.category || "");
         default:                  return 0;
       }

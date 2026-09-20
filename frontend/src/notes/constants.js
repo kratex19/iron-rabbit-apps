@@ -129,30 +129,37 @@ export const SOUND_OPTIONS = [
 ];
 
 export const SORT_OPTIONS = [
-  { value: "custom",           label: "Manual Order",     icon: GripVertical },
-  { value: "priority",         label: "Custom Priority",  icon: Filter },
-  { value: "newest",           label: "Newest First",     icon: CalendarDays },
-  { value: "oldest",           label: "Oldest First",     icon: CalendarDays },
-  { value: "a-z",              label: "A → Z",            icon: ArrowUpAZ },
-  { value: "z-a",              label: "Z → A",            icon: ArrowDownAZ },
-  { value: "recently-viewed",  label: "Recently Viewed",  icon: Clock },
-  { value: "recently-edited",  label: "Recently Edited",  icon: Pencil },
-  { value: "category",         label: "By Category",      icon: Tag },
+  { value: "priority",         label: "Custom",                    icon: Filter },
+  { value: "custom",           label: "Manual Order",              icon: GripVertical },
+  { value: "newest",           label: "Newest First",              icon: CalendarDays },
+  { value: "oldest",           label: "Oldest First",              icon: CalendarDays },
+  { value: "recently-edited",  label: "Edited — Newest First",     icon: Pencil },
+  { value: "edited-oldest",    label: "Edited — Oldest First",     icon: Pencil },
+  { value: "recently-viewed",  label: "Viewed — Most Recent First", icon: Clock },
+  { value: "viewed-oldest",    label: "Viewed — Oldest First",     icon: Clock },
+  { value: "a-z",              label: "A → Z",                     icon: ArrowUpAZ },
+  { value: "z-a",              label: "Z → A",                     icon: ArrowDownAZ },
 ];
 
 // Sort modes that are valid as user-authored Custom Priority RULES.
 // Excludes "custom" (Manual Order is not a rule) and "priority" itself
 // (rules can't reference the mode they belong to). Rendered by
 // CustomPriorityEditor.jsx and consumed by the priority comparator in
-// NotesApp.jsx `processedNotes` useMemo.
+// NotesApp.jsx `processedNotes` useMemo. Note: `category` is retained
+// as a hidden backward-compatibility legacy comparator — it remains a
+// valid rule so users who previously added it (or older saved rule
+// lists) continue to work, but it is no longer shown in the RIGHT
+// dropdown itself.
 export const CUSTOM_PRIORITY_RULES = [
-  { value: "newest",           label: "Newest First",     icon: CalendarDays },
-  { value: "oldest",           label: "Oldest First",     icon: CalendarDays },
-  { value: "a-z",              label: "A → Z",            icon: ArrowUpAZ },
-  { value: "z-a",              label: "Z → A",            icon: ArrowDownAZ },
-  { value: "recently-viewed",  label: "Recently Viewed",  icon: Clock },
-  { value: "recently-edited",  label: "Recently Edited",  icon: Pencil },
-  { value: "category",         label: "By Category",      icon: Tag },
+  { value: "newest",           label: "Newest First",              icon: CalendarDays },
+  { value: "oldest",           label: "Oldest First",              icon: CalendarDays },
+  { value: "recently-edited",  label: "Edited — Newest First",     icon: Pencil },
+  { value: "edited-oldest",    label: "Edited — Oldest First",     icon: Pencil },
+  { value: "recently-viewed",  label: "Viewed — Most Recent First", icon: Clock },
+  { value: "viewed-oldest",    label: "Viewed — Oldest First",     icon: Clock },
+  { value: "a-z",              label: "A → Z",                     icon: ArrowUpAZ },
+  { value: "z-a",              label: "Z → A",                     icon: ArrowDownAZ },
+  { value: "category",         label: "By Category",               icon: Tag },
 ];
 
 export const FILTER_OPTIONS = [
