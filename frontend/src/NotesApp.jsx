@@ -1640,13 +1640,13 @@ export default function NotesApp() {
 
       await StorageService.reorderNotes(finalOrderIds);
 
-      // Drag-and-drop implies "custom" sort. If the user is in a
-      // different sort mode the reorder would be invisible (the view
-      // would resort by date / title etc. and the item would snap back).
-      // Auto-switching preserves the user's action.
+      // Drag-and-drop implies the "Manual Order" sort mode. If the user
+      // is in a different sort mode the reorder would be invisible
+      // (the view would resort by date / title etc. and the item
+      // would snap back). Auto-switching preserves the user's action.
       if (sortBy !== "custom") {
         setSortBy("custom");
-        toast.success("Custom order enabled");
+        toast.success("Manual Order enabled");
       }
       fetchData();
     } catch (err) {
@@ -1681,7 +1681,7 @@ export default function NotesApp() {
       await StorageService.reorderNotes(finalOrderIds);
       if (sortBy !== "custom") {
         setSortBy("custom");
-        toast.success("Custom order enabled");
+        toast.success("Manual Order enabled");
       }
       fetchData();
       haptic("success");
@@ -1879,7 +1879,24 @@ export default function NotesApp() {
         return prefix.every((seg, i) => path[i] === seg);
       });
     }
-    if (filterBy !== "all" && filterBy !== "archived" && filterBy !== "trash") {
+    // LEFT-DROPDOWN filter — `filterBy` covers date-range buckets plus
+    // the new "Uncategorized" view. "Uncategorized" is display-only:
+    // it filters tiles that carry NO category, NO subcategory, and NO
+    // category_path segments. It does NOT create any container, does
+    // NOT modify tile records, and does NOT alter pinned state. Pinned
+    // tiles that happen to qualify still surface (per the pinned rail's
+    // own render path); the normal category/subcategory rails are
+    // simply empty under this filter because no tile matches.
+    if (filterBy === "uncategorized") {
+      result = result.filter((n) => {
+        const legacyCat = String(n.category || "").trim();
+        const legacySub = String(n.subcategory || "").trim();
+        const pathLen = Array.isArray(n.category_path)
+          ? n.category_path.filter((s) => String(s || "").trim()).length
+          : 0;
+        return !legacyCat && !legacySub && pathLen === 0;
+      });
+    } else if (filterBy !== "all" && filterBy !== "archived" && filterBy !== "trash") {
       result = result.filter(n => {
         const date = parseISO(n.created_at);
         if (filterBy === "today") return isToday(date);
@@ -1888,9 +1905,34 @@ export default function NotesApp() {
         return true;
       });
     }
+    // Comparator used by the "Custom Priority" multi-level sort. Each
+    // rule is one of the existing single-mode sort ids from
+    // CUSTOM_PRIORITY_RULES. Rules are consulted in order; the first
+    // one that returns non-zero wins, so later rules act as tie-
+    // breakers, matching the spec ("Rule #1 first, Rule #2 next, ..."). 
+    const compareByRule = (rule, a, b) => {
+      switch (rule) {
+        case "newest":          return new Date(b.created_at) - new Date(a.created_at);
+        case "oldest":          return new Date(a.created_at) - new Date(b.created_at);
+        case "a-z":             return (a.title || "").localeCompare(b.title || "");
+        case "z-a":             return (b.title || "").localeCompare(a.title || "");
+        case "recently-viewed": return new Date(b.last_viewed || b.updated_at) - new Date(a.last_viewed || a.updated_at);
+        case "recently-edited": return new Date(b.updated_at) - new Date(a.updated_at);
+        case "category":        return (a.category || "").localeCompare(b.category || "");
+        default:                return 0;
+      }
+    };
+    const priorityRules = Array.isArray(settings?.custom_sort_rules) ? settings.custom_sort_rules : [];
     result.sort((a, b) => {
       switch (sortBy) {
         case "custom":            return (a.order || 0) - (b.order || 0);
+        case "priority": {
+          for (const r of priorityRules) {
+            const cmp = compareByRule(r, a, b);
+            if (cmp !== 0) return cmp;
+          }
+          return 0;
+        }
         case "newest":            return new Date(b.created_at) - new Date(a.created_at);
         case "oldest":            return new Date(a.created_at) - new Date(b.created_at);
         case "a-z":               return (a.title || "").localeCompare(b.title || "");
@@ -1902,7 +1944,7 @@ export default function NotesApp() {
       }
     });
     return result;
-  }, [notes, searchQuery, filterBy, sortBy, activeTag, autoLock.panic, autoLock.safeCategory, activePathFilter]);
+  }, [notes, searchQuery, filterBy, sortBy, activeTag, autoLock.panic, autoLock.safeCategory, activePathFilter, settings?.custom_sort_rules]);
 
   const { grouped, uncategorized } = useMemo(() => {
     const map = new Map();
@@ -2886,6 +2928,22 @@ export default function NotesApp() {
           visibleCount={processedNotes.length}
           gridColumns={settings?.grid_columns}
           onGridColumnsChange={handleGridColumnsChange}
+          customSortRules={Array.isArray(settings?.custom_sort_rules) ? settings.custom_sort_rules : []}
+          onCustomSortRulesChange={(next) => {
+            // Persist the user's rule list to IndexedDB via the same
+            // settings store used everywhere else. Deduplicate defensively
+            // so a caller can never introduce the same rule twice.
+            const seen = new Set();
+            const clean = (Array.isArray(next) ? next : []).filter((r) => {
+              if (!r || seen.has(r)) return false;
+              seen.add(r);
+              return true;
+            });
+            setSettings((prev) => ({ ...(prev || {}), custom_sort_rules: clean }));
+            StorageService.saveSettings({ custom_sort_rules: clean }).catch((err) => {
+              console.error("Save custom_sort_rules error:", err);
+            });
+          }}
         />
 
         {renderPinnedRail()}

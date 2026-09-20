@@ -1,7 +1,7 @@
 // Shared constants for the Notes app.
 // Extracted from the original monolithic NotesApp.jsx.
 
-import { GripVertical, CalendarDays, ArrowUpAZ, ArrowDownAZ, Clock, Pencil, Tag } from "lucide-react";
+import { GripVertical, CalendarDays, ArrowUpAZ, ArrowDownAZ, Clock, Pencil, Tag, Filter } from "lucide-react";
 
 // Note color palette.
 // - Solid entries (first 5) use their own CSS class (`.note-<name>`).
@@ -129,7 +129,23 @@ export const SOUND_OPTIONS = [
 ];
 
 export const SORT_OPTIONS = [
-  { value: "custom",           label: "Custom Order",     icon: GripVertical },
+  { value: "custom",           label: "Manual Order",     icon: GripVertical },
+  { value: "priority",         label: "Custom Priority",  icon: Filter },
+  { value: "newest",           label: "Newest First",     icon: CalendarDays },
+  { value: "oldest",           label: "Oldest First",     icon: CalendarDays },
+  { value: "a-z",              label: "A → Z",            icon: ArrowUpAZ },
+  { value: "z-a",              label: "Z → A",            icon: ArrowDownAZ },
+  { value: "recently-viewed",  label: "Recently Viewed",  icon: Clock },
+  { value: "recently-edited",  label: "Recently Edited",  icon: Pencil },
+  { value: "category",         label: "By Category",      icon: Tag },
+];
+
+// Sort modes that are valid as user-authored Custom Priority RULES.
+// Excludes "custom" (Manual Order is not a rule) and "priority" itself
+// (rules can't reference the mode they belong to). Rendered by
+// CustomPriorityEditor.jsx and consumed by the priority comparator in
+// NotesApp.jsx `processedNotes` useMemo.
+export const CUSTOM_PRIORITY_RULES = [
   { value: "newest",           label: "Newest First",     icon: CalendarDays },
   { value: "oldest",           label: "Oldest First",     icon: CalendarDays },
   { value: "a-z",              label: "A → Z",            icon: ArrowUpAZ },
@@ -140,12 +156,13 @@ export const SORT_OPTIONS = [
 ];
 
 export const FILTER_OPTIONS = [
-  { value: "all",      label: "All Notes" },
-  { value: "today",    label: "Today" },
-  { value: "week",     label: "This Week" },
-  { value: "month",    label: "This Month" },
-  { value: "archived", label: "Archived" },
-  { value: "trash",    label: "Trash" },
+  { value: "all",           label: "All Notes" },
+  { value: "uncategorized", label: "Uncategorized" },
+  { value: "today",         label: "Today" },
+  { value: "week",          label: "This Week" },
+  { value: "month",         label: "This Month" },
+  { value: "archived",      label: "Archived" },
+  { value: "trash",         label: "Trash" },
 ];
 
 export const DEFAULT_TEMPLATES = [

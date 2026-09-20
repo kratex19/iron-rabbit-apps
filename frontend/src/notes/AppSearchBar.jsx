@@ -7,6 +7,7 @@ import { SORT_OPTIONS, FILTER_OPTIONS } from "./constants";
 import { haptic } from "../utils/haptic";
 import TagFilterStrip from "./TagFilterStrip";
 import TilesColumnsButton from "./TilesColumnsButton";
+import CustomPriorityEditor from "./CustomPriorityEditor";
 
 /**
  * Search bar + view/filter/sort controls + tag strip + group-by toggle.
@@ -34,6 +35,8 @@ export default function AppSearchBar({
   visibleCount,
   gridColumns,
   onGridColumnsChange,
+  customSortRules,
+  onCustomSortRulesChange,
 }) {
   const { t } = useTranslation();
   return (
@@ -111,6 +114,17 @@ export default function AppSearchBar({
           </Select>
         </div>
       </div>
+
+      {/* Custom Priority editor — inline rule-list panel shown only
+          when the user selects the "Custom Priority" sort mode. Purely
+          display-only: rules alter tile ORDER, never tile RECORDS. */}
+      {sortBy === "priority" && onCustomSortRulesChange && (
+        <CustomPriorityEditor
+          isDark={isDark}
+          rules={customSortRules}
+          onChange={onCustomSortRulesChange}
+        />
+      )}
 
       {/* Tag filter strip (only shown when there are tags) */}
       <TagFilterStrip
