@@ -1,3 +1,12 @@
+## 2026-02-28 — v160: Nested <button> hydration fix + Path A re-verify
+
+- **Hydration warning fixed**: `frontend/src/notes/CategoryGroup.jsx` (L87-130) and `frontend/src/notes/NestedSubGroup.jsx` (L96-141) — outer toggle wrappers converted from `<button>` to `<div role="button" tabIndex={0}>` with `onKeyDown` for Enter/Space, `aria-expanded`, and preserved classes/testids. `HierarchyPathButton` (which renders its own `<button>`) is now a legal descendant. `CategoryHeader.jsx` verified structurally clean (`HierarchyPathButton` is a sibling of the toggle button, not a child).
+- **Priority Rule Icons** confirmed visible in `CustomPriorityEditor.jsx` — each rule row renders the lucide icon on the left of the label; no behavior change.
+- **Path A independent re-verification** (iteration_78.json): Uncategorized filter data-integrity confirmed byte-identical across 13 notes; Custom Priority persistence + duplicate prevention pass; 0 hydration warnings across Grid/List/Nested-Subcategory paths.
+- **No new features added** — Timeline preset skipped per user directive.
+- **Cache**: `service-worker.js` v159 → v160.
+
+
 ## 2026-02-28 — v158/v159: Path A split — Manual Order vs Custom Priority + Uncategorized filter
 
 - **Left dropdown (FILTER)** — added `Uncategorized` option (`frontend/src/notes/constants.js` `FILTER_OPTIONS`). Shows ONLY tiles with no `category` + no `subcategory` + empty `category_path`. Zero data mutation; pinned rails untouched. Filter branch in `NotesApp.jsx` `processedNotes` useMemo.
