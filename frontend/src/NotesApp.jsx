@@ -2427,6 +2427,29 @@ export default function NotesApp() {
 
   const renderNotes = () => {
     if (processedNotes.length === 0) {
+      // Special-case the Uncategorized filter with a friendlier
+      // "You're clean — no loose tiles" empty-state. This is purely
+      // visual: no Uncategorized container is created here — the
+      // filter simply matched zero existing tiles that have no
+      // category, no subcategory, and no category_path.
+      if (filterBy === "uncategorized" && !searchQuery) {
+        return (
+          <div className="text-center py-12" data-testid="uncategorized-empty-state">
+            <img
+              src="/icon-192.png"
+              alt="Iron Rabbit"
+              className="mx-auto mb-4 w-20 h-20 opacity-70 select-none"
+              style={{ filter: "drop-shadow(0 8px 24px rgba(180, 90, 40, 0.25))" }}
+            />
+            <p className={`text-base font-medium mb-1 ${isDark ? 'text-slate-200' : 'text-gray-800'}`}>
+              You're clean — no loose tiles
+            </p>
+            <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-gray-500'}`}>
+              Every tile is filed under a Category or Subcategory.
+            </p>
+          </div>
+        );
+      }
       const emptyCopy = searchQuery
         ? `No matches for "${searchQuery}"`
         : filterBy === "today" ? "Nothing scheduled today"

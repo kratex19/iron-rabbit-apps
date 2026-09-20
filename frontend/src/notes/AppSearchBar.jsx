@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Filter, LayoutGrid, List, FolderTree } from "lucide-react";
+import { Search, Filter, LayoutGrid, List, FolderTree, Tag } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -77,7 +77,7 @@ export default function AppSearchBar({
             </button>
           </div>
           <Select value={filterBy} onValueChange={onFilterChange}>
-            <SelectTrigger className={`w-32 h-9 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}>
+            <SelectTrigger data-testid="filter-trigger" className={`w-32 h-9 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}>
               <Filter className="w-3 h-3 mr-1" /><SelectValue />
             </SelectTrigger>
             <SelectContent className={isDark ? "bg-[#0B1221] border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}>
@@ -94,7 +94,7 @@ export default function AppSearchBar({
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={onSortChange}>
-            <SelectTrigger className={`w-40 h-9 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}>
+            <SelectTrigger data-testid="sort-trigger" className={`w-40 h-9 text-xs ${isDark ? "bg-white/5 border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className={isDark ? "bg-[#0B1221] border-white/10 text-white" : "bg-white border-gray-200 text-gray-900"}>
@@ -105,11 +105,23 @@ export default function AppSearchBar({
                   : opt.value === "z-a" ? t("sort.za", opt.label)
                   : opt.label;
                 return (
-                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs" data-testid={`sort-option-${opt.value}`}>
                     <span className="flex items-center gap-1.5"><opt.icon className="w-3 h-3" />{label}</span>
                   </SelectItem>
                 );
               })}
+              {/* Legacy fallback: retained ONLY so an older saved
+                  settings.sort_by === "category" renders a labelled
+                  trigger instead of an empty one. Conditionally added
+                  only when that legacy value is currently active — it
+                  never appears as a normal selectable option otherwise,
+                  keeping "By Category" out of the visible sort menu
+                  per the v161 spec. */}
+              {sortBy === "category" && (
+                <SelectItem value="category" className="text-xs opacity-60" data-testid="sort-option-category-legacy">
+                  <span className="flex items-center gap-1.5"><Tag className="w-3 h-3" />By Category (legacy)</span>
+                </SelectItem>
+              )}
             </SelectContent>
           </Select>
         </div>
