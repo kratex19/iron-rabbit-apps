@@ -1,3 +1,30 @@
+## 2026-09-20 — v164: Repair #2 · Delete / Archive / Trash / Undo Integrity
+
+**Root causes fixed**:
+1. **Undo did not restore pins** — `undoRecentAction` restored lifecycle only, so pinned categories/subcategories deleted by a hierarchy operation stayed gone after Undo.
+2. **Path matching used string prefix** — `cleanupPinnedRefsForPath` joined segments and used `startsWith`, so deleting `["Work","Pro"]` incorrectly swept up `["Work","Project"]` and `["Work","Product"]`. Same class of bug for `["Personal","Home"]` vs `["Personal","Homestead"]`.
+
+**Files changed** (2 total, exactly what the fix required):
+- `frontend/src/NotesApp.jsx` — `cleanupPinnedRefsForPath` rewritten to use segment-by-segment `isPathUnder` helper and to RETURN a `pinSnap` describing every removed entry with its original array index. `performArchive` and `performTrash` now capture that snapshot into `recentAction.pinSnap`. `undoRecentAction` now splices each removed entry back at its original position, deduplicating so pins the user added AFTER the destructive action are preserved.
+- `frontend/public/service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v163` → `v164`.
+
+**Not touched** (per spec safety guards): UI, CSS, sort, Move/Copy semantics from Repair #1, Tile Packs, backup/restore, auth, individual-note pin architecture, empty-category direct cleanup path (which has no undo pill).
+
+**Verification** (all 10 acceptance tests):
+| # | Test | Result |
+| --- | --- | --- |
+| T1 | Pinned top-level category — delete, undo restores at original index | ✅ PASS |
+| T2 | Pinned subcategory — delete, undo restores | ✅ PASS |
+| T3 | Deep pinned path 4 segments — delete, undo restores exact path | ✅ PASS |
+| T4 | Similar prefixes (`Pro` vs `Project` vs `Product`) — critical bug fix | ✅ PASS |
+| T5 | True descendants — all children swept, unrelated siblings kept | ✅ PASS |
+| T6 | Unrelated category (Personal vs Work) untouched | ✅ PASS |
+| T7 | Undo does NOT wipe pins added after cleanup | ✅ PASS |
+| T8 | Multiple affected pins under one deletion — all restored | ✅ PASS |
+| T9 | Normal note delete (empty path) — no pin sweep | ✅ PASS |
+| T10 | Hierarchy data preservation — Repair #1 unchanged, Repair #2 writes only to `settings.*` never `notes.*` | ✅ documented |
+
+
 ## 2026-09-20 — v163: Repair #1 · Hierarchy Data Integrity for MOVE / COPY / BULK
 
 **Root cause fixed**: MOVE / COPY paths wrote only `category` + `subcategory`, leaving stale `category_path` on the note. A note moved from `["Work","Projects","2026","January"]` → `["Personal"]` retained the old deep path, producing internally inconsistent records.

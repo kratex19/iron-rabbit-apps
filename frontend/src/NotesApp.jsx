@@ -317,27 +317,73 @@ export default function NotesApp() {
       kind: path.length === 1 ? "category" : "subcategory",
     });
   };
+  // Fixed segment-based descendant test (Repair #2 · C). A candidate
+  // path `q` is under ancestor `p` iff q has at least p's length and
+  // every segment of p matches the corresponding segment of q — never
+  // by joined-string prefix, so ["Work","Pro"] does NOT sweep up
+  // ["Work","Project"] or ["Work","Product"], and ["Personal","Home"]
+  // is not treated as under ["Personal","Homestead"].
+  const isPathUnder = (candidate, ancestor) => {
+    const p = (Array.isArray(ancestor) ? ancestor : []).map((s) => String(s || "").trim()).filter(Boolean);
+    const q = (Array.isArray(candidate) ? candidate : []).map((s) => String(s || "").trim()).filter(Boolean);
+    if (p.length === 0 || q.length < p.length) return false;
+    for (let i = 0; i < p.length; i += 1) if (q[i] !== p[i]) return false;
+    return true;
+  };
+  // Cleanup returns a `pinSnap` describing exactly what was removed
+  // (value + original index) so a subsequent Undo can splice each
+  // entry back at its previous slot WITHOUT wiping any new pins the
+  // user may have added after the destructive action. Returns null
+  // when nothing changed.
   const cleanupPinnedRefsForPath = async (path) => {
     const p = (Array.isArray(path) ? path : []).map((s) => String(s || "").trim()).filter(Boolean);
-    if (p.length === 0) return;
+    if (p.length === 0) return null;
     const patch = { ...(settings || {}) };
     let changed = false;
+    const snap = {
+      pinned_categories: [],
+      category_order: [],
+      sticky_categories: [],
+      pinned_subcategory_paths: [],
+    };
     if (p.length === 1) {
       const pc = Array.isArray(settings?.pinned_categories) ? settings.pinned_categories : [];
-      if (pc.includes(p[0])) { patch.pinned_categories = pc.filter((x) => x !== p[0]); changed = true; }
+      if (pc.includes(p[0])) {
+        snap.pinned_categories.push({ value: p[0], index: pc.indexOf(p[0]) });
+        patch.pinned_categories = pc.filter((x) => x !== p[0]);
+        changed = true;
+      }
       // Also strip from `category_order` and `sticky_categories` so
       // `keep_empty_categories` doesn't keep an empty ghost card
       // visible after the notes have been moved / trashed.
       const co = Array.isArray(settings?.category_order) ? settings.category_order : [];
-      if (co.includes(p[0])) { patch.category_order = co.filter((x) => x !== p[0]); changed = true; }
+      if (co.includes(p[0])) {
+        snap.category_order.push({ value: p[0], index: co.indexOf(p[0]) });
+        patch.category_order = co.filter((x) => x !== p[0]);
+        changed = true;
+      }
       const sc = Array.isArray(settings?.sticky_categories) ? settings.sticky_categories : [];
-      if (sc.includes(p[0])) { patch.sticky_categories = sc.filter((x) => x !== p[0]); changed = true; }
+      if (sc.includes(p[0])) {
+        snap.sticky_categories.push({ value: p[0], index: sc.indexOf(p[0]) });
+        patch.sticky_categories = sc.filter((x) => x !== p[0]);
+        changed = true;
+      }
     }
     const psp = Array.isArray(settings?.pinned_subcategory_paths) ? settings.pinned_subcategory_paths : [];
-    const key = p.join("\u241E");
-    const filtered = psp.filter((q) => !((Array.isArray(q) ? q : []).map((s) => String(s || "").trim()).join("\u241E").startsWith(key)));
-    if (filtered.length !== psp.length) { patch.pinned_subcategory_paths = filtered; changed = true; }
+    const kept = [];
+    psp.forEach((q, idx) => {
+      if (isPathUnder(q, p)) {
+        snap.pinned_subcategory_paths.push({ path: Array.isArray(q) ? q.slice() : [], index: idx });
+      } else {
+        kept.push(q);
+      }
+    });
+    if (snap.pinned_subcategory_paths.length > 0) {
+      patch.pinned_subcategory_paths = kept;
+      changed = true;
+    }
     if (changed) await StorageService.saveSettings(patch);
+    return changed ? snap : null;
   };
   const togglePinnedSubOpen = (key) => {
     setPinnedSubOpenState((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1158,13 +1204,17 @@ export default function NotesApp() {
     }
     haptic("long");
     // If this archive was triggered by a category/subcategory trash icon,
-    // also strip any pinned refs pointing at that scope.
+    // also strip any pinned refs pointing at that scope. Cleanup returns
+    // a `pinSnap` (Repair #2) — the specific entries + original indices
+    // that were removed — so Undo can restore only those without
+    // touching pins the user added afterwards.
+    let pinSnap = null;
     if (pendingCategoryDelete?.path) {
-      await cleanupPinnedRefsForPath(pendingCategoryDelete.path);
+      pinSnap = await cleanupPinnedRefsForPath(pendingCategoryDelete.path);
       setPendingCategoryDelete(null);
     }
     fetchData();
-    setRecentAction({ type: "archive", count: ids.length, undoSnap: snap });
+    setRecentAction({ type: "archive", count: ids.length, undoSnap: snap, pinSnap });
   };
 
   const performTrash = async (ids) => {
@@ -1174,18 +1224,76 @@ export default function NotesApp() {
       if (prev) snap.set(id, prev);
     }
     haptic("long");
+    let pinSnap = null;
     if (pendingCategoryDelete?.path) {
-      await cleanupPinnedRefsForPath(pendingCategoryDelete.path);
+      pinSnap = await cleanupPinnedRefsForPath(pendingCategoryDelete.path);
       setPendingCategoryDelete(null);
     }
     fetchData();
-    setRecentAction({ type: "trash", count: ids.length, undoSnap: snap });
+    setRecentAction({ type: "trash", count: ids.length, undoSnap: snap, pinSnap });
   };
 
   const undoRecentAction = async () => {
     if (!recentAction?.undoSnap) return;
     for (const [id, prev] of recentAction.undoSnap.entries()) {
       await StorageService.restoreLifecycle(id, prev);
+    }
+    // Restore pin refs removed by the same destructive action
+    // (Repair #2 · B). Only re-inserts the SPECIFIC entries that
+    // were removed. Pins the user added AFTER the destructive
+    // action are preserved untouched. Original positions honored
+    // where practical (spliced back at previous index, else appended).
+    const pinSnap = recentAction.pinSnap;
+    if (pinSnap) {
+      try {
+        const current = (await StorageService.getSettings()) || {};
+        const patch = {};
+        const restoreScalarField = (fieldName) => {
+          const removals = Array.isArray(pinSnap[fieldName]) ? pinSnap[fieldName] : [];
+          if (removals.length === 0) return;
+          const cur = Array.isArray(current[fieldName]) ? current[fieldName].slice() : [];
+          const sorted = removals.slice().sort((a, b) => (a.index || 0) - (b.index || 0));
+          for (const { value, index } of sorted) {
+            if (cur.includes(value)) continue;
+            const target = Math.min(Math.max(0, index || 0), cur.length);
+            cur.splice(target, 0, value);
+          }
+          patch[fieldName] = cur;
+        };
+        restoreScalarField("pinned_categories");
+        restoreScalarField("category_order");
+        restoreScalarField("sticky_categories");
+        const pspRemovals = Array.isArray(pinSnap.pinned_subcategory_paths) ? pinSnap.pinned_subcategory_paths : [];
+        if (pspRemovals.length > 0) {
+          const cur = Array.isArray(current.pinned_subcategory_paths)
+            ? current.pinned_subcategory_paths.slice()
+            : [];
+          const pathKey = (arr) =>
+            (Array.isArray(arr) ? arr : [])
+              .map((s) => String(s || "").trim())
+              .filter(Boolean)
+              .join("\u241E");
+          const hasPath = (arr) => {
+            const k = pathKey(arr);
+            return cur.some((x) => pathKey(x) === k);
+          };
+          const sorted = pspRemovals.slice().sort((a, b) => (a.index || 0) - (b.index || 0));
+          for (const { path, index } of sorted) {
+            if (hasPath(path)) continue;
+            const target = Math.min(Math.max(0, index || 0), cur.length);
+            cur.splice(target, 0, path);
+          }
+          patch.pinned_subcategory_paths = cur;
+        }
+        if (Object.keys(patch).length > 0) {
+          await StorageService.saveSettings(patch);
+          setSettings((prev) => ({ ...(prev || {}), ...patch }));
+        }
+      } catch (err) {
+        // Restoring pins is best-effort — the lifecycle undo above
+        // already returned the notes themselves.
+        console.error("Undo pinSnap restore error:", err);
+      }
     }
     setRecentAction(null);
     fetchData();
