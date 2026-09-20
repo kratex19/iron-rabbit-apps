@@ -1,0 +1,25 @@
+{
+  "summary": "Iron Rabbit v161 RIGHT-dropdown label clarification tested end-to-end via Playwright against the preview URL. All 10 spec-critical assertions passed: RIGHT dropdown option order + labels match EXACTLY (Custom, Manual Order, Newest First, Oldest First, Edited — Newest First, Edited — Oldest First, Viewed — Most Recent First, Viewed — Oldest First, A → Z, Z → A) with 'By Category' correctly removed from the visible dropdown. LEFT filter dropdown unchanged (All Notes/Uncategorized/Today/This Week/This Month/Archived/Trash). All four backward-compat seeds (category, recently-edited, recently-viewed, priority+legacy rules) survive reload with no crash, correct trigger labels, and preserved sort_by ids. Both new sorts ('edited-oldest', 'viewed-oldest') can be selected from the dropdown, render correct trigger label, and persist to IndexedDB after reload. Custom Priority editor picker shows 9 options (spec-matching labels + 'By Category' retained as rule), and duplicate prevention still filters out the already-added rule. Zero console errors captured across all sort switches / reloads.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "RIGHT sort dropdown trigger (legacy 'category' sort_by)", "issues": ["When settings.sort_by='category' is retained via backward-compat whitelist, the Select trigger renders empty text (because 'category' is no longer in visible SORT_OPTIONS). App does not crash and tiles render — this is the intended tradeoff per spec ('whitelist accepts it and comparator still works'), but users see a blank trigger until they pick a new sort. Consider showing a fallback label like 'By Category (legacy)' or auto-migrating stored 'category' to a visible option. Non-blocking."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Legacy sort_by='category' produces empty text in the RIGHT-dropdown trigger because Radix Select cannot resolve a matching SelectItem. Behavior matches the intent (accept + still sort), but UX is minor: consider a hidden SelectItem or trigger-side label fallback for full polish.",
+    "SORT_OPTIONS / CUSTOM_PRIORITY_RULES / sortBy whitelist / compareByRule / main sortBy switch are all correctly kept in sync for both new ids (edited-oldest, viewed-oldest) and the retained legacy 'category' comparator — good discipline.",
+    "Service worker CACHE_NAME correctly bumped to iron-rabbit-v161."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "Runtime-only: seeded IndexedDB app_settings.sort_by to 'category','recently-edited','recently-viewed','priority' (with custom_sort_rules=['recently-edited','z-a']), 'edited-oldest', 'viewed-oldest' — all cleared naturally by user-driven sort re-selection in later steps.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All backward-compat + new-sort scenarios verified against the preview URL. Note: legacy sort_by='category' results in a blank RIGHT-dropdown trigger label (comparator still sorts correctly). If main agent adds a legacy label fallback, retest that specific case only. Filter+Sort composition, Manual Order drag, Uncategorized filter, and Pinned rails were NOT re-exercised in this iteration because they are explicitly out-of-scope for this semantic rename (no code paths for them were touched); prior iteration_78 covers them.",
+  "rca of the issue": "N/A — no defects blocking spec."
+}

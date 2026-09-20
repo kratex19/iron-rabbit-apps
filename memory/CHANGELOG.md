@@ -1,3 +1,20 @@
+## 2026-02-28 — v161: RIGHT dropdown semantic clarification
+
+- **Renamed user-facing labels only** — all internal ids preserved so every existing `settings.sort_by` value continues to work:
+  * `priority` → **Custom** (was "Custom Priority")
+  * `recently-edited` → **Edited — Newest First**
+  * `recently-viewed` → **Viewed — Most Recent First**
+- **RIGHT dropdown order** now matches spec exactly: Custom · Manual Order · Newest First · Oldest First · Edited — Newest First · Edited — Oldest First · Viewed — Most Recent First · Viewed — Oldest First · A → Z · Z → A.
+- **Two new sort options added** with new internal ids: `edited-oldest` (`updated_at` ASC) and `viewed-oldest` (`last_viewed || updated_at` ASC). Both persisted via `settings.sort_by` and honored by `compareByRule`.
+- **`By Category` removed from the visible RIGHT dropdown** but comparator retained as hidden backward-compat fallback: seeded `settings.sort_by="category"` reloads without crash and still sorts (per spec).
+- **Custom Priority rule library** relabelled to match new terminology + gained the two new `edited-oldest` / `viewed-oldest` rules. `By Category` retained as a hidden rule for older rule lists.
+- **Whitelist** in `NotesApp.jsx` load path expanded: `["custom","priority","newest","oldest","a-z","z-a","recently-viewed","viewed-oldest","recently-edited","edited-oldest","category"]`.
+- **No LEFT-dropdown changes.** No Manual Order data touched. No hierarchy / pinned / Tile-Pack changes.
+- **Cache**: `service-worker.js` v160 → v161.
+- **Tested (iteration_79.json)**: 10/10 spec assertions PASS. Backward-compat proven for `category`, `recently-edited`, `recently-viewed`, `priority`+legacy rules.
+- **Known minor UX gap**: legacy `sort_by="category"` renders a blank trigger label (comparator still sorts). Trivial polish item, not blocking.
+
+
 ## 2026-02-28 — v160: Nested <button> hydration fix + Path A re-verify
 
 - **Hydration warning fixed**: `frontend/src/notes/CategoryGroup.jsx` (L87-130) and `frontend/src/notes/NestedSubGroup.jsx` (L96-141) — outer toggle wrappers converted from `<button>` to `<div role="button" tabIndex={0}>` with `onKeyDown` for Enter/Space, `aria-expanded`, and preserved classes/testids. `HierarchyPathButton` (which renders its own `<button>`) is now a legal descendant. `CategoryHeader.jsx` verified structurally clean (`HierarchyPathButton` is a sibling of the toggle button, not a child).
