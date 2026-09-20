@@ -93,11 +93,18 @@ export default function NestedSubGroup(props) {
       className={`relative rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5`}
       data-testid={`nested-subgroup-${depth}-${label}`}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setIsOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsOpen((v) => !v);
+          }
+        }}
         aria-expanded={isOpen}
-        className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors ${
+        className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
           onTogglePinSub && onDeleteSubcategory ? "pr-16" : onTogglePinSub || onDeleteSubcategory ? "pr-9" : ""
         } ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}
         data-testid={`nested-subgroup-toggle-${label}`}
@@ -138,7 +145,7 @@ export default function NestedSubGroup(props) {
             isDark ? "text-slate-400" : "text-gray-500"
           }`}
         />
-      </button>
+      </div>
       {onTogglePinSub && (
         <button
           type="button"
