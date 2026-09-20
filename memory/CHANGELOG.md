@@ -1,3 +1,16 @@
+## 2026-02-28 — v158/v159: Path A split — Manual Order vs Custom Priority + Uncategorized filter
+
+- **Left dropdown (FILTER)** — added `Uncategorized` option (`frontend/src/notes/constants.js` `FILTER_OPTIONS`). Shows ONLY tiles with no `category` + no `subcategory` + empty `category_path`. Zero data mutation; pinned rails untouched. Filter branch in `NotesApp.jsx` `processedNotes` useMemo.
+- **Right dropdown (SORT)** — renamed user-facing label of value `custom` from **"Custom Order"** → **"Manual Order"**. Internal id preserved so all existing `note.order` data + DND reorder flow is unchanged.
+- **NEW SORT: `Custom Priority`** (value `priority`) — user-authored multi-level rule list persisted at `settings.custom_sort_rules`. Rules drawn from CUSTOM_PRIORITY_RULES: newest / oldest / a-z / z-a / recently-viewed / recently-edited / category. First rule wins; later rules act as tie-breakers.
+- **Editor** — new `frontend/src/notes/CustomPriorityEditor.jsx`. Numbered list with Up/Down/Remove buttons; Add-rule dropdown lists only rules NOT already present (dedup at source). Rendered inline by `AppSearchBar` only when `sortBy === "priority"`.
+- **Persistence** — sortBy now persisted at `settings.sort_by`; rehydrated on load; DND auto-switch to Manual Order also persists.
+- **Zero data migration**. Tile Pack → Category → Subcategory → Tile hierarchy untouched. Pinned tiles/categories/subcategories rails unchanged. Custom Priority never creates, copies, moves, renames, or duplicates content.
+- **Cache**: `service-worker.js` v157 → v159.
+- **Tested (iteration_77.json)**: 17/18 initial spec passes; the one miss (sortBy not persisted) resolved in v159 (verified via preview reload + IndexedDB read: `{sort_by:'priority', ...}` survives reload).
+
+
+
 ## 2026-02-28 — v156: Focus dropdown "🌙 Nightly" option reuses existing schedule
 
 - **NEW menu row** in `frontend/src/notes/FocusStatusChip.jsx` between "Until sunrise" and the divider before "Turn ON (indefinite)": `data-testid="focus-status-menu-nightly"` with the `Moon` lucide icon, matches existing row styling.

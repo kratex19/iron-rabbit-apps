@@ -540,6 +540,14 @@ export default function NotesApp() {
       setNotes(notesData);
       setSettings(settingsData);
       if (settingsData?.view_mode) setViewMode(settingsData.view_mode);
+      // Persisted sort mode — restore across reloads so "Custom
+      // Priority" (or any other user-picked mode) stays active with
+      // its inline rule editor visible. Only accepts known values so
+      // legacy data cannot force an invalid mode.
+      if (settingsData?.sort_by) {
+        const ok = ["custom","priority","newest","oldest","a-z","z-a","recently-viewed","recently-edited","category"];
+        if (ok.includes(settingsData.sort_by)) setSortBy(settingsData.sort_by);
+      }
       // Apply user-adjusted attachment limits (images/files/MB) at boot
       if (settingsData?.attachment_limits) {
         StorageService.configureAttachmentLimits(settingsData.attachment_limits);
@@ -1646,6 +1654,7 @@ export default function NotesApp() {
       // would snap back). Auto-switching preserves the user's action.
       if (sortBy !== "custom") {
         setSortBy("custom");
+        StorageService.saveSettings({ sort_by: "custom" }).catch(() => {});
         toast.success("Manual Order enabled");
       }
       fetchData();
@@ -1681,6 +1690,7 @@ export default function NotesApp() {
       await StorageService.reorderNotes(finalOrderIds);
       if (sortBy !== "custom") {
         setSortBy("custom");
+        StorageService.saveSettings({ sort_by: "custom" }).catch(() => {});
         toast.success("Manual Order enabled");
       }
       fetchData();
@@ -2916,7 +2926,10 @@ export default function NotesApp() {
           filterBy={filterBy}
           onFilterChange={setFilterBy}
           sortBy={sortBy}
-          onSortChange={setSortBy}
+          onSortChange={(v) => {
+            setSortBy(v);
+            StorageService.saveSettings({ sort_by: v }).catch(() => {});
+          }}
           activeTag={activeTag}
           onSelectTag={setActiveTag}
           groupByCategory={groupByCategory}

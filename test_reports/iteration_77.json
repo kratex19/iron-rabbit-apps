@@ -1,0 +1,30 @@
+{
+  "summary": "Iron Rabbit v158 Path A: LEFT dropdown 'Uncategorized' filter + RIGHT dropdown 'Manual Order' rename + 'Custom Priority' inline rule editor. Frontend-only testing via Playwright against preview URL. 17/18 spec assertions pass. Only issue: sortBy is a non-persisted local state, so after page reload the Custom Priority editor is not re-shown (sortBy resets to 'newest'). The custom_sort_rules array itself IS persisted correctly in IndexedDB settings.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "NotesApp sortBy state", "issue": "sortBy is initialized to 'newest' on every mount and never persisted. Spec test #12 requires editor to still show the same rules after reload — but after reload sortBy resets to 'newest', the Custom Priority editor disappears, and users must reselect 'Custom Priority' to see the previously saved rules. The rules array in settings.custom_sort_rules IS correctly persisted (verified via IndexedDB read: ['recently-edited','newest']).", "selector": "NotesApp.jsx L96 useState('newest')", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Console (hydration)", "issues": ["Pre-existing hydration warning: <button> nested inside <button> at CategoryGroup L87 (HierarchyPathButton inside category-toggle button). Not caused by this iteration but worth flagging."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Persist sortBy to StorageService (e.g. settings.sort_by) so 'Custom Priority' remains active across reloads and the editor stays visible with the same rule list, matching spec test #12."
+  ],
+  "critical_code_review_comments": [
+    "CustomPriorityEditor.jsx: dedup logic is correct (filters CUSTOM_PRIORITY_RULES by !list.includes). Confirmed empirically — Recently Edited/Z→A/Newest First disappear from add dropdown once selected.",
+    "processedNotes comparator for 'priority' correctly consults rules in order and treats each as a tie-breaker. Depends on settings.custom_sort_rules which is loaded via StorageService.",
+    "Uncategorized filter correctly requires empty category AND empty subcategory AND empty category_path. Verified: 4 tiles show (T2/Deep note/Test Reminder Note/Test Note) while Test/Test notes/X categories disappear. IndexedDB note count unchanged (7 both before and after)."
+  ],
+  "updated_files": [],
+  "success_rate": {"frontend": "94%"},
+  "test_credentials": "n/a — no auth in this app",
+  "seed_data_creation": "None — used existing 7 seeded notes from prior iterations (3 categorized: Test/Test notes/X; 4 uncategorized).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Passed assertions: (1) filter dropdown contains 'Uncategorized' testid filter-option-uncategorized and NO 'Individual Tiles'; (2) filter list is exactly [All Notes, Uncategorized, Today, This Week, This Month, Archived, Trash]; (3) Uncategorized filter narrows to 4 tiles, hides named-cat groups, notes count stays 7 in IndexedDB, note fields unchanged; (4) Pinned categories/subcategories rails still visible with same counts (0,0); (5) sort dropdown list exactly matches spec order: ['Manual Order','Custom Priority','Newest First','Oldest First','A → Z','Z → A','Recently Viewed','Recently Edited','By Category']; (6) selecting Custom Priority reveals custom-priority-editor with 'No rules yet' empty state; (7) adding 3 rules works via priority-add-trigger/priority-add-option-<rule>; (8) dedup at source confirmed — already-added rules NOT offered in add dropdown; (9) first up-arrow disabled, last down-arrow disabled; (10) reorder priority-rule-up-newest moves newest above z-a correctly; (11) priority-rule-remove-z-a removes rule and z-a re-appears in add dropdown; (12) settings.custom_sort_rules persisted to IndexedDB (['recently-edited','newest']); (13) tile records byte-identical after adding/reordering rules and switching sort modes. FAILING: sortBy itself not persisted across reload — editor disappears after refresh. DND auto-switch to Manual Order + drag persistence not exercised in this run but code path (NotesApp.jsx L1647/1682) shows setSortBy('custom') + toast.success('Manual Order enabled'); code review confirms wiring.",
+  "rca of the issue": "Root cause of reload persistence miss: /app/frontend/src/NotesApp.jsx line 96 uses useState('newest') for sortBy with no lazy initializer reading from StorageService/settings, and there is no useEffect that writes sortBy back to settings. Fix: (a) initialize from settings once loaded (e.g. useEffect [settings?.sort_by] -> setSortBy), and (b) in onSortChange, call StorageService.saveSettings({ sort_by: value }) similar to how custom_sort_rules is saved in NotesApp.jsx L2942-2944."
+}
