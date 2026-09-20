@@ -1,3 +1,27 @@
+## 2026-09-20 — v163: Repair #1 · Hierarchy Data Integrity for MOVE / COPY / BULK
+
+**Root cause fixed**: MOVE / COPY paths wrote only `category` + `subcategory`, leaving stale `category_path` on the note. A note moved from `["Work","Projects","2026","January"]` → `["Personal"]` retained the old deep path, producing internally inconsistent records.
+
+**Files changed** (exactly what the spec named, nothing else):
+- `frontend/src/storage/storageService.js` — `moveNoteToCategory(noteId, newCategory, newSubcategory='', options={})` now derives + writes `category_path` alongside the two legacy fields. New optional `options.categoryPath` lets Undo restore a deep source path verbatim. `prev` snapshot now returns `{category, subcategory, category_path}`.
+- `frontend/src/NotesApp.jsx` — cross-category COPY (L1590) and cross-pack COPY (L1750) now explicitly set `category_path` (no more spread-leak from `...original`). Cross-cat MOVE Undo (L1580) and cross-pack MOVE Undo (L1737) pass `{categoryPath: prev.category_path}` so deep paths round-trip.
+- `frontend/src/hooks/useBulkActions.js` — `bulkMoveTo` Undo passes `categoryPath` (L116). `bulkCopyTo` copy object now sets `category_path` explicitly (L142). `bulkDuplicateInPlace` **intentionally untouched** (preserves source hierarchy via spread — correct per spec).
+- `frontend/public/service-worker.js` — CACHE_NAME `iron-rabbit-v162` → `v163`.
+
+**Consistency invariant enforced everywhere**:
+```
+note.category    === note.category_path[0] || ''
+note.subcategory === note.category_path[1] || ''
+```
+
+**Verification**:
+- Static: grep confirms all six Repairs (A–F) present in the compiled source. `bulkDuplicateInPlace` confirmed unmodified.
+- Algorithmic: all 12 acceptance tests (T1–T12) pass — top-level MOVE, top→sub, deep-hierarchy MOVE, MOVE-to-Uncategorized, cross-cat COPY, bulk MOVE, bulk COPY, cross-pack MOVE, cross-pack COPY, deep-hierarchy UNDO, bulk MOVE + UNDO, unrelated-properties preservation.
+- Live: app boots cleanly, seeds render, Batch Studio opens without error.
+
+**No UI, CSS, sort, filter, hierarchy semantics, or Tile Pack semantics changed.**
+
+
 ## 2026-02-28 — v162: four surgical enhancements (legacy label + testids + rule drag + empty-state)
 
 - **Legacy trigger label**: `frontend/src/notes/AppSearchBar.jsx` — conditional `<SelectItem value="category">By Category (legacy)</SelectItem>` rendered ONLY when `sortBy === "category"` so Radix can resolve the trigger label. Never appears in fresh state → cannot be re-selected once the user picks any other sort. Comparator + backward-compat unchanged.
