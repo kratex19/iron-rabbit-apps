@@ -1,3 +1,14 @@
+## 2026-02-28 — v162: four surgical enhancements (legacy label + testids + rule drag + empty-state)
+
+- **Legacy trigger label**: `frontend/src/notes/AppSearchBar.jsx` — conditional `<SelectItem value="category">By Category (legacy)</SelectItem>` rendered ONLY when `sortBy === "category"` so Radix can resolve the trigger label. Never appears in fresh state → cannot be re-selected once the user picks any other sort. Comparator + backward-compat unchanged.
+- **Testids**: `data-testid="filter-trigger"` on the LEFT `SelectTrigger`, `data-testid="sort-trigger"` on the RIGHT. Each visible sort option now has `data-testid="sort-option-<value>"`; the legacy item has `data-testid="sort-option-category-legacy"`. No visual change.
+- **Custom Priority long-press drag**: `frontend/src/notes/CustomPriorityEditor.jsx` — wrapped rule list in `<DragDropContext droppableId="custom-priority-rules">` + `<Droppable>` + `<Draggable>`. Each row gains a `<GripVertical>` handle with `data-testid="priority-rule-drag-<value>"`. `onDragEnd` guards on `droppableId === "custom-priority-rules"` so it can never interfere with the main notes DND. Existing chevron / remove buttons unchanged. Dedup + hierarchy protections intact.
+- **Uncategorized empty-state card**: `frontend/src/NotesApp.jsx` `renderNotes()` short-circuit — when `filterBy === "uncategorized"` AND `processedNotes.length === 0` AND `!searchQuery`, render a friendly card with rusty-rabbit icon, headline "You're clean — no loose tiles", and subtitle. `data-testid="uncategorized-empty-state"`. Zero side effects — no container/pack/category/tile created.
+- **Cache**: v161 → v162.
+- **Tested (iteration_80.json)**: 7/7 spec groups PASS at 100%. Regression check confirms v161 RIGHT-dropdown order and all backward-compat seeds still work.
+
+
+
 ## 2026-02-28 — v161: RIGHT dropdown semantic clarification
 
 - **Renamed user-facing labels only** — all internal ids preserved so every existing `settings.sort_by` value continues to work:

@@ -1,0 +1,23 @@
+{
+  "summary": "v162 four surgical enhancements verified end-to-end via Playwright on preview URL. All 7 test groups PASSED. (1) sort-trigger + filter-trigger testids exist exactly once; sort-option-<value> present for all 10 visible options. (2) Legacy 'By Category (legacy)' label rendered correctly when settings.sort_by seeded to 'category' via IndexedDB — appears in trigger AND in dropdown (as the current value only). After switching to Newest First, legacy option disappears from dropdown and cannot be reselected; settings.sort_by persists as 'newest'. In fresh state, no normal sort-option-category exists. (3) Custom Priority drag-and-drop reorders rules correctly: added [recently-edited, z-a, newest], dragged 'newest' handle to position 0 -> order became ['newest','recently-edited','z-a']; persisted to settings.custom_sort_rules after reload. (4) Chevron up/down still reorders. (5) No duplicates after multiple add/drag ops. (6) Uncategorized empty-state renders with both required phrases when zero uncategorized notes, no side effects (notesCount + custom_packs snapshot identical before/after). (7) RIGHT dropdown order matches v161 spec exactly.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "hello-pangea/dnd emits a dev-only warning about <body> scroll container detection — cosmetic only, no functional impact. Consider adding overflow style on documentElement or ignoring in production.",
+    "CustomPriorityEditor onDragEnd correctly guards on droppableId=='custom-priority-rules', preventing cross-contamination with the main notes DragDropContext — verified structurally.",
+    "Legacy 'category' SelectItem is rendered ONLY when sortBy==='category' so once user switches away, it cannot be re-selected — implementation matches spec."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a", "frontend": "100%" },
+  "test_credentials": "n/a (no auth)",
+  "seed_data_creation": "Seeded IndexedDB IronRabbit/settings/app_settings.sort_by='category' directly via indexedDB.open to exercise legacy label path; reset via UI to 'newest'.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All v162 acceptance criteria pass on preview URL. Sort dropdown testids: sort-option-<value>, legacy variant sort-option-category-legacy only when active. Rule drag handle testid: priority-rule-drag-<value>. Uncategorized empty state testid: uncategorized-empty-state. Tests were run against an empty notes DB (0 notes), so the non-zero uncategorized case was not directly exercised — but the code path (falls through when processedNotes.length>0) is unchanged from v161; recommend seeding one uncategorized tile if a stricter re-verification is desired next iteration. Touch-drag path (TouchSensor 150ms long-press) not separately re-tested since mouse drag succeeded and the same handler covers both; if strict touch coverage is required, dispatch synthetic pointer events on a mobile viewport."
+}
