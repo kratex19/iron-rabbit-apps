@@ -1570,7 +1570,15 @@ export default function NotesApp() {
             action: prev ? {
               label: "Undo",
               onClick: async () => {
-                await StorageService.moveNoteToCategory(noteId, prev.category, prev.subcategory);
+                // Restore the ORIGINAL deep hierarchy verbatim — not
+                // just the top two legacy fields — so a source path
+                // like ["Work","Projects","2026","January"] round-trips.
+                await StorageService.moveNoteToCategory(
+                  noteId,
+                  prev.category,
+                  prev.subcategory,
+                  { categoryPath: prev.category_path }
+                );
                 fetchData();
               },
             } : undefined,
@@ -1584,6 +1592,11 @@ export default function NotesApp() {
         const copy = {
           ...original,
           id: uuidv4(),
+          // Explicit destination hierarchy — must NOT inherit the
+          // source's `category_path`, since spreading `...original`
+          // would otherwise leave a stale deep path attached to a
+          // copy that lives at a different destination.
+          category_path: dstCat ? [dstCat] : [],
           category: dstCat,
           subcategory: "",
           created_at: now,
@@ -1716,7 +1729,13 @@ export default function NotesApp() {
           action: prev ? {
             label: "Undo",
             onClick: async () => {
-              await StorageService.moveNoteToCategory(noteId, prev.category, prev.subcategory);
+              // Restore full previous hierarchy including deep path.
+              await StorageService.moveNoteToCategory(
+                noteId,
+                prev.category,
+                prev.subcategory,
+                { categoryPath: prev.category_path }
+              );
               fetchData();
             },
           } : undefined,
@@ -1731,6 +1750,11 @@ export default function NotesApp() {
       const copy = {
         ...original,
         id: uuidv4(),
+        // Cross-pack copy — destination pack IS the note's new
+        // top-level category. Must NOT inherit the source's
+        // `category_path` (would leave stale deep hierarchy on a
+        // copy that lives in a different pack).
+        category_path: dstPack ? [dstPack] : [],
         category: dstPack,
         subcategory: "",
         created_at: now,

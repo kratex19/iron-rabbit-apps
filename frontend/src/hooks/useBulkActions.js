@@ -96,6 +96,9 @@ export default function useBulkActions({ settings, fetchData }) {
     const prevMap = new Map();
     for (const id of ids) {
       const prev = await StorageService.moveNoteToCategory(id, targetCategory, "");
+      // `prev` now includes { category, subcategory, category_path }
+      // — the deep path is preserved verbatim so Undo can restore a
+      // source note that lived at ["Work","Projects","2026","January"].
       if (prev) prevMap.set(id, prev);
     }
     clearSelection();
@@ -106,7 +109,12 @@ export default function useBulkActions({ settings, fetchData }) {
         label: "Undo",
         onClick: async () => {
           for (const [id, prev] of prevMap.entries()) {
-            await StorageService.moveNoteToCategory(id, prev.category, prev.subcategory);
+            await StorageService.moveNoteToCategory(
+              id,
+              prev.category,
+              prev.subcategory,
+              { categoryPath: prev.category_path }
+            );
           }
           fetchData();
         },
@@ -126,6 +134,11 @@ export default function useBulkActions({ settings, fetchData }) {
         ...src,
         id: uuidv4(),
         title: addSuffix ? `${src.title || "Untitled"} (copy)` : src.title,
+        // Explicit destination hierarchy — must NOT inherit the
+        // source's `category_path`, since spreading `...src` would
+        // otherwise leave a stale deep path on a copy that lives
+        // at a different (or empty) destination.
+        category_path: targetCategory ? [targetCategory] : [],
         category: targetCategory || "",
         subcategory: "",
         created_at: now,

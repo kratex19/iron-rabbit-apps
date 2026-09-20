@@ -96,12 +96,44 @@ export const StorageService = {
   },
 
   // Move a note into a different category / subcategory (drag & drop).
-  async moveNoteToCategory(noteId, newCategory, newSubcategory = "") {
+  //
+  // Hierarchy consistency rule (see Repair #1):
+  //   `category_path` is the authoritative representation. `category`
+  //   and `subcategory` MUST always mirror the first two levels.
+  //   Callers pass a destination as (newCategory, newSubcategory); an
+  //   explicit deeper destination path may be supplied via
+  //   `options.categoryPath` (used by Undo to restore a note back to
+  //   its ORIGINAL deep path). When `categoryPath` is not supplied it
+  //   is derived from the two legacy args:
+  //     ("",       "")       → []
+  //     ("Personal","")      → ["Personal"]
+  //     ("Personal","Projects") → ["Personal","Projects"]
+  //   The returned `prev` snapshot includes the full previous
+  //   `category_path` so callers can round-trip Undo correctly even
+  //   when the source note had a deep path such as
+  //   ["Work","Projects","2026","January"].
+  async moveNoteToCategory(noteId, newCategory, newSubcategory = "", options = {}) {
     const note = await notesStore.getItem(noteId);
     if (!note) return null;
-    const prev = { category: note.category || "", subcategory: note.subcategory || "" };
-    note.category = newCategory || "";
-    note.subcategory = newSubcategory || "";
+    const prevPath = Array.isArray(note.category_path) ? note.category_path.slice() : [];
+    const prev = {
+      category: note.category || "",
+      subcategory: note.subcategory || "",
+      category_path: prevPath,
+    };
+    let nextPath;
+    if (Array.isArray(options.categoryPath)) {
+      nextPath = options.categoryPath.filter((s) => typeof s === "string" && s.trim() !== "");
+    } else if (!newCategory) {
+      nextPath = [];
+    } else if (!newSubcategory) {
+      nextPath = [newCategory];
+    } else {
+      nextPath = [newCategory, newSubcategory];
+    }
+    note.category_path = nextPath;
+    note.category = nextPath[0] || "";
+    note.subcategory = nextPath[1] || "";
     note.updated_at = new Date().toISOString();
     await notesStore.setItem(note.id, note);
     return prev;
