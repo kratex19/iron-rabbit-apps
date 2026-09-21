@@ -300,11 +300,26 @@ export default function NotesApp() {
       if (startsWith(p, path)) affectedIds.push(n.id);
     }
     if (affectedIds.length === 0) {
-      // Category/sub with no notes — just clean up pinned refs and toast.
-      cleanupPinnedRefsForPath(path).then(() => {
+      // Category/sub with no notes — clean up pinned refs and expose an
+      // Undo pill so the pin removal is reversible (Repair #2A · A).
+      // The pill uses the existing `recentAction` architecture; the
+      // lifecycle `undoSnap` is an empty Map (no notes to restore) but
+      // still truthy so `undoRecentAction`'s guard passes and the
+      // `pinSnap` restoration runs.
+      (async () => {
+        const pinSnap = await cleanupPinnedRefsForPath(path);
         toast.success(`"${path[path.length - 1]}" removed`);
         fetchData();
-      });
+        if (pinSnap) {
+          setRecentAction({
+            type: "category_removed",
+            count: 1,
+            label: path[path.length - 1],
+            undoSnap: new Map(),
+            pinSnap,
+          });
+        }
+      })();
       return;
     }
     // Notes exist under this path — surface a pre-step warning that
@@ -1235,8 +1250,27 @@ export default function NotesApp() {
 
   const undoRecentAction = async () => {
     if (!recentAction?.undoSnap) return;
-    for (const [id, prev] of recentAction.undoSnap.entries()) {
-      await StorageService.restoreLifecycle(id, prev);
+    // Lifecycle restoration branches by action type:
+    //   archive / trash  — restore archived_at / deleted_at
+    //   uncategorize     — restore captured category / subcategory /
+    //                      category_path (Repair #2A · B)
+    //   category_removed — empty Map, no-op (Repair #2A · A)
+    if (recentAction.type === "uncategorize") {
+      for (const [id, prev] of recentAction.undoSnap.entries()) {
+        const cur = await StorageService.getNote(id);
+        if (!cur) continue;
+        await StorageService.saveNote({
+          ...cur,
+          category: prev?.category || "",
+          subcategory: prev?.subcategory || "",
+          category_path: Array.isArray(prev?.category_path) ? prev.category_path.slice() : [],
+          updated_at: new Date().toISOString(),
+        });
+      }
+    } else {
+      for (const [id, prev] of recentAction.undoSnap.entries()) {
+        await StorageService.restoreLifecycle(id, prev);
+      }
     }
     // Restore pin refs removed by the same destructive action
     // (Repair #2 · B). Only re-inserts the SPECIFIC entries that
@@ -1305,10 +1339,24 @@ export default function NotesApp() {
   // on every affected note so they resurface at the top-level ungrouped
   // list. Also clears any pinned refs that used to point at the vanishing
   // category so no ghost pin lingers.
+  //
+  // Repair #2A · B — capture BOTH the previous note hierarchy state AND
+  // the `pinSnap` returned by cleanup so Undo can reverse both halves
+  // through the existing `recentAction` architecture. Returns
+  // `{ undoSnap, pinSnap }` for the caller to store on `recentAction`.
   const moveIdsToUncategorized = async (ids, path) => {
+    const undoSnap = new Map();
     for (const id of ids) {
       const prev = await StorageService.getNote(id);
       if (!prev) continue;
+      // Snapshot only the hierarchy fields — leave every other field
+      // (title, content, tags, attachments, alarms, pinned state,
+      // pack metadata, timestamps, ordering, …) untouched during Undo.
+      undoSnap.set(id, {
+        category: prev.category || "",
+        subcategory: prev.subcategory || "",
+        category_path: Array.isArray(prev.category_path) ? prev.category_path.slice() : [],
+      });
       const patched = {
         ...prev,
         category: "",
@@ -1318,7 +1366,8 @@ export default function NotesApp() {
       };
       await StorageService.saveNote(patched);
     }
-    await cleanupPinnedRefsForPath(path);
+    const pinSnap = await cleanupPinnedRefsForPath(path);
+    return { undoSnap, pinSnap };
   };
 
   const handleCategoryWarningMove = async () => {
@@ -1326,7 +1375,7 @@ export default function NotesApp() {
     setCategoryDeleteWarning(null);
     if (!cur) return;
     try {
-      await moveIdsToUncategorized(cur.ids, cur.path);
+      const { undoSnap, pinSnap } = await moveIdsToUncategorized(cur.ids, cur.path);
       haptic("tap");
       // Auto-expand the Uncategorized bucket so the user immediately
       // sees the moved notes land there.
@@ -1334,6 +1383,14 @@ export default function NotesApp() {
       try { localStorage.setItem("ir_uncategorized_open", "1"); } catch { /* ignore */ }
       toast.success(`Moved ${cur.ids.length} note${cur.ids.length === 1 ? "" : "s"} to Uncategorized`);
       fetchData();
+      // Wire Undo (Repair #2A · B) — restores note hierarchy AND any
+      // pinned refs that cleanup removed.
+      setRecentAction({
+        type: "uncategorize",
+        count: cur.ids.length,
+        undoSnap,
+        pinSnap,
+      });
     } catch (e) {
       toast.error("Could not move notes");
     }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Undo2, X, Archive, Trash2 } from "lucide-react";
+import { Undo2, X, Archive, Trash2, FolderMinus, FolderInput } from "lucide-react";
 
 /**
  * Persistent floating pill shown after any archive / trash action. Stays in
@@ -7,12 +7,26 @@ import { Undo2, X, Archive, Trash2 } from "lucide-react";
  */
 export default function RecentActionPill({ action, onUndo, onDismiss, isDark }) {
   if (!action) return null;
-  const { type, count } = action; // type: 'archive' | 'trash'
-  const isArchive = type === "archive";
-  const Icon = isArchive ? Archive : Trash2;
-  const label = isArchive
-    ? `${count} note${count === 1 ? "" : "s"} archived`
-    : `${count} note${count === 1 ? "" : "s"} moved to Trash`;
+  const { type, count, label: actionLabel } = action;
+  // type: 'archive' | 'trash' | 'uncategorize' | 'category_removed'
+  let Icon = Trash2;
+  let iconTint = "bg-red-500/20 text-red-400";
+  let label = "";
+  if (type === "archive") {
+    Icon = Archive;
+    iconTint = "bg-emerald-500/20 text-emerald-400";
+    label = `${count} note${count === 1 ? "" : "s"} archived`;
+  } else if (type === "uncategorize") {
+    Icon = FolderInput;
+    iconTint = "bg-amber-500/20 text-amber-400";
+    label = `${count} note${count === 1 ? "" : "s"} moved to Uncategorized`;
+  } else if (type === "category_removed") {
+    Icon = FolderMinus;
+    iconTint = "bg-slate-500/20 text-slate-300";
+    label = actionLabel ? `"${actionLabel}" removed` : "Category removed";
+  } else {
+    label = `${count} note${count === 1 ? "" : "s"} moved to Trash`;
+  }
   return (
     <div
       className={`fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-2 rounded-full shadow-2xl backdrop-blur-lg border max-w-[calc(100vw-2rem)] flex-wrap justify-center ${
@@ -25,7 +39,7 @@ export default function RecentActionPill({ action, onUndo, onDismiss, isDark }) 
       role="status"
       aria-live="polite"
     >
-      <span className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isArchive ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"}`}>
+      <span className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${iconTint}`}>
         <Icon className="w-3.5 h-3.5" />
       </span>
       <span className={`text-xs font-medium px-1 ${isDark ? "text-slate-200" : "text-gray-800"}`}>{label}</span>
