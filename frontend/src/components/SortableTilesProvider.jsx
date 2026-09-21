@@ -142,8 +142,20 @@ export default function SortableTilesProvider({
     setActiveNote(findNote(id));
     setActiveSourcePack(noteToPack.get(id) || null);
     // Snapshot the modifier key at drag-start; dnd-kit's event has it.
+    // Repair #6 · touch cross-category drag must MOVE (not COPY). A real
+    // TouchEvent cannot carry Cmd/Ctrl, so we treat any drag that
+    // originated from genuine touch input as if the modifier were held.
+    // Detection uses the pointer/touch state already available on the
+    // activator event — TouchSensor produces a TouchEvent (has
+    // `.touches`); PointerSensor from touch produces a PointerEvent
+    // with `.pointerType === "touch"`. Desktop mouse behavior (Cmd/Ctrl
+    // = MOVE, no modifier = COPY) is preserved exactly.
     const orig = event.activatorEvent;
-    setModifier(!!(orig && (orig.metaKey || orig.ctrlKey)));
+    const isTouchDrag = !!(orig && (
+      (orig.touches && orig.touches.length > 0) ||
+      orig.pointerType === "touch"
+    ));
+    setModifier(!!(orig && (orig.metaKey || orig.ctrlKey)) || isTouchDrag);
     // Repair #5 (hardened) · seed the pointer tracker with the
     // activator event position and start listening for live moves.
     const seed = orig && (orig.touches && orig.touches[0] ? orig.touches[0] : orig);
