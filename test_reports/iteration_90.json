@@ -1,0 +1,111 @@
+{
+  "summary": "TEST 8 (mobile/touch cross-category MOVE contract) executed as a READ-ONLY audit against SortableTilesProvider.jsx L146/L224 and NotesApp.jsx handleCrossPackMove L1886-1946. Real touch drag dispatched via CDP Input.dispatchTouchEvent (touchStart @ t1 grip, +8/+8 activation, 30-step trajectory to t4 center, final touchMove @ target, touchEnd) at 390x844. Final pointer clearly INSIDE Errands pack rect so Repair #5 boundary check does NOT short-circuit; the drop DID reach onCrossPackMove. Result: TEST 8 FAILS the MOVE contract — behavior is COPY exactly as the source code prescribes when the modifier key is absent (touch cannot hold ⌘/Ctrl). Passive desktop mouse-drag without Cmd/Ctrl on 1400x1000 also produced COPY (as intentionally designed). No source, config, CSS, or architecture changes were made.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Touch cross-category tile drag (Groceries t1 → Errands)",
+        "issue": "MOVE contract violated: source tile t1 remains in Groceries; a NEW note with a fresh uuidv4 id is created in Errands (title 'Milk', pack_id 'test-pack-8', category_path=['Errands']); total notes 5→6; toast reads 'Copied to \"Errands\" · Hold ⌘/Ctrl to move'. Per SortableTilesProvider.jsx L224, onCrossPackMove is dispatched with mode='copy' whenever the modifier key is not held, and touch input cannot carry meta/ctrl → cross-category touch drops always COPY. handleCrossPackMove L1911-1929 then mints uuidv4 clone.",
+        "affected_selectors": ["[data-testid=note-tile-grip-t1]", "[data-testid=note-tile-t4]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_8_result": {
+    "TEST_8_RESULT": "FAIL",
+    "device_input": "Mobile viewport 390x844 (iPhone 12-class). Real touch events via CDP Input.dispatchTouchEvent (touchStart → +8/+8 activation touchMove → 30-step touchMove trajectory → final touchMove at target → touchEnd). No modifier key (touch cannot hold ⌘/Ctrl).",
+    "tile_tested": "Milk",
+    "tile_id_before": "t1",
+    "tile_pack": "test-pack-8 / 'Test Pack 8'",
+    "source_category_before": "Groceries (category_path=['Groceries'])",
+    "destination_category": "Errands (category_path=['Errands'])",
+    "BEFORE": {
+      "tile_present_in_source": "YES",
+      "tile_count_in_source": 3,
+      "tile_id": "t1",
+      "total_notes": 5,
+      "errands_count": 2
+    },
+    "AFTER": {
+      "tile_removed_from_source": "NO (t1 still in Groceries)",
+      "tile_present_in_destination": "YES (but as a NEW note, not t1)",
+      "destination_tile_count": 3,
+      "duplicate_tile_present": "YES (Milk exists in both Groceries as t1 AND Errands as fresh uuid b4f190c1-ad66-4b56-88bb-970a34d76272)",
+      "tile_id_after": "t1 unchanged in Groceries; new note id b4f190c1-ad66-4b56-88bb-970a34d76272 created in Errands",
+      "tile_content_unchanged": "YES (original t1 body unchanged; clone has same title/content)",
+      "tile_pack_unchanged": "YES (both records carry pack_id='test-pack-8')",
+      "category_path_correct": "NO (t1.category_path is still ['Groceries']; MOVE contract required t1.category_path=['Errands'])",
+      "total_notes": 6,
+      "groceries_count": 3,
+      "errands_count": 3,
+      "toast_text": "Copied to \"Errands\" · Hold ⌘/Ctrl to move"
+    },
+    "IDENTITY_CHECK": {
+      "same_tile_id": "NO (destination tile is a new uuidv4, not t1)",
+      "tile_recreated": "YES (fresh uuidv4 clone minted in handleCrossPackMove copy branch, NotesApp.jsx L1917)"
+    },
+    "DATA_INTEGRITY": {
+      "no_duplicate": "NO — Milk now exists in BOTH Groceries and Errands",
+      "no_unrelated_changes": "YES (t2, t3, t4, t5 all intact and unchanged)",
+      "no_new_tile_pack": "YES (no new pack; clone reuses pack_id='test-pack-8')",
+      "no_unrelated_hierarchy_changes": "YES (Groceries and Errands hierarchies otherwise unchanged; only the extra Errands entry appeared)"
+    },
+    "DESKTOP_BEHAVIOR": {
+      "existing_desktop_copy_behavior_preserved": "YES — 1400x1000 mouse drag t1 → Errands without Cmd/Ctrl produced COPY (total 5→6, t1 remained in Groceries, new uuid 83592e83-... in Errands, toast 'Copied to \"Errands\" · Hold ⌘/Ctrl to move'). Passive check only, no code changed."
+    },
+    "ERRORS": "None. No console errors, no exceptions. The observed behavior is exactly what the current source code prescribes at SortableTilesProvider.jsx L224 (modifier?'move':'copy') and NotesApp.jsx L1915-1929 (copy branch mints uuidv4)."
+  },
+  "evidence": {
+    "before_idb": {
+      "total": 5, "groceries": 3, "errands": 2,
+      "ids": ["t1","t2","t3","t4","t5"],
+      "t1": {"id":"t1","title":"Milk","category":"Groceries","subcategory":"","category_path":["Groceries"],"pack_id":"test-pack-8","order":1}
+    },
+    "after_idb": {
+      "total": 6, "groceries": 3, "errands": 3,
+      "ids": ["b4f190c1-ad66-4b56-88bb-970a34d76272","t1","t2","t3","t4","t5"],
+      "t1_after": {"id":"t1","category":"Groceries","category_path":["Groceries"],"pack_id":"test-pack-8"},
+      "fresh_uuid_note": {"id":"b4f190c1-ad66-4b56-88bb-970a34d76272","category":"Errands","title":"Milk","pack_id":"test-pack-8","category_path":["Errands"]},
+      "toast": "Copied to \"Errands\" · Hold ⌘/Ctrl to move"
+    },
+    "drag_telemetry_mobile": {
+      "grip_t1_center": [38, 755],
+      "tile_t4_center": [70, 534],
+      "final_pointer_inside_errands_pack": true,
+      "note": "Final touchmove/touchend at (70, 534) is clearly inside the Errands pack rect (t4 y-range ~476..593), so Repair #5's containment check evaluated pointer OUTSIDE source pack (Groceries y≈665..) and did NOT short-circuit — the cross-pack dispatch was reached and returned COPY due to absent modifier."
+    },
+    "desktop_passive_after": {
+      "total": 6, "groceries": 3, "errands": 3,
+      "fresh_uuid_note": {"id":"83592e83-d797-4324-8e89-feccf1ea3693","category":"Errands","title":"Milk"},
+      "toast": "Copied to \"Errands\" · Hold ⌘/Ctrl to move",
+      "t1_category_after": "Groceries"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [
+    "DO NOT AUTO-FIX (per review_request explicit instruction). This is the P2 deferred backlog item flagged in iter_85/86/87 audits: touch cross-category drops default to COPY because dnd-kit's TouchSensor cannot carry a modifier key. If the product now wants touch = MOVE, the one-line change is at SortableTilesProvider.jsx L224 — dispatch 'move' when input is touch (e.g., detect from event.activatorEvent instanceof TouchEvent or pointerType==='touch') OR expose a settings toggle 'Touch drag: move vs copy'. Requires product decision because it flips the current documented touch behavior."
+  ],
+  "critical_code_review_comments": [
+    "SortableTilesProvider.jsx L224: `onCrossPackMove?.(sourcePackId, targetPackId, activeId, modifier ? 'move' : 'copy')` — touch has no modifier surface, so touch cross-pack is ALWAYS copy. This is by design per prior audits but conflicts with iOS-style user expectations where drag = move.",
+    "NotesApp.jsx L1915-1929: copy branch keeps source note's `pack_id`, `pack_name`, `pack_accent` and overrides only category/category_path/id/timestamps/order. Copy semantics themselves are internally consistent (fresh uuidv4, correct destination category_path, resets subcategory to ''). No bug in the copy path itself.",
+    "handleCrossPackMove undo action for copy branch calls StorageService.deleteNote(copy.id) — correct symmetric undo. Good.",
+    "No console errors, no toast leak, no orphaned drag state after the drop — Repair #5 tracker attach/detach lifecycle behaved correctly during this test as well."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "TEST 8 executed successfully; verdict: FAIL against user's MOVE contract, PASS against current source code contract (COPY)."},
+  "seed_data_creation": "IDB store 'IronRabbit'/'notes' cleared and seeded with 5 notes (t1..t3 Groceries, t4..t5 Errands), all pack_id='test-pack-8' pack_name='Test Pack 8' pack_accent='#8b5cf6', category_path=[category], subcategory=''. app_settings.settings set to view_mode='icon', group_by_category=true, sort_by='custom', tour_completed=true, theme_chosen=true, theme='dark', category_order=['Groceries','Errands']. metadata.migrated_from_backend=true to suppress demo note re-injection. sec_toggles.toggles={} defaults. sessionStorage cleared to bypass reload-loop kill-switch.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "TEST 8 is a specification/behavior mismatch, NOT a regression. Iteration 87's Repair #5 is still holding (V1 wobble scenario still bails out correctly — that path was NOT re-exercised here but the containment predicate was observed to behave correctly against the LEGIT cross-pack drop in this test, i.e. it correctly identified the pointer as OUTSIDE source and DID dispatch to onCrossPackMove). The only outstanding decision is product: touch=copy (current) vs touch=move (user's TEST 8 assertion). Do not attempt to 'fix' TEST 8 until a product owner confirms the desired touch default.",
+  "rca_of_the_issue": {
+    "root_cause": "SortableTilesProvider.jsx L146 sets `modifier = orig.metaKey || orig.ctrlKey` at drag-start. On touch, activatorEvent is a TouchEvent which has no metaKey/ctrlKey (both undefined), so `modifier` is false. handleDragEnd L224 then unconditionally dispatches mode='copy'. handleCrossPackMove in NotesApp.jsx L1915-1929 mints a fresh uuidv4 clone. Therefore every genuine touch cross-category drop is COPY by construction.",
+    "reproduction_steps": [
+      "1. Seed IDB with 5 notes across two categories in the same pack (see seed_data_creation).",
+      "2. Load app at 390x844, switch to icon (grid) view with group_by_category=true.",
+      "3. CDP Input.dispatchTouchEvent: touchStart @ note-tile-grip-t1 center (38,755), touchMove +8/+8, 30-step touchMove trajectory to note-tile-t4 center (70,534), final touchMove @ (70,534), touchEnd.",
+      "4. Read IDB: total=6, Groceries=3, Errands=3, fresh uuidv4 note present in Errands, t1 unchanged, toast='Copied to \"Errands\" · Hold ⌘/Ctrl to move'."
+    ],
+    "mitigation_if_product_wants_move": "SortableTilesProvider.jsx L224 — detect touch input from event.activatorEvent (window.TouchEvent && orig instanceof TouchEvent, or orig.pointerType==='touch') and dispatch 'move' instead of 'copy'. Alternatively add app_settings.touch_drag_mode toggle and default it based on platform. NotesApp.jsx handleCrossPackMove already supports mode='move' via StorageService.moveNoteToCategory (L1890), so the frontend contract is ready."
+  }
+}
