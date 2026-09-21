@@ -1,0 +1,77 @@
+{
+  "summary": "TEST 8 formal re-run after Repair #7 — READ-ONLY. Executed /app/tests/test_iron_rabbit_repair7.py against live preview URL. All 8 sub-tests (V1..V8, mapped to user's TEST8-A..H) PASS on this run. Zero console errors. `git status --short` is empty before and after (no source code modifications). TEST 8 VERDICT: PASS.",
+  "test_verdict": "TEST 8: PASS (8/8)",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "results": {
+    "TEST8-A_setup_before_state": {"status": "PASS", "note": "SAME_PACK seed successful — total=5, Groceries=3 (t1,t2,t3), Errands=2 (t4,t5), all pack_id='test-pack-8', zero console errors"},
+    "TEST8-B_genuine_touch_cross_category_MOVE": {
+      "status": "PASS",
+      "total": 5, "Groceries_count": 2, "Errands_count": 3,
+      "before": {"tile_id": "t1", "pack_id": "test-pack-8", "category": "Groceries", "category_path": ["Groceries"]},
+      "after":  {"tile_id": "t1", "pack_id": "test-pack-8", "category": "Errands",   "category_path": ["Errands"], "title": "Milk"},
+      "duplicate_check": "PASS — exactly ONE t1 exists",
+      "fresh_uuid_check": "PASS — zero fresh uuidv4-shaped ids",
+      "toast": "Moved to \"Errands\"\\nUndo",
+      "unrelated_tiles_unchanged": true,
+      "invariant_category_eq_path0": true
+    },
+    "TEST8-C_reload_persistence": {
+      "status": "PASS",
+      "after_reload": {"total": 5, "t1_id": "t1", "t1_category": "Errands", "t1_category_path": ["Errands"], "t1_pack_id": "test-pack-8"},
+      "duplicate_check": "PASS"
+    },
+    "TEST8-D_desktop_mouse_no_modifier_COPY": {
+      "status": "PASS",
+      "total": 6, "t1_still_Groceries": true,
+      "fresh_uuid_in_Errands": "78cb5406-4a7e-4d7d-9e56-a3f94ce6ca30",
+      "toast": "Copied to \"Errands\" · Hold ⌘/Ctrl to move\\nUndo"
+    },
+    "TEST8-E_desktop_mouse_Ctrl_MOVE": {
+      "status": "PASS",
+      "total": 5, "t1_id_preserved": "t1", "t1_category": "Errands", "t1_pack_id": "test-pack-8",
+      "fresh_uuid_check": "PASS — zero",
+      "toast": "Moved to \"Errands\"\\nUndo"
+    },
+    "TEST8-F_cancel_then_clean_drag": {
+      "status": "PASS",
+      "cancel_state_unchanged": true,
+      "t1_after_cancel_category": "Groceries",
+      "subsequent_clean_drag_moved": true,
+      "t1_after_move_category": "Errands", "t1_id_after_move": "t1"
+    },
+    "TEST8-G_console_error_scan": {"status": "PASS", "pageerrors": 0, "console_level_error_entries": 0},
+    "TEST8-H_regression_git_status": {"status": "PASS", "git_status_short_before": "", "git_status_short_after": "", "source_modifications": "NONE"}
+  },
+  "expected_report_format": {
+    "TEST_8": "PASS",
+    "before_tile_id": "t1",
+    "after_tile_id":  "t1",
+    "before_pack_id": "test-pack-8",
+    "after_pack_id":  "test-pack-8",
+    "before_category": "Groceries",
+    "after_category":  "Errands",
+    "before_category_path": ["Groceries"],
+    "after_category_path":  ["Errands"],
+    "duplicate_check": "PASS (exactly ONE t1)",
+    "fresh_uuid_check": "PASS (zero fresh uuidv4 in touch MOVE)",
+    "reload_persistence": "PASS",
+    "desktop_copy_no_modifier": "PASS (fresh uuid copied to Errands, t1 remains in Groceries)",
+    "desktop_ctrl_move": "PASS (t1 moved id-preserved, no fresh uuid)",
+    "cancel_then_clean_drag": "PASS (state unchanged after cancel; subsequent drag correctly moves)",
+    "console_errors": "PASS (0)"
+  },
+  "test_report_links": ["/app/tests/test_iron_rabbit_repair7.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No source code was inspected/modified for this run — READ-ONLY re-run per user contract. Prior review comments in iteration_92 still apply.",
+    "TEST 8 is fully reproducible: two consecutive runs (iter_92 and iter_93) both 8/8 PASS on the same repair set (#5, #6, #7)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "8/8 (100%)"},
+  "seed_data_creation": "Reused seeds from test_iron_rabbit_repair7.py: SAME_PACK (5 notes, pack_id='test-pack-8', Groceries 3 + Errands 2), TWO_PACKS (6 notes, recipes-pack 4 + errands-pack 2), ONE_CAT (5 notes single TestPack). All via raw IndexedDB put(value,key) on 'IronRabbit' DB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Repair #7 remains stable. Cache is iron-rabbit-v169. If future changes touch SortableTilesProvider.jsx or handleCrossPackMove, re-run /app/tests/test_iron_rabbit_repair7.py — V1 (wobble no-op on TWO_PACKS mobile) is the sentinel for the stale-srcRect regression class. Genuine touch uses CDP Input.dispatchTouchEvent (dnd-kit TouchSensor requires real TouchEvents).",
+  "rca_of_the_issue": "N/A — no defect observed in this run. All contracts hold."
+}
