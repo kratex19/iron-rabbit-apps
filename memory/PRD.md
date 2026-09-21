@@ -63,6 +63,7 @@ English only.
 - **Repair #1 · Hierarchy Data Integrity (v163)** — Move/Copy/Bulk paths keep `category_path` in perfect sync with legacy `category`/`subcategory`.
 - **Repair #2 · Delete/Archive/Trash/Undo Integrity (v164)** — `cleanupPinnedRefsForPath` returns a `pinSnap`; segment-by-segment `isPathUnder` matching replaces the string-prefix bug; Undo splices removed pins back at original indices without wiping pins added afterwards.
 - **Repair #2A · Empty-Category & Move-to-Uncategorized Undo (v165)** — Empty pinned category delete now surfaces the Undo pill (`type: "category_removed"`) and restores its pin/order/sticky entries. Move-to-Uncategorized (`type: "uncategorize"`) now snapshots per-note hierarchy fields and restores both notes AND pins on Undo. Existing Undo UI/architecture untouched.
+- **Repair #3 · Backup/Restore Data Integrity Audit (v165 · clean)** — Programmatic 14-dimension round-trip audit against `exportAllData` / `importAllData`. Every dimension passed with zero data-fidelity defects (deep hierarchy, Uncategorized, pins, nested pin paths, attachment blob bytes across image/PDF types, custom sort rules, lifecycle, empty DB, mixed 12-note dataset). NO CODE CHANGES REQUIRED per spec. Two informational findings on the deprecated `migrateFromBackend` path (does not persist server settings, does not fetch attachment blobs) logged as backlog — outside Repair #3 scope.
 
 ## Backlog / Roadmap
 - **P1**: Custom Menu Tile Prompt — waiting on user to provide prompt text for the 16th tile action.

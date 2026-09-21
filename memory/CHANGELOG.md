@@ -1,3 +1,49 @@
+## 2026-09-21 — Repair #3 · Backup / Restore Data Integrity Audit — CLEAN (no code change)
+
+Per Repair #3 spec: audit-first, code-change-only-if-a-real-defect-is-found. **Audit result: CLEAN — existing implementation passed every fidelity dimension. No source changes made. Cache stays at v165.**
+
+### Files inspected (unchanged)
+- `frontend/src/storage/storageService.js` — `exportAllData` L464-512, `importAllData` L514-596, `migrateFromBackend` L608-649, attachment blob store, settings store, templates store.
+- `frontend/src/NotesApp.jsx` — `handleBackup` L1995, `handleRestore` L2008, `handleRestoreFromServer` L872.
+- `frontend/src/notes/BackupRestoreModal.jsx`.
+
+### Fidelity verified (round-trip via testing_agent · iteration_82)
+
+| # | Dimension | Result |
+| --- | --- | --- |
+| 1 | Top-level `category_path=['Work']` | ✅ exact match |
+| 2 | Subcategory `['Work','Projects']` | ✅ exact match |
+| 3 | Deep 4-level `['Work','Projects','2026','January']` | ✅ no flattening |
+| 4 | Uncategorized `[]`, `''`, `''` | ✅ array stays array, empty strings preserved |
+| 5 | `pinned_categories` + `category_order` + `sticky_categories` | ✅ order preserved |
+| 6 | `pinned_subcategory_paths` (nested arrays) | ✅ intact |
+| 7 | Single attachment blob bytes | ✅ byte-for-byte identical + metadata |
+| 8 | 3 attachments (png/jpeg/pdf) | ✅ all bytes + metadata + order |
+| 9 | `sort_by='custom'` + `custom_sort_rules` + per-note `order` | ✅ preserved |
+| 10 | Lifecycle `archived_at` / `deleted_at` | ✅ exact ISO preserved |
+| 11 | Complete note (deep + tags + color + attachment + alarms + pinned + pack_id + timestamps + forward-compat `foo`) | ✅ every field |
+| 12 | Empty database round-trip | ✅ no fake records |
+| 13 | Mixed 12-note dataset deep-diff | ✅ zero diffs |
+| 14 | `migrateFromBackend` static inspection | ✅ documented (see below) |
+| Regression | Repair #1 invariant (`category === category_path[0]‖''`) | ✅ for every restored note |
+| Regression | `recentAction` untouched by import | ✅ |
+| Regression | Repairs #1 / #2 / #2A intact | ✅ |
+
+### Why the existing implementation is correct
+- **Notes**: `notesStore.setItem(note.id, note)` — full-object passthrough on both sides. No whitelist, no field filtering. Forward-compat fields survive.
+- **Attachments**: `FileReader.readAsDataURL(blob)` → base64 data-URL → `fetch(dataURL).blob()` is losslessly reversible. Metadata (`name` / `type` / `size` / `created_at`) is passed through as a plain object.
+- **Settings**: full-object write. Every documented pin / order / sort / sticky field is included because they all live on the single `app_settings` object.
+- **Templates + preset title overrides**: full passthrough.
+- **Empty DB**: `getAllNotes()` returns `[]`; `getTemplates()` returns `[]`; `filesStore.iterate` yields no entries → `files={}`. Import loops iterate zero times — no fake data.
+
+### Informational findings (OUT OF Repair #3 scope, logged for future review)
+- `migrateFromBackend` (server-restore entry) fetches `/api/settings` but never persists it to `settingsStore`; only notes and templates are written. Also does not fetch attachment blobs. This is a documented limitation of the deprecated backend migration path — the offline-first architecture no longer stores notes/attachments server-side. **Manual JSON backup/restore remains the fidelity-preserving path.** No repair applied per spec ("if it is already correct, leave it unchanged").
+
+### Regression confirmation
+Repairs #1, #2, and #2A all remain intact. Backup/restore does not touch hierarchy invariants, pin snapshots, undo state, custom ordering, Tile Pack metadata, or lifecycle timestamps.
+
+
+
 ## 2026-09-21 — v165: Repair #2A · Empty-Category & Move-to-Uncategorized Undo Integrity
 
 **Two surgical follow-ups to Repair #2, no other behavior changed.**
