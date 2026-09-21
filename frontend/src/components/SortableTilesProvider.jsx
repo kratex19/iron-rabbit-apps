@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -77,6 +77,20 @@ export default function SortableTilesProvider({
   const [activeSourcePack, setActiveSourcePack] = useState(null);
   const [modifier, setModifier] = useState(false);
 
+  // Repair #5 · Pack container DOM refs — populated by PackSection via
+  // `registerContainer` so `handleDragEnd` can measure the SOURCE pack's
+  // bounding rect at drop time. Used ONLY to reject a false-positive
+  // cross-pack resolve when the pointer never actually left the source
+  // pack (dnd-kit's `pointerWithin` collision detector greedily returns
+  // a neighboring pack's droppable on touch when the finger path grazes
+  // the adjacent rect). No change to cross-pack semantics for real
+  // drops that leave the source pack.
+  const packContainerRefs = useRef(new Map());
+  const registerContainer = (packId, node) => {
+    if (node) packContainerRefs.current.set(packId, node);
+    else packContainerRefs.current.delete(packId);
+  };
+
   // Build a fast lookup: noteId -> packId
   const noteToPack = useMemo(() => {
     const m = new Map();
@@ -142,6 +156,31 @@ export default function SortableTilesProvider({
       return;
     }
 
+    // Repair #5 — boundary false-positive check. On mobile/touch,
+    // dnd-kit's `pointerWithin` collision detector can resolve
+    // `over` to a neighboring pack when the finger path grazes the
+    // adjacent section, even though the user's intent is a same-pack
+    // reorder. If the dragged tile's final visual center is STILL
+    // inside the source pack's container rect, cancel the cross-pack
+    // decision (silent no-op — tile snaps back and the user retries).
+    // Real cross-pack drops (tile visibly moved out of the source
+    // container) are unaffected and continue to fire onCrossPackMove.
+    try {
+      const srcNode = packContainerRefs.current.get(sourcePackId);
+      const srcRect = srcNode && srcNode.getBoundingClientRect();
+      const activeRect = active.rect && active.rect.current && active.rect.current.translated;
+      if (srcRect && activeRect) {
+        const cx = activeRect.left + activeRect.width / 2;
+        const cy = activeRect.top + activeRect.height / 2;
+        if (
+          cx >= srcRect.left && cx <= srcRect.right &&
+          cy >= srcRect.top && cy <= srcRect.bottom
+        ) {
+          return;
+        }
+      }
+    } catch { /* rect lookup best-effort; fall through on any error */ }
+
     // Cross-pack drop — either MOVE (modifier held) or COPY (default).
     onCrossPackMove?.(sourcePackId, targetPackId, activeId, modifier ? "move" : "copy");
   };
@@ -157,6 +196,7 @@ export default function SortableTilesProvider({
         onOpen={onOpen}
         onEdit={onEdit}
         onDelete={onDelete}
+        registerContainer={registerContainer}
       />
     ),
   };
@@ -192,17 +232,25 @@ function cascadedCollision(args) {
   return closestCenter(args);
 }
 
-function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, onToggleSelect, onOpen, onEdit, onDelete }) {
+function PackSection({ pack, gridStyle, testId, isDark, selectMode, isSelected, onToggleSelect, onOpen, onEdit, onDelete, registerContainer }) {
   // useDroppable makes the whole grid container a valid drop target
   // even when it has zero tiles, so users can move a note INTO an
   // empty pack.
   const { setNodeRef, isOver } = useDroppable({ id: `pack-container::${pack.id}` });
   const ids = pack.notes.map((n) => n.id);
 
+  // Repair #5 — combine dnd-kit's droppable ref with a source-pack DOM
+  // registry so `handleDragEnd` can measure this pack's bounding rect
+  // at drop time (see boundary false-positive check above).
+  const setCombinedRef = (node) => {
+    setNodeRef(node);
+    if (registerContainer) registerContainer(pack.id, node);
+  };
+
   return (
     <SortableContext items={ids} strategy={rectSortingStrategy}>
       <div
-        ref={setNodeRef}
+        ref={setCombinedRef}
         className={`notes-grid rounded-lg transition-colors ${pack.notes.length === 0 ? "min-h-[140px]" : ""} ${isOver ? (isDark ? "ring-2 ring-indigo-400/60 bg-indigo-500/10" : "ring-2 ring-indigo-400/60 bg-indigo-50") : ""}`}
         style={gridStyle}
         data-testid={testId}
