@@ -1,0 +1,63 @@
+{
+  "summary": "TEST 6 (POST-REPAIR VERIFICATION) — Installed 'Fitness Journey' Tile Pack (5 tiles) via built-in UI installer (header-tile-packs → apply-pack-fitness-journey). Snapshotted IDB `notes` store in DB `IronRabbit` before and after `page.reload({waitUntil:'networkidle'})` + 3s wait. Deterministic set/count/field comparison shows the pack persisted EXACTLY unchanged across reload. No source code, config, or CSS was modified.",
+  "test_result": "PASS",
+  "tile_pack_tested": "Fitness Journey (pack_id=fitness-journey)",
+  "before_reload": {
+    "total_notes_in_store": 5,
+    "pack_tagged_notes": 5,
+    "tile_count_for_pack": 5,
+    "tiles": [
+      {"id": "3e6ee5ca-64ef-4acc-9e4a-7b3acac433b9", "title": "Workout Log", "order": 1, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "8d36c240-b01d-416b-b36f-daf5ccb08832", "title": "Meal Prep",   "order": 2, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "80cd4320-c9d6-48a1-b336-b6b6dda460bc", "title": "Hydration",   "order": 3, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "edf6bdb2-c570-4745-9ac2-9f4bd9603514", "title": "Rest Day",    "order": 4, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "048fc386-602b-46ce-984a-da03fac726eb", "title": "Progress",    "order": 5, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"}
+    ],
+    "category_subcategory_state": "All 5 tiles: category='Fitness', subcategory=null, category_path=null (single top-level category grouping, no sub)."
+  },
+  "after_reload": {
+    "total_notes_in_store": 5,
+    "pack_tagged_notes": 5,
+    "tile_count_for_pack": 5,
+    "tiles": [
+      {"id": "3e6ee5ca-64ef-4acc-9e4a-7b3acac433b9", "title": "Workout Log", "order": 1, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "8d36c240-b01d-416b-b36f-daf5ccb08832", "title": "Meal Prep",   "order": 2, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "80cd4320-c9d6-48a1-b336-b6b6dda460bc", "title": "Hydration",   "order": 3, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "edf6bdb2-c570-4745-9ac2-9f4bd9603514", "title": "Rest Day",    "order": 4, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"},
+      {"id": "048fc386-602b-46ce-984a-da03fac726eb", "title": "Progress",    "order": 5, "category": "Fitness", "subcategory": null, "category_path": null, "pack_id": "fitness-journey", "pack_name": "Fitness Journey"}
+    ],
+    "category_subcategory_state": "All 5 tiles: category='Fitness', subcategory=null, category_path=null — IDENTICAL to before-reload state."
+  },
+  "comparison": {
+    "same_pack_ids": true,
+    "same_tile_count_per_pack": true,
+    "same_tile_id_set_per_pack": true,
+    "same_tile_title_set_per_pack": true,
+    "same_category_subcategory_category_path_per_tile_id": true,
+    "new_pack_id_groups": false,
+    "tiles_migrated_out_of_pack": false,
+    "duplicate_ids": false,
+    "tiles_converted_to_container": false,
+    "total_note_count_unchanged": true,
+    "verdict": "All PASS criteria hold. Pack IDs, tile counts, tile ID sets, tile title sets, and per-tile category/subcategory/category_path are byte-identical before and after reload. No tile missing, duplicated, moved, renamed, recreated, or altered. Pack membership unchanged."
+  },
+  "additional_observation_non_blocking": {
+    "note": "TEST6-P6 invariant check: `category === (category_path[0]||'') && subcategory === (category_path[1]||'')`. The installer writes category_path=null (not an array) while category='Fitness'. Evaluating `(null||[])[0]||''` yields '', so strictly the invariant does not hold. HOWEVER: this state is IDENTICAL before and after reload — reload did not introduce, mutate, or drop category_path. This is how the built-in Tile Pack installer (`applyTilePack` in NotesApp.jsx) currently writes new pack tiles. Not a persistence/regression bug and NOT counted against the persistence PASS. Flagging for main agent visibility only.",
+    "affects_persistence": false
+  },
+  "console_errors_observed": "None. Only the standard SW-registered log and a React DevTools info log. No red errors before, during install, or after reload.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "applyTilePack writes tiles with category_path=null (not [category]); if any downstream code assumes category_path is an array, this asymmetry (category populated but category_path=null) could bite. Not causing failures now; consider normalising to [category] at write time so the P6 invariant is structurally true."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% for TEST 6 persistence criteria"},
+  "seed_data_creation": "Installed 'Fitness Journey' Tile Pack via built-in UI installer (no direct IDB seeding used; no source modification).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "IDB DB name is `IronRabbit`, store `notes`. Tile Pack installer is `[data-testid=\"header-tile-packs\"]` → grid of `[data-testid=\"tile-pack-<id>\"]` cards, each with `[data-testid=\"apply-pack-<id>\"]`. No mode-picker modal appeared; install is a single click that toasts 'Applied \"<Pack>\" — N tiles added'. Fields on each pack tile: id, title, category, subcategory (null for Fitness Journey), category_path (currently null from installer), pack_id, pack_name, order. If future test needs subcategory paths, pick a pack whose source has multi-level category_path (e.g., Restaurants Galore, 16 tiles) — Fitness Journey is flat.",
+  "rca_of_the_issue": "N/A — TEST 6 PASSED. Persistence is intact; the pack round-trips through service-worker (iron-rabbit-v167) + IndexedDB reload with zero mutation."
+}
