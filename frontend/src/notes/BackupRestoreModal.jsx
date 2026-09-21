@@ -10,6 +10,7 @@ import {
   FileDown, FileUp, FileText,
 } from "lucide-react";
 import StorageService from "../storage/storageService";
+import SecurityService from "../security/SecurityService";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import { markdownToNote, notesToZipBlob, downloadBlob } from "../utils/markdown";
 
@@ -27,6 +28,16 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
   const handleExport = async () => {
     try {
       setBusy(true);
+      // Repair #4 · consistent auth gate — matches the pattern in
+      // NotesApp.handleBackup / handleClearAllData / exportToPDF. Only
+      // biometric method prompts; PIN is already gated by the launch
+      // lock screen. When the toggle is off, behavior is unchanged.
+      const toggles = await SecurityService.getToggles();
+      const method = await SecurityService.getMethod();
+      if (toggles.requireAuthExport && method === "biometric") {
+        const ok = await SecurityService.verifyBiometric();
+        if (!ok) { toast.error("Authentication failed"); return; }
+      }
       const payload = await StorageService.exportAllData();
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -51,6 +62,15 @@ export default function BackupRestoreModal({ isOpen, onClose, onDataChanged, isD
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      // Repair #4 · gate BEFORE any read/parse. Aborts leave IndexedDB
+      // untouched. Input reset happens in `finally` so the same file
+      // can be re-picked after an auth-fail or parse-fail.
+      const toggles = await SecurityService.getToggles();
+      const method = await SecurityService.getMethod();
+      if (toggles.requireAuthRestore && method === "biometric") {
+        const ok = await SecurityService.verifyBiometric();
+        if (!ok) { toast.error("Authentication failed"); return; }
+      }
       const text = await file.text();
       const payload = JSON.parse(text);
       // Accept both "Iron Rabbit" (current export) and legacy "IronRabbit"
