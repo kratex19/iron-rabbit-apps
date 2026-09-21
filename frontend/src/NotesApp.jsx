@@ -1994,6 +1994,16 @@ export default function NotesApp() {
 
   const handleBackup = async () => {
     try {
+      // Optional biometric gate before exporting (Repair #4). Matches the
+      // existing pattern used by exportToPDF / handleClearAllData: only
+      // biometric method triggers an explicit prompt — for PIN the app
+      // launch lock already gates entry.
+      const toggles = await SecurityService.getToggles();
+      const method = await SecurityService.getMethod();
+      if (toggles.requireAuthExport && method === "biometric") {
+        const ok = await SecurityService.verifyBiometric();
+        if (!ok) { toast.error("Authentication failed"); return; }
+      }
       const data = await StorageService.exportAllData();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const filename = `iron-rabbit-backup-${format(new Date(), "yyyy-MM-dd-HHmm")}.json`;
@@ -2009,6 +2019,15 @@ export default function NotesApp() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      // Optional biometric gate BEFORE any read/parse/import (Repair #4).
+      // Order matters: authenticate first, then touch IndexedDB. Aborts
+      // cleanly (input reset in `finally`) so the user can re-pick.
+      const toggles = await SecurityService.getToggles();
+      const method = await SecurityService.getMethod();
+      if (toggles.requireAuthRestore && method === "biometric") {
+        const ok = await SecurityService.verifyBiometric();
+        if (!ok) { toast.error("Authentication failed"); return; }
+      }
       const text = await file.text();
       const data = JSON.parse(text);
       const result = await StorageService.importAllData(data);
@@ -2017,8 +2036,9 @@ export default function NotesApp() {
     } catch (err) {
       console.error("Restore error:", err);
       toast.error("Invalid backup file");
+    } finally {
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   // ---------- Derived data ----------
