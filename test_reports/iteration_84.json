@@ -1,0 +1,42 @@
+{
+  "summary": "Repair #4 EXTENSION to BackupRestoreModal.jsx (biometric auth gate on modal's own handleExport / handleFilePick) verified end-to-end via live UI + WebAuthn stub against public preview URL. All 9 MODAL-GATE cases plus REGRESSION 2/3 pass. Regression 1 (NotesApp path) already green in iteration_83; Regression 4 (round-trip serialization) already green in iteration_82. No code changes were needed by the tester.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "modal_gate_results": {
+    "GATE_1_export_biometric_fail_blocks_export": "PASS — verifyBiometric called 1x, no URL.createObjectURL, no anchor.click, toast 'Authentication failed' shown, IndexedDB untouched",
+    "GATE_2_export_biometric_pass_allows_export": "PASS — verify=1, URL.createObjectURL(type=application/json, size=5314B) fired, anchor.click with iron-rabbit-backup filename, toast 'Exported 6 notes · 0 files'",
+    "GATE_3_export_toggle_off_bypasses_verify": "PASS — requireAuthExport=false + method=biometric → verify=0, exportUrls=1, downloads=1",
+    "GATE_4_export_pin_method_bypasses_verify": "PASS — method=pin + requireAuthExport=true → verify=0, export proceeds",
+    "GATE_5_restore_biometric_fail_blocks_import": "PASS — verify=1, no importAllData, no pendingPayload UI (backup-mode-merge absent), toast 'Authentication failed', fileInputRef.current.value === '' (finally-block reset works)",
+    "GATE_6_restore_biometric_pass_shows_mode_picker": "PASS — verify=1, backup-mode-merge visible (pendingPayload set after JSON parse), input reset",
+    "GATE_7_restore_toggle_off_bypasses_verify": "PASS — requireAuthRestore=false + method=biometric → verify=0, mode picker shown",
+    "GATE_8_restore_pin_method_bypasses_verify": "PASS — method=pin + requireAuthRestore=true → verify=0, mode picker shown",
+    "GATE_9_order_of_operations": "PASS — callOrder observed: ['verifyBiometric', 'createObjectURL:type=application/json …', 'anchor.click:dl=iron-rabbit-backup-*.json'] — auth strictly precedes read/parse/write"
+  },
+  "regression_results": {
+    "REGRESSION_1_NotesApp_path_unchanged": "PASS (inherited from iteration_83 — NotesApp.handleBackup/handleRestore not touched this iteration)",
+    "REGRESSION_2_markdown_export_not_gated": "PASS — with biometric-fail stub, clicking backup-export-md-all-btn does NOT invoke verifyBiometric (verify=0). Intentional scope limit honored.",
+    "REGRESSION_3_invalid_backup_file_toast": "PASS — bad app tag (app='SomeOtherApp') after auth-pass → toast 'Not an Iron Rabbit backup file', input reset to ''",
+    "REGRESSION_4_serialization_round_trip": "PASS (inherited from iteration_82 — storageService.exportAllData/importAllData unchanged this iteration)"
+  },
+  "test_report_links": ["/app/tests/backup_modal_test.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "BackupRestoreModal.jsx handleExport (L28-59) and handleFilePick (L61-89) both correctly place the auth gate BEFORE any side-effect (exportAllData, file.text, JSON.parse, setPendingPayload). Pattern is byte-identical to NotesApp.handleBackup / handleClearAllData — good code hygiene.",
+    "handleFilePick's try/finally correctly resets fileInputRef.current.value = '' on ALL exit paths (auth-fail, JSON-parse-error, wrong app tag, success). Verified live.",
+    "Markdown export/import handlers remain intentionally ungated — matches the spec and iteration_83 scope limit. Consider documenting this as a follow-up repair.",
+    "SecurityService.verifyBiometric returns !!assertion — my stub returned a truthy object and it resolved as expected. No changes needed."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "N/A (skipped per spec)", "frontend": "100% (9/9 MODAL-GATE + 2/2 in-scope REGRESSION cases pass)" },
+  "test_credentials": "N/A — offline PWA; no login. Sec settings seeded directly into IDB 'IronRabbit'.settings.app_settings row: sec_method, sec_toggles JSON, sec_webauthn_cred_id.",
+  "seed_data_creation": "Programmatic seeding of app_settings row (sec_method='biometric'|'pin', sec_toggles JSON with per-toggle flags, sec_webauthn_cred_id='dGVzdC1jcmVkLWlk'). navigator.credentials.get stubbed for pass/fail. URL.createObjectURL + HTMLAnchorElement.click spies count real export side-effects.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "BackupRestoreModal entry: [data-testid=backup-restore-modal]; export button [data-testid=backup-export-btn]; hidden file input [data-testid=backup-file-input]; mode-picker becomes visible via [data-testid=backup-mode-merge]/[backup-mode-replace]. SettingsModal → click [data-testid=settings-backup-btn] opens the modal (200ms delay after settings closes). To bypass launch lock during reload cycles, seed sec_toggles with lockOnLaunch:false. WebAuthn stub is stable; the earlier GATE 2 flake happened because a preceding reload left the app in the launch-lock screen when lockOnLaunch was true — solved by including lockOnLaunch:false in the toggles JSON.",
+  "rca of the issue": "N/A — implementation is correct per spec. Only files changed: NotesApp.jsx (iteration_83), BackupRestoreModal.jsx (this iteration), service-worker.js CACHE_NAME iron-rabbit-v166 (bumped earlier in repair). Confirmed via file inspection."
+}

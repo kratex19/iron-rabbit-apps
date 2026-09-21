@@ -1,3 +1,50 @@
+## 2026-09-21 — v166: Repair #4 · Biometric Auth Gate on ALL Manual Backup/Restore Paths
+
+**Two paths gated, one existing SecurityService pattern, no serialization or UI changes.**
+
+### Root cause fixed
+Settings already exposed `requireAuthExport` and `requireAuthRestore`, but neither manual export/restore entry point enforced them. Both entry points must be gated for the toggles to be meaningful:
+1. **Path A** — `NotesApp.handleBackup` / `handleRestore` (invoked from SettingsModal's Backup / Restore buttons).
+2. **Path B** — `BackupRestoreModal.handleExport` / `handleFilePick` (invoked from the modal's own Export button and hidden file input).
+
+Prior to this repair, both paths called `StorageService.exportAllData` / `importAllData` directly and skipped the biometric prompt entirely.
+
+### Files changed (3)
+- `frontend/src/NotesApp.jsx` — `handleBackup` (L1995) and `handleRestore` (L2018) now run the existing `getToggles() + getMethod() + verifyBiometric()` gate before any side effect. `handleRestore` moved input reset into `finally` so the same file can be re-picked after any exit (auth-fail, parse-fail, success).
+- `frontend/src/notes/BackupRestoreModal.jsx` — imported `SecurityService`; identical gate added to `handleExport` (before `exportAllData`) and `handleFilePick` (before `file.text()` / `JSON.parse` / `setPendingPayload`). Existing `finally`-block input reset preserved.
+- `frontend/public/service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v165` → `v166`.
+
+### Files inspected but intentionally unchanged
+- `frontend/src/security/SecurityService.js` — pattern already existed (`handleClearAllData`, `exportToPDF`); reused verbatim.
+- `frontend/src/storage/storageService.js` — export/import serialization untouched (Repair #3 clean).
+- `frontend/src/notes/SecurityModal.jsx` — toggle UI untouched.
+
+### Gate semantics (identical across both paths)
+```
+if (toggles.requireAuthExport /* or requireAuthRestore */ && method === "biometric") {
+  const ok = await SecurityService.verifyBiometric();
+  if (!ok) { toast.error("Authentication failed"); return; }
+}
+```
+- Prompt fires **only** when method === `"biometric"`. `"pin"` is already gated at app launch by the lock screen.
+- When the toggle is OFF, behavior is **byte-identical** to pre-repair.
+- Authentication runs **strictly before** any read/parse/write.
+
+### Intentionally out of scope
+- Markdown export/import (`handleExportAllMarkdown` / `handleImportMarkdown`) — per user directive, deferred to a future repair.
+- `migrateFromBackend` (deprecated server-restore path) — separate future security review.
+
+### Verification
+| Test iteration | Coverage | Result |
+| --- | --- | --- |
+| `iteration_83` | 8 AUTH-GATE cases on `NotesApp` path (pass/fail × export/restore × biometric/PIN/toggle-off/order) | ✅ 8/8 pass |
+| `iteration_84` | 9 MODAL-GATE cases on `BackupRestoreModal` path + 4 regressions | ✅ 9/9 pass; 4/4 regressions pass |
+| `iteration_82` (inherited) | 14-dimension backup/restore round-trip fidelity | ✅ clean, no change since |
+
+Repairs #1, #2, #2A, #3 all remain intact.
+
+
+
 ## 2026-09-21 — Repair #3 · Backup / Restore Data Integrity Audit — CLEAN (no code change)
 
 Per Repair #3 spec: audit-first, code-change-only-if-a-real-defect-is-found. **Audit result: CLEAN — existing implementation passed every fidelity dimension. No source changes made. Cache stays at v165.**
