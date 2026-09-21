@@ -60,13 +60,19 @@ English only.
 - **Deep-Hierarchy Health Check** — Settings → "Fix orphaned notes" (v143).
 - **Hierarchy Jump Shortcut** — long-press blue tree icon filters Home to that `category_path` prefix (v143).
 - **Category/Subcategory pop-out redesign** — the Note Editor's Category-path picker is now a contained, viewport-safe floating panel matching the HierarchyPathButton visual language. Fixed 22rem cap (collapses to `100vw − 1.5rem` on narrow viewports), 60vh internal scroll for unlimited-depth chains, uniform w-4 tree-connector gutter so input width is identical at every depth, Enter-to-append shortcut. Data model + parent→child relationships + existing Hierarchy Pop-Out untouched (v144).
+- **Repair #1 · Hierarchy Data Integrity (v163)** — Move/Copy/Bulk paths keep `category_path` in perfect sync with legacy `category`/`subcategory`.
+- **Repair #2 · Delete/Archive/Trash/Undo Integrity (v164)** — `cleanupPinnedRefsForPath` returns a `pinSnap`; segment-by-segment `isPathUnder` matching replaces the string-prefix bug; Undo splices removed pins back at original indices without wiping pins added afterwards.
+- **Repair #2A · Empty-Category & Move-to-Uncategorized Undo (v165)** — Empty pinned category delete now surfaces the Undo pill (`type: "category_removed"`) and restores its pin/order/sticky entries. Move-to-Uncategorized (`type: "uncategorize"`) now snapshots per-note hierarchy fields and restores both notes AND pins on Undo. Existing Undo UI/architecture untouched.
 
 ## Backlog / Roadmap
 - **P1**: Custom Menu Tile Prompt — waiting on user to provide prompt text for the 16th tile action.
 - **P1**: Security — remove admin token exposed in test files.
-- **P2**: Move-to-Uncategorized Undo pill — one-tap reversal after bulk move.
 - **P2**: Fix nested-`<button>` hydration console warning in `CategoryGroup.jsx` (HierarchyPathButton inside `category-toggle` button). Non-blocking, but pollutes DevTools console. Flagged in iter_63, iter_64, iter_65.
+- **P2**: Tile Pack DND — reorder within a pack currently duplicates instead of moves.
+- **P2**: Add `pinned-sub-delete-<label>` testid on the Green pinned-sub-item so a pinned subcategory can be deleted/moved-to-Uncategorized without first unpinning it (blocker for full UI test coverage of Repair #2A · B).
 - **P3**: Rich Notification Icon monochrome mask review for OS push icons.
+- **P4**: Tile Pack Accordion default_open authoring toggle.
+- **P5**: Add `data-testid="note-card-<id>"` to `<Draggable>` note rows for Playwright E2E DND coverage.
 
 ## Third-Party Integrations
 - Open-Meteo (Weather) — no key

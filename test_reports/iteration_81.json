@@ -1,0 +1,32 @@
+{
+  "summary": "Repair #2A end-to-end frontend tests. Verified via seeded IndexedDB + UI clicks + IDB verification. Test A (empty pinned category delete → Undo pill + full restore of pinned_categories/category_order/sticky_categories/pinned_subcategory_paths at original indices) PASSES with correct pill label '\"Work\" removed'. Tests B/C were blocked at the UI level because CategoryGroup filters out subcategories that are already pinned (pinnedSubKeys) — the `subcategory-delete-<label>` button never renders when the sub is pinned in the Green rail, and the Green rail item exposes only pin/unpin/toggle (no delete). Code path for `type:'uncategorize'` undo (moveIdsToUncategorized + undoRecentAction) was verified by code review and matches the spec exactly (per-note undoSnap of {category, subcategory, category_path}, saveNote restore, pinSnap splice with sorted indices).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CategoryGroup + Green pinned rail", "issue": "When a subcategory is pinned to the Green rail, the parent CategoryGroup's nestedBuckets filters it out (CategoryGroup.jsx line 63), so `subcategory-delete-<label>` never renders. Meanwhile the Green rail item (pinned-sub-item-<label>) only exposes pin toggle / expand — no trash icon. Result: user CANNOT trigger Move-to-Uncategorized (nor Trash) on a pinned subcategory without first unpinning it. This is a pre-existing UX gap, not new in Repair #2A, but it made the Repair #2A · B UI flow untestable directly.", "selector": "[data-testid=\"subcategory-delete-Alpha\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Consider adding a data-testid'd trash button on the Green pinned-sub-item so users (and tests) can delete/move-to-uncategorized a pinned subcategory without unpinning it first. Suggested testid: `pinned-sub-delete-<label>`.",
+    "Consider unblocking the direct trigger path so testing agent can exercise the Repair #2A · B UI flow end-to-end without side-stepping the pin filter."
+  ],
+  "critical_code_review_comments": [
+    "routeDeleteToChoice empty branch (NotesApp.jsx L302-323): correct — always creates recentAction with new Map() (truthy) so the undo guard passes; pill label uses last path segment. VERIFIED by Test A.",
+    "cleanupPinnedRefsForPath returns null when nothing changed (L400): correctly guards against showing an Undo pill for a no-op delete of an unpinned empty category. Test A confirmed the pill only surfaces when there is something to undo.",
+    "undoRecentAction 'uncategorize' branch (L1258-1268) correctly reads current note via getNote (respects any concurrent edits), restores category/subcategory/category_path from snapshot, and preserves all other fields via spread. Matches spec.",
+    "moveIdsToUncategorized (L1347-1371) captures hierarchy-only snapshot (category, subcategory, category_path) — correctly does not snapshot pinned/timestamps/etc so those are not clobbered on Undo.",
+    "pinSnap splice ordering (L1289, L1314): sorts by original index ascending then splices — this can drift when multiple entries are inserted (each subsequent splice shifts later targets by one). For Repair #2A test scenarios (usually one entry per field) this is not observable, but with many concurrent removals a strict positional restore may off-by-N. Consider iterating in reverse index order or accumulating a target-index adjustment. Non-blocking.",
+    "NotesApp.jsx is ~3381 lines — exceeds the 700-line guideline. Recommend splitting recentAction / category-delete flows into a dedicated hook."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a", "frontend": "Test A PASS; Test A2/B/C blocked by UI accessibility of the target trash icon (pre-existing filter). Code-review verifies Repair #2A logic is correct."},
+  "test_credentials": "n/a (offline PWA)",
+  "seed_data_creation": "Seeded IndexedDB (IronRabbit DB, `settings` and `notes` stores) directly via page.evaluate for each scenario; cleared notes between tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Test A (empty pinned category delete) is fully working via UI: expand yellow rail (data-testid=pinned-categories-rail, click category-toggle-Pinned inside it) → click category-delete-Work → verify pill 'Work removed' → click recent-action-undo → verify pinned_categories/category_order/sticky_categories/pinned_subcategory_paths restored at original indices. For Tests B/C the sub-delete testid isn't reachable while the sub is pinned; either add a delete button to the Green rail item OR unpin the sub first before delete (then the psp restore assertion cannot be validated because the snap won't have captured the pin). Consider main-agent adding a `pinned-sub-delete-<label>` testid to the Green rail item.",
+  "rca of the issue": "Not a functional bug in Repair #2A itself. The blocker is a pre-existing UX filter (CategoryGroup.jsx nestedBuckets filter at line 63) that hides subcategory rows from the main grouped listing when the sub is pinned in the Green rail. Since the Green rail item does not expose a delete affordance, the flow to invoke routeDeleteToChoice on a pinned subcategory is only reachable via code paths (e.g. the note-editor category picker), not via a category-header trash icon. Repair #2A's move-to-uncategorized logic is correctly implemented per code review and produces the expected pill + snapshot behaviour; only the entry point is UI-inaccessible for the exact seed shape described in the spec."
+}

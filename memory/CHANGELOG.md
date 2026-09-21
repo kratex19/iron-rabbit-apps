@@ -1,3 +1,38 @@
+## 2026-09-21 — v165: Repair #2A · Empty-Category & Move-to-Uncategorized Undo Integrity
+
+**Two surgical follow-ups to Repair #2, no other behavior changed.**
+
+**Root causes fixed**:
+1. **Empty pinned category delete had no Undo pill** — `routeDeleteToChoice` fired `cleanupPinnedRefsForPath` then returned; the removed pin/order/sticky entries were unrecoverable.
+2. **Move-to-Uncategorized dropped its cleanup snapshot** — `moveIdsToUncategorized` called cleanup with fire-and-forget semantics and `handleCategoryWarningMove` never captured note snapshots, so Undo could restore neither hierarchy nor pins.
+
+**Files changed** (3 total):
+- `frontend/src/NotesApp.jsx`
+  - Empty-branch of `routeDeleteToChoice` now `await`s `cleanupPinnedRefsForPath`, captures the returned `pinSnap`, and issues `setRecentAction({ type: "category_removed", count: 1, label, undoSnap: new Map(), pinSnap })` — reuses the existing Undo architecture; empty Map is truthy so the guard passes; pill only shown when cleanup actually removed something.
+  - `moveIdsToUncategorized(ids, path)` now returns `{ undoSnap, pinSnap }`; per-note undoSnap captures ONLY the hierarchy fields (`category`, `subcategory`, `category_path`) so Undo restores hierarchy without clobbering title/content/tags/attachments/alarms/pinned/pack/timestamps/order.
+  - `handleCategoryWarningMove` wires the returned snapshots into `setRecentAction({ type: "uncategorize", ... })`.
+  - `undoRecentAction` gained a type-branch: `"uncategorize"` uses `saveNote` to restore per-note hierarchy from snapshot (spread current note so unrelated fields survive concurrent edits); `"archive" / "trash"` unchanged; `"category_removed"` iterates its empty Map (no-op) then the shared pinSnap-splice path restores pins.
+- `frontend/src/notes/RecentActionPill.jsx` — added label branches for `uncategorize` ("N notes moved to Uncategorized") and `category_removed` ("<name> removed") with existing pill visuals; icons via lucide `FolderInput`/`FolderMinus`. No visual redesign.
+- `frontend/public/service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v164` → `v165`.
+
+**Preserved** (per spec safety guards):
+- `isPathUnder(candidate, ancestor)` segment matching from Repair #2 — deleting `["Work","Pro"]` still does NOT sweep `["Work","Project"]`, `["Work","Product"]`, or `["Personal","Projects"]`.
+- Pin restoration reads CURRENT settings, splices only captured entries at their original indices, deduplicates via `.includes` / path-key equality, and preserves pins the user added AFTER the destructive action.
+- Move/Copy (Repair #1), sorting, search, backup/restore, auth, Tile Packs, individual-note pins, all UI/CSS untouched.
+- No duplicate `cleanupPinnedRefsForPath` calls anywhere.
+
+**Verification** (testing agent iteration_81):
+- **Test A** — Empty pinned category (Work) with pinned_categories/category_order/sticky_categories/pinned_subcategory_paths entries: delete removes all, pill shows `"Work" removed`, Undo restores every entry at its original index. ✅ PASS end-to-end via UI.
+- **Test B (move-to-uncategorized)** — Logic verified by testing-agent code review (per-note hierarchy snapshot + pinSnap capture + saveNote restore all correct). UI trigger blocked by a **pre-existing** CategoryGroup filter (hides sub delete icon when sub is pinned) — unrelated to Repair #2A.
+- No regressions in existing archive/trash Undo.
+
+**Deferred (backlog, out of Repair #2A scope)**:
+- Add `pinned-sub-delete-<label>` testid to Green rail item so users can move/trash a pinned subcategory without first unpinning it.
+- Tile Pack DND duplication bug.
+- Admin token in test files (security audit item).
+
+
+
 ## 2026-09-20 — v164: Repair #2 · Delete / Archive / Trash / Undo Integrity
 
 **Root causes fixed**:
