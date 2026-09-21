@@ -1,0 +1,78 @@
+{
+  "summary": "Repair #6 verification (touch cross-category drag = MOVE, not COPY). All 4 primary contracts PASS: TEST 8A (mobile touch t1→t4 moves t1 to Errands preserving id), TEST 8A-RELOAD (persists across reload), DESKTOP REGRESSION 1 (desktop mouse w/o modifier still COPY), DESKTOP REGRESSION 2 (desktop mouse w/ Ctrl still MOVE). Repair #5 CO-EXISTENCE wobble test surfaces a pre-existing Repair #5 corner case (stale srcRect) unrelated to Repair #6 — a1's pack_id stays 'recipes-pack' (no PackB migration, no new uuidv4, total stays 6) but its category flipped to 'errands' because the source-pack bounding rect measured at drop time was shifted ~214px upward relative to expected during the touch drag. Repair #6's mode-flip behavior itself is 100% verified. git-log shows the last commit touches exactly service-worker.js (v167→v168) and SortableTilesProvider.jsx (Repair #6 block L145-158). No console errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Touch cross-pack wobble drag (Repair #5 containment predicate)",
+        "issue": "During a touch drag with wobble (steps 10 & 20 offset -60/+60) starting at grip-a1 in recipes-pack and ending inside recipes-pack at tile-a4 center (70, 766), Repair #5's srcRect measurement at drop time reads left/right=12/378 top/bottom=369/610 — the sortable-tiles-recipes DOM node's bounding rect appears SHIFTED UP by ~214px vs its pre-drag rect (583/824). Because the LIVE pointer at drop (70, 766) is BELOW the stale bottom=610, the boundary predicate concludes 'pointer left source' and dispatches onCrossPackMove. With Repair #6 in play this dispatch is mode='move', so a1.category flips 'recipes' → 'errands' via StorageService.moveNoteToCategory. Note: a1.pack_id remains 'recipes-pack' (moveNoteToCategory does not touch pack_id), no new uuidv4 is minted, and total stays 6 — so 'no PackB migration' is technically preserved, but 'a1 still in PackA' is partially false because its top-level category changed. Root cause is a pre-existing Repair #5 boundary-measurement issue exposed by the two-different-pack_ids grouped layout at 390x844 (recipes+errands sections together are taller than the mobile viewport, causing layout shifts during a drag that dnd-kit re-flows).",
+        "affected_selectors": ["[data-testid=note-tile-grip-a1]", "[data-testid=note-tile-a4]", "[data-testid=sortable-tiles-recipes]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "results": {
+    "TEST_8A": {
+      "verdict": "PASS",
+      "before_idb": {"total": 5, "groceries": 3, "errands": 2, "t1": {"category": "Groceries", "category_path": ["Groceries"]}},
+      "after_idb": {"total": 5, "groceries": 2, "errands": 3, "t1": {"id": "t1", "category": "Errands", "category_path": ["Errands"], "subcategory": "", "pack_id": "test-pack-8", "title": "Milk"}, "fresh_uuid_count": 0, "toast": "Moved to \"Errands\""}
+    },
+    "TEST_8A_RELOAD": {
+      "verdict": "PASS",
+      "after_reload": {"total": 5, "groceries": 2, "errands": 3, "t1_id_preserved": true, "t1_category": "Errands"}
+    },
+    "DESKTOP_REGRESSION_1_copy_no_modifier": {
+      "verdict": "PASS",
+      "after_idb": {"total": 6, "groceries": 3, "errands": 3, "t1_still_in_groceries": true, "fresh_uuid_in_errands": "ef38db44-611d-4f03-91d3-c43a11cc3061 (Milk)", "toast": "Copied to \"Errands\" · Hold ⌘/Ctrl to move"}
+    },
+    "DESKTOP_REGRESSION_2_move_ctrl": {
+      "verdict": "PASS",
+      "after_idb": {"total": 5, "t1": {"id": "t1", "category": "Errands", "category_path": ["Errands"]}, "toast": "Moved to \"Errands\""}
+    },
+    "REPAIR5_COEXISTENCE_wobble": {
+      "verdict": "PARTIAL FAIL (Repair #5 concern, not Repair #6)",
+      "expected": "a1 pack_id, category, category_path all unchanged; total 6; no new uuidv4",
+      "actual": {"total": 6, "no_new_uuidv4": true, "a1_pack_id": "recipes-pack (UNCHANGED)", "a1_category": "errands (CHANGED from 'recipes')", "a1_category_path": ["errands"], "no_migration_to_PackB_by_pack_id": true},
+      "root_cause": "Stale sortable-tiles-recipes bounding rect at drop time (measured top/bottom=369/610 vs expected 583/824), so live pointer at (70, 766) is judged OUTSIDE source pack rect → boundary check bypassed → cross-pack dispatch. Boundary telemetry captured via temporary debug hook: window.__lastBoundary = {p:{x:70.33,y:766.58}, srcRect:{left:12,right:378,top:369.58,bottom:610.91}, sourcePackId:'recipes', targetPackId:'errands', activeId:'a1', modifier:true}. Debug hook was reverted before final run — SortableTilesProvider.jsx is back to committed state."
+    }
+  },
+  "regression_cross_checks": {
+    "no_console_errors": true,
+    "git_diff_HEAD_1_stat": "frontend/public/service-worker.js | 2 +-, frontend/src/components/SortableTilesProvider.jsx | 14 +++++++++++++- (2 files, +14 -2)",
+    "repair6_marker_present": "grep 'Repair #6' → SortableTilesProvider.jsx line 145 'Repair #6 · touch cross-category drag must MOVE (not COPY)'",
+    "handleCrossPackMove_untouched": "NotesApp.jsx L1886-1946 unchanged (verified via git diff HEAD~1 file list)",
+    "cache_bump": "iron-rabbit-v167 → iron-rabbit-v168 confirmed in frontend/public/service-worker.js"
+  },
+  "test_report_links": ["/app/tests/test_iron_rabbit_repair6.py"],
+  "action_items": [
+    "PRIMARY (Repair #6): No action required — mode-flip verified across all four primary contracts.",
+    "SECONDARY (Repair #5 latent defect exposed by wobble on two-different-pack_ids layout): The source-pack DOM rect can move during a touch drag when the source pack is inside a scrollable/reflowing container. Consider snapshotting srcRect at drag START (in handleDragStart) instead of at DROP time (handleDragEnd), or comparing pointer to a rect union of all pre-drag pack rects. Currently the reliance on getBoundingClientRect() at drop time is brittle when a drag causes any layout shift (accordion, virtualization, viewport scroll)."
+  ],
+  "critical_code_review_comments": [
+    "SortableTilesProvider.jsx L153-158 (Repair #6): touch detection uses both `event.activatorEvent.touches.length > 0` and `pointerType === 'touch'` — belt-and-suspenders is correct because PointerSensor with a touch pointer emits PointerEvent (no `.touches`) while TouchSensor emits TouchEvent (no `.pointerType`). Detection is robust.",
+    "SortableTilesProvider.jsx L222-233 (Repair #5): srcRect is captured via getBoundingClientRect() at DROP time. If any layout shift occurs during the drag (mobile viewport scroll, accordion collapse, drag-triggered reflow) the rect can be several hundred pixels off. Recommendation above.",
+    "NotesApp.jsx handleCrossPackMove L1886-1946: unchanged; move branch (L1890) uses moveNoteToCategory which preserves pack_id — so a Repair #6 touch move within a same-pack-diff-categories scenario correctly keeps pack_id intact. Verified in TEST 8A.",
+    "storageService.moveNoteToCategory L115-140: only mutates category / subcategory / category_path / updated_at. pack_id, pack_name, pack_accent, order, content, title all untouched — MOVE identity preserved. Verified in TEST 8A."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "4/5 primary contracts PASS (Repair #6 mode-flip 100% PASS; the 5th is a Repair #5 wobble scenario surfacing a latent boundary-measurement bug unrelated to Repair #6)"},
+  "seed_data_creation": "Two seeds. SAME_PACK seed: 5 notes t1..t5 all pack_id='test-pack-8', pack_name='Test Pack 8', pack_accent='#8b5cf6'; t1..t3 category='Groceries' category_path=['Groceries'], t4..t5 category='Errands' category_path=['Errands']; app_settings.settings = {view_mode:'icon', group_by_category:true, sort_by:'custom', tour_completed:true, theme_chosen:true, theme:'dark', category_order:['Groceries','Errands']}; metadata.migrated_from_backend=true; sessionStorage cleared. TWO_PACKS seed: 6 notes across recipes-pack (a1..a4, category='recipes') and errands-pack (b1..b2, category='errands'); same settings shape with category_order=['recipes','errands']. Written via raw IDB put(value,key) to the 'IronRabbit' DB stores 'notes' (5 or 6 records) / 'settings' (key='app_settings') / 'metadata' (key='migrated_from_backend', value=true).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Repair #6 shipped correctly. If main agent addresses the Repair #5 stale-srcRect issue, re-run /app/tests/test_iron_rabbit_repair6.py which contains all 5 scenarios and prints structured PASS/FAIL. The wobble test intentionally forces a wide horizontal wobble (offset -60,+60) at steps 10 and 20 on a viewport (390x844) where the combined recipes+errands sections exceed the viewport height, which is what triggers the layout shift that stales srcRect. If Repair #5 snapshots srcRect at drag-start instead of drop-time, the wobble test should flip to full PASS.",
+  "rca_of_the_issue": {
+    "primary_repair6_verdict": "PASS — TouchSensor drags now dispatch mode='move' via activatorEvent.touches / pointerType='touch' detection, exactly as coded at SortableTilesProvider.jsx L153-158. Desktop mouse semantics preserved. handleCrossPackMove move-branch (NotesApp.jsx L1889-1909) correctly preserves note id, pack_id, content, title while updating category/category_path.",
+    "wobble_secondary_finding": {
+      "symptom": "Touch wobble drag inside a single pack triggers cross-category MOVE instead of no-op.",
+      "cause": "SortableTilesProvider.jsx L222-233 measures srcRect via getBoundingClientRect() at handleDragEnd time. On mobile with grouped sections that overflow the viewport, the drag itself causes the section DOM to reflow (offset shift ~214px observed). Live pointer at drop is compared against a stale/incorrect rect and the containment predicate returns false → cross-pack dispatch fires. Under Repair #6 that dispatch is mode='move' for touch, so the note's category changes (pack_id survives because moveNoteToCategory does not touch it).",
+      "reproduction": [
+        "1. Seed 6 notes across two pack_ids ('recipes-pack' a1..a4 and 'errands-pack' b1..b2) grouped by category on mobile 390x844 (icon view, group_by_category=true).",
+        "2. CDP Input.dispatchTouchEvent: touchStart @ grip-a1 (~38, 674), activation touchMove +8/+8, 30-step touchMove trajectory toward tile-a4 (~70, 766) applying wobble offset (-60, +60) at steps 10 and 20, final touchMove @ target, touchEnd.",
+        "3. Read IDB: a1.pack_id='recipes-pack' (unchanged), a1.category='errands' (CHANGED), total=6, no new uuidv4, toast='Moved to \"errands\"'.",
+        "4. Debug hook `window.__lastBoundary` (temporarily added, then reverted) captured srcRect top/bottom=369/610 while the pre-drag rect was 583/824."
+      ],
+      "mitigation": "Cache srcRect in handleDragStart when the source pack is registered. Alternatively use an IntersectionObserver-driven live rect map keyed by pack.id. Do NOT change Repair #6 — it is orthogonal and correct."
+    }
+  }
+}

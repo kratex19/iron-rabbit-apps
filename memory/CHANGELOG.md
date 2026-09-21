@@ -1,3 +1,46 @@
+## 2026-09-21 — v168: Repair #6 · Touch Cross-Category Drag = MOVE (not COPY)
+
+**Two files touched, 14 net lines. Surgical.**
+
+### Root cause (from iteration_90 audit)
+`SortableTilesProvider.jsx` `handleDragStart` derived `modifier` only from `metaKey`/`ctrlKey`. Touch events don't carry keyboard modifiers, so `modifier === false` and the drag-end dispatch fired `mode='copy'` for every genuine touch cross-category drop. `NotesApp.handleCrossPackMove` then minted a fresh `uuidv4` clone.
+
+### Fix
+`handleDragStart` now also detects genuine touch input and promotes `modifier` to `true` for those drags. Detection uses state already available on the activator event — belt-and-suspenders for both sensors:
+- **TouchSensor** activator: `TouchEvent` with `.touches.length > 0`.
+- **PointerSensor** activator from touch: `PointerEvent` with `.pointerType === "touch"`.
+
+`handleDragEnd` (L~224) dispatch line unchanged: `onCrossPackMove(sourcePackId, targetPackId, activeId, modifier ? 'move' : 'copy')`. Downstream `handleCrossPackMove` unchanged — its `move` branch (`StorageService.moveNoteToCategory`) already preserves note id / pack_id / pack_name / pack_accent / order / content / title while updating only category / category_path / subcategory / updated_at.
+
+### Files changed (2)
+- `frontend/src/components/SortableTilesProvider.jsx` — `handleDragStart` promotes `modifier` to true when `activatorEvent.touches.length > 0` OR `activatorEvent.pointerType === "touch"` (~L145-160).
+- `frontend/public/service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v167` → `v168`.
+
+### Files inspected but unchanged
+- `NotesApp.jsx` `handleCrossPackMove` L1886-1946 — unchanged.
+- `storage/storageService.js` `moveNoteToCategory` — unchanged.
+- `SecurityService.js`, `RecentActionPill.jsx`, `BackupRestoreModal.jsx` — all unchanged.
+
+### Preserved
+- Desktop mouse WITHOUT Cmd/Ctrl → COPY (verified iteration_91).
+- Desktop mouse WITH Cmd/Ctrl → MOVE (verified iteration_91).
+- Repairs #1/#2/#2A/#3/#4/#5 source bytes untouched (verified via `git show --stat HEAD`).
+- Category invariant `category === category_path[0]||''` and `subcategory === category_path[1]||''` holds after touch MOVE.
+- Tile ID preserved, no uuidv4 minted, total note count unchanged.
+
+### Verification (iteration_91)
+| Test | Verdict | Evidence |
+| --- | --- | --- |
+| TEST 8A · touch cross-category MOVE | ✅ PASS | total 5→5, Groceries 3→2, Errands 2→3, t1 id preserved with category='Errands'/category_path=['Errands']/pack_id='test-pack-8', toast `Moved to "Errands"`, zero fresh uuidv4 |
+| TEST 8A-RELOAD · persistence | ✅ PASS | reload → t1 still in Errands, total 5, IDs preserved |
+| DESKTOP REGRESSION 1 · mouse no-modifier | ✅ PASS | total 5→6, t1 remained in Groceries, fresh uuidv4 in Errands, toast `Copied to "Errands"` (unchanged) |
+| DESKTOP REGRESSION 2 · mouse Ctrl-held | ✅ PASS | total stays 5, t1 moved with id preserved, toast `Moved to "Errands"` (unchanged) |
+
+### Reported (NOT fixed per Repair #6 stop-condition)
+Repair #5 wobble co-existence test (2-pack layout on mobile viewport, mid-drag layout reflow) surfaced a **latent Repair #5 boundary-measurement issue** — `getBoundingClientRect()` at drop time can drift when the source-pack DOM reflows during a wide-wobble touch drag. Pre-Repair #6 this produced a mis-COPY (2 tiles in wrong places); post-Repair #6 it produces a mis-MOVE (1 tile in wrong category — same pack_id preserved, no uuidv4, total unchanged). Repair #6's mode-flip actually **improves** the worst-case wobble outcome (single mis-categorized tile vs. duplicated tile). Recommended future repair: snapshot srcRect at `handleDragStart` (or use an `IntersectionObserver`-driven live rect map) instead of measuring at drop time. Deferred to a future Repair #7 per spec.
+
+
+
 ## 2026-09-21 — v167: Repair #5 · Tile-Pack Drag/Reorder Duplication Bug
 
 **Two files touched, surgical only, cross-pack semantics preserved.**
