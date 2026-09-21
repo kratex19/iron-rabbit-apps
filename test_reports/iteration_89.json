@@ -1,0 +1,57 @@
+{
+  "summary": "TEST 7 — Single-attachment backup/restore UI round-trip. Seeded one note (title 'TEST7-Attachment-Verify-1790028395517', body 'Iron Rabbit TEST 7 - single-attachment integrity test') with exactly ONE 128-byte deterministic image/png attachment ('test7-payload.png') using the app's exact IndexedDB shape (files store + note.attachments). Snapshotted original state (SHA-256 of blob bytes). Triggered export via SettingsModal → backup-btn (real Playwright download intercept → /tmp/test7-backup.json, 6707 bytes, version 1.1, note+file both present in JSON). Wiped notes/files/templates stores via localforage.clear() and reloaded page (fresh IDB, 0 notes pre-import). Triggered restore via SettingsModal → restore-input file input feeding the exported JSON (Replace mode via handleRestore). Toast confirmed 'Restored 8 notes, 0 templates'. Restored state matches original bit-for-bit: note present with same id, title, content; note.attachments.length === 1; attachment id preserved; files-store row present with name='test7-payload.png', type='image/png', size=128, created_at preserved; blob bytes byte-length 128 and SHA-256 identical to pre-export hash; category==category_path[0], subcategory==category_path[1] invariant holds; note count and file count match pre-export counts (8 notes / 1 file — 7 user-owned notes plus the seeded test note); settings unchanged; zero console errors and zero page errors across export, wipe, reload, and import. git status --short: empty (Repairs #1/#2/#2A/#3/#4/#5 source unchanged, TEST 7 strictly read-only). VERDICT: PASS.",
+  "test_7_result": {
+    "verdict": "PASS",
+    "test_note_title": "TEST7-Attachment-Verify-1790028395517",
+    "original_state": {
+      "note_content": "Iron Rabbit TEST 7 - single-attachment integrity test",
+      "attachment_filename": "test7-payload.png",
+      "attachment_type": "image/png",
+      "attachment_size_bytes": 128,
+      "other_supported_metadata": {
+        "attachment_id": "test7-file-1790028395515",
+        "created_at": "2026-09-21T22:06:35.515Z",
+        "sha256": "471fb943aa23c511f6f72f8d1652d9c880cfa392ad80503120547703e56a2be5",
+        "note_id": "test7-note-1790028395517",
+        "category": "",
+        "subcategory": "",
+        "category_path": []
+      }
+    },
+    "backup_export": {
+      "completed": "YES",
+      "entry_point": "SettingsModal → [data-testid=backup-btn] (NotesApp.handleBackup)",
+      "download_bytes": 6707,
+      "backup_version": "1.1",
+      "note_in_export": true,
+      "file_in_export": true,
+      "errors_observed": "none (0 console errors, 0 page errors)"
+    },
+    "restore_import": {
+      "completed": "YES",
+      "entry_point": "SettingsModal → [data-testid=restore-input] (NotesApp.handleRestore, Replace mode default)",
+      "toast": "Restored 8 notes, 0 templates",
+      "errors_observed": "none (0 console errors, 0 page errors)"
+    },
+    "restored_state": {
+      "note_present": "YES",
+      "note_content_preserved": "YES",
+      "exactly_one_attachment_present": "YES",
+      "attachment_accessible": "YES",
+      "attachment_content_intact": "YES (SHA-256 identical, 128 bytes preserved byte-for-byte)",
+      "supported_metadata_preserved": "YES (id, name, type, size, created_at all identical)"
+    },
+    "comparison": "Every field remained identical: note.id, note.title, note.content, note.category, note.subcategory, note.category_path, note.attachments[0].{id,name,type,size}; files-store row {name,type,size,created_at}; blob byte length (128); SHA-256 hash (471fb943aa23c511f6f72f8d1652d9c880cfa392ad80503120547703e56a2be5). Total notes count matched pre-export (8), total files count matched (1). No duplicate note IDs, no ghost tile pack, no unrelated new rows, settings unchanged, category invariant (category==category_path[0]||'' and subcategory==category_path[1]||'') holds."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/tmp/test7-backup.json", "/tmp/test7-result.json"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (15/15 substantive checks; 0 console/page errors)"},
+  "seed_data_creation": "One note (id test7-note-1790028395517) + one attachment (id test7-file-1790028395515, 128-byte image/png) seeded directly into IndexedDB using the app's exact schema (files-store {blob,name,type,size,created_at} + note.attachments[{id,name,type,size}]). This was the sanctioned setup path per the TEST 7 contract because it precisely mimics what the note editor's paperclip would produce. Data was wiped as part of the test; the restored copy remains in IDB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "TEST 7 PASSED end-to-end via real UI entry points (SettingsModal backup-btn download intercept + restore-input file feed). Backup contract v1.1 preserves single-attachment fidelity across export→wipe→reload→import with byte-perfect blob restoration. Repair #4 biometric gates remain OFF by default so both flows ran without WebAuthn prompt. No source code, config, CSS, or backup architecture was modified (git status --short empty). service-worker.js still on CACHE_NAME iron-rabbit-v167. Downloaded backup preserved at /tmp/test7-backup.json for any follow-up regression."
+}
