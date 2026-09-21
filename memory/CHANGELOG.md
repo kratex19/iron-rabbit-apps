@@ -1,3 +1,50 @@
+## 2026-09-21 — v169: Repair #7 · Stale Source-Rect During Touch Drag
+
+**One file, 43 insertions / 6 deletions. Surgical.**
+
+### Root cause (surfaced during Repair #6 verification, iteration_91)
+Repair #5's boundary-containment predicate measured the source pack's rect via `srcNode.getBoundingClientRect()` at **drop time**. On mobile grouped layouts where the drag itself triggers DOM reflow (accordion collapse, virtualization, viewport scroll), the rect could drift up to ~214px between drag-start and drop. The live pointer at drop was then compared against a stale rect and misclassified as "outside source pack" → cross-pack dispatch → under Repair #6 became a silent MOVE to the wrong category.
+
+### Fix — smallest possible change
+`srcRectRef = useRef(null)` captures the source pack's rect **once at drag-start**, while layout is guaranteed stable. `handleDragEnd` consumes the snapshot and clears the ref before any early return. Live `getBoundingClientRect()` is retained as a **fallback only** when the snapshot is missing (preserves the fail-closed contract). The Repair #5 predicate itself is byte-identical — it just receives a fresher input.
+
+### Files changed (2)
+- `frontend/src/components/SortableTilesProvider.jsx`:
+  - New `srcRectRef` useRef declaration (~L93-101).
+  - `handleDragStart` snapshots `{left,right,top,bottom}` after computing `sourcePackId` (~L154-168).
+  - `handleDragEnd` captures `capturedSrcRect = srcRectRef.current` and clears the ref at the top (paired with `detachPointerTracker`) so every early-return path leaves clean state (~L200-206).
+  - Boundary check consumes `capturedSrcRect` with fallback to live measurement (~L248-260).
+  - `onDragCancel` clears the ref (~L298).
+  - useEffect unmount cleanup clears the ref (~L128).
+- `frontend/public/service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v168` → `v169`.
+
+### Files inspected but unchanged
+- `NotesApp.jsx` `handleCrossPackMove` — unchanged.
+- `storage/storageService.js` `moveNoteToCategory` — unchanged.
+- All Repair #1/#2/#2A/#3/#4/#6 code paths — unchanged.
+
+### Preserved
+- Repair #5 predicate identical (just fresher input).
+- Repair #6 touch modifier promotion untouched.
+- Desktop mouse COPY (no modifier) and MOVE (Cmd/Ctrl) unchanged.
+- Fail-closed contract intact: if BOTH snapshot AND live fallback are null, no cross-pack dispatch.
+
+### Verification (iteration_92 · 8/8 PASS)
+| Test | Verdict | Evidence |
+| --- | --- | --- |
+| V1 · wobble no-op on TWO_PACKS mobile (**primary gate — the iter_91 partial-fail reproducer**) | ✅ PASS | a1.pack_id/category/category_path all unchanged, total 6, zero uuidv4, no toast |
+| V2 · touch cross-category MOVE | ✅ PASS | total 5→5, t1 id preserved, category=Errands, toast `Moved to "Errands"` |
+| V3 · reload persistence after V2 | ✅ PASS | t1 still in Errands after reload |
+| V4 · desktop mouse w/o modifier → COPY | ✅ PASS | total 5→6, fresh uuidv4, toast `Copied to "Errands"` |
+| V5 · desktop Ctrl → MOVE | ✅ PASS | total stays 5, t1 id preserved |
+| V6 · same-pack touch reorder | ✅ PASS | order shuffled correctly, all IDs preserved |
+| V7 · consecutive drags (leak check) | ✅ PASS | wobble→cross-move→reorder each behaves correctly (srcRectRef cleared between) |
+| V8 · cancel then clean drag | ✅ PASS | cancel leaves state clean, subsequent drag works |
+| REGRESSION R1 · git diff exactly 2 files | ✅ | +43 -6, only intended files |
+| REGRESSION R2 · zero console errors | ✅ | All 8 flows clean |
+
+
+
 ## 2026-09-21 — v168: Repair #6 · Touch Cross-Category Drag = MOVE (not COPY)
 
 **Two files touched, 14 net lines. Surgical.**

@@ -1,0 +1,47 @@
+{
+  "summary": "Repair #7 verification — srcRectRef snapshot at drag-start eliminates the mid-drag stale-rect false-positive. All 8 test scenarios PASS on two consecutive runs. PRIMARY GATE V1 (wobble no-op on TWO_PACKS mobile seed) now passes: a1 stays pack_id='recipes-pack', category='recipes', category_path=['recipes'], total=6, zero fresh uuids, no toast — was PARTIAL FAIL in iteration_91. V2 (touch cross-category MOVE) still moves t1 to Errands preserving id and pack_id. V3 (reload persistence) confirmed. V4 (desktop mouse w/o modifier = COPY) and V5 (desktop Ctrl = MOVE) unchanged. V6 (same-pack reorder) works (t1 order 1→4). V7 (three consecutive drags — wobble no-op → cross-move → reorder) all correct, confirming srcRectRef is cleared between drags. V8 (Escape-cancel then clean drag) works: state unchanged after cancel, subsequent drag moves t1 correctly. REGRESSION R1: git diff HEAD~1 shows exactly 2 files changed — frontend/public/service-worker.js (+1/-1, cache v168→v169) and frontend/src/components/SortableTilesProvider.jsx (+43/-6). Repair #5, #6, #7 markers all present. REGRESSION R2: zero console errors across all 8 flows.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "results": {
+    "V1_wobble_noop_PRIMARY": {"status": "PASS", "total": 6, "a1_pack_id": "recipes-pack", "a1_category": "recipes", "a1_category_path": ["recipes"], "fresh_uuids": 0, "toast": ""},
+    "V2_touch_cross_category_MOVE": {"status": "PASS", "total": 5, "groceries": 2, "errands": 3, "t1_id": "t1", "t1_category": "Errands", "t1_pack_id": "test-pack-8", "toast": "Moved to \"Errands\""},
+    "V3_reload_persistence": {"status": "PASS", "total": 5, "t1_category_after_reload": "Errands", "t1_id_preserved": true},
+    "V4_desktop_mouse_no_modifier_COPY": {"status": "PASS", "total": 6, "t1_still_groceries": true, "fresh_uuid_in_errands": "553e656a-79ac-40bf-a75e-5bebc13ab7b1", "toast": "Copied to \"Errands\" · Hold ⌘/Ctrl to move"},
+    "V5_desktop_mouse_Ctrl_MOVE": {"status": "PASS", "total": 5, "t1_moved_to_errands_id_preserved": true, "toast": "Moved to \"Errands\""},
+    "V6_same_pack_touch_reorder": {"status": "PASS", "total": 5, "before_order": ["t1","t2","t3","t4","t5"], "after_order": ["t2","t3","t4","t1","t5"]},
+    "V7_consecutive_drags_leak_check": {"status": "PASS", "d1_wobble_noop": true, "d2_cross_move": true, "d3_reorder": true},
+    "V8_cancel_then_clean_drag": {"status": "PASS", "cancel_state_unchanged": true, "subsequent_drag_moved": true},
+    "console_errors": []
+  },
+  "regression_cross_checks": {
+    "git_diff_HEAD_1_stat": "frontend/public/service-worker.js | 2 +-, frontend/src/components/SortableTilesProvider.jsx | 47 ++++++++++++++++++++--- (2 files, +43 -6)",
+    "cache_bump": "iron-rabbit-v168 → iron-rabbit-v169 CONFIRMED in service-worker.js L12",
+    "repair7_markers_present": "SortableTilesProvider.jsx L93, L154-155, L201, L252 — snapshot at drag-start, capture at drag-end, fallback to live rect if missing",
+    "repair6_marker_intact": "L170 touch = MOVE promotion intact",
+    "repair5_marker_intact": "L80, L102, L184, L197, L243 pointer tracker + boundary check intact",
+    "handleCrossPackMove_untouched": "NotesApp.jsx unchanged (not in diff)",
+    "storageService_untouched": "storage/storageService.js unchanged",
+    "no_console_errors_across_all_flows": true
+  },
+  "test_report_links": ["/app/tests/test_iron_rabbit_repair7.py", "/app/tests/test_iron_rabbit_repair6.py"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SortableTilesProvider.jsx L101 srcRectRef: correctly initialized as useRef(null), captured in a plain object (not the DOMRect live ref) at L162 so subsequent DOM mutations cannot mutate the snapshot.",
+    "SortableTilesProvider.jsx L204-205 handleDragEnd: capturedSrcRect = srcRectRef.current then srcRectRef.current = null BEFORE any early return — guarantees clean state for next drag even on `!over` early exit. Verified via V7 consecutive drags.",
+    "SortableTilesProvider.jsx L256-260 boundary check: fail-closed contract preserved — if BOTH snapshot AND live fallback are null, returns without dispatching cross-pack move. Solid.",
+    "SortableTilesProvider.jsx L298 onDragCancel: correctly clears srcRectRef alongside active state. Verified via V8.",
+    "SortableTilesProvider.jsx L128 unmount cleanup: srcRectRef cleared alongside pointer tracker. Guards against leaks if provider unmounts mid-drag.",
+    "One minor code-quality note (non-blocking): registerContainer at L89-92 does not clear srcRectRef when a pack node unmounts — however since srcRectRef is only read within a single drag and re-set on next drag-start, this cannot cause a real bug."
+  ],
+  "updated_files": ["/app/tests/test_iron_rabbit_repair7.py"],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "8/8 (100%)"},
+  "seed_data_creation": "Three IDB seeds via raw indexedDB put(value,key) on 'IronRabbit' DB: (1) SAME_PACK — 5 notes t1..t5 all pack_id='test-pack-8', 3 Groceries + 2 Errands. (2) TWO_PACKS — 6 notes across recipes-pack (a1..a4) + errands-pack (b1..b2). (3) ONE_CAT — 5 notes t1..t5 single 'TestPack' category. All with app_settings {view_mode:icon, group_by_category:true, sort_by:custom, tour_completed:true, theme_chosen:true, theme:dark} and metadata.migrated_from_backend=true; sessionStorage cleared.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Repair #7 fully verified. The wobble stale-srcRect bug from iteration_91 is resolved by snapshotting srcRect in handleDragStart. /app/tests/test_iron_rabbit_repair7.py contains all 8 scenarios (V1..V8) with structured PASS/FAIL. If future repairs touch SortableTilesProvider.jsx, re-run this file — V1 wobble no-op is the sentinel that guards the stale-rect regression class.",
+  "rca_of_the_issue": {
+    "iter91_defect": "srcRect measured via getBoundingClientRect() at drop time (handleDragEnd) could be up to ~214px stale on mobile grouped layouts because the drag itself triggers DOM reflow.",
+    "repair7_fix": "srcRectRef useRef captures {left,right,top,bottom} once in handleDragStart while layout is still stable. handleDragEnd consumes the snapshot and clears the ref before any early return. onDragCancel and unmount also clear. Live getBoundingClientRect() is retained ONLY as a fallback for when snapshot is null (preserves fail-closed contract).",
+    "verification": "V1 (wobble no-op on TWO_PACKS mobile) — the exact iteration_91 reproducer — now passes cleanly: a1 unchanged (pack_id, category, category_path), total=6, zero uuidv4, no toast fired."
+  }
+}
