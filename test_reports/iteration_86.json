@@ -1,0 +1,45 @@
+{
+  "summary": "Iron Rabbit REPAIR #5 Phase 3 verification. Ran 7 verification scenarios via touch/mouse drag against the live preview URL. Seeded IndexedDB directly through localforage (with metadataStore.migrated_from_backend=true to defeat the app's auto-restore-from-backend on first load). RESULT: V1 (mobile boundary no-op) STILL REPRODUCES THE DUPLICATION BUG — Phase 2 fix does not fully block the greedy pointerWithin cross-pack resolve when the touch path wobbles into a vertically adjacent pack. V2-V6 and R4 all PASS: same-pack reorder, legitimate cross-pack COPY (touch), cross-pack MOVE (desktop+Ctrl), consecutive reorders, reload persistence, hierarchy invariants — all correct.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "SortableTilesProvider.handleDragEnd — Repair #5 boundary check",
+        "issue": "V1 mobile boundary no-op FAILS. Repro (390x844, PackA(a1..a4)+PackB(b1,b2), grid+group-by-category): touch-drag grip-a1 -> tile-a4 (both inside PackA) with a lateral wobble of >=30px toward PackB's rect still produces (a) a fresh uuidv4 note in PackB, (b) IDB count 6 -> 7, (c) 'Copied to \"PackB\" · Hold ⌘/Ctrl to move' toast. The final touchMove and touchEnd were dispatched at (70, 767) — clearly inside PackA (rect y-range 584..825). Expected: silent no-op. Actual: cross-pack COPY fires. Also observed intermittently at wobble=0 during rapid-iteration reload conditions.",
+        "selector": "[data-testid=\"note-tile-grip-a1\"] -> [data-testid=\"note-tile-a4\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/phase3_verify_drag.py",
+    ".screenshots/v1.png"
+  ],
+  "action_items": [
+    "REPAIR #5 IS INCOMPLETE. The boundary check in SortableTilesProvider.handleDragEnd (L159-182) relies on `active.rect.current.translated` to compute the dragged tile's final center and compare against the SOURCE pack's rect. In practice, when pointerWithin resolves `over` to a neighboring pack during a wobble, the check either (a) fails to fire (translated is null/undefined at drop time on touch), or (b) fires with a translated rect whose center falls INSIDE the target pack after the wobble displacement — so the source-rect containment test returns false and the cross-pack dispatch proceeds.",
+    "Recommended stronger fix: In addition to (or instead of) the translated-rect center test, capture the last observed pointer/touch clientX/clientY at drop time (via a pointermove/touchmove listener on the DndContext root, or by reading event.activatorEvent's tracked position) and verify the DROP POINT — not the dragged element's midpoint — lies inside the target pack's rect. If the pointer is inside the SOURCE pack at drop, treat as same-pack reorder. Alternatively replace `cascadedCollision` with `closestCenter`-only (drop pointerWithin), which is what dnd-kit recommends for grid-of-grids scenarios; the previous concern about empty-pack drops can be satisfied by giving the empty droppable a larger hit region rather than by using pointerWithin globally.",
+    "Also add: on touch, default the cross-pack mode to 'move' instead of 'copy' (parity with the hello-pangea handler in NotesApp), so an unavoidable false-positive at least does not clone. This is a low-risk secondary defense.",
+    "Service-worker: consider raising the reload-loop threshold in /app/frontend/public/index.html (currently 4 reloads in 15s trips window.stop() + SW unregister). During E2E testing rapid programmatic reloads trip this and mask/confuse test runs. Not a shipping concern for real users but noteworthy."
+  ],
+  "critical_code_review_comments": [
+    "SortableTilesProvider.jsx L171 — `active.rect.current.translated` is not guaranteed to be defined on touch dragEnd when the pointer moved outside any collision target briefly before drop; the try/catch silently swallows any read failure and lets the drop proceed to onCrossPackMove, which is exactly the wrong side to fail-open on. The rect check should also fail CLOSED (treat as no-op / same-pack) when translated is null.",
+    "SortableTilesProvider.jsx L184-185 — Cross-pack default 'copy' when no modifier is held remains a footgun on touch (no way to hold Cmd/Ctrl). Consider defaulting to 'move' on touch OR gating cross-pack COPY behind an explicit dwell/hold gesture.",
+    "SortableTilesProvider.jsx L227-233 — `cascadedCollision` still tries pointerWithin first. Because pack sections stack vertically on mobile and share horizontal extents, pointerWithin is fundamentally the wrong primary detector here."
+  ],
+  "updated_files": ["/app/tests/phase3_verify_drag.py"],
+  "success_rate": {
+    "backend": "N/A (frontend-only)",
+    "frontend": "6/7 PASS (V1 FAIL, V2 PASS, V3 PASS, V4 PASS, V5 PASS, V6 PASS, R4 PASS). V7/V8/REGRESSION1/2/3 not exercised in this iteration."
+  },
+  "seed_data_creation": "Direct IndexedDB seeding via CDN localforage inside page.evaluate(): clears notes/files/templates stores, writes N notes with {id,title,category,category_path:[category],order,...}, sets app_settings {view_mode:'icon', sort_by:'custom', tour_completed:true, theme_chosen:true, group_by_category:true}, and CRITICALLY sets metadataStore.migrated_from_backend=true so StorageService.migrateFromBackend does NOT re-inject the backend's demo notes on app load (this was silently corrupting earlier iteration runs — pre-drag count was 13 instead of 6).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "REPRO STEPS for V1 failure (must-fix): 1) 390x844 viewport. 2) In page.evaluate seed IDB: notesStore = {a1..a4 in PackA order 0..3, b1..b2 in PackB order 0..1}, settings.view_mode='icon', sort_by='custom', group_by_category=true, tour_completed=true, theme_chosen=true; metadataStore.migrated_from_backend=true. 3) page.reload; wait 2s. 4) Via CDP Input.dispatchTouchEvent: touchStart at grip-a1 center, one small activation touchMove +8/+8, then 30 touchMove steps toward tile-a4 center with wobble_deep=60 (positive y delta) applied at steps 10 and 20, then a final touchMove exactly at tile-a4 center, then touchEnd. 5) Read IDB via localforage. Expect count=6 (all originals, no fresh uuid). Actual: count=7, one fresh uuid note with category='PackB', category_path=['PackB'], plus 'Copied to PackB' Sonner toast. Watch out for the app's reload-loop kill-switch at index.html:73 (>3 reloads in 15s trips window.stop()+SW unregister+recovery redirect) — space reloads with waits of >4s or clear sessionStorage.ir-reload-monitor between iterations.",
+  "rca_of_the_issue": {
+    "root_cause": "Repair #5 boundary check (SortableTilesProvider.jsx L159-182) uses `active.rect.current.translated` to compute the dragged tile's final visual center, then tests containment against the source pack's DOM rect. Two failure modes observed: (a) During a wobble drag on touch, dnd-kit's `pointerWithin` mid-drag resolves `over` to PackB — but the tile's *own* `translated` rect follows the pointer trajectory. When the pointer wobbles into PackB, the translated rect's center at THAT moment is inside PackB; on touchEnd the last-recorded translated rect can still be the wobble-displaced one rather than the final-touchMove one, so the containment test evaluates against a stale mid-wobble center that falls INSIDE PackB, so the check does NOT bail. (b) On some runs `active.rect.current.translated` is undefined at handleDragEnd — the try/catch swallows the failure and falls through to `onCrossPackMove`, which is the wrong fail-open direction.",
+    "reproduction": "See context_for_next_testing_agent above. Deterministic on 390x844 with wobble_deep in [30..150] at touchMove steps 10 and 20 of a 30-step touch drag between grip-a1 and tile-a4 in a PackA(4)+PackB(2) layout.",
+    "mitigation": "Replace or supplement the translated-rect containment test with: (1) A live pointer tracker — attach pointermove/touchmove listener on DndContext root; store last clientX/clientY; at handleDragEnd, if targetPackId !== sourcePackId AND (lastX,lastY) is inside sourcePack's boundingClientRect, treat as no-op OR same-pack reorder to nearest tile by center distance. (2) Fail-closed instead of fail-open: if any rect read fails, DO NOT dispatch onCrossPackMove — require an affirmative confirmation the pointer left the source pack. (3) Optional: swap `cascadedCollision` to `closestCenter` only. (4) Optional touch parity: default touch cross-pack mode to 'move' so a residual false-positive doesn't duplicate."
+  }
+}

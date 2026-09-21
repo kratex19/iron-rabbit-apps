@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -90,6 +90,35 @@ export default function SortableTilesProvider({
     if (node) packContainerRefs.current.set(packId, node);
     else packContainerRefs.current.delete(packId);
   };
+  // Repair #5 (hardened) · Live pointer tracker. `active.rect.translated`
+  // can be stale after a mid-drag wobble on touch — the last-recorded
+  // pointer position is the authoritative "where did the user let go"
+  // signal for boundary decisions. Populated during drag by global
+  // pointermove/touchmove listeners attached in handleDragStart and
+  // torn down in handleDragEnd/Cancel.
+  const pointerRef = useRef(null);
+  const trackPointerMove = (e) => {
+    const t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0] : e);
+    if (typeof t.clientX === "number" && typeof t.clientY === "number") {
+      pointerRef.current = { x: t.clientX, y: t.clientY };
+    }
+  };
+  const attachPointerTracker = () => {
+    if (typeof window === "undefined") return;
+    window.addEventListener("pointermove", trackPointerMove, { passive: true });
+    window.addEventListener("touchmove", trackPointerMove, { passive: true });
+  };
+  const detachPointerTracker = () => {
+    if (typeof window === "undefined") return;
+    window.removeEventListener("pointermove", trackPointerMove);
+    window.removeEventListener("touchmove", trackPointerMove);
+  };
+  // Cleanup on unmount — guarantees no leaked listeners if the
+  // component unmounts mid-drag.
+  useEffect(() => {
+    return () => { detachPointerTracker(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Build a fast lookup: noteId -> packId
   const noteToPack = useMemo(() => {
@@ -115,10 +144,23 @@ export default function SortableTilesProvider({
     // Snapshot the modifier key at drag-start; dnd-kit's event has it.
     const orig = event.activatorEvent;
     setModifier(!!(orig && (orig.metaKey || orig.ctrlKey)));
+    // Repair #5 (hardened) · seed the pointer tracker with the
+    // activator event position and start listening for live moves.
+    const seed = orig && (orig.touches && orig.touches[0] ? orig.touches[0] : orig);
+    if (seed && typeof seed.clientX === "number" && typeof seed.clientY === "number") {
+      pointerRef.current = { x: seed.clientX, y: seed.clientY };
+    } else {
+      pointerRef.current = null;
+    }
+    attachPointerTracker();
   };
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
+    // Repair #5 (hardened) · always tear down the pointer tracker
+    // the moment the drag ends, regardless of which branch we take.
+    // The last known pointer position is preserved in pointerRef.
+    detachPointerTracker();
     setActiveNote(null);
     setActiveSourcePack(null);
     if (!over) return;
@@ -156,30 +198,27 @@ export default function SortableTilesProvider({
       return;
     }
 
-    // Repair #5 — boundary false-positive check. On mobile/touch,
-    // dnd-kit's `pointerWithin` collision detector can resolve
-    // `over` to a neighboring pack when the finger path grazes the
-    // adjacent section, even though the user's intent is a same-pack
-    // reorder. If the dragged tile's final visual center is STILL
-    // inside the source pack's container rect, cancel the cross-pack
-    // decision (silent no-op — tile snaps back and the user retries).
-    // Real cross-pack drops (tile visibly moved out of the source
-    // container) are unaffected and continue to fire onCrossPackMove.
-    try {
-      const srcNode = packContainerRefs.current.get(sourcePackId);
-      const srcRect = srcNode && srcNode.getBoundingClientRect();
-      const activeRect = active.rect && active.rect.current && active.rect.current.translated;
-      if (srcRect && activeRect) {
-        const cx = activeRect.left + activeRect.width / 2;
-        const cy = activeRect.top + activeRect.height / 2;
-        if (
-          cx >= srcRect.left && cx <= srcRect.right &&
-          cy >= srcRect.top && cy <= srcRect.bottom
-        ) {
-          return;
-        }
-      }
-    } catch { /* rect lookup best-effort; fall through on any error */ }
+    // Repair #5 (hardened) — boundary false-positive check. Use the
+    // LIVE pointer position (last pointermove/touchmove) instead of
+    // `active.rect.translated` because the latter can be stale after
+    // a mid-drag wobble on touch. FAIL CLOSED: if we cannot determine
+    // either the source pack rect OR the live pointer position, do
+    // NOT dispatch onCrossPackMove — better to silently ignore a
+    // drag than to silently clone a note. Only genuine drops whose
+    // FINAL pointer position clearly exits the source pack's rect
+    // reach the cross-pack dispatch below.
+    const srcNode = packContainerRefs.current.get(sourcePackId);
+    const srcRect = srcNode ? srcNode.getBoundingClientRect() : null;
+    const p = pointerRef.current;
+    if (!srcRect || !p) return;
+    if (
+      p.x >= srcRect.left && p.x <= srcRect.right &&
+      p.y >= srcRect.top && p.y <= srcRect.bottom
+    ) {
+      // Pointer never left the source pack — user's clear intent was
+      // an in-pack reorder that dnd-kit misclassified. Silent no-op.
+      return;
+    }
 
     // Cross-pack drop — either MOVE (modifier held) or COPY (default).
     onCrossPackMove?.(sourcePackId, targetPackId, activeId, modifier ? "move" : "copy");
@@ -207,7 +246,7 @@ export default function SortableTilesProvider({
       collisionDetection={cascadedCollision}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => { setActiveNote(null); setActiveSourcePack(null); }}
+      onDragCancel={() => { detachPointerTracker(); setActiveNote(null); setActiveSourcePack(null); }}
     >
       {typeof children === "function" ? children(api) : children}
       <DragOverlay dropAnimation={null}>
