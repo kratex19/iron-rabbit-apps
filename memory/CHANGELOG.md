@@ -1,3 +1,57 @@
+## 2026-09-21 — v167: Repair #5 · Tile-Pack Drag/Reorder Duplication Bug
+
+**Two files touched, surgical only, cross-pack semantics preserved.**
+
+### Root cause (confirmed by iteration_85 audit + iteration_87 telemetry)
+On mobile/touch, dnd-kit's `cascadedCollision` uses `pointerWithin` first. When a user drags a tile INSIDE their pack but the touch path even briefly grazes an adjacent pack's rect, `over.id` gets greedily resolved to the neighboring pack's droppable. `handleDragEnd` sees `targetPackId !== sourcePackId`, dispatches `onCrossPackMove` with default `'copy'` mode (no modifier key on touch), and `NotesApp.handleCrossPackMove` L1917 mints a new note via `uuidv4()` — silent duplicate in the neighbor pack while the original stayed put.
+
+### Fix (Repair #5 hardened after iteration_86 failure)
+Added a **live pointer tracker + fail-closed boundary check** to `SortableTilesProvider.jsx` — nothing else changed:
+
+1. **`pointerRef` (useRef)** — populated from `event.activatorEvent` on `handleDragStart`, then kept live via `window.pointermove` + `window.touchmove` listeners attached for the duration of the drag. Guarantees we have the FINAL pointer position at drop time, not a stale mid-drag rect.
+2. **`packContainerRefs` (Map)** — each `PackSection` registers its container DOM node via a `registerContainer` prop combined with dnd-kit's `setNodeRef`.
+3. **Boundary check in `handleDragEnd`** — when `sourcePackId !== targetPackId`, look up the source pack's `getBoundingClientRect()` and check whether `pointerRef.current` (the LIVE pointer) is inside that rect.
+   - Inside → silent no-op (user's clear intent was in-pack reorder that dnd-kit misclassified).
+   - Missing rect OR missing pointer → **fail-CLOSED** silent no-op (safer than a silent duplicate).
+   - Outside → real cross-pack drop, dispatch `onCrossPackMove` unchanged.
+4. **Listeners always torn down**: at top of `handleDragEnd` (before any early return), inside `onDragCancel`, and in a `useEffect` unmount cleanup.
+
+### Files changed (2)
+- `frontend/src/components/SortableTilesProvider.jsx` — added imports (`useEffect`, `useRef`), `packContainerRefs`, `pointerRef`, `trackPointerMove` / `attach` / `detach`, unmount cleanup effect, seed logic in `handleDragStart`, boundary check in `handleDragEnd`, teardown in `onDragCancel`, `registerContainer` prop plumbed through `api.Section` → `PackSection` → `setCombinedRef`.
+- `frontend/public/service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v166` → `v167`.
+
+### Files inspected but intentionally unchanged
+- `frontend/src/NotesApp.jsx` — `handleCrossPackMove` L1886, `handleSortableReorder` L1853, hello-pangea `handleDragEnd` L1633 — all bug-free; the defect was upstream in the collision boundary.
+- `frontend/src/storage/storageService.js` — `reorderNotes` is order-only, no dupe possible.
+- `frontend/src/components/SortableTileGrid.jsx` — ungrouped-grid variant unaffected.
+- `frontend/src/components/NoteTile.jsx`, `frontend/src/data/aiToolsPack.js` — no drag logic.
+
+### Explicitly preserved
+- Same-pack reorder path (L186-198): tile IDs preserved, `reorderNotes` order-only.
+- Cross-pack COPY default (no modifier held) unchanged.
+- Cross-pack MOVE with Cmd/Ctrl unchanged.
+- Empty-pack drop path unchanged.
+- List view (hello-pangea) handler untouched.
+- Tile Pack installation semantics untouched.
+- All cross-pack COPY/MOVE metadata handling untouched.
+- Repairs #1 (hierarchy), #2 & #2A (Undo), #3 (backup/restore integrity), #4 (biometric gate) intact.
+
+### Verification
+| Iteration | Scope | Result |
+| --- | --- | --- |
+| `iteration_85` | Phase 1 audit — reproduce and identify | ✅ bug confirmed at pointerWithin boundary |
+| `iteration_86` | Phase 3.1 — first fix attempt (translated rect) | ❌ V1 failed; translated rect was stale after wobble |
+| `iteration_87` | Phase 3.2 — hardened fix (live pointer + fail-closed) | ✅ 9/9 executed pass |
+
+Test coverage (iteration_87): V1 mobile-wobble no-op ✅, V2 same-pack reorder (mobile + desktop) ✅, V3 legitimate cross-pack COPY (touch) ✅, V4 cross-pack MOVE (Ctrl+desktop) ✅, V5 consecutive drags ✅, V6 reload persistence ✅, V8 listener add/remove symmetry after cancel + subsequent drag ✅, R4 hierarchy invariants ✅. V7 (empty user-pack drop) skipped due to harness limitation — `allPacks` derives from categories that have notes; unrelated to Repair #5.
+
+### Unrelated defects discovered — REPORTED ONLY (per spec, not fixed)
+- Empty user-created categories aren't rendered as droppable packs in Grid view (only predefined TILE_PACKS render when empty). Not a Repair #5 regression; historical.
+- Cross-pack COPY on touch is a footgun (no way to hold Cmd/Ctrl to move). Consider defaulting to 'move' on touch in a future repair. Not in Repair #5 scope.
+- The reload-loop kill-switch in `index.html:73` (window.stop + SW unregister after 4 reloads in 15s) trips during rapid E2E iteration. Not a shipping concern; noteworthy for test tooling.
+
+
+
 ## 2026-09-21 — v166: Repair #4 · Biometric Auth Gate on ALL Manual Backup/Restore Paths
 
 **Two paths gated, one existing SecurityService pattern, no serialization or UI changes.**

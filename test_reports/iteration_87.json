@@ -1,0 +1,32 @@
+{
+  "summary": "Iron Rabbit REPAIR #5 (Phase 3 hardened) re-verification. Executed V1 exactly as specified in iter_86 context_for_next_testing_agent (390x844, PackA(a1..a4)+PackB(b1,b2), grid+group-by-category, metadataStore.migrated_from_backend=true, CDP touchStart at grip-a1, activation +8/+8, 30-step touchMove toward tile-a4 with wobble_deep=60 at steps 10 and 20, final touchMove at tile-a4 center, touchEnd). V1 now PASSES: IDB count stayed 6, all 6 original IDs (a1..a4, b1, b2) unchanged, no fresh uuidv4, no 'Copied to PackB' toast. Telemetry: lastPointer=(70.3, 552.6), PackA rect=(12..378, 369..610) — pointer clearly INSIDE PackA at drop → boundary check correctly bailed to same-pack reorder. Also PASS: V2 (mouse+touch same-pack reorder on both 390x844 and 1400x1000), V3 (legit cross-pack COPY touch — count 7, fresh uuid in PackB, 'Copied to PackB · Hold ⌘/Ctrl to move' toast), V4 (Ctrl+drag desktop MOVE — count 6, a1 moved to PackB with ID preserved, 'Moved to PackB' toast), V5 (5 consecutive drags mix touch/mouse near-boundary — count and pack assignments preserved), V6 (reload persistence — order.a1=4 stayed after reload), V8 (Escape dragCancel + subsequent drag — pointermove/touchmove listeners added=removed at every checkpoint 3=3 then 6=6, no leak), R4 (hierarchy invariants intact for every note).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/tests/phase3_verify_drag.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SortableTilesProvider.jsx L100-115: `trackPointerMove` reads changedTouches on plain pointermove events safely (typeof guard), good. The two window.addEventListener calls use `{ passive: true }` — fine for read-only tracker. Consider `capture: true` on touchmove for extra robustness against inner listeners that might stopPropagation, though not needed given dnd-kit's design.",
+    "SortableTilesProvider.jsx L213 FAIL-CLOSED: correct behavior for iron-rabbit's data-safety requirements. If pointerRef.current is null we silently no-op the cross-pack dispatch — an accidental data loss vector closed. Verified in V1.",
+    "SortableTilesProvider.jsx L249 onDragCancel: does detachPointerTracker + reset state — verified in V8 (add/remove counters symmetric at 3/3 after cancel and 6/6 after subsequent successful drag). useEffect L118-121 cleanup covers unmount-mid-drag.",
+    "V7 (empty pack drop) could not be exercised via the test harness because the app's `allPacks` in NotesApp.jsx L2697-2700 is derived from `grouped` (categories that HAVE notes) plus uncategorized; user-created empty categories aren't rendered as droppable packs even when listed in settings.category_order. Only pre-defined TILE_PACKS render when empty. This is unchanged from prior iterations and NOT a regression of Repair #5; noting for future consideration if empty-user-pack drops are ever a product requirement."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only)",
+    "frontend": "9/9 executed PASS (V1, V2 mobile, V2 desktop, V3, V4, V5, V6, V8, R4). V7 skipped due to test-harness limitation (empty user-created category not rendered as pack), not a Repair #5 regression. R1/R2/R3 not exercised in this iteration — no code change in those paths since iter_86."
+  },
+  "seed_data_creation": "Direct IndexedDB seeding via CDN localforage@1.10.0 inside page.evaluate(): clears notes/files/templates stores; writes seed notes {id,title,content,category,subcategory:'',category_path:[category],order,created_at,updated_at,tags:[],attachments:[],reminder_at:null,pinned:false}; writes app_settings {view_mode:'icon', sort_by:'custom', group_by_category:true, tour_completed:true, theme_chosen:true, theme:'dark', grid_columns:2}; CRITICALLY sets metadata.migrated_from_backend=true so StorageService.migrateFromBackend does NOT re-inject backend demo notes on load. Reload monitor session key cleared before every reload to avoid the reload-loop kill-switch.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Repair #5 hardened fix (pointerRef + live pointermove/touchmove tracker + fail-closed containment against source pack rect in handleDragEnd) is verified. The exact iter_86 wobble repro that previously duplicated a1 into PackB now correctly bails out. Test scaffolding lives in this iteration report inline; the reusable Playwright drag helpers (touch_drag with CDP Input.dispatchTouchEvent and mouse_drag) can be lifted into /app/tests/ if another regression pass is scheduled. For V7 (empty-pack drop), you would need to seed a note into PackB first, then verify drop, then remove — the app doesn't render empty user categories as packs.",
+  "rca_of_the_issue": {
+    "prior_root_cause": "iter_86: handleDragEnd used active.rect.current.translated (stale after wobble; failed OPEN when undefined) so mid-wobble greedy pointerWithin cross-pack resolves triggered cloning.",
+    "hardening_verified": "iter_87 (current): pointerRef seeded from event.activatorEvent in handleDragStart, kept live via window pointermove+touchmove listeners; handleDragEnd (L158-224) tears down trackers at the top then evaluates containment using LIVE pointerRef.current against sourceNode.getBoundingClientRect(). Fail-closed: if srcRect OR pointerRef missing, return silently — no accidental cross-pack COPY. Confirmed telemetry (lastPointer, packA rect) shows containment predicate returns true (pointer inside src) for wobble scenario, so cross-pack dispatch is skipped."
+  }
+}
