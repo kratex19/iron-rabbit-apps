@@ -90,6 +90,15 @@ export default function SortableTilesProvider({
     if (node) packContainerRefs.current.set(packId, node);
     else packContainerRefs.current.delete(packId);
   };
+  // Repair #7 · Source-pack rect snapshot. Repair #5 previously measured
+  // the source container rect at DROP time via getBoundingClientRect(),
+  // but a mid-drag DOM reflow (touch wobble on mobile grouped layouts)
+  // can shift the rect by hundreds of pixels — making Repair #5's
+  // containment predicate misfire and (under Repair #6) silently
+  // MOVE the note out of its source pack. Snapshotting the rect at
+  // drag-start — while layout is guaranteed stable — eliminates the
+  // stale-rect class of false negatives. Cleared on end/cancel/unmount.
+  const srcRectRef = useRef(null);
   // Repair #5 (hardened) · Live pointer tracker. `active.rect.translated`
   // can be stale after a mid-drag wobble on touch — the last-recorded
   // pointer position is the authoritative "where did the user let go"
@@ -116,7 +125,7 @@ export default function SortableTilesProvider({
   // Cleanup on unmount — guarantees no leaked listeners if the
   // component unmounts mid-drag.
   useEffect(() => {
-    return () => { detachPointerTracker(); };
+    return () => { detachPointerTracker(); srcRectRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -140,7 +149,23 @@ export default function SortableTilesProvider({
   const handleDragStart = (event) => {
     const id = event.active.id;
     setActiveNote(findNote(id));
-    setActiveSourcePack(noteToPack.get(id) || null);
+    const sourcePackId = noteToPack.get(id) || null;
+    setActiveSourcePack(sourcePackId);
+    // Repair #7 · snapshot the source pack's bounding rect NOW, while
+    // layout is stable. Consumed by the Repair #5 containment check in
+    // handleDragEnd. Freezing the rect eliminates the stale-rect
+    // false-negatives seen when the DOM reflows mid-drag on mobile.
+    if (sourcePackId) {
+      const node = packContainerRefs.current.get(sourcePackId);
+      if (node) {
+        const r = node.getBoundingClientRect();
+        srcRectRef.current = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      } else {
+        srcRectRef.current = null;
+      }
+    } else {
+      srcRectRef.current = null;
+    }
     // Snapshot the modifier key at drag-start; dnd-kit's event has it.
     // Repair #6 · touch cross-category drag must MOVE (not COPY). A real
     // TouchEvent cannot carry Cmd/Ctrl, so we treat any drag that
@@ -173,6 +198,11 @@ export default function SortableTilesProvider({
     // the moment the drag ends, regardless of which branch we take.
     // The last known pointer position is preserved in pointerRef.
     detachPointerTracker();
+    // Repair #7 · consume the drag-start snapshot of the source rect
+    // and clear it in the same breath so ANY early return below leaves
+    // the ref clean for the next drag.
+    const capturedSrcRect = srcRectRef.current;
+    srcRectRef.current = null;
     setActiveNote(null);
     setActiveSourcePack(null);
     if (!over) return;
@@ -219,8 +249,15 @@ export default function SortableTilesProvider({
     // drag than to silently clone a note. Only genuine drops whose
     // FINAL pointer position clearly exits the source pack's rect
     // reach the cross-pack dispatch below.
-    const srcNode = packContainerRefs.current.get(sourcePackId);
-    const srcRect = srcNode ? srcNode.getBoundingClientRect() : null;
+    // Repair #7 · Prefer the drag-start snapshot of the source rect
+    // (captured in handleDragStart while layout was stable). Falling
+    // back to a live getBoundingClientRect() only if the snapshot is
+    // missing preserves the fail-closed contract without weakening it.
+    let srcRect = capturedSrcRect;
+    if (!srcRect) {
+      const srcNode = packContainerRefs.current.get(sourcePackId);
+      srcRect = srcNode ? srcNode.getBoundingClientRect() : null;
+    }
     const p = pointerRef.current;
     if (!srcRect || !p) return;
     if (
@@ -258,7 +295,7 @@ export default function SortableTilesProvider({
       collisionDetection={cascadedCollision}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => { detachPointerTracker(); setActiveNote(null); setActiveSourcePack(null); }}
+      onDragCancel={() => { detachPointerTracker(); srcRectRef.current = null; setActiveNote(null); setActiveSourcePack(null); }}
     >
       {typeof children === "function" ? children(api) : children}
       <DragOverlay dropAnimation={null}>
