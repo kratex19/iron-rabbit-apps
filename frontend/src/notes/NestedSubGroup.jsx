@@ -56,6 +56,19 @@ export default function NestedSubGroup(props) {
 
   const [isOpen, setIsOpen] = useState(false);
 
+  // Repair #8 · Serpentine visual direction — every four hierarchy levels
+  // the indent direction reverses so a deep chain doesn't trail off the
+  // page. `depth` here is 0-indexed for NestedSubGroup itself (L2 lives
+  // at depth=1), so the user-visible hierarchy level is `depth + 1`.
+  //  - L1..L4  → forward  (band 0)
+  //  - L5..L8  → reverse  (band 1)
+  //  - L9..L12 → forward  (band 2)
+  //  - L13..L16→ reverse  (band 3), continuing indefinitely.
+  // Presentation-only: NO data model change, NO impact on category_path,
+  // parent/child relations, or the L# badge value shown to the user.
+  const hierarchyLevel = depth + 1;
+  const inReverseBand = Math.floor((hierarchyLevel - 1) / 4) % 2 === 1;
+
   const fullPath = useMemo(() => [...ancestorPath, label], [ancestorPath, label]);
   const fullPathKey = useMemo(() => subcatPathKey(fullPath), [fullPath]);
   const isPinnedSub = !!(pinnedSubKeys && pinnedSubKeys.has(fullPathKey));
@@ -90,8 +103,10 @@ export default function NestedSubGroup(props) {
 
   return (
     <div
-      className={`relative rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5`}
+      className={`relative rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5 ${inReverseBand ? "ml-4 mr-0" : "ml-0 mr-4"}`}
       data-testid={`nested-subgroup-${depth}-${label}`}
+      data-hierarchy-level={hierarchyLevel}
+      data-serpentine-band={inReverseBand ? "reverse" : "forward"}
     >
       <div
         role="button"
@@ -104,7 +119,7 @@ export default function NestedSubGroup(props) {
           }
         }}
         aria-expanded={isOpen}
-        className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-left transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${inReverseBand ? "flex-row-reverse" : ""} ${
           onTogglePinSub && onDeleteSubcategory ? "pr-16" : onTogglePinSub || onDeleteSubcategory ? "pr-9" : ""
         } ${isDark ? "hover:bg-white/[0.04]" : "hover:bg-black/[0.03]"}`}
         data-testid={`nested-subgroup-toggle-${label}`}
