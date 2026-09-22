@@ -25,7 +25,7 @@
     "/app/backend/tests/test_nickname_recovery.py (new — 17 tests)"
   ],
   "success_rate": { "backend": "100% (17/17)", "frontend": "100% (filter + clear + empty state + recover-link visibility + recovery-dialog step 1 + all 4 theme chips + theme persistence + format toggle with theme all verified)" },
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN]",
   "seed_data_creation": "Test file reserves NICK_CLAIMED=TESTr59_<hex> with EMAIL_OLD, submits 1 tip, and later transfers ownership to EMAIL_NEW. Cleaned in test_zzz_cleanup: deletes TEST_iter59 tips via admin endpoint + directly wipes nickname_reservations and nickname_recoveries for NICK_CLAIMED / NICK_UNCLAIMED via motor. Pre-existing 'cook_ninja' and 'veggie_wizard' seeds left in place.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

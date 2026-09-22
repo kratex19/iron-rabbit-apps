@@ -1666,3 +1666,30 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
   3. `service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v170` → `iron-rabbit-v171`.
 - **Validation**: iteration_98.json — PASS on all 14 steps: template selection keeps New Note open (dialog count during picker=2, after select=1), all 7 template fields propagate (title/content/color/icon/background/category/subcategory/category_path), save persists, reload preserves, existing-note edit unchanged (Templates button correctly hidden), 2nd new-note reuse clean, Repairs #1–#8 intact, zero console errors.
 - **Repairs touched**: none (surgical — only NoteModal + TemplateModal + service-worker cache version).
+
+## 2026-02-28 · Repair #10 — Admin Token Cleanup (v172)
+- **Scope**: security-only. Zero changes to auth logic, admin UI, hierarchy, DND, sorting, templates, or any prior repair.
+- **Exposure inventory (before)**: real `ADMIN_TOKEN` value `irr-admin-8f3a2b91c4d7e6f5` appeared in:
+  - `backend/.env` (line 5) — LEGITIMATE secret home, kept unchanged
+  - `backend/tests/conftest.py` (line 14) — hardcoded `os.environ.setdefault` fallback
+  - 11 backend test files as hardcoded literal or fallback default
+  - 11 committed test-report JSONs under `/app/test_reports/`
+  - `/app/memory/test_credentials.md` (line 13)
+  - **3 ZIP backups in `/app/frontend/public/`** (publicly CDN-downloadable) embedding old source with the token in their bundled test files: 25 + 13 + 13 hits respectively, linked from public `backup.html`
+- **Redactions applied**:
+  - `conftest.py`: removed the `setdefault` fallback — python-dotenv already loads it from `backend/.env`; missing env now fails loudly instead of silently using a leaked value.
+  - 11 test files: `ADMIN_TOKEN = "irr-admin-…"` / `os.environ.get("ADMIN_TOKEN", "irr-admin-…")` → `os.environ.get("ADMIN_TOKEN", "")`. Tests that need auth now pull the token strictly from env.
+  - 10 test-report JSONs: token replaced with `[REDACTED_ADMIN_TOKEN]` via sed.
+  - `test_credentials.md`: token replaced with `[REDACTED_ADMIN_TOKEN]` + pointer to `backend/.env` as the authoritative source.
+  - 4 leaky ZIPs moved from `frontend/public/` and `frontend/build/` to `/app/.local_backups_offline/` (outside the served public dir + outside git-tracked frontend surfaces). Backups preserved for local recovery; no longer publicly downloadable. `backup.html` links will now 404 for those specific files — expected security posture.
+- **Cache bumped**: `iron-rabbit-v171` → `iron-rabbit-v172`.
+- **Validation**:
+  1. Full-repo grep for `irr-admin-8f3a2b91c4d7e6f5` (excluding `.git`, `node_modules`, `.local_backups_offline`) → **1 match: only `backend/.env`** (legitimate secret home).
+  2. `POST /api/admin/verify` with correct token → **200** ✅
+  3. `POST /api/admin/verify` with `bogus` → **401** ✅
+  4. `POST /api/admin/verify` with no header → **401** ✅
+  5. `pytest tests/test_community_admin.py` → **18 passed** ✅
+  6. Repairs #1–#9 spot-checked: `srcRectRef` + `isTouchDrag` + `capturedSrcRect` + `inReverseBand`/`flex-row-reverse` + biometric gate + Repair #9 comment marker + `onOpenChange={(open) => { if (!open) onClose(); }}` — all intact.
+- **Unrelated issues observed (deliberately left untouched per scope)**:
+  - `AdminGate.jsx` line 80 has `placeholder="irr-admin-…"` — reveals naming convention (prefix pattern only, not the secret value). Not exposing an actual credential; touching it would be a UI change out of scope.
+  - `backup.html` still references the (now-removed) v167/v162 ZIP filenames. Serves 404 for those downloads. Rewriting is a separate UX task.

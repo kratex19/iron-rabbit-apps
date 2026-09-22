@@ -16,7 +16,7 @@
     "/app/backend/tests/test_featured_and_scheduler.py (new)"
   ],
   "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all data-testid flows verified)"},
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from /app/backend/.env). Admin UI unlock: localStorage.setItem('irr.admin_token', <token>) then load /admin/community.",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN] (from /app/backend/.env). Admin UI unlock: localStorage.setItem('irr.admin_token', <token>) then load /admin/community.",
   "seed_data_creation": "Test tip 'TEST_iter55 seed featured' inserted + promoted + deleted (cleaned up via DELETE /api/community/tips/{id}). Anonymous-submit regression test also cleaned up.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

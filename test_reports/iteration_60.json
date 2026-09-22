@@ -20,7 +20,7 @@
   ],
   "updated_files": [],
   "success_rate": { "backend": "100%", "frontend": "100%" },
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from backend/.env). No user-auth flow.",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN] (from backend/.env). No user-auth flow.",
   "seed_data_creation": "Backend tests seed their own TEST_ prefixed nicknames + tips and clean up in test_zzz_cleanup. Frontend used the two existing preview-DB contributors (veggie_wizard, cook_ninja) for sort/label verification.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

@@ -25,11 +25,11 @@
     "/app/backend/tests/test_refactor_regression.py (new — 30 tests, full regression + nickname + contributor)"
   ],
   "success_rate": { "backend": "100% (30/30)", "frontend": "100% (all data-testid'd flows verified on /contributors, /community/wall, and home FeaturedTipStrip)" },
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5. Admin UI unlock: localStorage.setItem('irr.admin_token', TOKEN) then load /admin/community.",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN]. Admin UI unlock: localStorage.setItem('irr.admin_token', TOKEN) then load /admin/community.",
   "seed_data_creation": "Test file inserts TEST_iter57 tips (nickname variants + a promoted + an anonymous promoted) and cleans up in test_zzz_cleanup. Pre-existing seed 'veggie_wizard' + 'cook_ninja' promoted tips left in place — they power the Contributor Wall UI verification.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "test_refactor_regression.py is idempotent & safe to re-run. Uses env: REACT_APP_BACKEND_URL, ADMIN_TOKEN (defaults to irr-admin-8f3a2b91c4d7e6f5). Categories endpoint returns dict, not list — assertion loosened to accept both. Nickname regex is ^[A-Za-z0-9_]{2,20}$ enforced server-side; the 7 invalid variants tested cover the boundaries (empty, whitespace, 1-char, space, symbol, 21-char, hyphen). The CommunityShareDialog (data-testid=share-nickname-input) client-side validation was NOT interactively exercised by Playwright in this run — verified via code review only (regex mirror + server-side is authoritative). If retesting UI, open /admin/community, promote a pending tip, then re-visit / to see FeaturedTipStrip byline change.",
+  "context_for_next_testing_agent": "test_refactor_regression.py is idempotent & safe to re-run. Uses env: REACT_APP_BACKEND_URL, ADMIN_TOKEN (defaults to [REDACTED_ADMIN_TOKEN]). Categories endpoint returns dict, not list — assertion loosened to accept both. Nickname regex is ^[A-Za-z0-9_]{2,20}$ enforced server-side; the 7 invalid variants tested cover the boundaries (empty, whitespace, 1-char, space, symbol, 21-char, hyphen). The CommunityShareDialog (data-testid=share-nickname-input) client-side validation was NOT interactively exercised by Playwright in this run — verified via code review only (regex mirror + server-side is authoritative). If retesting UI, open /admin/community, promote a pending tip, then re-visit / to see FeaturedTipStrip byline change.",
   "verified_flows": {
     "regression_notes_crud_reorder": "POST/GET/PUT/DELETE/reorder all 200/201.",
     "regression_templates_settings_categories": "All 200 (categories returns dict shape).",

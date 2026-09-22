@@ -29,7 +29,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "irr-admin-8f3a2b91c4d7e6f5")
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 
 RUN = uuid.uuid4().hex[:6]
 NICK = f"TESTa61_{RUN}"[:20]

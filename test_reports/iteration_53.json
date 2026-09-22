@@ -71,9 +71,9 @@
     "/app/test_reports/iteration_53.json"
   ],
   "success_rate": {"backend": "100% (18/18)", "frontend": "100% for tested surfaces (admin dashboard + settings row); QR scan-back not runnable"},
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from /app/backend/.env)",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN] (from /app/backend/.env)",
   "seed_data_creation": "Created several TEST_ prefixed community tips during testing; cleaned up via DELETE /api/community/tips/{id}. Verified 0 TEST_ tips remain (only 1 legacy non-TEST tip left in db, unrelated).",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Backend admin token: irr-admin-8f3a2b91c4d7e6f5. To reach the community dashboard, navigate to /admin/community — a full-page AdminGate appears; paste token and hit Enter dashboard. NOTE: React controlled input on AdminGate may not accept page.fill() reliably across Playwright reruns; safer to bypass by directly writing localStorage.setItem('irr.admin_token', TOKEN) then reload — the dashboard then loads immediately. The QuickAccess popup can steal focus on first-app-load: dismiss it with click on text='Skip and never remind' before interacting with the header. The auto-opened Quick Guide depends on route context — from /notes list it opens IRR-1000 (Home) once per session; use ?force=1 or clear localStorage 'irr.qg_seen' if you need to re-open."
+  "context_for_next_testing_agent": "Backend admin token: [REDACTED_ADMIN_TOKEN]. To reach the community dashboard, navigate to /admin/community — a full-page AdminGate appears; paste token and hit Enter dashboard. NOTE: React controlled input on AdminGate may not accept page.fill() reliably across Playwright reruns; safer to bypass by directly writing localStorage.setItem('irr.admin_token', TOKEN) then reload — the dashboard then loads immediately. The QuickAccess popup can steal focus on first-app-load: dismiss it with click on text='Skip and never remind' before interacting with the header. The auto-opened Quick Guide depends on route context — from /notes list it opens IRR-1000 (Home) once per session; use ?force=1 or clear localStorage 'irr.qg_seen' if you need to re-open."
 }

@@ -32,7 +32,7 @@
     "/app/backend/tests/conftest.py (new — loads backend/.env + frontend/.env so pytest sees MONGO_URL/DB_NAME/REACT_APP_BACKEND_URL)"
   ],
   "success_rate": { "backend": "100% (38/38)", "frontend": "100%" },
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from backend/.env). No user-auth.",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN] (from backend/.env). No user-auth.",
   "seed_data_creation": "test_recovery_analytics seeds TESTa61_<run> nickname + tip and cleans up in test_zzz_cleanup; it also purges recovery_events written during its own window (WINDOW_START snapshot). No preview-DB rows outside the TEST_ prefix are modified.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

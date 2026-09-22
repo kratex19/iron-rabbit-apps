@@ -26,7 +26,7 @@
     "/app/backend/tests/test_contributor_and_analytics.py (new)"
   ],
   "success_rate": { "backend": "100% (12/12)", "frontend": "100% (all requested data-testid flows verified except deep Share-dialog flow — verified by code review)" },
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5. Admin UI unlock: localStorage.setItem('irr.admin_token', <token>) then load /admin/community.",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN]. Admin UI unlock: localStorage.setItem('irr.admin_token', <token>) then load /admin/community.",
   "seed_data_creation": "Backend pytest inserts 5 TEST_iter56 tips and cleans them up via DELETE. Analytics events use ephemeral tip_ids TEST_analytics_A_<uuid8> / TEST_analytics_B_<uuid8> and are purged from community_events at module teardown via motor. UI opt-in-chip check inserted + deleted 'TEST_iter56 UI chip' tip.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

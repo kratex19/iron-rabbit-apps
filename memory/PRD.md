@@ -58,7 +58,7 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 ## Prioritized Backlog
 
 ### P1
-- [ ] Admin token in test files — security cleanup
+- [x] Admin token cleanup — Repair #10 complete (2026-02-28, v172)
 - [ ] Custom Menu Tile Prompt — wire the 16th tile's custom action (blocked on user prompt)
 
 ### P2

@@ -16,7 +16,7 @@
     "/app/backend/tests/test_parse_and_digest.py (new)"
   ],
   "success_rate": {"backend": "100% (7/7)", "frontend": "100% (all flows verified)"},
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5 (from /app/backend/.env); admin UI unlocked by localStorage.setItem('irr.admin_token', <token>).",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN] (from /app/backend/.env); admin UI unlocked by localStorage.setItem('irr.admin_token', <token>).",
   "seed_data_creation": "Created ~2 pending tips with resource_id='TEST_iter54' via the Bulk paste UI during testing; ALL cleaned up via DELETE /api/community/tips/{id} at teardown.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

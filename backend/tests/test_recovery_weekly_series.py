@@ -3,7 +3,7 @@ import os
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/") or "https://color-task-timer.preview.emergentagent.com"
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "irr-admin-8f3a2b91c4d7e6f5")
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 HEADERS = {"X-Admin-Token": ADMIN_TOKEN}
 
 

@@ -24,7 +24,7 @@
     "/app/backend/tests/test_nickname_reservations.py (new — 23 tests)"
   ],
   "success_rate": { "backend": "100% (23/23)", "frontend": "100% (Wall + WallShareDialog + You badge + format toggle + Share/Download buttons all verified)" },
-  "test_credentials": "ADMIN_TOKEN=irr-admin-8f3a2b91c4d7e6f5",
+  "test_credentials": "ADMIN_TOKEN=[REDACTED_ADMIN_TOKEN]",
   "seed_data_creation": "Test file inserts TEST_iter58 tips with run-scoped nickname suffix TESTe58_<hex> / TESTi58_<hex> / TESTf58_<hex>. Cleaned up in test_zzz_cleanup which deletes both community_tips (via admin endpoint) and nickname_reservations (direct motor cleanup using MONGO_URL/DB_NAME). Pre-existing seeded 'cook_ninja' and 'veggie_wizard' promoted tips left in place per instructions.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

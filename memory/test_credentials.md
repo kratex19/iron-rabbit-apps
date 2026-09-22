@@ -10,7 +10,7 @@ These are set only when the user opens Settings → Security and enables the PIN
 
 ## Admin token (Community Dashboard)
 - URL: `/admin/community`
-- Token: `irr-admin-8f3a2b91c4d7e6f5`
+- Token: `[REDACTED_ADMIN_TOKEN]` — the real value lives ONLY in `/app/backend/.env` (`ADMIN_TOKEN`). Never paste it into test reports, source, or docs. Tests read it from the env at runtime.
 
 Set in `/app/backend/.env` as `ADMIN_TOKEN`. Required to review, promote, or reject submitted community tips via the admin endpoints:
 - `GET /api/community/tips` (list, header `X-Admin-Token`)

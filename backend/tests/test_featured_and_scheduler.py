@@ -14,7 +14,7 @@ import requests
 from datetime import datetime, timezone
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
-ADMIN_TOKEN = "irr-admin-8f3a2b91c4d7e6f5"
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 
 
 @pytest.fixture(scope="module")

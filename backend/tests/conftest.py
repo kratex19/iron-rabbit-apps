@@ -11,4 +11,6 @@ try:
 except Exception:
     pass
 
-os.environ.setdefault("ADMIN_TOKEN", "irr-admin-8f3a2b91c4d7e6f5")
+# Repair #10 · No hardcoded ADMIN_TOKEN fallback here — python-dotenv above
+# already populates it from backend/.env. If the env var is missing, tests
+# must fail loudly instead of silently authenticating with a leaked value.

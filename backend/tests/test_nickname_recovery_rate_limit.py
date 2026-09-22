@@ -186,7 +186,7 @@ def test_successful_verify_after_reset(api):
 
 
 def test_zzz_cleanup(api):
-    admin_token = os.environ.get("ADMIN_TOKEN", "irr-admin-8f3a2b91c4d7e6f5")
+    admin_token = os.environ.get("ADMIN_TOKEN", "")
     headers = {"X-Admin-Token": admin_token}
     r = api.get(f"{BASE_URL}/api/community/tips", headers=headers)
     if r.status_code == 200:
