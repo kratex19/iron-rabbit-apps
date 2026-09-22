@@ -1,0 +1,53 @@
+{
+  "summary": "REPAIR #9 VALIDATION — PASS. Frontend-only validation of the New Note template-selection premature-unmount bug fix in Iron Rabbit PWA v171. Seeded a TEST_ template via localforage (name/title/content/color=green/icon=Star/background/category=TEST_Cat/subcategory=TEST_Sub), opened New Note via FAB, opened Templates picker, clicked the template row. Verified: (a) TemplateModal closed, (b) parent New Note dialog stayed open (the primary regression check), (c) no navigation to Home, (d) all 7 template fields propagated into the editor state, (e) Save persisted the note with correct fields, (f) reload preserved the note in IndexedDB, (g) existing-note edit hides the Templates button, (h) 2nd new-note reuse re-opens picker cleanly (no stale portal). Zero console errors, zero page errors, zero Radix DialogTitle/Description warnings. Cleanup left 0 test artifacts.",
+  "results_matrix": {
+    "REPAIR_9_PASS_FAIL": "PASS",
+    "STEP_1_4_template_selection_keeps_new_note_open": "PASS (dialogs during picker=2, after select=1, parent still open)",
+    "STEP_5_seven_fields_applied": "PASS — title=TEST_R9_Title, content='TEST_R9 content body', icon=Star, background=Custom(#123456), category=TEST_Cat, subcategory=TEST_Sub, category_path=[TEST_Cat,TEST_Sub]; color=green (verified via persisted note; the .active swatch CSS class returned null but state was correctly set — not a bug, just class name mismatch in the query)",
+    "STEP_6_7_template_dialog_closed_parent_remains": "PASS (dialogs_after_select=1, templates_dialog_gone=true, new-note title input still present)",
+    "STEP_8_9_save_persists": "PASS (dialogs_after_save=0, persisted 1 note with title/content/color/category/subcategory/category_path/icon/background all correct)",
+    "STEP_10_reload_persistence": "PASS (reload_persisted_count=1 with identical values; title text not in body text pre-expansion because the note was grouped under its category — expected UI behavior)",
+    "STEP_11_existing_note_edit": "PASS (edit modal loaded with title pre-filled, Templates button hidden, cancel works)",
+    "STEP_12_prior_repairs_intact": "PASS — SortableTilesProvider.jsx retains srcRectRef, capturedSrcRect, isTouchDrag→modifier (lines 101,162,179,204); NestedSubGroup.jsx retains inReverseBand→flex-row-reverse (lines 70,106,122); BackupRestoreModal.jsx retains biometric gate (lines 33,37,70); service-worker.js CACHE_NAME='iron-rabbit-v171' (line 12)",
+    "STEP_13_no_console_errors": "PASS (console.error=0, pageerror=0, unhandledrejection=0, Radix DialogTitle/Description warnings=0)",
+    "STEP_14_second_iteration_reuse": "PASS (second new-note → template picker → select → dialogs=1, title=TEST_R9_Title; no stale portal state)",
+    "CLEANUP": "PASS (removedT=1, removedN=1, leftover=0)"
+  },
+  "template_fields_applied_matrix": {
+    "title": "OK (TEST_R9_Title)",
+    "content": "OK (TEST_R9 content body)",
+    "color": "OK (persisted as green)",
+    "icon": "OK (Star, button label 'Icon: Star')",
+    "background": "OK ({type:color,value:#123456}, button label 'Background: Custom')",
+    "category": "OK (TEST_Cat, visible in DOM)",
+    "subcategory": "OK (TEST_Sub, visible in DOM)",
+    "categoryPath": "OK (persisted as ['TEST_Cat','TEST_Sub'])"
+  },
+  "dialog_count_after_select": 1,
+  "dialog_count_during_picker": 2,
+  "persistence_proof": {
+    "before": "seeded template TEST_Template_R9, 0 notes with TEST_R9 prefix",
+    "after_save": "1 note persisted with title=TEST_R9_Title, content='TEST_R9 content body', color=green, category=TEST_Cat, subcategory=TEST_Sub, category_path=[TEST_Cat,TEST_Sub], icon=Star, background={type:color,value:#123456}",
+    "after_reload": "same 1 note still in IndexedDB (reload_persisted_count=1)"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TemplateModal.jsx correctly removed early-return; Radix Dialog owns lifecycle. Fix is minimal and correct.",
+    "NoteModal.jsx line 404 defensive onOpenChange guard is a good belt-and-suspenders pattern; will prevent similar bugs from other nested Dialogs in the future.",
+    "Note: NoteModal.jsx line 400 still has `if (!isOpen) return null;` — this is fine at the top level (parent controls it) but consider whether the same early-return anti-pattern could exist elsewhere in the codebase for nested Radix Dialogs."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "Seeded TEST_Template_R9 template; auto-cleaned at end of run — 0 artifacts left.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iron Rabbit is offline-first PWA. localforage NOT exposed on window — must be injected via CDN each Playwright run (fresh context). Use FAB [data-testid='fab-add-note'] to open New Note (not button[title*='New'] which matches QuickGuide). The QuickGuide dialog may auto-open on fresh load — dismiss via [data-testid='quickguide-close-btn'] before interacting with FAB. Template picker opens a nested Radix Dialog (2 role='dialog' during picker, 1 after selection). CACHE_NAME='iron-rabbit-v171'.",
+  "rca_of_the_issue": "N/A — Repair #9 fix (removing `if(!isOpen)return null;` in TemplateModal + defensive onOpenChange guard in NoteModal) is verified working. Root cause was synchronous unmount of nested Radix Dialog mid-pointer-event causing parent's onPointerDownOutside to fire. Fix hands lifecycle back to Radix's DismissableLayer stack."
+}

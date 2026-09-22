@@ -1655,3 +1655,14 @@ See `/app/specs/RESTAURANTS_GALORE.md` for the master spec.
 
 ## Prior sessions
 See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
+
+
+## 2026-02-28 · Repair #9 — Template Selection Premature Unmount Fix (v171)
+- **Bug**: Selecting a template inside the New Note editor closed the entire New Note dialog and dumped the user back to Home; template state was discarded and no note was saved.
+- **Root cause**: `TemplateModal.jsx` had `if (!isOpen) return null;` which synchronously unmounted the nested Radix Dialog mid-pointer-event. The parent NoteModal's `usePointerDownOutside` then fired, invoking `onOpenChange(false)` on the outer Dialog, which routed to `AppModals.onClose` and closed the whole editor.
+- **Fix**:
+  1. `TemplateModal.jsx` line 58 — removed `if (!isOpen) return null;` so Radix's `<Dialog open={isOpen}>` owns mount/unmount + DismissableLayer lifecycle.
+  2. `NoteModal.jsx` line 404 — defensive hardening: `onOpenChange={onClose}` → `onOpenChange={(open) => { if (!open) onClose(); }}`.
+  3. `service-worker.js` — `CACHE_NAME` bumped `iron-rabbit-v170` → `iron-rabbit-v171`.
+- **Validation**: iteration_98.json — PASS on all 14 steps: template selection keeps New Note open (dialog count during picker=2, after select=1), all 7 template fields propagate (title/content/color/icon/background/category/subcategory/category_path), save persists, reload preserves, existing-note edit unchanged (Templates button correctly hidden), 2nd new-note reuse clean, Repairs #1–#8 intact, zero console errors.
+- **Repairs touched**: none (surgical — only NoteModal + TemplateModal + service-worker cache version).
