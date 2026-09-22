@@ -1,0 +1,38 @@
+{
+  "summary": "TEST 10 (DEEP HIERARCHY INTEGRITY & PERSISTENCE) — PASS 11/11 sub-tests. Read-only audit: seeded 9 notes including L1..L6 chain (Work → Alpha → Beta → 2026 → January → Week1) plus Uncategorized, Personal, and a Fitness pack tile. Deep hierarchy round-trips byte-identical through UI navigation, view-mode swap (list→grid), reload, and filter/sort setting changes. Zero console errors, zero page errors, zero source modifications.",
+  "test_10_results": {
+    "TEST10-SEED": "PASS — 9 notes seeded via localforage (DB=IronRabbit, storeName=notes); settings + metadata seeded",
+    "TEST10-A_before_snapshot": "PASS — 9 notes read; deep-test-tile confirmed with category_path length 5; L6 confirmed with length 6",
+    "TEST10-B_hierarchy_structure": "PASS — deep-test-tile: category_path=['Work','Alpha','Beta','2026','January'], category='Work', subcategory='Alpha' (Repair #1 invariant holds). L6: category_path=['Work','Alpha','Beta','2026','January','Week1']. No empty segments in any note.",
+    "TEST10-C_visual_hierarchy": "PASS — Current implementation does NOT use a serpentine/reverse mechanism. Instead uses a UNIFORM FORWARD-INDENT with per-level tag labels: rows are prefixed with '↳ L2', '↳ L3', '↳ L4', '↳ L5', '↳ L6' inside a stacked accordion (see /tmp/test10_deep_hierarchy.png). Deep-Test-Tile at L5 and L6 Note under Week1 are both visible and clickable. Parent class of leaf tile: 'category-children pl-3 pr-1 pb-1.5 pt-1.5 border-t transition-colors border-white/10'. No level is flattened, omitted, or promoted to root.",
+    "TEST10-D_list_view": "PASS — List view expanded Work→Alpha→Beta→2026→January chain successfully. Deep-Test-Tile rendered under January (L5); L6 Week1 subcategory rendered with its L6 note beneath. Level indicator: 'L#' badge + arrow icon (↳) + progressive left-padding. No horizontal overflow. Parent nodes remained expanded when children were expanded.",
+    "TEST10-E_grid_view": "PASS (with note) — Switched view_mode='icon' via settings + reload. Grid view renders top-level categories as blocks with tile cards inside (Fitness Journey, Personal Note, Uncat visible directly). Work category collapsed by default in grid; deep-tile DOM node exists (findExact('Deep-Test-Tile')=1) even when Work section is not manually expanded, indicating tile is rendered in DOM/virtual list. When Work is expanded, same accordion pattern used as list view. Difference: grid uses card tiles for leaf notes vs. list rows.",
+    "TEST10-F_tile_invariant_after_ui_touch": "PASS — After clicking through Work/Alpha/Beta/2026/January in the UI, re-read deep-test-tile from IDB: pack_id=null/undefined (NOT fitness-pack), category_path unchanged, byte-identical JSON to BEFORE.",
+    "TEST10-G_reload_persistence": "PASS — page.reload(networkidle) + 3s, full notes store deep-diffed against BEFORE. BYTE-IDENTICAL=true. 9 notes total, deep-test-tile category_path still ['Work','Alpha','Beta','2026','January'], L6 still ['Work','Alpha','Beta','2026','January','Week1']. No duplicates. No new pack. Deep tile still accessible via UI expansion after reload.",
+    "TEST10-H_filter_sort_no_mutation": "PASS — Set filter_by='all', sort_by='newest' in app_settings. Notes-store JSON still byte-identical to BEFORE (only settings-store keys changed as allowed). Hierarchy structure in DOM preserved.",
+    "TEST10-I_drag_passive": "PASS — Passive scroll/hover/click expansion only; no drag state triggered; IDB byte-identical.",
+    "TEST10-J_aggregate_integrity": "PASS — total=9, pack_count=1 (Fitness only), categories={'Work','Fitness','Personal','Uncategorized'}, distinct category_paths=9, orphan/empty-segment=false.",
+    "TEST10-K_console_and_git": "PASS — console.error count=0, page errors=0, `git status --short` empty before AND after, CACHE_NAME still 'iron-rabbit-v169', Repair # markers still present in NotesApp.jsx and storageService.js."
+  },
+  "deep_tile_before_after": {
+    "before": {"id": "deep-test-tile", "category_path": ["Work","Alpha","Beta","2026","January"], "category": "Work", "subcategory": "Alpha", "pack_id": null},
+    "after":  {"id": "deep-test-tile", "category_path": ["Work","Alpha","Beta","2026","January"], "category": "Work", "subcategory": "Alpha", "pack_id": null},
+    "byte_identical": true
+  },
+  "serpentine_observation": "The current UI does NOT implement a serpentine/reverse-direction mechanism for L5+. It uses a single-direction forward indent with per-level 'L#' badges (L2..L6) and a leading ↳ arrow. All levels flow in the same left-to-right stacked accordion. This is the established visual mechanism — reporting as-is per user instruction (not judging as FAIL against a serpentine expectation).",
+  "list_vs_grid_difference": "List view renders each category level as a row with L# badge; leaf notes appear as rows. Grid view renders top-level categories with tile cards for direct-child notes; expanded subcategories still use the same L# accordion pattern. Deep-Test-Tile DOM node is present in both views (found in grid DOM query even before manual Work expansion).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/tmp/test10_initial.png", "/tmp/test10_deep_hierarchy.png", "/tmp/test10_grid_view.png"],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% (11/11 sub-tests PASS)"},
+  "seed_data_creation": "9 notes seeded into localforage DB 'IronRabbit' store 'notes' (L1..L6 chain under Work/Alpha/Beta/2026/January/Week1 + Uncategorized + Personal + Fitness pack tile). Settings + metadata seeded per spec. Localforage injected via CDN because it is not exposed on window in the app bundle.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "localforage is NOT exposed on window.localforage in this build; to interact with IDB from Playwright inject the localforage UMD from CDN (https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js) and use createInstance({name:'IronRabbit', storeName:<'notes'|'settings'|'metadata'|'files'|'templates'>}). Deep hierarchy rendering uses L# badge accordion (uniform forward indent, not serpentine). CACHE_NAME=iron-rabbit-v169.",
+  "console_errors": 0,
+  "git_status_before_and_after": "clean (empty) before and after",
+  "source_files_modified": "NONE"
+}
