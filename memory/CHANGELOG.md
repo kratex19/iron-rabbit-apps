@@ -1669,7 +1669,7 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
 
 ## 2026-02-28 · Repair #10 — Admin Token Cleanup (v172)
 - **Scope**: security-only. Zero changes to auth logic, admin UI, hierarchy, DND, sorting, templates, or any prior repair.
-- **Exposure inventory (before)**: real `ADMIN_TOKEN` value `irr-admin-8f3a2b91c4d7e6f5` appeared in:
+- **Exposure inventory (before)**: real `ADMIN_TOKEN` value `[REDACTED_ADMIN_TOKEN]` appeared in:
   - `backend/.env` (line 5) — LEGITIMATE secret home, kept unchanged
   - `backend/tests/conftest.py` (line 14) — hardcoded `os.environ.setdefault` fallback
   - 11 backend test files as hardcoded literal or fallback default
@@ -1684,7 +1684,7 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
   - 4 leaky ZIPs moved from `frontend/public/` and `frontend/build/` to `/app/.local_backups_offline/` (outside the served public dir + outside git-tracked frontend surfaces). Backups preserved for local recovery; no longer publicly downloadable. `backup.html` links will now 404 for those specific files — expected security posture.
 - **Cache bumped**: `iron-rabbit-v171` → `iron-rabbit-v172`.
 - **Validation**:
-  1. Full-repo grep for `irr-admin-8f3a2b91c4d7e6f5` (excluding `.git`, `node_modules`, `.local_backups_offline`) → **1 match: only `backend/.env`** (legitimate secret home).
+  1. Full-repo grep for `[REDACTED_ADMIN_TOKEN]` (excluding `.git`, `node_modules`, `.local_backups_offline`) → **1 match: only `backend/.env`** (legitimate secret home).
   2. `POST /api/admin/verify` with correct token → **200** ✅
   3. `POST /api/admin/verify` with `bogus` → **401** ✅
   4. `POST /api/admin/verify` with no header → **401** ✅
@@ -1693,3 +1693,24 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
 - **Unrelated issues observed (deliberately left untouched per scope)**:
   - `AdminGate.jsx` line 80 has `placeholder="irr-admin-…"` — reveals naming convention (prefix pattern only, not the secret value). Not exposing an actual credential; touching it would be a UI change out of scope.
   - `backup.html` still references the (now-removed) v167/v162 ZIP filenames. Serves 404 for those downloads. Rewriting is a separate UX task.
+
+## 2026-02-28 · Repair #11 — Stale Backup Links in backup.html (v172)
+- **Scope**: link-integrity only. Zero changes to auth, admin UI, hierarchy, DND, sorting, templates, Tile Packs, pins, notes, custom sort, or any prior repair.
+- **Stale links found in `/app/frontend/public/backup.html`**:
+  1. Line 56 primary button → `/IronRabbit_v167_2026-09-21.zip` — DEAD (moved out by Repair #10, embedded token 13×)
+  2. Line 71 fallback link → `/IronRabbit_CURRENT_2026-09-20.zip` — DEAD (moved out by Repair #10, embedded token 25×)
+- **Available legitimate backups**: NONE. Only `IronRabbit_Headers_1-40.zip` and `focus-mode-guide.zip` remain in `frontend/public/` — both are content packs (grep-clean of token, verified Repair #10), NOT full-app backups.
+- **Fix applied**: rewrote the `.card` block in `backup.html` to remove both dead `<a>` links and replace with a disabled-state notice explaining the download was retired by Repair #10, plus an in-app alternative (Settings → Backup & Restore, biometric-gated per Repair #4). No fabricated URLs. No new backup regenerated. No secret reintroduced.
+- **Also scrubbed**: 2 residual raw-token references in Repair #10's own CHANGELOG entry replaced with `[REDACTED_ADMIN_TOKEN]` — completes Repair #10 rather than undoing it.
+- **Cache**: `iron-rabbit-v172` unchanged. `backup.html` is served network-first per SW design (v80 comment), so users receive the update on next load without a cache bump.
+- **Validation**:
+  - A. `grep '\.zip' backup.html` → **0 matches** ✅
+  - B. `grep 'IronRabbit_v167|IronRabbit_CURRENT_2026|v169'` in backup.html → **0 matches** ✅
+  - C. no links to removed v162/v167/v169 ZIPs ✅
+  - D. full-repo grep for the raw token (excluding `.git`, `node_modules`, `.local_backups_offline`) → **1 match: only `backend/.env`** ✅
+  - E. `pytest test_community_admin.py test_parse_and_digest.py` → **25 passed** ✅
+  - F. `yarn build` → **succeeded**; `build/backup.html` reflects the fix; `grep 'irr-admin-…' build/` → clean ✅
+  - G. no JS added, no new console errors ✅
+  - H. Repairs #1..#10 spot-check → srcRectRef + isTouchDrag + capturedSrcRect + flex-row-reverse + biometric gate + Repair #9 markers + `onOpenChange` guard + env-only ADMIN_TOKEN in tests + redacted memo/reports — all intact ✅
+  - I. cache version appropriate (HTML network-first, no bump required) ✅
+- **Files changed**: `frontend/public/backup.html` (block replacement), `memory/CHANGELOG.md` (this entry + 2 token redactions in Repair #10 entry).

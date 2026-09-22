@@ -51,24 +51,17 @@
 <body>
   <div class="card">
     <h1>Iron Rabbit — Backup</h1>
-    <p class="sub">Tap the button below to download the complete snapshot of your app as it exists right now (v167, September 21, 2026 · includes Repairs #1, #2, #2A, #3, #4, #5).</p>
+    <p class="sub">No downloadable snapshot is currently published from this URL. Previous ZIP backups were retired during Repair&nbsp;#10 (security cleanup) because they contained unredacted test artifacts.</p>
 
-    <a class="btn" href="/IronRabbit_v167_2026-09-21.zip" download="IronRabbit_v167_2026-09-21.zip">
-      ⬇️  Download backup ZIP (33 MB)
-    </a>
-
-    <div class="meta">
-      <div><span class="label">Filename:</span> <code>IronRabbit_v167_2026-09-21.zip</code></div>
-      <div><span class="label">Size:</span> 33 MB (33,986,060 bytes)</div>
-      <div><span class="label">MD5:</span> <code>b9310e6ea56f9a65db933cba52891fe2</code></div>
-      <div><span class="label">Version captured:</span> Iron Rabbit v167</div>
-      <div><span class="label">Files:</span> 945 (source + config + memory + tests + docs)</div>
-      <div style="margin-top:10px"><span class="label">Contains:</span> Repairs #1 (hierarchy), #2 &amp; #2A (Undo), #3 (backup audit), #4 (biometric gate), #5 (tile-pack dedupe)</div>
-      <div style="margin-top:10px"><span class="label">Excludes (regenerable):</span> node_modules, .git, android build outputs, prior ZIPs</div>
+    <div class="btn" aria-disabled="true" style="opacity:0.55; cursor:not-allowed; pointer-events:none;" data-testid="backup-disabled-notice">
+      No clean backup currently available
     </div>
 
-    <div class="meta" style="margin-top:14px">
-      <div style="opacity:0.8"><span class="label">Previous v162 snapshot still available:</span> <a href="/IronRabbit_CURRENT_2026-09-20.zip" style="color:#EA580C">Download v162 (79 MB)</a></div>
+    <div class="meta">
+      <div><span class="label">Status:</span> Backup download disabled by Repair&nbsp;#10.</div>
+      <div><span class="label">Why:</span> Prior v162 / v167 / v169 ZIPs embedded test fixtures containing the admin token and were moved out of the publicly-served folder.</div>
+      <div><span class="label">To re-enable:</span> Request a fresh, token-redacted backup. It will be posted here with an updated filename, size and MD5.</div>
+      <div style="margin-top:10px"><span class="label">In-app alternative:</span> Use Settings → Backup&nbsp;&amp;&nbsp;Restore inside Iron Rabbit to export your own notes/settings snapshot locally. This path is biometric-gated (Repair&nbsp;#4).</div>
     </div>
   </div>
 </body>
