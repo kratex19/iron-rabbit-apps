@@ -1,3 +1,59 @@
+## 2026-09-22 — v170: Repair #8 · Serpentine Deep-Hierarchy Visual Direction
+
+**Two files, +18/-3. Presentation-only.**
+
+### Objective
+Implement the Code Rabbit specification for serpentine indent direction: every four hierarchy levels the visual indent reverses so deep chains don't trail off-screen. L1–L4 forward, L5–L8 reverse, L9–L12 forward, L13–L16 reverse, indefinitely.
+
+### Files changed (2)
+- `frontend/src/notes/NestedSubGroup.jsx`:
+  - Added `hierarchyLevel = depth + 1` and `inReverseBand = Math.floor((hierarchyLevel - 1) / 4) % 2 === 1`.
+  - Outer wrapper gets `ml-4 mr-0` (reverse) vs `ml-0 mr-4` (forward) + two new data attributes `data-hierarchy-level` and `data-serpentine-band` for observability.
+  - Header row gets `flex-row-reverse` when in reverse band — flips the visual order of the corner-down arrow, L# badge, hierarchy-path chip, label, count, alarm bell, and chevron.
+- `frontend/public/service-worker.js`: `CACHE_NAME` bumped `iron-rabbit-v169` → `v170`.
+
+### Files inspected but unchanged
+- `CategoryGroup.jsx` — L1 top-level continues to render forward by default (matches spec).
+- `HierarchyPathButton.jsx`, `CategoryPathAccordion.jsx`, `CategoryHeader.jsx`, `NotesApp.jsx`, `storage/storageService.js` — untouched.
+
+### Formula proof (visible L# → band)
+| Level | `depth` | `floor((L-1)/4) % 2` | Band |
+| --- | --- | --- | --- |
+| L2 | 1 | 0 | forward |
+| L4 | 3 | 0 | forward |
+| **L5** | 4 | 1 | **reverse** |
+| L8 | 7 | 1 | reverse |
+| **L9** | 8 | 2 | **forward** |
+| L12 | 11 | 2 | forward |
+| **L13** | 12 | 3 | **reverse** |
+
+### Verification (iteration_96)
+| Sub-test | Result |
+| --- | --- |
+| V1 · List-view band assignments L2..L13 | ✅ 12/12 correct |
+| V2 · `flex-row-reverse` present only on reverse-band headers | ✅ PASS |
+| V3 · `ml-4 mr-0` on reverse, `ml-0 mr-4` on forward | ✅ PASS |
+| V4 · Grid-view drilldown | ⚪ N/A — grid + group_by_category flattens Work's descendants into a tile row (existing design; NestedSubGroup does not mount). Not a Repair #8 regression. |
+| V5 · L13 note reachable in DOM | ✅ PASS |
+| V6 · IDB byte-identical across expansion + view swap | ✅ PASS (15 notes deep-diff clean) |
+| V6 · Repair #1 invariant across all 15 notes | ✅ PASS |
+| V7 · Reload persistence (bands + IDB) | ✅ PASS |
+| V8 · TEST 8 regression (5-note SAME_PACK seed integrity) | ✅ PASS |
+| V9 · TEST 9 regression (12-note diverse dataset, 4 filter/sort cycles byte-identical) | ✅ PASS |
+| V10 · Console + git regression | ✅ 0 errors, tree clean, all Repair #1-#8 markers present |
+
+### Data-integrity checks
+- Tile IDs / pack_id / category / category_path / subcategory / titles / content: **NONE changed**
+- Aggregate counts unchanged
+- No duplicates, no orphaned paths
+- Repair #1 invariant `category === category_path[0]||''` and `subcategory === category_path[1]||''` holds
+
+### Reported observations (out of scope, not fixed)
+- Grid + group_by_category flattens Work's descendants into a single tile row — pre-existing design, unrelated to Repair #8.
+- Repair #3 marker is not physically in source (was audit-only, no code change — flagged in iteration_82 as informational).
+
+
+
 ## 2026-09-21 — v169: Repair #7 · Stale Source-Rect During Touch Drag
 
 **One file, 43 insertions / 6 deletions. Surgical.**
