@@ -401,7 +401,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
           <DialogHeader>
             <DialogTitle className={`font-semibold flex items-center justify-between ${isDark ? 'text-white' : 'text-gray-900'}`}>

@@ -55,7 +55,13 @@ export default function TemplateModal({ isOpen, onClose, templates, onSelect, is
   const unpinnedList = ordered.filter(t => !pinned.includes(t.name));
   const showSplit = pinnedList.length > 0 && unpinnedList.length > 0;
 
-  if (!isOpen) return null;
+  // Repair #9 · Do NOT short-circuit with `if (!isOpen) return null;`.
+  // Radix's <Dialog open={isOpen}> owns the mount/unmount + portal +
+  // DismissableLayer lifecycle. Synchronously unmounting mid-pointer-event
+  // caused the parent NoteModal to receive a spurious outside-click and
+  // close, destroying the template state that handleSelectTemplate had
+  // just written. Letting Radix drive lifecycle keeps the layer registered
+  // through the end of the current click, so the parent stays open.
 
   const renderRow = (t, i) => {
     const isPinned = pinned.includes(t.name);
