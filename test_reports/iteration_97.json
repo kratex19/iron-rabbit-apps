@@ -1,0 +1,61 @@
+{
+  "summary": "TEST 11 — FINAL CROSS-REPAIR REGRESSION & DATA-SAFETY AUDIT: PASS. Read-only end-to-end regression of Repairs #1..#8. Seeded a namespaced TEST11_ dataset (29 notes: 3 packs, 5 categories including L6 chain under TEST11_CatA and full L13 chain under TEST11_Deep, plus uncategorized). Verified DEEP hierarchy integrity in IDB, full serpentine visual matrix L2..L13 in DOM, Grid view non-regression, 63 filter x sort combinations, reload persistence, and byte-identical BEFORE/AFTER snapshots. Zero console errors, zero page errors, zero source-file modifications (git status --short empty before AND after), CACHE_NAME still 'iron-rabbit-v170', TEST11_ dataset fully cleaned up (0 remaining).",
+  "test_11_overall": "PASS",
+  "sub_test_results": {
+    "A_baseline_seed": "PASS — 29 TEST11_ notes seeded via localforage (IronRabbit DB, notes store); L6 + L13 chains achieved; 3 packs, 5 categories, 24 distinct category_path values; BEFORE snapshot captured.",
+    "B_deep_hierarchy_integrity": "PASS — Repair #1 invariant (category === category_path[0], subcategory === category_path[1]) holds on all 29 notes. 0 invariant fails, 0 empty segments, 0 duplicate IDs, deepest=13.",
+    "C_list_view_serpentine": "PASS — All 12 depths L2..L13 verified in DOM. Matrix: L2/L3/L4=forward, L5/L6/L7/L8=reverse, L9/L10/L11/L12=forward, L13=reverse. flex-row-reverse header class present ONLY on reverse-band nodes. ml-4 mr-0 on reverse wrappers, ml-0 mr-4 on forward wrappers. All 12 levels PASS.",
+    "D_grid_view": "PASS — Switched to view_mode='icon' via settings and reloaded. Repair #8 does not affect Grid view. TEST11_ data intact (29 notes) after grid switch. (Grid + group_by_category flattens descendants into tile grid, does not mount NestedSubGroup — orthogonal to Repair #8, previously documented in iteration_96.)",
+    "E_filter_sort_readonly_integrity": "PASS — 63 (7 filters x 9 sorts) combinations exercised. After every combo, TEST11_ note count remained exactly 29. No tile mutations from filter/sort setting changes.",
+    "F_drag_drop_regression": "NOT EXECUTED interactively (Repairs #5/#6/#7 not exercised via live pointer/touch simulation in this read-only audit). Source-level invariants confirmed present in /app/frontend/src/components/SortableTilesProvider.jsx: srcRectRef snapshot at drag-start (Repair #7 lines 96-101), pointerRef + trackPointerMove (Repair #5 hardened, lines 108-124), isTouchDrag detection with modifier promotion for touch (Repair #6 lines 178-183), fail-closed containment check at drop time (lines 243-270). capturedSrcRect is consumed AND cleared on every drop path so srcRect cannot go stale between drags (Repair #7 line 204). See action_items for note about live-drag coverage.",
+    "G_reload_persistence": "PASS — page.reload after full sequence (view switch + 63 filter/sort cycles). TEST11_ data still 29 notes, deepest still L13, category_path values unchanged.",
+    "H_final_data_integrity": "PASS — BYTE-IDENTICAL BEFORE vs AFTER (JSON of {id, category_path, category, subcategory, pack_id, title} for all 29 notes, sorted by id). Tile IDs identical. No duplicate IDs. Path count unchanged (24 distinct). Pack count unchanged (3). Category count unchanged (5).",
+    "J_error_regression": "PASS — console.error count = 0, unhandled promise rejections = 0, page errors = 0 across the entire A..H run.",
+    "CLEANUP": "PASS — 29 TEST11_ entries removed from notes store; 0 remaining. IDB clean."
+  },
+  "before_after_aggregates": {
+    "before": {"notes": 29, "packs": 3, "categories": 5, "distinct_paths": 24, "deepest_level": 13},
+    "after":  {"notes": 29, "packs": 3, "categories": 5, "distinct_paths": 24, "deepest_level": 13},
+    "byte_identical": true,
+    "tile_ids_equal": true,
+    "duplicate_ids": []
+  },
+  "serpentine_matrix": {
+    "L2":"forward PASS","L3":"forward PASS","L4":"forward PASS",
+    "L5":"reverse PASS","L6":"reverse PASS","L7":"reverse PASS","L8":"reverse PASS",
+    "L9":"forward PASS","L10":"forward PASS","L11":"forward PASS","L12":"forward PASS",
+    "L13":"reverse PASS"
+  },
+  "filter_sort_matrix": {"filters_x_sorts": "7 x 9 = 63 combinations", "counts_seen": [29], "mutation_detected": false},
+  "repair_1_to_8_confirmation": {
+    "Repair_1_invariant_category_eq_path0": "PASS (0 fails on 29 notes)",
+    "Repair_2_present_in_source": true,
+    "Repair_3_source_marker": "ABSENT (pre-existing; previously flagged in iteration_82 as 'for future review' — not a Repair #8 or Test 11 regression)",
+    "Repair_4_biometric_export_gate": "present in BackupRestoreModal.jsx (2 markers)",
+    "Repair_5_pack_boundary_check": "present in SortableTilesProvider.jsx",
+    "Repair_6_touch_move_semantics": "present in SortableTilesProvider.jsx (isTouchDrag → modifier=true)",
+    "Repair_7_src_rect_snapshot": "present in SortableTilesProvider.jsx (srcRectRef, capturedSrcRect consume+clear)",
+    "Repair_8_serpentine_visual": "PASS (12/12 levels L2..L13 match spec in DOM)"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/tmp/test11_deep_expanded.png"],
+  "action_items": [
+    "None required. TEST 11 PASS across A/B/C/D/E/G/H/J and cleanup.",
+    "Info: Sub-Test F (live desktop mouse and touch dispatchTouchEvent simulation of cross-pack drag) was not executed in this audit because the request framing was strict READ-ONLY. All Repair #5/#6/#7 source invariants are confirmed intact via code inspection (see sub_test_results.F). If a subsequent iteration wants a live-drag test, it should use CDP Input.dispatchTouchEvent + PointerSensor programmatic drags across two pack containers; do not modify source."
+  ],
+  "critical_code_review_comments": [
+    "SortableTilesProvider.jsx Repairs #5/#6/#7 layered correctly: capturedSrcRect is consumed AND cleared BEFORE any early return in handleDragEnd (line 204), so a cancelled or short-circuited drag cannot leave a stale rect for the next drag. Fail-closed: if srcRect OR live pointer is missing, function returns without dispatching (line 262). This is the correct safety posture.",
+    "NestedSubGroup.jsx Repair #8: presentational-only, hierarchyLevel derived from depth+1, inReverseBand = Math.floor((L-1)/4)%2===1. Verified against DOM at 12 depths. Clean.",
+    "Pre-existing: Repair #3 source marker still absent (previously acknowledged, not introduced by Repair #8, not a Test 11 regression)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request — testing_type=frontend only)", "frontend": "100% on all executed sub-tests (A,B,C,D,E,G,H,J,CLEANUP)"},
+  "test_credentials": "Not required for TEST 11 (no auth flow exercised). App-lock PINs (1234/7777) documented in /app/memory/test_credentials.md.",
+  "seed_data_creation": "29-note TEST11_ dataset seeded and cleaned up: 3 packs (TEST11_pack_1/2/3, 4 pack tiles), 3 top-level cats (TEST11_CatA/B/C with subs), L6 chain (TEST11_CatA→L2→L3→L4→L5→L6), L13 chain (TEST11_Deep→DL2..DL13), 2 uncategorized. All TEST11_ entries deleted at end of run; 0 remaining verified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "TEST 11 (final cross-repair regression) is complete and PASS. Environment invariants confirmed: (1) CACHE_NAME='iron-rabbit-v170' unchanged; (2) git tree clean before AND after; (3) IDB via localforage requires CDN injection (window.localforage not exposed); (4) DB='IronRabbit', stores='notes'/'settings'/'metadata'/'files'/'templates'; (5) settings uses a SINGLE 'app_settings' key in the settings store (patch-then-write); (6) NestedSubGroup renders data-hierarchy-level and data-serpentine-band attributes for automated verification; (7) List view supports the full L2..L13 chain when categories/subgroups are expanded — expansion via JS click on aria-expanded=false toggles is more reliable than Playwright locator clicks because pointer-events overlays (rfd drag handles) can intercept real pointer clicks; (8) Playwright browser context is FRESH each mcp_browser_automation invocation, so seeding + verification + cleanup must all happen in a SINGLE script run.",
+  "console_errors_git_status": {"console_errors": 0, "page_errors": 0, "git_before": "clean", "git_after": "clean", "cache_name": "iron-rabbit-v170"},
+  "rca of the issue": "N/A — no issue found."
+}
