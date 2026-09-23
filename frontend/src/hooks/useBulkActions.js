@@ -223,14 +223,26 @@ export default function useBulkActions({ settings, fetchData }) {
   }, [_snapshotSelected, _restore, clearSelection, fetchData]);
 
   // ---- Recolor ----
+  // The palette drives TWO note properties, not one:
+  //   • `note.color`      → list-row wash, border, small accent pill
+  //   • `note.background` → grid/icon tile fill, expanded-body canvas
+  // Prior to this fix, Re Color updated only `note.color`, so the grid
+  // tile (which reads `note.background` via getBackgroundStyle) kept
+  // its old fill — the user perceived it as "only the border changed".
+  // Deriving a matching background from the same palette entry keeps
+  // every representation of the note visually consistent after Re Color.
   const bulkSetColor = useCallback(async (colorName) => {
     const { ids, snap } = await _snapshotSelected();
     if (ids.length === 0) return;
     const now = new Date().toISOString();
+    const cfg = NOTE_COLORS.find(c => c.name === colorName) || NOTE_COLORS[0];
+    const background = cfg.gradient
+      ? { type: "gradient", value: cfg.gradient }
+      : { type: "color",    value: cfg.accent };
     for (const id of ids) {
       const n = snap.get(id);
       if (!n) continue;
-      await StorageService.saveNote({ ...n, color: colorName, updated_at: now });
+      await StorageService.saveNote({ ...n, color: colorName, background, updated_at: now });
     }
     clearSelection();
     fetchData();
