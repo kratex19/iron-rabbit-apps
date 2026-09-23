@@ -1714,3 +1714,14 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
   - H. Repairs #1..#10 spot-check → srcRectRef + isTouchDrag + capturedSrcRect + flex-row-reverse + biometric gate + Repair #9 markers + `onOpenChange` guard + env-only ADMIN_TOKEN in tests + redacted memo/reports — all intact ✅
   - I. cache version appropriate (HTML network-first, no bump required) ✅
 - **Files changed**: `frontend/public/backup.html` (block replacement), `memory/CHANGELOG.md` (this entry + 2 token redactions in Repair #10 entry).
+
+## 2026-02-28 · Re Color Glitch Repair (v173)
+- **Bug**: Batch Studio → Select → Re Color updated only the border/list-row wash. Grid/icon tile fill kept its old color — user reported "only the border changed."
+- **Root cause**: Notes carry TWO independent visual properties. `note.color` drives border + list wash + accent pill (AccordionNoteItem uses it). `note.background` drives grid tile fill + icon container + expanded body canvas (NoteTile uses it via `getBackgroundStyle`). `bulkSetColor` in `useBulkActions.js` wrote ONLY `note.color`, leaving `note.background` stale.
+- **Fix**: In `useBulkActions.js` `bulkSetColor` (lines 225-249), derive a matching `background` object from the same `NOTE_COLORS` palette entry — `{type:'gradient', value: cfg.gradient}` for gradient palettes, `{type:'color', value: cfg.accent}` for solids — and write it alongside `color` in the same `StorageService.saveNote` call. Snapshot-based `_restore` unchanged (Undo restores both fields atomically because it captures the full note object).
+- **Cache bumped**: `iron-rabbit-v172` → `iron-rabbit-v173`.
+- **Validation**:
+  - iteration_100.json — testing agent seeded 4 notes, Re Color'd 2 to crimson gradient. localforage confirmed `{color:'crimson', background:{type:'gradient', value:'linear-gradient(135deg, #ef4444 0%, #be123c 100%)'}}`. Grid screenshot showed tiles transitioning purple → crimson gradient. Unselected notes byte-identical. Zero console errors. Cache=v173 verified via fetch.
+  - Palette matrix sim: all 25 NOTE_COLORS entries produce a valid `background` — 5 solids ({type:'color'} with accent hex), 20 gradients ({type:'gradient'} with linear-gradient CSS). Fallback to NOTE_COLORS[0] (purple) on unknown name is safe.
+- **Repairs #1–#11 intact**: no changes to hierarchy, DND, sorting, templates, tile packs, backup, auth, service-worker fetch behavior, or unrelated UI.
+- **Files changed**: `frontend/src/hooks/useBulkActions.js` (bulkSetColor body only), `frontend/public/service-worker.js` (CACHE_NAME bump), `memory/CHANGELOG.md` (this entry).

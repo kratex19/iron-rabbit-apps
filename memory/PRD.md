@@ -32,6 +32,12 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - **Repair #8**: Deep-hierarchy serpentine visual direction (L5+)
 - **TEST 11**: Final cross-repair regression audit — PASS
 - **Repair #9** (2026-02-28): Fix New Note template-selection premature-unmount bug
+- **Repair #10** (2026-02-28): Admin token cleanup — env-only in tests, redacted reports/memo, moved leaky ZIPs out of public/
+- **Repair #11** (2026-02-28): Stale backup links in backup.html replaced with disabled-state notice
+- **TEST 11 v2**: Post-Repair-#11 regression audit — PASS
+- **Repair #12 diagnostic** (read-only): confirmed NO regression at v172; template flow works
+- **v172 published to production** (2026-02-28)
+- **Re Color glitch repair** (2026-02-28, v173): bulkSetColor now writes matching note.background alongside note.color so grid tile fill + border stay consistent
   - Root cause: `if (!isOpen) return null;` in `TemplateModal.jsx` synchronously unmounted the nested Radix Dialog mid-pointer-event, causing parent NoteModal to close via `onPointerDownOutside`
   - Fix: removed early return so Radix owns lifecycle; added defensive `onOpenChange={(open) => { if (!open) onClose(); }}` guard in NoteModal
   - Cache bumped `v170` → `v171`
