@@ -73,7 +73,7 @@ export default function FeaturedImageBanner({
       const dataUrl = await downscaleImage(file, MAX_SIDE);
       const blob = await (await fetch(dataUrl)).blob();
       const compressed = new File([blob], file.name || "featured.jpg", { type: blob.type || "image/jpeg" });
-      const meta = await StorageService.addAttachment(compressed);
+      const meta = await StorageService.saveAttachment(compressed);
       // If the note already had a Featured Image, delete the previous blob
       // so replacement never leaves an orphan in filesStore.
       const oldId = attachmentId;

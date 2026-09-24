@@ -1,0 +1,74 @@
+{
+  "summary": "FEATURED IMAGE PHASE 2 VALIDATION (baseline v173 + Feature branch). Verified via live preview URL (https://color-task-timer.preview.emergentagent.com) with Playwright + real JPEG upload. VERDICT: **FAIL**. Root cause: FeaturedImageBanner.jsx:76 calls a non-existent method `StorageService.addAttachment(compressed)`. The actual API on StorageService is `saveAttachment(file)` (returns {id,name,type,size}). Console error observed on every upload attempt: `TypeError: _storage_storageService__WEBPACK_IMPORTED_MODULE_5__.default.addAttachment is not a function at handleFile`. Because handleFile throws, `onChange({attachment_id: meta.id})` is never fired, so note.featured_image is NEVER persisted, filesStore stays empty (never initialized), the hero image never renders — the entire Add / Change flow is dead in the water. Empty-state add button, wiring, testids, isDark styling, hero/chip variants, and diff scope are otherwise implemented correctly; simply swapping the method name to `saveAttachment` should make the feature work end-to-end.",
+  "verdict": "FAIL — Featured Image Phase 2 upload path is broken by a wrong API call in FeaturedImageBanner.jsx (StorageService.addAttachment does not exist).",
+  "cache_version_served": "iron-rabbit-v174 (confirmed via fetch('/service-worker.js') → CACHE_NAME regex match)",
+  "empty_state_present": true,
+  "add_success": false,
+  "remove_success": "not testable — add step never completes; but code path uses StorageService.deleteAttachment which DOES exist",
+  "change_success": false,
+  "note_content_untouched": "code path never mutates title/content/category — verified by inspection of FeaturedImageBanner.jsx handleFile / handleRemove (onChange only carries {attachment_id} or null; NoteModal spreads note into save payload with only featured_image overridden)",
+  "pack_curated_untouched": "TRUE — git diff HEAD~1..HEAD shows the only changed files are: frontend/public/service-worker.js (CACHE_NAME v173→v174), frontend/src/components/BackgroundPicker.jsx (added `export` on downscaleImage — no behavior change), frontend/src/notes/FeaturedImageBanner.jsx (NEW 252 lines), frontend/src/notes/FullScreenNote.jsx (+14 hero mount), frontend/src/notes/NoteModal.jsx (+15 chip mount + state/save wiring), frontend/src/storage/storageService.js (+12: cleanup of featured_image blob in deleteNote and inclusion in listAllAttachments). NO changes to tilePacks.js, aiToolsPack.js, additives.js, apps.js, recipes.js, quickAddTemplates.js, noteIcons.js, posts.js, or any curated seed data.",
+  "git_diff_scope": [
+    "frontend/public/service-worker.js — CACHE_NAME v173→v174",
+    "frontend/src/components/BackgroundPicker.jsx — `export async function downscaleImage`",
+    "frontend/src/notes/FeaturedImageBanner.jsx — NEW component (hero + chip variants)",
+    "frontend/src/notes/FullScreenNote.jsx — mounts hero variant when onSaveInline && note.id",
+    "frontend/src/notes/NoteModal.jsx — mounts chip variant, wires featured_image state + save",
+    "frontend/src/storage/storageService.js — deleteNote cleanup + listAllAttachments dedupe"
+  ],
+  "diagnostic_evidence": {
+    "sw_cache_name_served": "iron-rabbit-v174",
+    "bundle_markers": {
+      "featured-image-add-hero": true,
+      "featured-image-chip-row": true,
+      "featured-image-remove-hero": true,
+      "downscaleImage_export": true,
+      "bundle_len": 18608864
+    },
+    "ui_wiring": {
+      "FullScreenNote_hero_mounts": true,
+      "empty_state_add_hero_button_visible": true,
+      "file_input_data-testid_present": true,
+      "chip_variant_in_NoteModal_wired": true
+    },
+    "runtime_error": "TypeError: _storage_storageService__WEBPACK_IMPORTED_MODULE_5__.default.addAttachment is not a function at handleFile (bundle.js:327809:90)",
+    "post_upload_state": {
+      "hero_img_rendered": false,
+      "change_hero_btn_visible": false,
+      "remove_hero_btn_visible": false,
+      "note.featured_image_in_indexedDB": null,
+      "filesStore_created": false
+    }
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FeaturedImageBanner.jsx handleFile()", "issue": "Calls StorageService.addAttachment which does not exist. Correct method is saveAttachment (line 317 of storageService.js). Throws TypeError and blocks the entire upload → persist → render pipeline.", "selector": "[data-testid='featured-image-add-hero']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Featured Image Add / Change (hero + chip)", "issue": "handleFile → StorageService.addAttachment(compressed) TypeError. onChange never fires. note.featured_image never persisted. filesStore never populated. Both variants (hero in FullScreenNote and chip in NoteModal) share the same broken handleFile.", "affected_selectors": ["featured-image-add-hero","featured-image-add-chip","featured-image-change-hero","featured-image-change-chip","featured-image-file-input"]}
+    ],
+    "design_issues": []
+  },
+  "action_items": [
+    "In /app/frontend/src/notes/FeaturedImageBanner.jsx line 76, replace `StorageService.addAttachment(compressed)` with `StorageService.saveAttachment(compressed)`. Return shape is compatible (`{id, name, type, size}`). No other call-sites need updating.",
+    "After fix, bump CACHE_NAME to v175 so users receive the corrected bundle (v174 currently ships the broken FeaturedImageBanner).",
+    "Optional: add a smoke unit for FeaturedImageBanner.handleFile that mocks StorageService and asserts saveAttachment is invoked — would have caught this at build time."
+  ],
+  "critical_code_review_comments": [
+    "FeaturedImageBanner.jsx handleFile uses a non-existent StorageService.addAttachment — trivial rename fix (should be saveAttachment).",
+    "handleFile correctly deletes the previous blob after onChange to avoid orphans — good pattern, but only reachable once the addAttachment bug is fixed.",
+    "storageService.deleteNote + listAllAttachments cleanup wiring for featured_image is CORRECT and non-destructive to existing attachments logic.",
+    "NoteModal.jsx correctly spreads featured_image into the save payload alongside attachments — no risk of clobbering other fields.",
+    "downscaleImage export is a clean, minimal change — no side effects on BackgroundPicker's own usage.",
+    "Service-worker CACHE_NAME correctly bumped v173→v174 to force clients to fetch the new bundle."
+  ],
+  "test_report_links": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (feature is 100% frontend/localforage)", "frontend": "0% — upload path throws TypeError on first file selection; render/persist/remove/change all unreachable"},
+  "seed_data_creation": "None — used existing server-restored notes (Uncategorized 'Test Note' id=54968edb-b74f-4c40-a013-11b8f0fc672b) for the FullScreenNote hero test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Bug is a single-line typo. After main agent renames addAttachment → saveAttachment in FeaturedImageBanner.jsx (line 76) and bumps CACHE_NAME to v175, re-run: (1) open a note in list view → click accordion title → click accordion-fullscreen-<id>; (2) verify [data-testid=featured-image-add-hero] visible; (3) set input files on [data-testid=featured-image-file-input] with a real JPEG; (4) wait 4-5s; (5) assert [data-testid=featured-image-hero-img] visible AND indexedDB.IronRabbit.notes.<id>.featured_image = {attachment_id: 'att_...'} AND indexedDB.IronRabbit.files has that key; (6) test Change (second upload replaces attachment_id and old blob is evicted); (7) test Remove (featured_image → null and blob deleted from files store).",
+  "rca_of_the_issue": "SYMPTOM: Clicking 'Add Featured Image' → picking a file → nothing renders, no toast, no persistence. CONSOLE: `TypeError: StorageService.addAttachment is not a function at handleFile`. ROOT CAUSE: FeaturedImageBanner.jsx line 76 calls `StorageService.addAttachment(compressed)`, but StorageService (backend of this feature, in storageService.js) exposes `saveAttachment(file)` (line 317) — not `addAttachment`. The method name was chosen inconsistently with the surrounding module. MITIGATION: rename the call site to `saveAttachment`. Return contract is already compatible: both were expected to return `{id, ...}` and the caller only reads `.id`. IMPACT: 100% of Featured Image Phase 2 flows are non-functional in the currently served v174 bundle — both hero (FullScreenNote) and chip (NoteModal) variants."
+}
