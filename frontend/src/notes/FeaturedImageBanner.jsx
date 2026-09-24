@@ -196,74 +196,38 @@ export default function FeaturedImageBanner({
 
   // ------------------------------- HERO --------------------------------
   if (variant === "hero") {
-    // Smoked-glass container consistent with the rest of the Iron Rabbit
-    // visual language. Sits above the writing area but never below it.
+    // Phase 3A: the ✳️ header star is the SOLE Featured Image control.
+    // The hero variant becomes pure presentation — no Add chip when empty,
+    // no Change/Remove hover controls when set. When no image exists we
+    // render nothing so the writing area gets its full room back.
+    if (!attachmentId) return null;
+
+    // Smoked-glass container consistent with the Iron Rabbit visual
+    // language. ~95 % of the available Expanded Text View width, centered.
+    // Image fills that container at its natural aspect ratio — no crop,
+    // no stretch, no forced height.
     const glass = isDark
       ? "bg-white/10 border-white/15 backdrop-blur-md"
       : "bg-white/60 border-gray-300/70 backdrop-blur-md";
 
-    if (!attachmentId) {
-      // Empty state — subtle chip. Tapping opens picker.
-      return (
-        <>
-          <button
-            type="button"
-            onClick={openPicker}
-            disabled={disabled || busy}
-            className={`w-full rounded-2xl border ${glass} px-4 py-3 flex items-center justify-center gap-2 text-sm transition-colors ${
-              isDark ? "text-slate-100 hover:bg-white/15" : "text-gray-700 hover:bg-white/80"
-            } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-            data-testid="featured-image-add-hero"
-          >
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4 opacity-70" />}
-            <span className="font-medium">Add Featured Image</span>
-          </button>
-          {hiddenInput}
-        </>
-      );
-    }
     return (
-      <>
-        <div
-          className={`relative w-full rounded-2xl overflow-hidden border ${glass}`}
-          data-testid="featured-image-hero"
-        >
-          {url ? (
-            <img
-              src={url}
-              alt="Featured"
-              className="block w-full h-auto max-h-72 object-cover"
-              data-testid="featured-image-hero-img"
-            />
-          ) : (
-            <div className="w-full h-32 flex items-center justify-center">
-              <Loader2 className="w-5 h-5 animate-spin opacity-60" />
-            </div>
-          )}
-          {/* Hover controls — subtle chips top-right. Always tappable on touch. */}
-          <div className="absolute top-2 right-2 flex gap-1.5">
-            <button
-              type="button"
-              onClick={openPicker}
-              disabled={busy}
-              className="px-2 py-1 rounded-full text-[11px] font-medium bg-black/55 text-white backdrop-blur-sm hover:bg-black/70 transition-colors flex items-center gap-1"
-              data-testid="featured-image-change-hero"
-            >
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />} Change
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              disabled={busy}
-              className="px-2 py-1 rounded-full text-[11px] font-medium bg-black/55 text-white backdrop-blur-sm hover:bg-red-600/85 transition-colors flex items-center gap-1"
-              data-testid="featured-image-remove-hero"
-            >
-              <Trash2 className="w-3 h-3" /> Remove
-            </button>
+      <div
+        className={`relative w-[95%] mx-auto rounded-2xl overflow-hidden border ${glass}`}
+        data-testid="featured-image-hero"
+      >
+        {url ? (
+          <img
+            src={url}
+            alt="Featured"
+            className="block w-full h-auto max-h-[70vh] object-contain"
+            data-testid="featured-image-hero-img"
+          />
+        ) : (
+          <div className="w-full h-32 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 animate-spin opacity-60" />
           </div>
-        </div>
-        {hiddenInput}
-      </>
+        )}
+      </div>
     );
   }
 
