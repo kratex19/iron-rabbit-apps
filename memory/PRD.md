@@ -38,6 +38,7 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - **Repair #12 diagnostic** (read-only): confirmed NO regression at v172; template flow works
 - **v172 published to production** (2026-02-28)
 - **Re Color glitch repair** (2026-02-28, v173): bulkSetColor now writes matching note.background alongside note.color so grid tile fill + border stay consistent
+- **Featured Image — Phase 2** (2026-02-28, v175): optional per-note Featured Image (hero banner in FullScreenNote, chip editor in NoteModal). Reuses existing StorageService filesStore; blob-lifecycle safe (Change/Remove/Delete cleanups); backup/restore inherited; curated Tile Packs untouched. Validated PASS via iteration_103.
   - Root cause: `if (!isOpen) return null;` in `TemplateModal.jsx` synchronously unmounted the nested Radix Dialog mid-pointer-event, causing parent NoteModal to close via `onPointerDownOutside`
   - Fix: removed early return so Radix owns lifecycle; added defensive `onOpenChange={(open) => { if (!open) onClose(); }}` guard in NoteModal
   - Cache bumped `v170` → `v171`

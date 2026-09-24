@@ -1,0 +1,79 @@
+{
+  "summary": "RETEST — Featured Image Phase 2 after single-line fix (StorageService.addAttachment → saveAttachment). Verified on live preview URL (https://color-task-timer.preview.emergentagent.com) with Playwright + real JPEG upload against a freshly-created note. VERDICT: PASS. Fix is in place at FeaturedImageBanner.jsx:76 and CACHE_NAME has been bumped to iron-rabbit-v175 (served & confirmed). All Phase 2 flows work end-to-end: chip-variant Add inside NoteModal, persist to IndexedDB, reopen shows hero variant in FullScreenNote, hero Change replaces attachment_id AND deletes the previous blob from filesStore (no orphans), hero Remove clears note.featured_image to null and restores the 'Add Featured Image' empty state. Zero TypeErrors, zero console errors during the entire flow. Title / content / category untouched throughout.",
+  "verdict": "PASS — Featured Image Phase 2 fully functional on v175.",
+  "cache_version_served": "iron-rabbit-v175 (confirmed via fetch('/service-worker.js'))",
+  "empty_state_present": true,
+  "add_success": true,
+  "change_success": true,
+  "remove_success": true,
+  "note_content_untouched": "Verified — title='TEST_Featured_Note', category='', content_len=0 remained unchanged across Add/Change/Remove operations.",
+  "pack_curated_untouched": "TRUE — no server-side or pack file mutations occurred. Feature is 100% frontend/localforage; only IndexedDB stores 'notes' and 'files' were touched.",
+  "git_diff_scope": [
+    "frontend/src/notes/FeaturedImageBanner.jsx — line 76: StorageService.addAttachment → StorageService.saveAttachment",
+    "frontend/public/service-worker.js — CACHE_NAME v174 → v175"
+  ],
+  "diagnostic_evidence": {
+    "sw_cache_name_served": "iron-rabbit-v175",
+    "code_fix_confirmed_line_76": "const meta = await StorageService.saveAttachment(compressed);",
+    "test_flow": {
+      "step1_create_note_with_chip_variant": {
+        "testid_seen": ["featured-image-chip-row", "featured-image-add-chip", "featured-image-file-input"],
+        "chip_add_visible": true
+      },
+      "step2_upload_via_chip": {
+        "chip_thumb_rendered": true,
+        "change_chip_visible": true,
+        "remove_chip_visible": true,
+        "idb_after_save": {
+          "notesCount": 8,
+          "fileKeysCount": 1,
+          "note.featured_image": {"attachment_id": "att_ft51grdnv9mueuer1i"},
+          "note.title": "TEST_Featured_Note",
+          "note.content_len": 0
+        }
+      },
+      "step3_reopen_fullscreen_hero_variant": {
+        "hero_img_rendered": true,
+        "change_hero_visible": true,
+        "remove_hero_visible": true
+      },
+      "step4_change": {
+        "new_attachment_id": "att_sil9x7m247mueuezsi",
+        "old_blob_evicted_from_filesStore": true,
+        "old_attachment_id": "att_ft51grdnv9mueuer1i",
+        "title_content_untouched": true
+      },
+      "step5_remove": {
+        "featured_image_after": null,
+        "add_hero_visible_again": true,
+        "toast": "Featured Image removed",
+        "title_content_category_untouched": true
+      }
+    },
+    "console_errors_total": 0,
+    "type_errors_total": 0,
+    "post_upload_state": {
+      "hero_img_rendered": true,
+      "note.featured_image_persisted": true,
+      "filesStore_populated": true
+    }
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Fix at FeaturedImageBanner.jsx:76 is correct and minimal (single-line rename).",
+    "Blob-lifecycle handling in handleFile is correct: onChange fires with new attachment_id BEFORE deleting the old blob, so persistence writes happen first and old blob eviction is a best-effort tail call (wrapped in try/catch).",
+    "Both variants (hero + chip) share the same handleFile / handleRemove, so verifying either variant covers the shared logic.",
+    "SW CACHE_NAME v174→v175 correctly forces clients to fetch the corrected bundle; the update was activated on Preview.",
+    "One minor observation (non-blocking): FullScreenNote and NoteModal both mount FeaturedImageBanner but on different key flows (edit vs open-fullscreen). If a note is unsaved (no id yet) and the user tries chip Add, the disabled prop should be set. Current code allows Add before first save — verified working here because the modal-level state carries the featured_image into the save payload. No fix needed."
+  ],
+  "test_report_links": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% — Add / Change / Remove all pass across chip and hero variants"},
+  "seed_data_creation": "Created a note titled 'TEST_Featured_Note' via NoteModal (FAB); attempted cleanup afterwards (server-restore replays user notes on reload — the transient TEST note lived only during the run and was not present after reload).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Feature complete. If regression suspected: (1) fetch('/service-worker.js') should return CACHE_NAME 'iron-rabbit-v175' (or later). (2) Create a new note via [data-testid='fab-add-note']; NoteModal opens with [data-testid='featured-image-chip-row'] visible. (3) Upload JPEG to [data-testid='featured-image-file-input']; expect [data-testid='featured-image-chip-thumb'] to appear within 4-5s. (4) Save via [data-testid='note-modal-save']. (5) Open note via [data-testid='accordion-note-title-<id>'] then [data-testid='accordion-fullscreen-<id>']; expect [data-testid='featured-image-hero-img']. (6) Change: set files on featured-image-file-input again — old blob should disappear from IDB 'files' store. (7) Remove via [data-testid='featured-image-remove-hero']; note.featured_image should become null and add-hero should reappear.",
+  "rca_of_the_issue": "Previous iteration (102) identified single-line typo: StorageService.addAttachment did not exist. Main agent renamed it to saveAttachment on line 76 of FeaturedImageBanner.jsx and bumped SW CACHE_NAME v174→v175. This retest confirms the fix works end-to-end. No further action required."
+}

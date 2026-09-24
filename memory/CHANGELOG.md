@@ -1725,3 +1725,28 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
   - Palette matrix sim: all 25 NOTE_COLORS entries produce a valid `background` — 5 solids ({type:'color'} with accent hex), 20 gradients ({type:'gradient'} with linear-gradient CSS). Fallback to NOTE_COLORS[0] (purple) on unknown name is safe.
 - **Repairs #1–#11 intact**: no changes to hierarchy, DND, sorting, templates, tile packs, backup, auth, service-worker fetch behavior, or unrelated UI.
 - **Files changed**: `frontend/src/hooks/useBulkActions.js` (bulkSetColor body only), `frontend/public/service-worker.js` (CACHE_NAME bump), `memory/CHANGELOG.md` (this entry).
+
+## 2026-02-28 · Featured Image — Phase 2 (v175)
+- **Feature**: optional per-note Featured Image. Hero banner above the writing area in FullScreenNote (auto-saves via `onSaveInline`), compact editor row in NoteModal above "Photos & files" (pending state, persisted on Save). Smoked-glass Iron Rabbit visual language, works in light + dark.
+- **Data model**: new OPTIONAL note property `featured_image = { attachment_id }`. Absent when unset. Zero migration (saveNote is a full-object passthrough).
+- **Storage**: reuses the existing `StorageService.filesStore` — no second image database. Uploads pass through `downscaleImage(file, 1200)` before `saveAttachment(...)`.
+- **Blob-lifecycle safety**:
+  - Change → persists new pointer first, then deletes previous blob (no orphans, no double-delete).
+  - Remove → clears pointer AND deletes blob.
+  - Note delete → extended `storageService.deleteNote` to also purge `featured_image.attachment_id`.
+  - Storage Cleanup wizard → extended `listAllAttachments` cross-reference to index `featured_image.attachment_id` (never flagged as orphan).
+- **Backup / Restore**: fully inherited — existing `exportAllData`/`importAllData` walk the entire filesStore and preserve the note payload. No payload version bump needed.
+- **Curated Tile Pack protection**: zero touches to `data/tilePacks.js`, `aiToolsPack.js`, or any curated seed. Featured Images live on the user's instantiated note documents only.
+- **Files changed**:
+  - `frontend/src/notes/FeaturedImageBanner.jsx` — NEW (~252 lines, hero + chip variants, shared handleFile/handleRemove)
+  - `frontend/src/notes/FullScreenNote.jsx` — +14 lines, mounts hero variant when `onSaveInline && note?.id`
+  - `frontend/src/notes/NoteModal.jsx` — +15 lines, mounts chip variant, wires `featured_image` state + save payload
+  - `frontend/src/storage/storageService.js` — +12 lines (deleteNote cleanup + listAllAttachments cross-ref)
+  - `frontend/src/components/BackgroundPicker.jsx` — `export` on `downscaleImage` (reuse)
+  - `frontend/public/service-worker.js` — `CACHE_NAME` v173 → v175 (v174 shipped with a single-line typo caught by iteration_102; corrected on v175)
+- **Validation**:
+  - iteration_102 (v174) — caught `StorageService.addAttachment` typo. Fixed to `saveAttachment`.
+  - iteration_103 (v175) — **PASS**: Add via chip (create-note flow) persists `attachment_id`; reopen via list → fullscreen renders hero image; Change swaps `attachment_id` AND evicts old blob from filesStore; Remove clears to `null` and restores the empty-state chip; title/content/category untouched throughout; console.errors = 0; TypeErrors = 0; served SW cache = `iron-rabbit-v175`.
+- **Regression protection**: Repairs #1–#11 + Re Color fix + Phase 1 architecture all intact.
+- **NoteTile (collapsed grid)**: intentionally unchanged in Phase 2 — Featured Image is expanded-view only, `note.background` continues to drive tile fill.
+- **First-time guide**: existing QuickGuideProvider mechanism exists; Featured Image quickguide card can be added as a follow-up (not part of Phase 2 surgical scope).
