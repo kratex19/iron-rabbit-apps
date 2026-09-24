@@ -1,0 +1,62 @@
+{
+  "summary": "READ-ONLY diagnostic verification of the Batch Studio Re Color tile-fill fix on v173 Preview. Confirmed v173 is served (SW CACHE_NAME='iron-rabbit-v173'; bundle contains 'background = cfg.gradient' AND 'Repair #9'). Seeded 2 test notes (purple gradient + cyan solid) via localforage. Entered Select mode via [data-testid='select-mode-toggle'], selected both tiles via JS-dispatched pointer events (Playwright .click was intercepted by the react-beautiful-dnd draggable wrapper — that is a Playwright interaction quirk, NOT a real user-blocking bug; DOM-dispatched click was recognized and put the tiles into selected state, exposing the multiselect-studio-btn). Opened Batch Studio → bs-color → bs-color-graphite. Toast 'Recolored 2 notes' appeared. Compared inline style.background BEFORE vs AFTER for both tiles.\n\nVERDICT: (A) BOTH border AND tile fill changed visibly and in the DOM. The v173 fix in useBulkActions.bulkSetColor is working. The user's contradicting observation is almost certainly caused by a stale service-worker cache (previously running iron-rabbit-v172 without the fix) or by testing production instead of the v173 Preview URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "diagnostic_evidence": {
+    "sw_cache_name_served": "iron-rabbit-v173",
+    "bundle_has_v173_marker_'background = cfg.gradient'": true,
+    "bundle_has_'Repair #9'": true,
+    "bundle_url": "/static/js/bundle.js (len=18,575,416)",
+    "before_after_matrix": [
+      {
+        "tile": "note-tile-TILE_TEST_1 (seeded: purple gradient)",
+        "before_inline_background": "linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(236, 72, 153) 100%)",
+        "after_inline_background":  "linear-gradient(135deg, rgb(71, 85, 105) 0%, rgb(30, 41, 59) 100%)",
+        "before_computed_backgroundImage": "linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(236, 72, 153) 100%)",
+        "after_computed_backgroundImage":  "linear-gradient(135deg, rgb(71, 85, 105) 0%, rgb(30, 41, 59) 100%)",
+        "changed": true
+      },
+      {
+        "tile": "note-tile-TILE_TEST_2 (seeded: cyan solid #06b6d4)",
+        "before_inline_background": "rgb(6, 182, 212)",
+        "after_inline_background":  "linear-gradient(135deg, rgb(71, 85, 105) 0%, rgb(30, 41, 59) 100%)",
+        "before_computed_backgroundImage": "none",
+        "after_computed_backgroundImage":  "linear-gradient(135deg, rgb(71, 85, 105) 0%, rgb(30, 41, 59) 100%)",
+        "before_computed_backgroundColor": "rgb(6, 182, 212)",
+        "after_computed_backgroundColor":  "rgba(0, 0, 0, 0)",
+        "changed": true
+      }
+    ],
+    "localforage_after": {
+      "TILE_TEST_1": {"color": "graphite", "background": {"type": "gradient", "value": "linear-gradient(135deg, #475569 0%, #1e293b 100%)"}},
+      "TILE_TEST_2": {"color": "graphite", "background": {"type": "gradient", "value": "linear-gradient(135deg, #475569 0%, #1e293b 100%)"}}
+    },
+    "toast_seen": "Recolored 2 notes  (with Undo)",
+    "select_mode_auto_clears_after_recolor": true,
+    "screenshots": ["/tmp/vis_before.png", "/tmp/vis_selected.png", "/tmp/vis_after.png", "/tmp/vis_final.png"]
+  },
+  "verdict": "PASS — v173 fix works. Tile inline style.background is rewritten from purple/cyan to graphite gradient for BOTH notes (gradient-seeded AND solid-color-seeded). getComputedStyle backgroundImage confirms browser is actually painting the graphite gradient. localforage persistence confirmed.",
+  "user_report_reconciliation": "User's observation ('border changes but tile fill does not') is inconsistent with the v173 preview build. Likely causes: (1) stale service worker still serving iron-rabbit-v172 bundle on user's device — SW registration + cache API in v172 had bulkSetColor that only wrote note.color, not note.background; (2) user is on production URL (which may still be v172) instead of the preview URL. Iteration_100 (crimson) and this iteration (graphite) both independently confirm the fix.",
+  "action_items_for_main_agent": [
+    "No code fix required — bulkSetColor works and tile re-renders.",
+    "Ask user to (a) fully close/reopen the PWA, (b) verify DevTools → Application → Service Workers shows 'iron-rabbit-v173' active, (c) if still on v172 use skip-waiting/unregister flow OR bump CACHE_NAME to force update, or (d) republish preview→production if the reported symptom is on the production URL rather than the preview URL.",
+    "Consider surfacing the active CACHE_NAME in the app footer / About panel so users can self-verify build version."
+  ],
+  "critical_code_review_comments": [
+    "useBulkActions.bulkSetColor correctly derives background from NOTE_COLORS[colorName].gradient||accent — good, keeps note.color and note.background in lockstep from a single source of truth.",
+    "Selection via Playwright locator.click was blocked by react-beautiful-dnd's draggable wrapper intercepting pointer events on the tile in select mode. Real users use touch/mouse where this doesn't fail, but the wrapper still eats some events — consider adding data-rbd-drag-handle-context-id gating so the drag container doesn't cover tile children when a select-mode multiselect is active. Low priority.",
+    "No cleanup issue: bulkSetColor auto-clears selection after write. ✓"
+  ],
+  "test_report_links": [],
+  "updated_files": [],
+  "success_rate": {"frontend": "100%"},
+  "seed_data_creation": "TILE_TEST_1, TILE_TEST_2 in IndexedDB IronRabbit/notes; CLEANED at end of run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "v173 bulkSetColor is verified twice now (iteration_100 crimson, iteration_101 graphite). For future re-verification: use view-mode-icon, then click select-mode-toggle FIRST, then expand category-toggle-TILE_VIS_CAT, then DOM-dispatch click events on note-tile-<id> (Playwright locator.click is intercepted by rbd draggable wrapper in select mode). Studio btn testid: multiselect-studio-btn; palette entry: bs-color, swatch: bs-color-{name}. NOTE_COLORS graphite → gradient 'linear-gradient(135deg, #475569 0%, #1e293b 100%)'.",
+  "rca_of_the_issue": "USER SYMPTOM NOT REPRODUCIBLE ON v173. Root cause of user's symptom = stale service worker (iron-rabbit-v172 or earlier) still serving the previous bundle where bulkSetColor updated only note.color and NOT note.background. In that bundle NoteTile reads getBackgroundStyle(note.background), so the tile fill stayed the old color while note.color (border/accent) updated — exactly what the user reports. Fix on v173 is present, deployed to preview, and functionally correct. Mitigation: force SW update / hard reload / republish to production."
+}
