@@ -6,6 +6,18 @@
 
 import AI_TOOLS_100_PACK from "./aiToolsPack";
 
+// Repair #4 (2026-09-24) — AI Tools pack temporarily CLOSED / shelved.
+// The pack is not currently registered in the exported TILE_PACKS list
+// (see conditional spread at the tail of the array), so it does not
+// appear in the Tile Packs modal and cannot be applied by users. The
+// underlying files remain intact for a future rebuild:
+//   • /app/frontend/src/data/aiToolsPack.js        (normalizer)
+//   • /app/frontend/src/data/aiToolsPack.raw.json  (authoritative data)
+// Pre-shelf ZIP snapshot: /app/.local_backups_offline/
+//   IronRabbit_pre-Repair4_iron-rabbit-v179_2026-09-24.zip
+// To re-expose the pack in the future: flip SHOW_AI_TOOLS_PACK to true.
+const SHOW_AI_TOOLS_PACK = false;
+
 // ---- Reusable background helpers (keeps the data compact) ---------------
 const G = {
   ocean:      "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
@@ -636,8 +648,9 @@ export const TILE_PACKS = [
     })(),
   },
   // ---- AI Tools — 100 Free AI Tools (imported from aiToolsPack.raw.json) ----
-  // Registered at the tail so it appears alongside the other curated
-  // packs in TilePacksModal automatically. Every one of its 100 tiles is
-  // sourced verbatim from the authoritative JSON — no invented data.
-  AI_TOOLS_100_PACK,
+  // SHELVED per Repair #4 (2026-09-24). Conditionally spread: entry is
+  // absent from the exported list while SHOW_AI_TOOLS_PACK is false, so
+  // TilePacksModal no longer surfaces it. Flip the flag at the top of
+  // this file to bring the pack back without any other edits.
+  ...(SHOW_AI_TOOLS_PACK ? [AI_TOOLS_100_PACK] : []),
 ];
