@@ -1,0 +1,101 @@
+{
+  "summary": "FEATURED IMAGE — RESPONSIVE-SIZING + STAR-ONLY VALIDATION (baseline v177 → v178). Verified end-to-end on the live preview URL via Playwright with a real JPEG upload against an existing FullScreenNote (T2). VERDICT: PASS. v178 removes the last remaining editor-area control (the Featured Image chip that had lived in NoteModal above 'Photos & files' since Phase 2). The gold/orange ✳️ header star in FullScreenNote is now the SOLE Featured Image entry point across the entire app: Add / Change / Remove all funnel through featured-image-star-btn. Hero variant remains purely presentational (renders null when empty, image-only when set) and is correctly centered via w-[95%] mx-auto with object-contain max-h-[70vh]. Measurements across desktop/tablet/mobile confirm symmetric margins and responsive scaling. Zero console errors.",
+  "verdict": "PASS — Responsive-sizing + Star-Only correction fully in effect on v178.",
+  "cache_version_served": "iron-rabbit-v178 (verified via fetch('/service-worker.js'))",
+  "git_diff_scope": [
+    "frontend/public/service-worker.js — CACHE_NAME 'iron-rabbit-v177' → 'iron-rabbit-v178' (single-line bump).",
+    "frontend/src/notes/NoteModal.jsx — removed the <FeaturedImageBanner variant='chip' .../> block (10 lines) above the 'Photos & files' section, replaced with a documentation comment. The featuredImage state variable and its save-payload wiring are UNTOUCHED, so notes that already carry a featured_image continue to round-trip through edit correctly.",
+    "No changes to FeaturedImageBanner.jsx or FullScreenNote.jsx. The chip variant code path in FeaturedImageBanner is now unreferenced but retained (dead code — see minor comment)."
+  ],
+  "diagnostic_evidence": {
+    "sw_cache_name_served": "iron-rabbit-v178",
+    "notemodal_star_only_validation": {
+      "featured-image-chip-row_present_should_be_FALSE": false,
+      "featured-image-add-chip_present_should_be_FALSE": false,
+      "featured-image-file-input-chip_present_should_be_FALSE": false,
+      "verdict": "NoteModal no longer renders any Featured Image control surface — star is truly the sole entry point"
+    },
+    "fullscreen_empty_state": {
+      "featured-image-star-btn_present": true,
+      "featured-image-add-hero_present_should_be_FALSE": false,
+      "featured-image-hero_present_should_be_FALSE": false,
+      "featured-image-file-input-star_present": true,
+      "featured-image-file-input-hero_present_should_be_FALSE": false,
+      "featured-image-file-input-chip_present_should_be_FALSE": false,
+      "n_featured_image_file_inputs_in_dom": 1,
+      "fullscreen-translate-btn_present": true,
+      "fullscreen-share-btn_present": true,
+      "fullscreen-save-status_present": true
+    },
+    "hero_responsive_measurements_after_upload": {
+      "desktop_1920x1080": {
+        "hero_width_px": 801.8,
+        "parent_width_px": 892,
+        "width_ratio_of_parent": 0.8989,
+        "margin_left_px": 21.09,
+        "margin_right_px": 21.09,
+        "margins_symmetric": true,
+        "img_object_fit": "contain",
+        "img_max_height_px": 756,
+        "img_class": "block w-full h-auto max-h-[70vh] object-contain",
+        "change_hero_absent": true,
+        "remove_hero_absent": true
+      },
+      "tablet_768x1024": {
+        "hero_width_px": 649.8,
+        "parent_width_px": 732,
+        "width_ratio_of_parent": 0.8877,
+        "margin_left_px": 17.09,
+        "margin_right_px": 17.09,
+        "margins_symmetric": true,
+        "img_object_fit": "contain",
+        "img_max_height_px": 716.8,
+        "change_hero_absent": true,
+        "remove_hero_absent": true
+      },
+      "mobile_390x844": {
+        "hero_width_px": 290.69,
+        "parent_width_px": 354,
+        "width_ratio_of_parent": 0.8212,
+        "margin_left_px": 7.66,
+        "margin_right_px": 7.66,
+        "margins_symmetric": true,
+        "img_object_fit": "contain",
+        "img_max_height_px": 590.8,
+        "change_hero_absent": true,
+        "remove_hero_absent": true,
+        "note": "ratio drops from ~89% (desktop) to ~82% (mobile) because the writing-column parent is narrower than 95% of viewport at 390px and container padding consumes proportionally more; still symmetrically centered and clearly meets the 'never edge-to-edge, always inset' spec"
+      }
+    },
+    "star_menu_with_image": {
+      "featured-image-star-change_visible": true,
+      "featured-image-star-remove_visible": true
+    },
+    "after_remove_via_star": {
+      "hero_absent": true,
+      "star_present": true,
+      "add_hero_absent": true,
+      "toast_seen": "Featured Image removed"
+    },
+    "console_errors_across_full_flow": 0
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Surgical, correct diff — v178 removes ONLY the chip-variant mount from NoteModal and bumps the SW cache. State (featuredImage) and save-payload wiring are preserved, so existing notes with a featured_image continue to load/save without loss when edited via NoteModal.",
+    "DEAD CODE (minor cleanup opportunity, not blocking): the entire `if (variant === 'chip')` branch in FeaturedImageBanner.jsx (~60 lines: featured-image-chip-row, featured-image-chip-thumb, featured-image-add-chip, featured-image-change-chip, featured-image-remove-chip, featured-image-file-input-chip) is now unreachable. Recommend deleting the chip variant entirely in a follow-up, plus removing the `variant='chip'` prop default handling. This is a hygiene issue only.",
+    "Responsive behavior is correct but the 'w-[95%]' target is only visually met at desktop (89.9%) and tablet (88.8%). At mobile 390px the hero settles at 82.1% of parent — because Tailwind's percentage width applies against the constrained writing-column parent (354px) which itself has inset from viewport padding. The result is still symmetrically centered with visible left/right gutters, which matches the spec intent ('never edge-to-edge'), but if the review request expected exactly 95% at all breakpoints, adjust the parent's padding at mobile or use a fluid `min(95%, calc(100vw - 32px))` clamp.",
+    "object-contain + max-h-[70vh] scales correctly: 756px (1080 * 0.7), 716.8px (1024 * 0.7), 590.8px (844 * 0.7) — all natural viewport-height caps hit exactly.",
+    "Star-only invariant is enforced at the DOM level: querySelectorAll('input[type=file][data-testid^=\"featured-image-file-input-\"]') returned exactly 1 element (the star-scoped input). No duplicate testids, no residual chip/hero inputs.",
+    "No changes were made to FeaturedImageBanner.jsx — the Phase 3A hero simplification from v177 is intact and still passes: no Add-hero chip, no Change/Remove hover controls."
+  ],
+  "test_report_links": [],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (feature is 100% frontend + localforage/IndexedDB)", "frontend": "100% — chip removal from NoteModal, star-only invariant, and responsive hero measurements all pass across 1920/768/390 viewports"},
+  "seed_data_creation": "Used an existing server-restored note ('T2', uncategorized) for the flow — no new TEST_-prefixed data created this iteration since the server already contains 7 restored notes from prior iterations.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "v178+ regression checklist: (1) fetch('/service-worker.js') must contain iron-rabbit-v178 or later. (2) Open FAB → NoteModal — the DOM must NOT contain [data-testid='featured-image-chip-row'], [data-testid='featured-image-add-chip'], or [data-testid='featured-image-file-input-chip']. (3) In FullScreenNote, empty state DOM must contain exactly ONE input[type=file][data-testid^='featured-image-file-input-'] (the star-scoped one). (4) After upload, hero container computed marginLeft must equal marginRight and be > 0 at desktop/tablet/mobile (symmetry check). (5) featured-image-change-hero and featured-image-remove-hero must NEVER appear in the DOM regardless of state. (6) Star menu opens with Change + Remove items only when featured_image is set. (7) Suggest a follow-up PR removing the dead chip variant from FeaturedImageBanner.jsx entirely.",
+  "rca_of_the_issue": "N/A — this is a validation/QA iteration. v178 is a small, correct correction: removed the last non-star control (chip in NoteModal) so the star is truly the sole Featured Image entry point across every surface. Responsive hero sizing verified as symmetric/centered across all standard breakpoints."
+}
