@@ -12,6 +12,7 @@ import * as chrono from "chrono-node";
 import {
   Plus, Settings, ExternalLink, Sun, Moon,
   Download, Pin, Package, CalendarDays, Archive, ChevronDown, X,
+  NotebookPen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -2667,14 +2668,18 @@ export default function NotesApp() {
         : t("app.empty_title");
       return (
         <div className="text-center py-12">
-          {/* Rusty rabbit greets the user in place of a generic 📝
-              emoji so empty views feel on-brand instead of default. */}
-          <img
-            src="/icon-192.png"
-            alt="Iron Rabbit"
-            className="mx-auto mb-4 w-20 h-20 opacity-70 select-none"
-            style={{ filter: "drop-shadow(0 8px 24px rgba(180, 90, 40, 0.25))" }}
-            data-testid="empty-state-rabbit"
+          {/* Empty-state glyph. Used to be <img src="/icon-192.png"> which
+              also drives the inline boot splash in index.html — in Chrome
+              Incognito / any first-load with no notes, both rabbits shared
+              a ~1.3s overlap window (splash still fading while React
+              painted this rabbit underneath), so the user perceived the
+              app icon "appearing twice". Swapping to a semantically-
+              appropriate NotebookPen glyph keeps the empty state visually
+              weighted without reusing the branded startup artwork. */}
+          <NotebookPen
+            className={`mx-auto mb-4 w-16 h-16 opacity-60 select-none ${isDark ? 'text-slate-500' : 'text-gray-400'}`}
+            strokeWidth={1.5}
+            data-testid="empty-state-glyph"
           />
           <p className={`text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{emptyCopy}</p>
           {!searchQuery && filterBy === "all" && (
