@@ -1787,3 +1787,13 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
   - Star `featured-image-star-btn` drives all three actions; Change replaces attachment_id AND evicts old blob; Remove clears featured_image AND evicts blob; star reverts to Add mode.
   - Title / content / category untouched. Translate + Share + all other header icons still functional.
   - Console errors = 0. Toasts confirmed. Cache = `iron-rabbit-v177`.
+
+## 2026-02-28 · Repair — Duplicate Startup App Icon Fix (v179)
+- **Bug**: In Chrome Incognito (or any first-load with no notes hydrated), user saw the app icon twice at startup — a ~1.3s overlap window where the inline boot-splash rabbit (`#ir-boot-splash .ir-splash-rabbit`) was still fading while the React empty-state rabbit (`[data-testid="empty-state-rabbit"]`) was already painted underneath. In established sessions the empty state never rendered so the duplicate was invisible — that's why it only surfaced in Incognito / fresh users / offline-first.
+- **Root cause**: Two independent `<img src="/icon-192.png">` sources rendering the same startup artwork simultaneously — `public/index.html:162` (fixed-timer boot splash) + `NotesApp.jsx:2673` (default empty-state rabbit inside `renderNotes()` when `processedNotes.length === 0`).
+- **Fix**: Replaced the default empty-state's `<img src="/icon-192.png"/>` with a `<NotebookPen>` Lucide glyph (`w-16 h-16 opacity-60 strokeWidth 1.5`, semantically matches "empty notebook"). No changes to the boot splash artwork, timing, animation, or lifecycle. No changes to the `uncategorized-empty-state` branch (only fires when user explicitly picks the Uncategorized filter — never at startup).
+- **Files changed**:
+  - `frontend/src/NotesApp.jsx` — added `NotebookPen` to the lucide import, swapped the img (net ~4 lines).
+  - `frontend/public/service-worker.js` — `CACHE_NAME` `v178` → `v179`.
+- **Validation (iteration_108)**: **PASS** on both desktop (1440×900) and mobile (390×844) viewports. Max concurrent `icon-192` count = **1** throughout the entire boot sequence (was 2 for ~1300ms on v178). Empty-state now shows the NotebookPen glyph + text + Create button; boot splash unchanged; existing notes with data unaffected.
+- **Repairs #1–#11, Re Color, Phase 2/3/3A**: all intact.

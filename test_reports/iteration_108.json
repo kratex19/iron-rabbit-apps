@@ -1,0 +1,67 @@
+{
+  "summary": "VALIDATION of v179 duplicate-startup-icon fix. Reproduced the exact iteration_107 recipe (fresh Playwright context + /api/notes** stubbed to []) on both desktop (1440x900) and mobile (390x844) viewports and polled the DOM every 100ms for ~6s. In v178 baseline the DOM contained TWO <img src='/icon-192.png'> nodes for ~1300ms (splash rabbit + empty-state-rabbit). In v179 the max concurrent count of img[src*='icon-192'] is 1 across the ENTIRE startup window on both viewports — the only rabbit ever present is the boot splash. The empty-state fallback now renders a NotebookPen lucide-react SVG with data-testid='empty-state-glyph' (verified visible in screenshots, notebook icon with pen). data-testid='empty-state-rabbit' is completely absent from the DOM at all timestamps.",
+  "verdict": "PASS — duplicate startup icon repair is confirmed on both viewports.",
+  "split_by_viewport_phone_desktop": {
+    "desktop_1440x900": {
+      "max_concurrent_icon192_imgs": 1,
+      "empty_state_rabbit_ever_present": false,
+      "empty_state_glyph_present": true,
+      "timeline_key_frames": {
+        "t=0ms":    "1 icon-192 img (splash), splashOpacity=1, glyph=false",
+        "t=500ms":  "1 icon-192 img (splash), splashOpacity=1, glyph=true (React mounted, empty state rendered as SVG — no duplicate)",
+        "t=1000ms": "1 icon-192 img (splash fading), splashOpacity=0.216, glyph=true",
+        "t=1500ms": "0 icon-192 imgs (splash removed), glyph=true",
+        "t>=2000ms": "steady: 0 icon-192 imgs, glyph=true"
+      },
+      "verdict": "PASS"
+    },
+    "mobile_390x844": {
+      "max_concurrent_icon192_imgs": 1,
+      "empty_state_rabbit_ever_present": false,
+      "empty_state_glyph_present": true,
+      "timeline_key_frames": {
+        "t=500ms":  "1 icon-192 img (splash), glyph=true",
+        "t=1500ms": "0 icon-192 imgs, glyph=true",
+        "t>=2500ms": "steady: 0 icon-192 imgs, glyph=true"
+      },
+      "verdict": "PASS"
+    }
+  },
+  "git_diff_scope": {
+    "files_changed": ["/app/frontend/src/NotesApp.jsx"],
+    "diff_summary": "Only the DEFAULT empty-state branch (renderNotes() else-branch at lines 2668-2685) was changed. The previous <img src='/icon-192.png' data-testid='empty-state-rabbit'> was replaced with <NotebookPen data-testid='empty-state-glyph' strokeWidth=1.5 className='mx-auto mb-4 w-16 h-16 opacity-60 ...'>. Added a matching import { NotebookPen } from 'lucide-react'. No changes to /app/frontend/public/index.html boot splash. No changes to the uncategorized-empty-state branch.",
+    "scope_appropriate": true,
+    "unrelated_changes_detected": "None. Diff is minimal and targeted exactly at the source of the duplicate — the default empty-state rabbit identified in iteration_107."
+  },
+  "notes_and_caveats": [
+    "The uncategorized empty state (NotesApp.jsx:2647-2660, data-testid='uncategorized-empty-state') STILL uses <img src='/icon-192.png'>. Per iteration_107 diagnosis this branch is NOT the source of the reported duplicate (it only fires when filterBy==='uncategorized', not on default startup with filterBy='all'). However, if a user first-loads the app in Chrome Incognito AND their last filterBy was persisted as 'uncategorized' AND they had no uncategorized notes, the duplicate could theoretically re-appear via that branch. Not reproducible under default startup conditions — filed as a minor consistency note, not a regression.",
+    "The boot splash still uses the fixed-timer approach (~1400ms hide + 380ms fade + 500ms unmount). Not addressed by v179 and not required for this fix since the collision partner (the React empty-state rabbit) has been eliminated. iteration_107's 'ir-app-ready handshake' recommendation remains open as a potential future robustness improvement but is NOT required to close this bug."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "minor_consistency": [
+      {"component": "uncategorized-empty-state (NotesApp.jsx:2647-2660)", "issue": "Still uses <img src='/icon-192.png'> — same brand-icon pattern as the removed rabbit. Not triggered on default startup so does not reintroduce the reported bug, but for full parity consider swapping to the same NotebookPen glyph or a different lucide icon.", "priority": "LOW"}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: apply the same NotebookPen (or another lucide icon) swap to the uncategorized-empty-state branch (NotesApp.jsx:2649) for consistency and to defensively cover the persisted-filter edge case.",
+    "No blocking action required — v179 fix is validated PASS."
+  ],
+  "critical_code_review_comments": [
+    "The v179 change is minimal, targeted, and correct. It removes the exact DOM node identified as the duplication partner in iteration_107 (data-testid='empty-state-rabbit') and replaces it with a semantically appropriate NotebookPen SVG glyph via lucide-react — no bundle-size or dependency additions since lucide-react is already imported.",
+    "Good practice: kept data-testid='empty-state-glyph' (renamed from 'empty-state-rabbit') so any test still targeting the old id will fail loudly rather than silently pass. Consider grepping other tests/playbooks for 'empty-state-rabbit' to update references if any.",
+    "The isDark-aware text-slate-500 / text-gray-400 conditional class preserves theme contrast for the new glyph. Verified visually in both dark screenshots.",
+    "Comment in the diff explains the rationale for the swap in-line — good documentation hygiene."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend testing this iteration)", "frontend": "100% — duplicate icon fix validated on both viewports"},
+  "seed_data_creation": "None — /api/notes** stubbed via Playwright route interception to force empty-state render.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v179 duplicate-startup-icon repair is validated PASS on desktop (1440x900) and mobile (390x844). Max concurrent img[src*='icon-192'] observed is 1 (splash only). The old data-testid='empty-state-rabbit' is gone; the new data-testid='empty-state-glyph' (NotebookPen SVG) renders in its place. The uncategorized-empty-state branch still uses the icon-192 <img> but is not triggered on default startup, so it does not re-open the bug. If a future agent needs to test that edge, force filterBy='uncategorized' via localStorage or UI before hydration.",
+  "rca_of_the_issue": "iteration_107 established two independent /icon-192.png <img> nodes co-existing during startup: (1) inline boot splash in public/index.html and (2) React empty-state fallback in NotesApp.jsx renderNotes() default branch. v179 eliminates node (2) by swapping the <img> for a <NotebookPen> lucide SVG. Validation confirms: max simultaneous icon-192 imgs during startup is now 1 (splash only) on both desktop and mobile viewports."
+}
