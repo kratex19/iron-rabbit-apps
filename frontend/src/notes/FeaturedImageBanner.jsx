@@ -122,7 +122,7 @@ export default function FeaturedImageBanner({
       accept="image/*"
       className="hidden"
       onChange={handleFile}
-      data-testid="featured-image-file-input"
+      data-testid={`featured-image-file-input-${variant}`}
     />
   );
 

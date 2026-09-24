@@ -1750,3 +1750,19 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
 - **Regression protection**: Repairs #1–#11 + Re Color fix + Phase 1 architecture all intact.
 - **NoteTile (collapsed grid)**: intentionally unchanged in Phase 2 — Featured Image is expanded-view only, `note.background` continues to drive tile fill.
 - **First-time guide**: existing QuickGuideProvider mechanism exists; Featured Image quickguide card can be added as a follow-up (not part of Phase 2 surgical scope).
+
+## 2026-02-28 · Featured Image — Phase 3: ✳️ Header Star (v176)
+- **Addition**: Gold/orange Sparkle (✳️) button in the FullScreenNote header, placed immediately LEFT of the existing Translate/Share/More/Delete/Brightness/Close icon group. Single entry point for the Featured Image feature.
+- **Behavior**:
+  - No image → tap ✳️ opens the file picker directly (Add).
+  - Image exists → tap ✳️ opens a shadcn DropdownMenu with **Change Image** + **Remove Image**.
+  - Every tap runs a short 550ms scale-1.28 + drop-shadow glow pulse. No permanent enlargement, no header layout shift.
+  - Uses the same isDark-aware yellow-500/600 palette as existing header icons.
+- **Reuse**: `star` variant is a new branch inside the existing `FeaturedImageBanner.jsx`. Shares `handleFile` / `handleRemove` with the hero + chip variants — zero duplication of the storage/persistence pipeline.
+- **Files changed**:
+  - `notes/FeaturedImageBanner.jsx` — added `variant="star"` (~70 lines: Sparkle button, pulse animation, empty-state single-action, with-image DropdownMenu). Also suffixed hidden input testids with variant (`-star` / `-hero` / `-chip`) so both instances can be targeted uniquely in tests.
+  - `notes/FullScreenNote.jsx` — mounts `<FeaturedImageBanner variant="star" .../>` in the header when `onSaveInline && note?.id`. Gated identically to the hero variant.
+  - `public/service-worker.js` — `CACHE_NAME` `v175` → `v176`.
+- **Curated Tile Packs**: zero touches to `data/tilePacks.js` or any curated seed.
+- **Regression protection**: Repairs #1–#11, Re Color, Phase 2 hero/chip variants, existing header icons (Translate/Share/More/Delete/Brightness/Close), attachments, checklist, hierarchy, backup/restore — all intact.
+- **Validation**: iteration_104 (v176) — **PASS**: star visible in header, Add opens picker → persists → hero renders in body; Change replaces attachment_id AND evicts old blob (files store size stable at 1); Remove clears to null AND evicts blob (files store size 0), star reverts to Add mode; title/content/category untouched throughout; console.errors = 0; other header icons regression-checked (Translate/Share still work).
