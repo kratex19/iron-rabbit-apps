@@ -1797,3 +1797,23 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
   - `frontend/public/service-worker.js` — `CACHE_NAME` `v178` → `v179`.
 - **Validation (iteration_108)**: **PASS** on both desktop (1440×900) and mobile (390×844) viewports. Max concurrent `icon-192` count = **1** throughout the entire boot sequence (was 2 for ~1300ms on v178). Empty-state now shows the NotebookPen glyph + text + Create button; boot splash unchanged; existing notes with data unaffected.
 - **Repairs #1–#11, Re Color, Phase 2/3/3A**: all intact.
+
+## 2026-09-24 · Repair #4 — AI Tools Tile Pack SHELVED (v180)
+- **Objective**: temporarily close the AI Tools Tile Pack from normal user access WITHOUT deleting any underlying source. Preserve everything so a future rebuild can flip it back on with a single line.
+- **Backup created FIRST (before any source change)**: `/app/.local_backups_offline/IronRabbit_pre-Repair4_iron-rabbit-v179_2026-09-24.zip` — 626 MB — full pre-Repair-#4 v179 snapshot excluding node_modules/.git/build/.local_backups_offline. Verified to contain `aiToolsPack.js` (6811 B) + `aiToolsPack.raw.json` (29273 B).
+- **Surgical change**: `/app/frontend/src/data/tilePacks.js` — added `const SHOW_AI_TOOLS_PACK = false;` after the import; changed the array tail from `AI_TOOLS_100_PACK,` to `...(SHOW_AI_TOOLS_PACK ? [AI_TOOLS_100_PACK] : []),`. Import preserved so `aiToolsPack.js` compiles and `aiToolsPack.raw.json` remains a live module reference. Flag comment documents pre-shelf ZIP path + one-line reversal.
+- **What was PRESERVED** (not touched):
+  - `/app/frontend/src/data/aiToolsPack.js` (normalizer, 6811 B)
+  - `/app/frontend/src/data/aiToolsPack.raw.json` (authoritative 100-tool JSON, 29273 B)
+  - `import AI_TOOLS_100_PACK from "./aiToolsPack";` at line 7
+  - Every other curated Tile Pack (Restaurants Galore, Fitness Journey, Home Store, etc.)
+  - Repairs #1–#11 + Re Color + Featured Image Phase 2/3/3A + startup-icon fix
+- **Cache**: `iron-rabbit-v179` → `iron-rabbit-v180`.
+- **Validation (iteration_111)**: **PASS**
+  - Tile Packs modal: "AI Tools — 100 Free AI Tools" absent from curated pack list ✅
+  - All other curated packs still listed and applyable ✅
+  - Applying a non-AI-Tools pack works normally ✅
+  - Zero console errors ✅
+  - Served cache = `iron-rabbit-v180` ✅
+- **To re-expose in the future**: flip `SHOW_AI_TOOLS_PACK` to `true` in tilePacks.js line 19. No other code changes needed.
+- **Existing user impact**: users who previously applied the AI Tools pack still have their instantiated notes (those live in the user's notesStore, not in the curated definition). Only the "install from curated" surface is closed.
