@@ -40,6 +40,7 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - **Re Color glitch repair** (2026-02-28, v173): bulkSetColor now writes matching note.background alongside note.color so grid tile fill + border stay consistent
 - **Featured Image — Phase 2** (2026-02-28, v175): optional per-note Featured Image (hero banner in FullScreenNote, chip editor in NoteModal). Reuses existing StorageService filesStore; blob-lifecycle safe (Change/Remove/Delete cleanups); backup/restore inherited; curated Tile Packs untouched. Validated PASS via iteration_103.
 - **Featured Image — Phase 3** (2026-02-28, v176): ✳️ Sparkle header button in FullScreenNote (left of Translate). Empty → Add picker; with-image → Change/Remove menu. Tap-pulse animation. Shares handleFile/handleRemove with Phase 2 — no duplication. Validated PASS via iteration_104.
+- **Featured Image — Phase 3A** (2026-02-28, v177): hero variant simplified to presentation-only (empty→null, no Change/Remove chips), image container `w-[95%] mx-auto`, image `object-contain max-h-[70vh]` preserving original aspect ratio. Star is sole Featured Image control. Validated PASS via iteration_105.
   - Root cause: `if (!isOpen) return null;` in `TemplateModal.jsx` synchronously unmounted the nested Radix Dialog mid-pointer-event, causing parent NoteModal to close via `onPointerDownOutside`
   - Fix: removed early return so Radix owns lifecycle; added defensive `onOpenChange={(open) => { if (!open) onClose(); }}` guard in NoteModal
   - Cache bumped `v170` → `v171`

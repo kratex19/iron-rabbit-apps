@@ -1766,3 +1766,24 @@ See `PRD.md` for original problem statement, personas, and pre-2026-02 history.
 - **Curated Tile Packs**: zero touches to `data/tilePacks.js` or any curated seed.
 - **Regression protection**: Repairs #1–#11, Re Color, Phase 2 hero/chip variants, existing header icons (Translate/Share/More/Delete/Brightness/Close), attachments, checklist, hierarchy, backup/restore — all intact.
 - **Validation**: iteration_104 (v176) — **PASS**: star visible in header, Add opens picker → persists → hero renders in body; Change replaces attachment_id AND evicts old blob (files store size stable at 1); Remove clears to null AND evicts blob (files store size 0), star reverts to Add mode; title/content/category untouched throughout; console.errors = 0; other header icons regression-checked (Translate/Share still work).
+
+## 2026-02-28 · Featured Image — Phase 3A: Hero Presentation-Only + 95% Width (v177)
+- **Change 1 — Remove duplicate control**: hero variant of `FeaturedImageBanner` is now purely presentational.
+  - EMPTY state (no image): returns `null` (was: "Add Featured Image" chip button). No duplicate control in the edit area.
+  - WITH-IMAGE state: renders just the `<img>` inside the smoked-glass container. Change/Remove hover chips REMOVED.
+  - The ✳️ header star is now the SOLE Featured Image entry point (Add / Change / Remove).
+- **Change 2 — Image sizing**:
+  - Container: `w-[95%] mx-auto` (was `w-full`) — ~95% of Expanded Text View width, centered.
+  - Image: `object-contain max-h-[70vh]` (was `object-cover max-h-72`) — preserves original aspect ratio, no crop, no stretch, height grows naturally with the picture.
+- **Files changed**:
+  - `notes/FeaturedImageBanner.jsx` — hero branch simplified (net −61 lines): empty→null, no hover chips, sizing tuned, hidden input dropped from hero branch (star has the single hidden input now — resolves the duplicate-testid nit from iteration_104).
+  - `public/service-worker.js` — `CACHE_NAME` `v176` → `v177`.
+- **Curated Tile Packs**: zero touches.
+- **Regression protection**: Repairs #1–#11, Re Color, Phase 2 + Phase 3 storage/persistence/replacement/removal/backup — all intact.
+- **Validation (iteration_105)**: **PASS**
+  - Empty state: `featured-image-hero` container absent, `featured-image-add-hero` chip absent.
+  - With-image state: container width = 801.8px in 892px parent (95% of inner content-box after p-6 padding), `marginLeft = marginRight = 21.09px` (centered), `object-fit: contain`, `max-height: 630px @ 900px viewport`.
+  - Change / Remove hover chips absent from DOM.
+  - Star `featured-image-star-btn` drives all three actions; Change replaces attachment_id AND evicts old blob; Remove clears featured_image AND evicts blob; star reverts to Add mode.
+  - Title / content / category untouched. Translate + Share + all other header icons still functional.
+  - Console errors = 0. Toasts confirmed. Cache = `iron-rabbit-v177`.
