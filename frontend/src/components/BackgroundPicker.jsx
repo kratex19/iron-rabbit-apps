@@ -648,7 +648,7 @@ function parseGradient(css) {
 }
 
 // Downscale image to a given max dimension and return dataURL (jpeg)
-async function downscaleImage(file, maxSide = 800) {
+export async function downscaleImage(file, maxSide = 800) {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     const reader = new FileReader();

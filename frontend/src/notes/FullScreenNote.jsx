@@ -18,6 +18,7 @@ import DisplayControlsButton from "./DisplayControlsButton";
 import EditingModeToggle from "./EditingModeToggle";
 import ExpandedTextEditor from "./ExpandedTextEditor";
 import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
+import FeaturedImageBanner from "./FeaturedImageBanner";
 
 /**
  * Full-screen note editor with inline auto-save.
@@ -415,6 +416,19 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           }}
         >
           <div className="p-6 flex flex-col gap-4 min-h-full">
+          {/* Featured Image — optional hero banner. Auto-saves via
+              onSaveInline. Empty state shows a subtle "Add Featured
+              Image" chip; when set, shows the image with hover
+              Change/Remove controls. Blob storage is handled by the
+              existing StorageService filesStore. */}
+          {onSaveInline && note?.id && (
+            <FeaturedImageBanner
+              variant="hero"
+              featuredImage={note.featured_image || null}
+              onChange={(next) => onSaveInline(note.id, { featured_image: next })}
+              isDark={isDark}
+            />
+          )}
           <div
             className="pb-24"
             style={{

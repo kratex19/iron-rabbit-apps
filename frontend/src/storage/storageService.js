@@ -69,6 +69,11 @@ export const StorageService = {
         await filesStore.removeItem(att.id);
       }
     }
+    // Featured Image blob is stored in the same filesStore under a
+    // separate pointer — clean it up too so deletion never leaks a blob.
+    if (note?.featured_image?.attachment_id) {
+      try { await filesStore.removeItem(note.featured_image.attachment_id); } catch { /* best-effort */ }
+    }
     await notesStore.removeItem(id);
     return true;
   },
@@ -371,6 +376,13 @@ export const StorageService = {
       for (const n of notes) {
         for (const a of (n.attachments || [])) {
           byAttId.set(a.id, { note_id: n.id, note_title: n.title || 'Untitled', archived: !!n.archived_at, deleted: !!n.deleted_at });
+        }
+        // Featured Image lives in the same filesStore under a separate
+        // pointer — index it so the Storage Cleanup wizard doesn't flag
+        // it as an orphan.
+        const fid = n.featured_image?.attachment_id;
+        if (fid) {
+          byAttId.set(fid, { note_id: n.id, note_title: n.title || 'Untitled', archived: !!n.archived_at, deleted: !!n.deleted_at });
         }
       }
       for (const r of rows) {

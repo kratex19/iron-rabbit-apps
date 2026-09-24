@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import IconPicker from "../components/IconPicker";
 import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPicker";
 import Attachments from "../components/Attachments";
+import FeaturedImageBanner from "./FeaturedImageBanner";
 import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 import DisplayControlsButton from "./DisplayControlsButton";
@@ -48,6 +49,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const [tags, setTags] = useState([]);
   const [tagDraft, setTagDraft] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [featuredImage, setFeaturedImage] = useState(null);
   const [events, setEvents] = useState([]);
   const [checklist, setChecklist] = useState([]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -274,6 +276,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       setTags(Array.isArray(note.tags) ? note.tags.map(t => String(t).toLowerCase()) : []);
       setTagDraft("");
       setAttachments(Array.isArray(note.attachments) ? note.attachments : []);
+      setFeaturedImage(note.featured_image || null);
       setEvents(Array.isArray(note.events) ? note.events : []);
       setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
@@ -367,6 +370,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       },
       tags: finalTags,
       attachments,
+      featured_image: featuredImage,
       events,
       checklist,
       category: legacyCat, subcategory: legacySub,
@@ -775,6 +779,17 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             <EventsSection value={events} onChange={setEvents} isDark={isDark} />
 
             <ChecklistSection value={checklist} onChange={setChecklist} isDark={isDark} />
+
+            {/* Featured Image — optional hero for the open note view.
+                Sits above regular Photos & files. Blob operations happen
+                immediately via StorageService; the pointer is persisted
+                when the user saves. */}
+            <FeaturedImageBanner
+              variant="chip"
+              featuredImage={featuredImage}
+              onChange={setFeaturedImage}
+              isDark={isDark}
+            />
 
             {/* Photos & attachments */}
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
