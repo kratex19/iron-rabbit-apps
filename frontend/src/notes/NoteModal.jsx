@@ -780,16 +780,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
 
             <ChecklistSection value={checklist} onChange={setChecklist} isDark={isDark} />
 
-            {/* Featured Image — optional hero for the open note view.
-                Sits above regular Photos & files. Blob operations happen
-                immediately via StorageService; the pointer is persisted
-                when the user saves. */}
-            <FeaturedImageBanner
-              variant="chip"
-              featuredImage={featuredImage}
-              onChange={setFeaturedImage}
-              isDark={isDark}
-            />
+            {/* Featured Image — Phase 3A: NO editor-area control here.
+                The gold/orange ✳️ header star in FullScreenNote is the
+                sole Featured Image entry point (Add / Change / Remove).
+                Existing featured_image on the note still round-trips
+                through featuredImage state + save payload below, so
+                editing an existing note preserves its Featured Image
+                without a control surface here. */}
 
             {/* Photos & attachments */}
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
