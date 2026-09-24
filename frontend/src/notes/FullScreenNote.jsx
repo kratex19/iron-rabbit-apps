@@ -309,6 +309,17 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
             <span className={`text-xs font-mono px-2 min-w-[70px] text-right ${isDark ? 'text-yellow-500' : 'text-yellow-600'}`} data-testid="fullscreen-save-status" aria-live="polite">
               {saving ? "Saving…" : dirty ? "Editing…" : savedRecently ? "Saved" : ""}
             </span>
+            {/* Featured Image ✳️ — sits IMMEDIATELY LEFT of the existing
+                header icon group. Single entry point for the Featured
+                Image feature (Add when empty; Change/Remove when set). */}
+            {onSaveInline && note?.id && (
+              <FeaturedImageBanner
+                variant="star"
+                featuredImage={note.featured_image || null}
+                onChange={(next) => onSaveInline(note.id, { featured_image: next })}
+                isDark={isDark}
+              />
+            )}
             <Button variant="ghost" size="icon" onClick={() => setTranslateOpen(true)} disabled={!content?.trim()} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-translate-btn" aria-label="Translate" title="Translate note"><Languages className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => onShare(note)} className={isDark ? 'text-yellow-500 hover:text-yellow-400 hover:bg-white/5' : 'text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50'} data-testid="fullscreen-share-btn" aria-label="Share"><Share2 className="w-4 h-4" /></Button>
             <DropdownMenu>

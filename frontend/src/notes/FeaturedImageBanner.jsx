@@ -18,10 +18,16 @@
 // lets the host component persist that via saveNote / onSaveInline.
 
 import React, { useState, useEffect, useRef } from "react";
-import { Image as ImageIcon, Upload, Trash2, Loader2 } from "lucide-react";
+import { Image as ImageIcon, Upload, Trash2, Loader2, Sparkle } from "lucide-react";
 import StorageService from "../storage/storageService";
 import { downscaleImage } from "../components/BackgroundPicker";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 const MAX_SIDE = 1200; // hero display area — bigger than ordinary attachments
 
@@ -34,6 +40,7 @@ export default function FeaturedImageBanner({
 }) {
   const [url, setUrl] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [starPulse, setStarPulse] = useState(false);
   const fileInputRef = useRef(null);
   const attachmentId = featuredImage?.attachment_id || null;
 
@@ -57,6 +64,11 @@ export default function FeaturedImageBanner({
   const openPicker = () => {
     if (disabled || busy) return;
     fileInputRef.current?.click();
+  };
+
+  const pulseStar = () => {
+    setStarPulse(true);
+    setTimeout(() => setStarPulse(false), 550);
   };
 
   const handleFile = async (e) => {
@@ -113,6 +125,74 @@ export default function FeaturedImageBanner({
       data-testid="featured-image-file-input"
     />
   );
+
+  // ------------------------------- STAR (header) --------------------------
+  // Gold/orange ✳️ button matching the other header icons. Sits to the LEFT
+  // of the existing header icon group. When no image exists, a tap opens
+  // the picker directly (Add). When an image exists, the tap opens a small
+  // menu with Change / Remove / Cancel. Every tap runs a brief scale + glow
+  // pulse — a natural acknowledgment; no permanent size change, no header
+  // layout shift.
+  if (variant === "star") {
+    const gold = isDark
+      ? "text-yellow-500 hover:text-yellow-400 hover:bg-white/5"
+      : "text-yellow-600 hover:text-yellow-500 hover:bg-yellow-50";
+    const btnBase = "inline-flex items-center justify-center h-9 w-9 rounded-md transition-all duration-300 disabled:opacity-50";
+    const pulseStyle = starPulse
+      ? { transform: "scale(1.28)", filter: `drop-shadow(0 0 10px ${isDark ? "rgba(234,179,8,0.9)" : "rgba(217,119,6,0.85)"})` }
+      : {};
+
+    // No image → single button that opens picker directly.
+    if (!attachmentId) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => { pulseStar(); openPicker(); }}
+            disabled={disabled || busy}
+            className={`${btnBase} ${gold}`}
+            style={pulseStyle}
+            data-testid="featured-image-star-btn"
+            aria-label="Add Featured Image"
+            title="Featured Image"
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkle className="w-4 h-4" strokeWidth={2.25} />}
+          </button>
+          {hiddenInput}
+        </>
+      );
+    }
+    // Image exists → menu with Change / Remove.
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              onClick={pulseStar}
+              disabled={busy}
+              className={`${btnBase} ${gold}`}
+              style={pulseStyle}
+              data-testid="featured-image-star-btn"
+              aria-label="Featured Image options"
+              title="Featured Image — Change or Remove"
+            >
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkle className="w-4 h-4" strokeWidth={2.25} />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className={isDark ? "bg-slate-900 border-white/10 text-slate-100" : ""}>
+            <DropdownMenuItem onClick={openPicker} data-testid="featured-image-star-change">
+              <Upload className="w-4 h-4 mr-2" /> Change Image
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleRemove} data-testid="featured-image-star-remove" className={isDark ? "text-red-300 focus:text-red-200" : "text-red-600 focus:text-red-700"}>
+              <Trash2 className="w-4 h-4 mr-2" /> Remove Image
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {hiddenInput}
+      </>
+    );
+  }
 
   // ------------------------------- HERO --------------------------------
   if (variant === "hero") {
