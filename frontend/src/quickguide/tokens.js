@@ -48,4 +48,9 @@ export const QG_DEFAULT_STATE = {
   // Per-resource user-authored cards, appended to the horizontal card strip
   // in the Quick Guide modal. Shape: { [resourceId]: [{ id, heading, body }] }.
   user_cards: {},
+  // Marks that the one-time upgrade-seed decision (see QuickGuideProvider
+  // hydration) has already been made and persisted. Prevents the seed
+  // block from re-firing on every reload, which would silently undo
+  // "Reset Quick Guide Tour" and defeat "Automatically show Quick Guides".
+  initialized: false,
 };

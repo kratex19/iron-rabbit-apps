@@ -71,10 +71,19 @@ export function QuickGuideProvider({ children }) {
         // from EXISTING users on upgrade (already had settings but never opened
         // any guide). New users → skip seed so auto-show can greet them on
         // every screen. Existing users → keep seed so they don't get flooded.
+        //
+        // IMPORTANT: This seed must only run ONCE per install. Previously it
+        // fired on every hydration whenever `seen_ids` was empty, which meant
+        // "Reset Quick Guide Tour" was silently undone by the next reload
+        // (Reset clears seen_ids → hydration re-seeds it → Reset is destroyed).
+        // The `initialized` flag is the one-shot latch: after the first
+        // hydration writes it as `true`, this branch can never re-fire, so
+        // Reset stays reset and auto-show can honour empty seen_ids.
         const isBrandNew = !rawQg;
-        if (!isBrandNew && (!loaded.seen_ids || loaded.seen_ids.length === 0)) {
+        if (!isBrandNew && !loaded.initialized && (!loaded.seen_ids || loaded.seen_ids.length === 0)) {
           loaded.seen_ids = BUNDLED_ARTICLES.map(a => a.id);
         }
+        loaded.initialized = true;
         loaded.content_version = manifest.content_version;
 
         if (!cancelled) {
