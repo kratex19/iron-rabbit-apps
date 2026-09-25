@@ -125,3 +125,36 @@ export async function saveWeatherCache(key, payload) {
 export async function loadWeatherCache(key) {
   return await weatherCacheStore.getItem(key);
 }
+
+// ---- Connection lifecycle ----
+// Explicitly closes the underlying IndexedDB connections held by the
+// dashboard's two localforage instances. This is a NON-DESTRUCTIVE
+// operation: it releases the browser's IDB handles but leaves ALL
+// stored data (settings, cached weather payloads) intact on disk.
+// localforage v1.10 auto-reopens each instance on the next getItem/
+// setItem call, so subsequent Weather visits work as before.
+//
+// Why we need this: on WebKit-based browsers (iOS Safari + PWA), leaving
+// the underlying IDBDatabase open while a *second* IndexedDB database
+// ("IronRabbit") tries to open on the same origin can queue the second
+// open behind the first, producing a permanent "Loading…" hang when the
+// user navigates Weather → Home. Closing on unmount removes that queue.
+//
+// This function is intentionally best-effort: any error (e.g. driver
+// hasn't been initialised because the user never opened Weather, or the
+// underlying handle is already closed) is swallowed so unmount is fast
+// and cannot itself become a source of hangs.
+function closeInstance(instance) {
+  try {
+    // Reach the underlying IDBDatabase via localforage's private
+    // `_dbInfo.db` handle — the only public escape hatch in v1.x for
+    // releasing a connection without dropping the store.
+    const dbInfo = instance && instance._dbInfo;
+    const db = dbInfo && dbInfo.db;
+    if (db && typeof db.close === "function") db.close();
+  } catch { /* best-effort — swallow all errors */ }
+}
+export function closeAll() {
+  closeInstance(settingsStore);
+  closeInstance(weatherCacheStore);
+}

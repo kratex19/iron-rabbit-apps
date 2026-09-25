@@ -29,12 +29,28 @@ export default function useWeather(location, units = "F") {
 
   const cacheKey = location ? `${location.latitude.toFixed(3)},${location.longitude.toFixed(3)}|${units}` : null;
 
+  // In-flight AbortController for the current Weather request. Kept in a ref
+  // so both `fetchNow` and the effect cleanup can reach the SAME instance and
+  // guarantee that leaving the Weather screen actually terminates the pending
+  // request — previously the cleanup only flipped a `cancelled` flag, so the
+  // fetch continued to completion after unmount and could keep IndexedDB /
+  // network handles alive during the transition back to Home.
+  const abortRef = useRef(null);
+
   const fetchNow = useCallback(async () => {
     if (!location) return { ok: false, error: "no-location" };
+    // Abort any prior in-flight request before starting a new one so we never
+    // have two concurrent fetches racing against the same cache key.
+    if (abortRef.current) { try { abortRef.current.abort(); } catch { /* noop */ } }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(buildUrl({ latitude: location.latitude, longitude: location.longitude, units }));
+      const res = await fetch(
+        buildUrl({ latitude: location.latitude, longitude: location.longitude, units }),
+        { signal: controller.signal }
+      );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const payload = {
@@ -52,6 +68,12 @@ export default function useWeather(location, units = "F") {
       if (cacheKey) await saveWeatherCache(cacheKey, payload);
       return { ok: true };
     } catch (err) {
+      // AbortError is expected when the user leaves Weather mid-request —
+      // do not surface it as a failure and do not try to hydrate cache in
+      // that case (the component is already unmounting).
+      if (err && (err.name === "AbortError" || controller.signal.aborted)) {
+        return { ok: false, error: "aborted" };
+      }
       const msg = err.message || String(err);
       setError(msg);
       // Try cache fallback
@@ -61,7 +83,9 @@ export default function useWeather(location, units = "F") {
       }
       return { ok: false, error: msg };
     } finally {
-      setLoading(false);
+      // Only clear the loading state for the CURRENT (still-active) request.
+      // A stale controller means a newer fetchNow already superseded us.
+      if (abortRef.current === controller) setLoading(false);
     }
   }, [location, units, cacheKey]);
 
@@ -76,7 +100,12 @@ export default function useWeather(location, units = "F") {
       }
       await fetchNow();
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Real abort — terminate the in-flight fetch so it releases its
+      // network/IDB handles before the Weather screen fully unmounts.
+      if (abortRef.current) { try { abortRef.current.abort(); } catch { /* noop */ } }
+    };
   }, [location?.latitude, location?.longitude, units]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { data, loading, error, offline, refresh: fetchNow };

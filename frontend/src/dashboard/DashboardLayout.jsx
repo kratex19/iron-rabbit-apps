@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import "./dashboard.css";
 import DashboardTabBar from "./components/DashboardTabBar";
 import LocationPickerModal from "./components/LocationPickerModal";
-import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "./state/dashboardStore";
+import { loadSettings, saveSettings, DEFAULT_SETTINGS, closeAll } from "./state/dashboardStore";
 import { getBrowserPosition, reverseGeocode } from "./utils/geocode";
 import { isCssBackground } from "../utils/bgValue";
 import useWeather from "./hooks/useWeather";
@@ -46,6 +46,16 @@ export default function DashboardLayout() {
         if (Array.isArray(m?.presets) && m.presets.length) setPresetManifest(m.presets);
       })
       .catch(() => { /* fall back to DEFAULT_BACKGROUND_POOL */ });
+  }, []);
+
+  // Release the dashboard's IndexedDB connections when the user leaves
+  // /dashboard/*. Without this, WebKit/iOS can queue the returning
+  // NotesApp's IronRabbit IDB open behind the still-live IronRabbitDashboard
+  // handles, producing a permanent "Loading…" hang on Weather → Home.
+  // `closeAll` is non-destructive: user data is preserved and localforage
+  // auto-reopens each store on the next getItem/setItem.
+  useEffect(() => {
+    return () => { closeAll(); };
   }, []);
 
   const availableBackgrounds = useMemo(() => (
