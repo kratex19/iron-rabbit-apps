@@ -12,6 +12,61 @@
 const CACHE_NAME = 'iron-rabbit-v182';
 const RUNTIME = 'iron-rabbit-runtime-v69';
 
+// ---- Runtime-cache bound ----
+// The RUNTIME cache backs offline HTML, header-preset images, hashed
+// static assets and — under the current fetch handler — every /api/*
+// GET response as well. Prior to this bound it grew without limit,
+// which the audit identified as a plausible contributor to origin-
+// storage bloat over many sessions (matches the user's ~20 MB "clear
+// Cache Storage → notes still intact → transitions became instant"
+// observation).
+//
+// Policy: FIFO by insertion order, hard cap at RUNTIME_MAX_ENTRIES.
+// Cache Storage `keys()` returns entries in insertion order, so
+// deleting from the front approximates least-recently-inserted. This
+// is intentionally simple, deterministic, and works identically in
+// mobile Chrome, iOS Safari, and Chromium PWAs.
+//
+// The bound is scoped to RUNTIME only — CACHE_NAME (the precache
+// bucket that holds `/manifest.json`) is never touched by this
+// policy, and neither is any IndexedDB/localForage/localStorage/user
+// data. See activate handler for the pre-existing cross-generation
+// cleanup, which is deliberately left unchanged.
+const RUNTIME_MAX_ENTRIES = 150;
+
+// Serialize trims so a burst of concurrent puts can't produce
+// interleaved delete storms that briefly evict below the target.
+let __trimInFlight = null;
+function trimRuntimeCache() {
+  if (__trimInFlight) return __trimInFlight;
+  __trimInFlight = (async () => {
+    try {
+      const cache = await caches.open(RUNTIME);
+      const keys = await cache.keys();
+      const excess = keys.length - RUNTIME_MAX_ENTRIES;
+      if (excess > 0) {
+        // Delete the oldest `excess` entries. Failures are non-fatal.
+        for (let i = 0; i < excess; i++) {
+          try { await cache.delete(keys[i]); } catch { /* best-effort */ }
+        }
+      }
+    } catch { /* best-effort — never surface to fetch handler */ }
+    finally { __trimInFlight = null; }
+  })();
+  return __trimInFlight;
+}
+
+// Helper that mirrors the previous `caches.open(RUNTIME).then(c => c.put(request, clone))`
+// pattern, but schedules a bound-check after the write completes. The
+// trim runs off the critical path — it never blocks the response
+// returned to the page.
+function putInRuntime(request, response) {
+  return caches.open(RUNTIME)
+    .then(cache => cache.put(request, response))
+    .then(() => trimRuntimeCache())
+    .catch(() => { /* swallow — cache writes are opportunistic */ });
+}
+
 // App shell — only the manifest is precached. HTML is deliberately
 // left out so a stale precache can never override a fresh deploy.
 const PRECACHE_URLS = [
@@ -65,8 +120,7 @@ self.addEventListener('fetch', event => {
       fetch(request)
         .then(response => {
           if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(RUNTIME).then(cache => cache.put(request, clone));
+            putInRuntime(request, response.clone());
           }
           return response;
         })
@@ -92,8 +146,7 @@ self.addEventListener('fetch', event => {
       fetch(request)
         .then(response => {
           if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(RUNTIME).then(cache => cache.put(request, clone));
+            putInRuntime(request, response.clone());
           }
           return response;
         })
@@ -108,8 +161,7 @@ self.addEventListener('fetch', event => {
       if (cached) return cached;
       return fetch(request).then(response => {
         if (response.status === 200) {
-          const clone = response.clone();
-          caches.open(RUNTIME).then(cache => cache.put(request, clone));
+          putInRuntime(request, response.clone());
         }
         return response;
       });
