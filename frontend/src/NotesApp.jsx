@@ -592,13 +592,28 @@ export default function NotesApp() {
         toast.success(`Restored ${migration.notes} notes from server`, { duration: 5000 });
       }
 
-      const [notesData, settingsData, catsData, templatesData, storageData] = await Promise.all([
+      const [notesData, settingsData, templatesData] = await Promise.all([
         StorageService.getAllNotes(),
         StorageService.getSettings(),
-        StorageService.getCategories(),
         StorageService.getTemplates(),
-        StorageService.getStorageInfo(),
       ]);
+      // Compute categories inline from the already-loaded notes so we
+      // don't spend a second concurrent notesStore.iterate on boot
+      // (Repair B: getCategories internally re-iterates the notes
+      // store — behaviorally identical grouping performed here, no
+      // extra IDB read). Keeps StorageService.getCategories() intact
+      // for post-mutation refresh call sites elsewhere.
+      const _catAgg = {};
+      notesData.forEach(note => {
+        const cat = note.category || '';
+        const subcat = note.subcategory || '';
+        if (cat) {
+          if (!_catAgg[cat]) _catAgg[cat] = new Set();
+          if (subcat) _catAgg[cat].add(subcat);
+        }
+      });
+      const catsData = {};
+      Object.keys(_catAgg).forEach(cat => { catsData[cat] = Array.from(_catAgg[cat]); });
       setNotes(notesData);
       setSettings(settingsData);
       if (settingsData?.view_mode) setViewMode(settingsData.view_mode);
@@ -615,7 +630,12 @@ export default function NotesApp() {
         StorageService.configureAttachmentLimits(settingsData.attachment_limits);
       }
       setCategories(catsData);
-      setStorageInfo(storageData);
+      // Storage-info populates fire-and-forget so `navigator.storage
+      // .estimate()` — which walks the full origin storage tree and
+      // can take 100-800 ms on data-heavy profiles — never blocks
+      // the Loading gate. `storageInfo` is only consumed by the
+      // Settings modal, which cannot render in the first frame.
+      StorageService.getStorageInfo().then(setStorageInfo).catch(() => { /* non-fatal */ });
       // Warn once per session if we're already at 80%+ of device quota
       import("./storage/storageWarnings").then(m => m.checkStorageQuota()).catch(() => {});
       if (templatesData.length > 0) setTemplates(templatesData);
