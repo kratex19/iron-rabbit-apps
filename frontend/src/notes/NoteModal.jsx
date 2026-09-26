@@ -28,6 +28,7 @@ import StorageService from "../storage/storageService";
 import { NOTE_COLORS, SOUND_OPTIONS } from "./constants";
 import TemplateModal from "./TemplateModal";
 import TranslateModal from "./TranslateModal";
+import FloatingRichTextToolbar from "./editor/FloatingRichTextToolbar";
 import EventsSection from "./EventsSection";
 import ChecklistSection from "./ChecklistSection";
 import CategoryPathAccordion from "./CategoryPathAccordion";
@@ -868,6 +869,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
         onSelect={setBackground}
         isDark={isDark}
       />
+      {/* Module 1 — Floating Rich-Text Toolbar. Self-contained overlay that
+          attaches to the existing contentEditable/textarea in this modal.
+          Does not alter existing top-bar controls, storage, or hierarchy. */}
+      <FloatingRichTextToolbar isOpen={isOpen} isDark={isDark} />
     </>
   );
 }
