@@ -103,8 +103,12 @@ function surroundTextareaSelection(editor, prefix, suffix = prefix) {
 // --------------------------------------------------------------------------
 // Component
 // --------------------------------------------------------------------------
-const HORIZONTAL_HEIGHT = 44;
-const VERTICAL_WIDTH = 44;
+// These match the rendered outer-box size (button height + 4px padding +
+// 1px border top/bottom). They only matter for the "sit above the keyboard"
+// Y calculation on mobile; getting them off by a few px is what determines
+// whether the toolbar overshoots into the keyboard area.
+const HORIZONTAL_HEIGHT = 50;
+const VERTICAL_WIDTH = 50;
 
 export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }) {
   const [pos, setPos] = useState(null);            // { x, y } in viewport coords
@@ -112,28 +116,106 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const [pickerOpen, setPickerOpen] = useState(null); // null | "forms" | "hierarchy"
   const dragStateRef = useRef({ dragging: false, offX: 0, offY: 0 });
 
-  // ------ Initial position: hover just above the on-screen keyboard ------
+  // ------------------------------------------------------------------------
+  // Mobile-only visibility contract (see Module 1 correction):
+  //   1. Hidden until the Expanded Text Editor is focused AND the on-screen
+  //      keyboard is up.
+  //   2. Y is snapped to just-above-the-keyboard on every visualViewport
+  //      change so it visually travels with the keyboard.
+  //   3. Hidden again when the editor loses focus or the keyboard closes.
+  //   4. Desktop behaviour is unchanged (always shown when open).
+  // Scope: ONLY the Expanded Text Editor (i.e. the two `note-content-input*`
+  // elements inside NoteModal). Other Tile Packs / editors are untouched.
+  // ------------------------------------------------------------------------
+  const isMobile = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.matchMedia("(pointer: coarse)").matches; } catch { return false; }
+  }, []);
+  const [editorFocused, setEditorFocused] = useState(false);
+  const [keyboardUp, setKeyboardUp] = useState(false);
+
+  // Track focus on the two known Expanded Text Editor targets.
+  useEffect(() => {
+    if (!isOpen) return;
+    const isEditorEl = (el) => {
+      if (!el || !el.getAttribute) return false;
+      const id = el.getAttribute("data-testid");
+      return id === "note-content-input-html" || id === "note-content-input";
+    };
+    const onFocusIn = (e) => { if (isEditorEl(e.target)) setEditorFocused(true); };
+    const onFocusOut = (e) => {
+      if (!isEditorEl(e.target)) return;
+      // Small deferral so tapping a toolbar button (which momentarily
+      // steals focus) doesn't collapse the toolbar mid-interaction.
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (!isEditorEl(active)) setEditorFocused(false);
+      }, 80);
+    };
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    // Prime state if the editor is already focused when the toolbar mounts.
+    if (isEditorEl(document.activeElement)) setEditorFocused(true);
+    return () => {
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+    };
+  }, [isOpen]);
+
+  // Detect soft keyboard visibility via visualViewport shrinkage.
+  // A ~120px delta reliably distinguishes an open on-screen keyboard from
+  // browser chrome / toolbars in both portrait and landscape.
+  useEffect(() => {
+    if (!isOpen) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const check = () => {
+      const delta = window.innerHeight - vv.height;
+      setKeyboardUp(delta > 120);
+    };
+    check();
+    vv.addEventListener("resize", check);
+    vv.addEventListener("scroll", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      vv.removeEventListener("resize", check);
+      vv.removeEventListener("scroll", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, [isOpen]);
+
+  // ------ Position: hover just above the on-screen keyboard ------
   useEffect(() => {
     if (!isOpen) return;
     const place = () => {
       const vv = window.visualViewport;
       const viewportH = vv ? vv.height : window.innerHeight;
       const viewportW = vv ? vv.width : window.innerWidth;
-      const bottomGap = 12;
+      const offsetTop = vv?.offsetTop || 0;
+      const gap = isMobile ? 4 : 12; // "a few pixels" above the keyboard
       const height = orientation === "horizontal" ? HORIZONTAL_HEIGHT : 240;
       const width = orientation === "horizontal" ? Math.min(viewportW - 24, 520) : VERTICAL_WIDTH;
-      const x = Math.max(8, Math.round((viewportW - width) / 2));
-      const y = Math.max(48, Math.round(viewportH - height - bottomGap + (vv?.offsetTop || 0)));
-      setPos(prev => prev || { x, y });
+      const centeredX = Math.max(8, Math.round((viewportW - width) / 2));
+      const y = Math.max(48, Math.round(offsetTop + viewportH - height - gap));
+      setPos(prev => {
+        if (!prev) return { x: centeredX, y };
+        // Mobile: always snap Y to just-above-keyboard so the toolbar
+        // visually travels with the keyboard. Keep X where the user dragged.
+        if (isMobile) return { x: prev.x, y };
+        // Desktop: preserve user-dragged position (existing behaviour).
+        return prev;
+      });
     };
     place();
     window.visualViewport?.addEventListener("resize", place);
     window.visualViewport?.addEventListener("scroll", place);
+    window.addEventListener("orientationchange", place);
     return () => {
       window.visualViewport?.removeEventListener("resize", place);
       window.visualViewport?.removeEventListener("scroll", place);
+      window.removeEventListener("orientationchange", place);
     };
-  }, [isOpen, orientation]);
+  }, [isOpen, orientation, isMobile]);
 
   // ------ Drag by grip only ------
   const onGripPointerDown = useCallback((e) => {
@@ -269,6 +351,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   ], [applyFormat, applyHeading, applyLink, applyImage]);
 
   if (!isOpen || !pos) return null;
+  // Mobile visibility gate: only show when the Expanded Text Editor is
+  // focused AND the on-screen keyboard is up. Desktop is unaffected.
+  if (isMobile && (!editorFocused || !keyboardUp)) return null;
 
   // ------ Styling ------
   const isH = orientation === "horizontal";
@@ -333,6 +418,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                     type="button"
                     data-testid={`floating-rte-btn-${t.id}`}
                     title={t.title}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={handle}
                     className={`shrink-0 w-9 h-9 mx-0.5 my-0.5 rounded-lg flex items-center justify-center ${t.accent ? "ring-1 ring-orange-500/50" : ""} hover:bg-white/10 active:scale-95 transition`}
                   >
@@ -351,6 +437,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         <button
           type="button"
           data-testid="floating-rte-rotate"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")}
           aria-label="Rotate toolbar"
           className={`shrink-0 flex items-center justify-center ${isH ? "w-9 h-11 rounded-r-2xl border-l" : "w-11 h-9 rounded-b-2xl border-t"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
