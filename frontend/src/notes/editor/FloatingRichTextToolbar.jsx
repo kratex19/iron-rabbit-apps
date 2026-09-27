@@ -26,6 +26,7 @@
 // ==========================================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   GripVertical, RotateCw,
@@ -92,7 +93,24 @@ function surroundTextareaSelection(editor, prefix, suffix = prefix) {
   const middle = value.slice(start, end);
   const after = value.slice(end);
   const next = `${before}${prefix}${middle}${suffix}${after}`;
-  editor.value = next;
+  // React tracks the last-known value on the DOM node. Setting
+  // `editor.value = next` directly bypasses React's value-setter, so
+  // NoteModal's controlled `onChange` never fires and the underlying
+  // note state (and therefore storage) drifts from the DOM.
+  // Using the native prototype setter forces React to observe the change
+  // via its usual input event pipeline — same mechanism it uses when the
+  // user types.
+  try {
+    const proto = window.HTMLTextAreaElement && window.HTMLTextAreaElement.prototype;
+    const desc = proto && Object.getOwnPropertyDescriptor(proto, "value");
+    if (desc && typeof desc.set === "function") {
+      desc.set.call(editor, next);
+    } else {
+      editor.value = next;
+    }
+  } catch {
+    editor.value = next;
+  }
   editor.dispatchEvent(new Event("input", { bubbles: true }));
   const caret = start + prefix.length + middle.length;
   editor.setSelectionRange(caret, caret);
@@ -188,6 +206,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   useEffect(() => {
     if (!isOpen) return;
     const place = () => {
+      // CRITICAL: do NOT clobber Y while the user is dragging the toolbar.
+      // Without this gate, `visualViewport.scroll` events fire mid-drag on
+      // iOS/Android and the Y snap yanks the toolbar back to the keyboard
+      // line, which is what produced the "wig out" oscillation.
+      if (dragStateRef.current.dragging) return;
       const vv = window.visualViewport;
       const viewportH = vv ? vv.height : window.innerHeight;
       const viewportW = vv ? vv.width : window.innerWidth;
@@ -218,35 +241,57 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   }, [isOpen, orientation, isMobile]);
 
   // ------ Drag by grip only ------
+  // Uses pointer capture on the handle itself, so pointermove/pointerup
+  // are guaranteed to fire on the handle even if the finger leaves its
+  // bounds. All coordinates come from the SAME pointer event stream,
+  // eliminating the "different pointer ids" jump artefact that produced
+  // the wig-out.
+  const rafRef = useRef(0);
   const onGripPointerDown = useCallback((e) => {
     if (!pos) return;
     e.preventDefault();
     e.stopPropagation();
-    const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+    const handleEl = e.currentTarget;
+    try { handleEl.setPointerCapture?.(e.pointerId); } catch {}
     dragStateRef.current = {
       dragging: true,
-      offX: clientX - pos.x,
-      offY: clientY - pos.y,
+      pointerId: e.pointerId,
+      offX: e.clientX - pos.x,
+      offY: e.clientY - pos.y,
     };
     const move = (ev) => {
       if (!dragStateRef.current.dragging) return;
-      const cx = ev.clientX ?? ev.touches?.[0]?.clientX ?? 0;
-      const cy = ev.clientY ?? ev.touches?.[0]?.clientY ?? 0;
-      setPos({
-        x: Math.max(4, Math.min(window.innerWidth - 60, cx - dragStateRef.current.offX)),
-        y: Math.max(4, Math.min(window.innerHeight - 60, cy - dragStateRef.current.offY)),
+      if (ev.pointerId !== dragStateRef.current.pointerId) return;
+      const cx = ev.clientX;
+      const cy = ev.clientY;
+      // Coalesce with rAF so we don't thrash React on every pointermove.
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = 0;
+        setPos({
+          x: Math.max(4, Math.min(window.innerWidth - 60, cx - dragStateRef.current.offX)),
+          y: Math.max(4, Math.min(window.innerHeight - 60, cy - dragStateRef.current.offY)),
+        });
       });
     };
-    const up = () => {
+    const end = (ev) => {
+      if (ev.pointerId !== dragStateRef.current.pointerId) return;
       dragStateRef.current.dragging = false;
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", up);
+      dragStateRef.current.pointerId = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+      try { handleEl.releasePointerCapture?.(ev.pointerId); } catch {}
+      handleEl.removeEventListener("pointermove", move);
+      handleEl.removeEventListener("pointerup", end);
+      handleEl.removeEventListener("pointercancel", end);
     };
-    window.addEventListener("pointermove", move, { passive: true });
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", up);
+    // Bind on the handle (which owns pointer capture) so the stream is
+    // atomic — no window-level races with scroll or other pointers.
+    handleEl.addEventListener("pointermove", move);
+    handleEl.addEventListener("pointerup", end);
+    handleEl.addEventListener("pointercancel", end);
   }, [pos]);
 
   // ------ Tool actions ------
@@ -350,6 +395,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     },
   ], [applyFormat, applyHeading, applyLink, applyImage]);
 
+  // Absorb any pointer/click that reaches the container itself (i.e. the
+  // gap regions between buttons) so it can't propagate through to the
+  // underlying editor or modal chrome. This runs on the BUBBLE phase so
+  // buttons and the scroller still get their events first — the container
+  // only catches what fell into the ~4px gutters. Hoisted above the early
+  // returns so hook order stays stable across renders (rules-of-hooks).
+  const swallow = useCallback((e) => { e.stopPropagation(); }, []);
+
   if (!isOpen || !pos) return null;
   // Mobile visibility gate: only show when the Expanded Text Editor is
   // focused AND the on-screen keyboard is up. Desktop is unaffected.
@@ -368,24 +421,45 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     left: pos.x,
     top: pos.y,
     position: "fixed",
-    zIndex: 1000,
+    // z-index 2147483000 — sits above Radix Dialog portals (2147483647
+    // reserved for browser UI) but stays comfortably below system chrome.
+    // We portal to document.body below, but keep the explicit z-index so
+    // stacking is deterministic if a future ancestor introduces a new
+    // stacking context.
+    zIndex: 2147483000,
     maxWidth: isH ? "calc(100vw - 24px)" : undefined,
     maxHeight: isH ? undefined : "calc(100vh - 24px)",
-    touchAction: "none",
+    // touchAction on the container is deliberately `auto` — the three
+    // interaction zones each declare their own touch-action:
+    //   • drag handle → `none`      (drag captures the pointer)
+    //   • tool scroller → `pan-x`   (horizontal panning only)
+    //   • buttons     → `manipulation` (fast tap, no double-tap zoom)
+    // Setting `none` at the container would intersect with descendants
+    // per the touch-action spec and defeat the scroller.
+    touchAction: "auto",
+    // Guarantee the toolbar is opaque to pointer events end-to-end so
+    // taps in the ~4-6px gaps between icon buttons don't fall through
+    // to the editor / modal buttons beneath.
+    pointerEvents: "auto",
   };
 
-  return (
+  const toolbar = (
     <>
       <div
         data-testid="floating-rte-toolbar"
         className={`select-none flex ${isH ? "flex-row" : "flex-col"} items-stretch rounded-2xl border ${glass} ${accentBorder} shadow-2xl`}
         style={containerStyle}
+        onPointerDown={swallow}
+        onMouseDown={swallow}
+        onClick={swallow}
+        onTouchStart={swallow}
       >
         {/* Drag handle — LEFT edge in horizontal, TOP edge in vertical */}
         <button
           type="button"
           data-testid="floating-rte-drag-handle"
           onPointerDown={onGripPointerDown}
+          onMouseDown={(e) => e.preventDefault()}
           aria-label="Move toolbar"
           className={`shrink-0 flex items-center justify-center ${isH ? "w-10 h-11 rounded-l-2xl border-r" : "w-11 h-10 rounded-t-2xl border-b"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
           style={{ touchAction: "none", cursor: "grab" }}
@@ -393,7 +467,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
           <GripVertical size={16} className={isDark ? "text-slate-300" : "text-slate-700"} />
         </button>
 
-        {/* Scrollable tool row */}
+        {/* Scrollable tool row — its own gesture zone.
+            `touch-action: pan-x` (horizontal) / `pan-y` (vertical) lets the
+            browser natively handle finger-scrolling here WITHOUT stealing
+            drag from the handle above. */}
         <div
           data-testid="floating-rte-scroller"
           className={`flex ${isH ? "flex-row overflow-x-auto overflow-y-hidden" : "flex-col overflow-y-auto overflow-x-hidden"} min-w-0`}
@@ -401,7 +478,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             scrollbarWidth: "thin",
             WebkitOverflowScrolling: "touch",
             padding: 4,
+            touchAction: isH ? "pan-x" : "pan-y",
+            overscrollBehavior: "contain",
           }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {groups.map((g, gi) => (
             <div
@@ -420,6 +500,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                     title={t.title}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={handle}
+                    style={{ touchAction: "manipulation" }}
                     className={`shrink-0 w-9 h-9 mx-0.5 my-0.5 rounded-lg flex items-center justify-center ${t.accent ? "ring-1 ring-orange-500/50" : ""} hover:bg-white/10 active:scale-95 transition`}
                   >
                     <Icon size={16} className={t.stub ? stubColor : iconColor} />
@@ -440,6 +521,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")}
           aria-label="Rotate toolbar"
+          style={{ touchAction: "manipulation" }}
           className={`shrink-0 flex items-center justify-center ${isH ? "w-9 h-11 rounded-r-2xl border-l" : "w-11 h-9 rounded-b-2xl border-t"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
         >
           <RotateCw size={14} className={isDark ? "text-slate-300" : "text-slate-700"} />
@@ -448,7 +530,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
 
       {/* ---- Forms Pack picker (read-only preview) ---- */}
       {pickerOpen === "forms" && (
-        <div className="fixed inset-0 z-[1001] flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={() => setPickerOpen(null)}>
+        <div className="fixed inset-0 z-[2147483001] flex items-end sm:items-center justify-center bg-black/60 p-4" onClick={() => setPickerOpen(null)}>
           <div
             className={`w-full max-w-md rounded-2xl border ${isDark ? "bg-slate-900 border-white/10 text-slate-100" : "bg-white border-gray-200 text-slate-900"} p-4`}
             onClick={(e) => e.stopPropagation()}
@@ -497,6 +579,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       )}
     </>
   );
+
+  // Portal to document.body so the toolbar escapes NoteModal's Radix
+  // Dialog stacking context. Without this, the modal's transformed /
+  // isolated content wrapper becomes the toolbar's containing block for
+  // z-index purposes, which is exactly what allowed underlying editor
+  // controls to swallow taps intended for the toolbar.
+  if (typeof document === "undefined") return toolbar;
+  return createPortal(toolbar, document.body);
 }
 
 // --------------------------------------------------------------------------
