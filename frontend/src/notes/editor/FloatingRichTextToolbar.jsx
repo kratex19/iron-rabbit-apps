@@ -200,6 +200,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const [orientation, setOrientation] = useState("horizontal");
   const [pickerOpen, setPickerOpen] = useState(null); // null | "forms" | "hierarchy"
   const dragStateRef = useRef({ dragging: false, offX: 0, offY: 0 });
+  const scrollerRef = useRef(null);
 
   // ------------------------------------------------------------------------
   // Mobile-only visibility contract (see Module 1 correction):
@@ -268,6 +269,84 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       window.removeEventListener("orientationchange", check);
     };
   }, [isOpen]);
+
+  // ------------------------------------------------------------------------
+  // Manual JS-driven tool-strip scroll.
+  // Radix Dialog wraps its content in `react-remove-scroll`, which installs
+  // a document-level `touchmove` listener that calls preventDefault() on
+  // any touch NOT inside its explicit `shards` list. Our toolbar is
+  // portalled to `document.body` (to escape the Dialog's stacking context)
+  // and therefore is not a shard — so `react-remove-scroll` kills the
+  // browser's native pan-x / pan-y scroll for the tool strip. That is why
+  // CSS-only fixes (`touch-action: pan-x`, `overflow-x: auto`, `flex-1`)
+  // could satisfy structural tests yet fail on-device.
+  //
+  // Fix: bypass native scroll entirely for this scroller. Listen for touch
+  // events on the scroller element itself and drive `scrollLeft` /
+  // `scrollTop` from the finger delta. Programmatic scroll always works —
+  // preventDefault only blocks the browser's default scroll GESTURE, not
+  // scripted `Element.scrollLeft = ...` writes. Independent of Radix,
+  // react-remove-scroll's shard list, and Dialog's event pipeline.
+  // ------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const isH = orientation === "horizontal";
+    let state = null; // { x0, y0, sl0, st0, moved }
+
+    const onTouchStart = (e) => {
+      if (!e.touches || e.touches.length !== 1) { state = null; return; }
+      const t = e.touches[0];
+      state = { x0: t.clientX, y0: t.clientY, sl0: el.scrollLeft, st0: el.scrollTop, moved: false };
+    };
+    const onTouchMove = (e) => {
+      if (!state || !e.touches || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - state.x0;
+      const dy = t.clientY - state.y0;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) state.moved = true;
+      // Finger LEFT means content should scroll RIGHT (i.e. scrollLeft
+      // increases). Standard direct-manipulation panning.
+      if (isH) el.scrollLeft = state.sl0 - dx;
+      else     el.scrollTop  = state.st0 - dy;
+      // Once past the tap threshold, cancel the browser's own scroll
+      // attempt AND the compat click that would otherwise fire on a
+      // button under the finger at touchend.
+      if (state.moved && e.cancelable) e.preventDefault();
+    };
+    const onTouchEnd = () => {
+      const s = state;
+      state = null;
+      if (s && s.moved) {
+        // Swallow the one compat click that fires after a scroll gesture,
+        // so a tool button doesn't accidentally activate when the user
+        // was just panning.
+        const stopOnce = (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          el.removeEventListener("click", stopOnce, true);
+        };
+        el.addEventListener("click", stopOnce, true);
+        setTimeout(() => el.removeEventListener("click", stopOnce, true), 400);
+      }
+    };
+
+    // touchmove MUST be non-passive so preventDefault works. React's
+    // synthetic touchmove is passive on some builds, hence native
+    // addEventListener directly on the DOM node.
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove",  onTouchMove,  { passive: false });
+    el.addEventListener("touchend",   onTouchEnd,   { passive: true });
+    el.addEventListener("touchcancel",onTouchEnd,   { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove",  onTouchMove);
+      el.removeEventListener("touchend",   onTouchEnd);
+      el.removeEventListener("touchcancel",onTouchEnd);
+    };
+  }, [isOpen, orientation, pos]);
+
 
   // ------ Position: hover just above the on-screen keyboard ------
   // (Depends on `getUsableRect`, declared just below the visibility
@@ -544,12 +623,20 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     },
   ], [applyFormat, applyLink, applyImage]);
 
-  // Absorb any pointer/click that reaches the container itself (i.e. the
-  // gap regions between buttons) so it can't propagate through to the
-  // underlying editor or modal chrome. This runs on the BUBBLE phase so
-  // buttons and the scroller still get their events first — the container
-  // only catches what fell into the ~4px gutters. Hoisted above the early
-  // returns so hook order stays stable across renders (rules-of-hooks).
+  // Container-level `onClick` swallow ONLY. Earlier iterations also
+  // swallowed pointerdown / mousedown / touchstart here to keep taps in
+  // the gap gutters from leaking to elements underneath — but since we
+  // portal to document.body with an explicit top z-index and the
+  // container itself is opaque to pointer events (`pointerEvents:auto`),
+  // the browser's hit test already routes every event in the toolbar
+  // rect to the toolbar. Calling `stopPropagation` on `pointerdown` /
+  // `touchstart` inside a scroll container can prevent Chromium and
+  // WebKit's compositor from claiming the pointer stream for native
+  // panning, which is exactly what was killing the tool-strip scroll
+  // gesture on-device. So we keep just `onClick` swallow — a bubble-
+  // phase click still fires AFTER the child button's own onClick, so it
+  // never blocks legitimate button taps, but it prevents any stray
+  // click on a gap gutter from bubbling out.
   const swallow = useCallback((e) => { e.stopPropagation(); }, []);
 
   if (!isOpen || !pos) return null;
@@ -598,10 +685,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         data-testid="floating-rte-toolbar"
         className={`select-none flex ${isH ? "flex-row" : "flex-col"} items-stretch rounded-2xl border ${glass} ${accentBorder} shadow-2xl`}
         style={containerStyle}
-        onPointerDown={swallow}
-        onMouseDown={swallow}
         onClick={swallow}
-        onTouchStart={swallow}
       >
         {/* Fixed CONTROL ZONE — drag handle + orientation, ALWAYS at the
             leading edge (top in vertical, left in horizontal). Sits
@@ -656,6 +740,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             constrain the main-axis dimension so the browser has a
             fixed-size viewport to pan against. */}
         <div
+          ref={scrollerRef}
           data-testid="floating-rte-scroller"
           className={`flex ${isH
             ? "flex-row overflow-x-auto overflow-y-hidden min-w-0"
@@ -673,7 +758,6 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             // toolbar — that IS its viewport for overflow.
             ...(isH ? { maxWidth: "100%" } : { maxHeight: "100%" }),
           }}
-          onPointerDown={(e) => e.stopPropagation()}
         >
           {groups.map((g, gi) => (
             <div
