@@ -646,16 +646,32 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         {/* Scrollable tool row — its own gesture zone.
             `touch-action: pan-x` (horizontal) / `pan-y` (vertical) lets the
             browser natively handle finger-scrolling here WITHOUT stealing
-            drag from the handle in the control zone. */}
+            drag from the handle in the control zone.
+
+            CRITICAL sizing note: the scroller MUST have `flex-1` and
+            `min-w-0` / `min-h-0` in its cross-axis, otherwise the flex
+            algorithm sizes it to fit its ~1000px of tool content and
+            `overflow-*: auto` has no viewport to overflow against — the
+            container just grows off-screen instead of scrolling. Also
+            constrain the main-axis dimension so the browser has a
+            fixed-size viewport to pan against. */}
         <div
           data-testid="floating-rte-scroller"
-          className={`flex ${isH ? "flex-row overflow-x-auto overflow-y-hidden" : "flex-col overflow-y-auto overflow-x-hidden"} min-w-0`}
+          className={`flex ${isH
+            ? "flex-row overflow-x-auto overflow-y-hidden min-w-0"
+            : "flex-col overflow-y-auto overflow-x-hidden min-h-0"} flex-1`}
           style={{
             scrollbarWidth: "thin",
             WebkitOverflowScrolling: "touch",
             padding: 4,
             touchAction: isH ? "pan-x" : "pan-y",
             overscrollBehavior: "contain",
+            // Explicit main-axis cap. Without this, the scroller can still
+            // report its scrollWidth as its clientWidth on some engines
+            // (Safari) and refuse to scroll. flex-1 sets flex-basis:0 so
+            // the scroller stretches to fill remaining space in the
+            // toolbar — that IS its viewport for overflow.
+            ...(isH ? { maxWidth: "100%" } : { maxHeight: "100%" }),
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
