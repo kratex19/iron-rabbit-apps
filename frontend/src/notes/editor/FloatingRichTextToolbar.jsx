@@ -29,7 +29,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
-  GripVertical, RotateCw,
+  Menu, ArrowUpDown, ArrowLeftRight,
   Heading1, Heading2, Heading3, Type,
   Bold, Italic, Underline, Strikethrough,
   List, ListOrdered, ListChecks,
@@ -41,6 +41,7 @@ import {
   ScanLine, Camera, Mic, FileText, Printer, Share2,
 } from "lucide-react";
 import { FormsPackAdapter, HierarchyAdapter } from "./adapters";
+import { plainTextToHtml } from "../../utils/htmlSanitize";
 
 // --------------------------------------------------------------------------
 // Small helper — find the active editor element (contentEditable or
@@ -67,8 +68,41 @@ function findActiveEditor() {
 }
 
 // --------------------------------------------------------------------------
-// Formatting primitives
+// Formatting primitives — REAL rich-text only.
+// Two paths:
+//   1) Editor is <textarea> (plain-text mode). Promote the note to HTML by
+//      wrapping the selected range in a real HTML tag (<strong>/<em>/<u>/
+//      <s>) or converting the current line into a <h1>/<h2>/<h3>. The
+//      promoted HTML string is written back through React's native value
+//      setter so NoteModal's `onChange` fires, `looksLikeHtml(content)`
+//      flips to true on the next render, and the modal automatically
+//      swaps textarea → contentEditable. We refocus the new element after
+//      paint so subsequent formatting operates on the live contentEditable.
+//   2) Editor is contentEditable (HTML mode). Use native execCommand,
+//      which produces real <strong>/<em>/<u>/<s>/<h1..3> nodes that the
+//      existing sanitiser + storage layer already handle.
+// No Markdown markers (**, __, ~~, ##, etc.) are ever inserted anywhere.
 // --------------------------------------------------------------------------
+
+// React tracks the last-known value on inputs/textareas. Setting `.value`
+// directly bypasses that tracker so NoteModal's controlled `onChange`
+// never fires. Using the native prototype setter is the standard React
+// escape hatch for programmatic value writes.
+function reactSetValue(el, next) {
+  try {
+    const proto = window.HTMLTextAreaElement && window.HTMLTextAreaElement.prototype;
+    const desc = proto && Object.getOwnPropertyDescriptor(proto, "value");
+    if (desc && typeof desc.set === "function") {
+      desc.set.call(el, next);
+    } else {
+      el.value = next;
+    }
+  } catch {
+    el.value = next;
+  }
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 function runExecCommand(editor, command, value = null) {
   try {
     if (editor && typeof editor.focus === "function") editor.focus();
@@ -84,38 +118,71 @@ function runExecCommand(editor, command, value = null) {
   }
 }
 
-function surroundTextareaSelection(editor, prefix, suffix = prefix) {
-  if (!editor || editor.tagName !== "TEXTAREA") return false;
+// Map of format key → inline tag used when promoting a plain textarea
+// into HTML mode. Kept in sync with the sanitiser allowlist in
+// utils/htmlSanitize.js so the promoted markup round-trips through
+// storage cleanly.
+const INLINE_TAG = { bold: "strong", italic: "em", underline: "u", strike: "s" };
+const BLOCK_TAG = { h1: "h1", h2: "h2", h3: "h3" };
+
+// Split plaintext-with-markers into HTML paragraphs while preserving the
+// markers verbatim, then swap them back to real tags. This gives us
+// selection-preserving wrapping without any Markdown intermediate step.
+const MARK_OPEN = "\u0001IR_OPEN\u0001";
+const MARK_CLOSE = "\u0001IR_CLOSE\u0001";
+
+function promoteTextareaWithInlineFormat(editor, format) {
+  const tag = INLINE_TAG[format];
+  if (!tag) return false;
   const start = editor.selectionStart ?? 0;
   const end = editor.selectionEnd ?? 0;
-  const value = editor.value;
+  if (start === end) {
+    toast.info("Select text to format", { duration: 1500 });
+    return false;
+  }
+  const value = editor.value || "";
   const before = value.slice(0, start);
   const middle = value.slice(start, end);
   const after = value.slice(end);
-  const next = `${before}${prefix}${middle}${suffix}${after}`;
-  // React tracks the last-known value on the DOM node. Setting
-  // `editor.value = next` directly bypasses React's value-setter, so
-  // NoteModal's controlled `onChange` never fires and the underlying
-  // note state (and therefore storage) drifts from the DOM.
-  // Using the native prototype setter forces React to observe the change
-  // via its usual input event pipeline — same mechanism it uses when the
-  // user types.
-  try {
-    const proto = window.HTMLTextAreaElement && window.HTMLTextAreaElement.prototype;
-    const desc = proto && Object.getOwnPropertyDescriptor(proto, "value");
-    if (desc && typeof desc.set === "function") {
-      desc.set.call(editor, next);
-    } else {
-      editor.value = next;
-    }
-  } catch {
-    editor.value = next;
-  }
-  editor.dispatchEvent(new Event("input", { bubbles: true }));
-  const caret = start + prefix.length + middle.length;
-  editor.setSelectionRange(caret, caret);
-  editor.focus();
+  const marked = before + MARK_OPEN + middle + MARK_CLOSE + after;
+  let html = plainTextToHtml(marked);
+  html = html.split(MARK_OPEN).join(`<${tag}>`).split(MARK_CLOSE).join(`</${tag}>`);
+  reactSetValue(editor, html);
   return true;
+}
+
+function promoteTextareaWithBlockFormat(editor, format) {
+  const tag = BLOCK_TAG[format];
+  if (!tag) return false;
+  const value = editor.value || "";
+  const caret = editor.selectionStart ?? 0;
+  const lineStart = value.lastIndexOf("\n", caret - 1) + 1;
+  const nextNl = value.indexOf("\n", caret);
+  const lineEnd = nextNl === -1 ? value.length : nextNl;
+  const before = value.slice(0, lineStart);
+  const line = value.slice(lineStart, lineEnd);
+  const after = value.slice(lineEnd);
+  if (!line.trim()) {
+    toast.info("Type on a line first", { duration: 1500 });
+    return false;
+  }
+  const marked = before + MARK_OPEN + line + MARK_CLOSE + after;
+  let html = plainTextToHtml(marked);
+  html = html.split(MARK_OPEN).join(`<${tag}>`).split(MARK_CLOSE).join(`</${tag}>`);
+  reactSetValue(editor, html);
+  return true;
+}
+
+// Refocus the freshly-mounted contentEditable after a textarea → HTML
+// promotion. Uses two RAFs so React has committed the swap by the time
+// we look for the element on real devices.
+function focusHtmlEditorSoon() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector('[data-testid="note-content-input-html"]');
+      if (el && typeof el.focus === "function") el.focus();
+    });
+  });
 }
 
 // --------------------------------------------------------------------------
@@ -203,6 +270,37 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   }, [isOpen]);
 
   // ------ Position: hover just above the on-screen keyboard ------
+  // (Depends on `getUsableRect`, declared just below the visibility
+  // gate effects but above this position effect — see below.)
+  const rafRef = useRef(0);
+  // Compute the usable rect the toolbar is allowed to occupy. This is
+  // the Radix Dialog content rect (Edit Note editor) intersected with
+  // the visualViewport (so the on-screen keyboard shrinks the bottom
+  // dynamically). Falls back to the layout viewport when the dialog
+  // isn't found (e.g. toolbar mounted outside a dialog).
+  const getUsableRect = useCallback(() => {
+    const vv = window.visualViewport;
+    const vvTop = vv?.offsetTop || 0;
+    const vvBottom = vv ? vvTop + vv.height : window.innerHeight;
+    let left = 0, right = window.innerWidth, top = 0, bottom = window.innerHeight;
+    const dialog =
+      document.querySelector('[role="dialog"][data-state="open"]') ||
+      document.querySelector('[role="dialog"]') ||
+      document.querySelector('[data-radix-dialog-content]');
+    if (dialog) {
+      const r = dialog.getBoundingClientRect();
+      left = r.left; right = r.right; top = r.top; bottom = r.bottom;
+    }
+    // Intersect with the visible viewport so the keyboard reduces the
+    // bottom boundary and the toolbar can never be dragged under it.
+    bottom = Math.min(bottom, vvBottom);
+    top = Math.max(top, vvTop);
+    // Guard against zero/negative sizes (dialog animating in).
+    if (right - left < 40) { left = 0; right = window.innerWidth; }
+    if (bottom - top < 40) { top = 0; bottom = window.innerHeight; }
+    return { left, right, top, bottom };
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
     const place = () => {
@@ -211,20 +309,25 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // iOS/Android and the Y snap yanks the toolbar back to the keyboard
       // line, which is what produced the "wig out" oscillation.
       if (dragStateRef.current.dragging) return;
-      const vv = window.visualViewport;
-      const viewportH = vv ? vv.height : window.innerHeight;
-      const viewportW = vv ? vv.width : window.innerWidth;
-      const offsetTop = vv?.offsetTop || 0;
+      const rect = getUsableRect();
       const gap = isMobile ? 4 : 12; // "a few pixels" above the keyboard
       const height = orientation === "horizontal" ? HORIZONTAL_HEIGHT : 240;
-      const width = orientation === "horizontal" ? Math.min(viewportW - 24, 520) : VERTICAL_WIDTH;
-      const centeredX = Math.max(8, Math.round((viewportW - width) / 2));
-      const y = Math.max(48, Math.round(offsetTop + viewportH - height - gap));
+      const width = orientation === "horizontal" ? Math.min(rect.right - rect.left - 24, 520) : VERTICAL_WIDTH;
+      const centeredX = Math.max(rect.left + 8, Math.round(rect.left + (rect.right - rect.left - width) / 2));
+      const y = Math.round(rect.bottom - height - gap);
       setPos(prev => {
-        if (!prev) return { x: centeredX, y };
+        if (!prev) return { x: centeredX, y: Math.max(rect.top, y) };
         // Mobile: always snap Y to just-above-keyboard so the toolbar
-        // visually travels with the keyboard. Keep X where the user dragged.
-        if (isMobile) return { x: prev.x, y };
+        // visually travels with the keyboard. Keep X where the user
+        // dragged, but re-clamp it against the current usable rect
+        // (dialog resize, orientation change, keyboard resize).
+        if (isMobile) {
+          const maxX = Math.max(rect.left, rect.right - width);
+          return {
+            x: Math.max(rect.left, Math.min(maxX, prev.x)),
+            y: Math.max(rect.top, y),
+          };
+        }
         // Desktop: preserve user-dragged position (existing behaviour).
         return prev;
       });
@@ -238,7 +341,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       window.visualViewport?.removeEventListener("scroll", place);
       window.removeEventListener("orientationchange", place);
     };
-  }, [isOpen, orientation, isMobile]);
+  }, [isOpen, orientation, isMobile, getUsableRect]);
 
   // ------ Drag by grip only ------
   // Uses pointer capture on the handle itself, so pointermove/pointerup
@@ -246,32 +349,45 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   // bounds. All coordinates come from the SAME pointer event stream,
   // eliminating the "different pointer ids" jump artefact that produced
   // the wig-out.
-  const rafRef = useRef(0);
   const onGripPointerDown = useCallback((e) => {
     if (!pos) return;
     e.preventDefault();
     e.stopPropagation();
     const handleEl = e.currentTarget;
+    // Toolbar bbox — needed for containment so we clamp the whole box,
+    // not just the top-left corner.
+    const toolbarEl = handleEl.closest('[data-testid="floating-rte-toolbar"]');
+    const tbRect = toolbarEl?.getBoundingClientRect();
+    const tbW = tbRect ? tbRect.width : 100;
+    const tbH = tbRect ? tbRect.height : 44;
     try { handleEl.setPointerCapture?.(e.pointerId); } catch {}
     dragStateRef.current = {
       dragging: true,
       pointerId: e.pointerId,
       offX: e.clientX - pos.x,
       offY: e.clientY - pos.y,
+      tbW,
+      tbH,
     };
     const move = (ev) => {
       if (!dragStateRef.current.dragging) return;
       if (ev.pointerId !== dragStateRef.current.pointerId) return;
       const cx = ev.clientX;
       const cy = ev.clientY;
-      // Coalesce with rAF so we don't thrash React on every pointermove.
       if (rafRef.current) return;
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
-        setPos({
-          x: Math.max(4, Math.min(window.innerWidth - 60, cx - dragStateRef.current.offX)),
-          y: Math.max(4, Math.min(window.innerHeight - 60, cy - dragStateRef.current.offY)),
-        });
+        const rect = getUsableRect();
+        const w = dragStateRef.current.tbW;
+        const h = dragStateRef.current.tbH;
+        // Clamp the ENTIRE toolbar bounding box inside the usable rect.
+        // If the toolbar is wider/taller than the rect (unusual, tiny
+        // dialogs), pin to the top-left corner rather than producing NaN.
+        const maxX = Math.max(rect.left, rect.right - w);
+        const maxY = Math.max(rect.top, rect.bottom - h);
+        const nextX = Math.max(rect.left, Math.min(maxX, cx - dragStateRef.current.offX));
+        const nextY = Math.max(rect.top,  Math.min(maxY, cy - dragStateRef.current.offY));
+        setPos({ x: nextX, y: nextY });
       });
     };
     const end = (ev) => {
@@ -287,55 +403,88 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       handleEl.removeEventListener("pointerup", end);
       handleEl.removeEventListener("pointercancel", end);
     };
-    // Bind on the handle (which owns pointer capture) so the stream is
-    // atomic — no window-level races with scroll or other pointers.
     handleEl.addEventListener("pointermove", move);
     handleEl.addEventListener("pointerup", end);
     handleEl.addEventListener("pointercancel", end);
-  }, [pos]);
+  }, [pos, getUsableRect]);
 
-  // ------ Tool actions ------
+  // ------ Tool actions — REAL rich text, no Markdown fallback ------
   const stub = (name) => () => toast.info(`${name} — coming in a follow-up`, { duration: 1800 });
 
-  const applyFormat = useCallback((cmd, value = null, mdPrefix = null, mdSuffix = null) => {
+  // Unified format entry point. `format` is a semantic key
+  // ("bold" | "italic" | "underline" | "strike" | "h1" | "h2" | "h3"
+  //  | "ul" | "ol" | "checklist" | "undo" | "redo")
+  // Branches on the live editor kind:
+  //   • <textarea>       → promote note to HTML with real tags.
+  //   • contentEditable  → native execCommand.
+  const applyFormat = useCallback((format) => {
     const editor = findActiveEditor();
     if (!editor) return;
-    if (editor.tagName === "TEXTAREA" && mdPrefix !== null) {
-      surroundTextareaSelection(editor, mdPrefix, mdSuffix ?? mdPrefix);
-    } else {
-      runExecCommand(editor, cmd, value);
-    }
-  }, []);
 
-  const applyHeading = useCallback((level) => {
-    const editor = findActiveEditor();
-    if (!editor) return;
     if (editor.tagName === "TEXTAREA") {
-      // Insert markdown-style heading marker at start of current line.
-      const hashes = "#".repeat(level) + " ";
-      const start = editor.selectionStart ?? 0;
-      const value = editor.value;
-      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-      editor.value = value.slice(0, lineStart) + hashes + value.slice(lineStart);
-      editor.dispatchEvent(new Event("input", { bubbles: true }));
-      editor.setSelectionRange(start + hashes.length, start + hashes.length);
-      editor.focus();
-    } else {
-      runExecCommand(editor, "formatBlock", `H${level}`);
+      let ok = false;
+      if (INLINE_TAG[format]) ok = promoteTextareaWithInlineFormat(editor, format);
+      else if (BLOCK_TAG[format]) ok = promoteTextareaWithBlockFormat(editor, format);
+      else if (format === "undo" || format === "redo") {
+        // Native textarea undo/redo is browser-controlled — no-op here.
+        toast.info(`${format[0].toUpperCase()}${format.slice(1)} works in HTML mode`, { duration: 1500 });
+        return;
+      } else {
+        // Lists etc. — promote whole note to HTML first so subsequent
+        // toolbar taps flow through the execCommand path below.
+        toast.info("Add some text and select it first", { duration: 1500 });
+        return;
+      }
+      if (ok) focusHtmlEditorSoon();
+      return;
     }
+
+    // contentEditable — native execCommand path.
+    const execMap = {
+      bold: ["bold"], italic: ["italic"], underline: ["underline"], strike: ["strikeThrough"],
+      h1: ["formatBlock", "H1"], h2: ["formatBlock", "H2"], h3: ["formatBlock", "H3"],
+      undo: ["undo"], redo: ["redo"],
+      ul: ["insertUnorderedList"], ol: ["insertOrderedList"], checklist: ["insertUnorderedList"],
+    };
+    const spec = execMap[format];
+    if (spec) runExecCommand(editor, spec[0], spec[1] ?? null);
   }, []);
 
   const applyLink = useCallback(() => {
     const url = window.prompt("Enter URL");
     if (!url) return;
-    applyFormat("createLink", url, `[`, `](${url})`);
-  }, [applyFormat]);
+    const editor = findActiveEditor();
+    if (!editor) return;
+    if (editor.tagName === "TEXTAREA") {
+      // Promote to HTML with the selected/typed URL wrapped in an <a>.
+      const start = editor.selectionStart ?? 0;
+      const end = editor.selectionEnd ?? 0;
+      const value = editor.value || "";
+      const label = end > start ? value.slice(start, end) : url;
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+      const marked = before + MARK_OPEN + label + MARK_CLOSE + after;
+      let html = plainTextToHtml(marked);
+      const safeUrl = url.replace(/"/g, "&quot;");
+      html = html.split(MARK_OPEN).join(`<a href="${safeUrl}">`).split(MARK_CLOSE).join("</a>");
+      reactSetValue(editor, html);
+      focusHtmlEditorSoon();
+    } else {
+      runExecCommand(editor, "createLink", url);
+    }
+  }, []);
 
   const applyImage = useCallback(() => {
     const src = window.prompt("Image URL (public link)");
     if (!src) return;
-    applyFormat("insertImage", src, `![image](`, `)`);
-  }, [applyFormat]);
+    const editor = findActiveEditor();
+    if (!editor) return;
+    if (editor.tagName === "TEXTAREA") {
+      toast.info("Add some text first, then insert image in Format mode", { duration: 1800 });
+      return;
+    }
+    runExecCommand(editor, "insertImage", src);
+  }, []);
 
   // ------ Tool descriptor list ------
   const groups = useMemo(() => [
@@ -343,13 +492,13 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       label: "text",
       tools: [
         { id: "aa", icon: Type, title: "Text style", stub: true },
-        { id: "h1", icon: Heading1, title: "Heading 1", onClick: () => applyHeading(1) },
-        { id: "h2", icon: Heading2, title: "Heading 2", onClick: () => applyHeading(2) },
-        { id: "h3", icon: Heading3, title: "Heading 3", onClick: () => applyHeading(3) },
-        { id: "bold", icon: Bold, title: "Bold", onClick: () => applyFormat("bold", null, "**") },
-        { id: "italic", icon: Italic, title: "Italic", onClick: () => applyFormat("italic", null, "_") },
-        { id: "underline", icon: Underline, title: "Underline", onClick: () => applyFormat("underline", null, "__") },
-        { id: "strike", icon: Strikethrough, title: "Strikethrough", onClick: () => applyFormat("strikeThrough", null, "~~") },
+        { id: "h1", icon: Heading1, title: "Heading 1", onClick: () => applyFormat("h1") },
+        { id: "h2", icon: Heading2, title: "Heading 2", onClick: () => applyFormat("h2") },
+        { id: "h3", icon: Heading3, title: "Heading 3", onClick: () => applyFormat("h3") },
+        { id: "bold", icon: Bold, title: "Bold", onClick: () => applyFormat("bold") },
+        { id: "italic", icon: Italic, title: "Italic", onClick: () => applyFormat("italic") },
+        { id: "underline", icon: Underline, title: "Underline", onClick: () => applyFormat("underline") },
+        { id: "strike", icon: Strikethrough, title: "Strikethrough", onClick: () => applyFormat("strike") },
         { id: "color", icon: Palette, title: "Text color", stub: true },
         { id: "highlight", icon: Highlighter, title: "Highlight", stub: true },
       ],
@@ -358,9 +507,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       label: "lists",
       tools: [
         { id: "align", icon: AlignLeft, title: "Alignment", stub: true },
-        { id: "ul", icon: List, title: "Bulleted list", onClick: () => applyFormat("insertUnorderedList", null, "\n- ", "") },
-        { id: "ol", icon: ListOrdered, title: "Numbered list", onClick: () => applyFormat("insertOrderedList", null, "\n1. ", "") },
-        { id: "checklist", icon: ListChecks, title: "Checklist", onClick: () => applyFormat("insertUnorderedList", null, "\n- [ ] ", "") },
+        { id: "ul", icon: List, title: "Bulleted list", onClick: () => applyFormat("ul") },
+        { id: "ol", icon: ListOrdered, title: "Numbered list", onClick: () => applyFormat("ol") },
+        { id: "checklist", icon: ListChecks, title: "Checklist", onClick: () => applyFormat("checklist") },
       ],
     },
     {
@@ -393,7 +542,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         { id: "share", icon: Share2, title: "Share", stub: true },
       ],
     },
-  ], [applyFormat, applyHeading, applyLink, applyImage]);
+  ], [applyFormat, applyLink, applyImage]);
 
   // Absorb any pointer/click that reaches the container itself (i.e. the
   // gap regions between buttons) so it can't propagate through to the
@@ -454,23 +603,50 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         onClick={swallow}
         onTouchStart={swallow}
       >
-        {/* Drag handle — LEFT edge in horizontal, TOP edge in vertical */}
-        <button
-          type="button"
-          data-testid="floating-rte-drag-handle"
-          onPointerDown={onGripPointerDown}
-          onMouseDown={(e) => e.preventDefault()}
-          aria-label="Move toolbar"
-          className={`shrink-0 flex items-center justify-center ${isH ? "w-10 h-11 rounded-l-2xl border-r" : "w-11 h-10 rounded-t-2xl border-b"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
-          style={{ touchAction: "none", cursor: "grab" }}
+        {/* Fixed CONTROL ZONE — drag handle + orientation, ALWAYS at the
+            leading edge (top in vertical, left in horizontal). Sits
+            OUTSIDE the scrollable tool strip so it never scrolls away. */}
+        <div
+          data-testid="floating-rte-controls"
+          className={`shrink-0 flex ${isH ? "flex-row" : "flex-col"} items-stretch ${isH ? "rounded-l-2xl border-r" : "rounded-t-2xl border-b"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
         >
-          <GripVertical size={16} className={isDark ? "text-slate-300" : "text-slate-700"} />
-        </button>
+          {/* Drag handle (☰) — the ONLY area used to reposition the toolbar. */}
+          <button
+            type="button"
+            data-testid="floating-rte-drag-handle"
+            onPointerDown={onGripPointerDown}
+            onMouseDown={(e) => e.preventDefault()}
+            aria-label="Move toolbar"
+            className={`shrink-0 flex items-center justify-center w-10 h-11`}
+            style={{ touchAction: "none", cursor: "grab" }}
+          >
+            <Menu size={18} className={isDark ? "text-slate-300" : "text-slate-700"} />
+          </button>
+          {/* Divider between handle and orientation control */}
+          <div className={`${isH ? "w-px h-6 self-center" : "h-px w-6 self-center"} ${isDark ? "bg-white/10" : "bg-gray-300"}`} />
+          {/* Orientation control — two-arrow icon indicating the target
+              orientation. Horizontal shows ↕ (tap to go vertical),
+              vertical shows ↔ (tap to go horizontal). NEVER a refresh
+              icon. */}
+          <button
+            type="button"
+            data-testid="floating-rte-rotate"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")}
+            aria-label={isH ? "Switch to vertical toolbar" : "Switch to horizontal toolbar"}
+            style={{ touchAction: "manipulation" }}
+            className={`shrink-0 flex items-center justify-center w-10 h-11 hover:bg-white/10 active:scale-95 transition`}
+          >
+            {isH
+              ? <ArrowUpDown    size={16} className={isDark ? "text-slate-300" : "text-slate-700"} />
+              : <ArrowLeftRight size={16} className={isDark ? "text-slate-300" : "text-slate-700"} />}
+          </button>
+        </div>
 
         {/* Scrollable tool row — its own gesture zone.
             `touch-action: pan-x` (horizontal) / `pan-y` (vertical) lets the
             browser natively handle finger-scrolling here WITHOUT stealing
-            drag from the handle above. */}
+            drag from the handle in the control zone. */}
         <div
           data-testid="floating-rte-scroller"
           className={`flex ${isH ? "flex-row overflow-x-auto overflow-y-hidden" : "flex-col overflow-y-auto overflow-x-hidden"} min-w-0`}
@@ -513,19 +689,6 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             </div>
           ))}
         </div>
-
-        {/* Orientation toggle — RIGHT edge in horizontal, BOTTOM in vertical */}
-        <button
-          type="button"
-          data-testid="floating-rte-rotate"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")}
-          aria-label="Rotate toolbar"
-          style={{ touchAction: "manipulation" }}
-          className={`shrink-0 flex items-center justify-center ${isH ? "w-9 h-11 rounded-r-2xl border-l" : "w-11 h-9 rounded-b-2xl border-t"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
-        >
-          <RotateCw size={14} className={isDark ? "text-slate-300" : "text-slate-700"} />
-        </button>
       </div>
 
       {/* ---- Forms Pack picker (read-only preview) ---- */}
