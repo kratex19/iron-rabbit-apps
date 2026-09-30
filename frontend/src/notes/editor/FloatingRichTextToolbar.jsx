@@ -118,6 +118,56 @@ function runExecCommand(editor, command, value = null) {
   }
 }
 
+// --------------------------------------------------------------------------
+// Deterministic tag wrap (used for Strikethrough).
+//
+// `document.execCommand("strikeThrough")` on the user's Android Chrome
+// nests the strike element inside any existing formatting ancestor, so
+// applying Strike to text that overlaps a <u> region — or that had
+// underline mode toggled on for the selection — produces
+//   <u><strike>...</strike></u>
+// which renders as BOTH underline AND line-through. Empirically
+// reproduced in this environment: after `execCommand('underline')`
+// followed by `execCommand('strikeThrough')` on the same range, we get
+// `<u><strike>hello</strike></u>`.
+//
+// The fix: bypass execCommand for Strike and wrap the selection in a
+// fresh <s> node via a direct Range mutation. This is browser-agnostic,
+// doesn't inherit ambient command modes, and produces plain
+// `<s>text</s>` markup that the sanitiser accepts and the CSS renders
+// as line-through ONLY. Underline is completely untouched.
+// --------------------------------------------------------------------------
+function wrapSelectionWithTag(editor, tagName) {
+  if (!editor) return false;
+  try { editor.focus(); } catch {}
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (range.collapsed) return false;
+  // Guard: ensure the selection lives inside the editor we were handed
+  // (avoid formatting text that has scrolled or drifted outside).
+  if (!editor.contains(range.commonAncestorContainer)) return false;
+  try {
+    const wrapper = document.createElement(tagName);
+    // extractContents + appendChild works even when the selection
+    // crosses element boundaries (surroundContents throws in that case).
+    wrapper.appendChild(range.extractContents());
+    range.insertNode(wrapper);
+    // Restore selection to the wrapped content so a follow-up format
+    // click continues to act on the same text.
+    sel.removeAllRanges();
+    const nr = document.createRange();
+    nr.selectNodeContents(wrapper);
+    sel.addRange(nr);
+    // Notify React that the DOM changed so NoteModal's handleHtmlInput
+    // syncs the new HTML into `content` state (and therefore storage).
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Map of format key → inline tag used when promoting a plain textarea
 // into HTML mode. Kept in sync with the sanitiser allowlist in
 // utils/htmlSanitize.js so the promoted markup round-trips through
@@ -525,6 +575,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       undo: ["undo"], redo: ["redo"],
       ul: ["insertUnorderedList"], ol: ["insertOrderedList"], checklist: ["insertUnorderedList"],
     };
+    // Strikethrough gets a deterministic Range-based wrap (see
+    // `wrapSelectionWithTag`). Everything else stays on execCommand so
+    // Bold / Italic / Underline / Headings / Lists / Undo / Redo behave
+    // exactly as they did yesterday.
+    if (format === "strike") {
+      wrapSelectionWithTag(editor, "s");
+      return;
+    }
     const spec = execMap[format];
     if (spec) runExecCommand(editor, spec[0], spec[1] ?? null);
   }, []);
