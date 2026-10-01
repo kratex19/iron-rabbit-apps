@@ -46,24 +46,55 @@ import { plainTextToHtml, sanitizeHtml } from "../../utils/htmlSanitize";
 
 // --------------------------------------------------------------------------
 // Small helper — find the active editor element (contentEditable or
-// textarea) associated with NoteModal.  We probe the DOM instead of taking
-// a ref prop so the toolbar remains 100% removable without editing
-// NoteModal's internal state shape.
+// textarea) associated with NoteModal OR the FullScreenNote editor.  We
+// probe the DOM instead of taking a ref prop so the toolbar remains 100%
+// removable without editing either host's internal state shape.
+//
+// The toolbar binds to whichever Expanded Text Editor is currently
+// mounted:
+//   • NoteModal      → "note-content-input"  (textarea)
+//                      "note-content-input-html" (contentEditable)
+//   • FullScreenNote → "fullscreen-content-input"        (textarea, text mode)
+//                      "fullscreen-content-input-html"   (textarea, html mode)
+//                      "fullscreen-content-input-format" (contentEditable)
+// Priority order favours the HTML/format contentEditable because that is
+// where rich formatting actually renders.
 // --------------------------------------------------------------------------
+const EDITOR_TESTIDS = [
+  // contentEditable targets first — rich-text operations prefer these
+  "note-content-input-html",
+  "fullscreen-content-input-format",
+  // textarea targets second (plaintext / raw-html editing)
+  "note-content-input",
+  "fullscreen-content-input",
+  "fullscreen-content-input-html",
+];
+const EDITOR_SELECTOR = EDITOR_TESTIDS
+  .map((id) => `[data-testid="${id}"]`)
+  .join(",");
+
 function findActiveEditor() {
   const active = document.activeElement;
   if (active && (active.isContentEditable || active.tagName === "TEXTAREA")) {
-    if (
-      active.getAttribute("data-testid") === "note-content-input-html" ||
-      active.getAttribute("data-testid") === "note-content-input"
-    ) {
-      return active;
-    }
+    const id = active.getAttribute && active.getAttribute("data-testid");
+    if (id && EDITOR_TESTIDS.includes(id)) return active;
   }
-  // Fallback: whichever NoteModal element is currently mounted.
+  // Fallback: priority order from EDITOR_TESTIDS — first match wins.
+  for (const id of EDITOR_TESTIDS) {
+    const el = document.querySelector(`[data-testid="${id}"]`);
+    if (el) return el;
+  }
+  return null;
+}
+
+// Find the active contentEditable editor (NoteModal `note-content-input-html`
+// or FullScreenNote `fullscreen-content-input-format`). Used by the history
+// manager and checklist-click delegation, both of which only make sense on
+// the rich-text surface.
+function findActiveHtmlEditor() {
   return (
     document.querySelector('[data-testid="note-content-input-html"]') ||
-    document.querySelector('[data-testid="note-content-input"]') ||
+    document.querySelector('[data-testid="fullscreen-content-input-format"]') ||
     null
   );
 }
@@ -345,11 +376,13 @@ function promoteTextareaWithBlockFormat(editor, format) {
 
 // Refocus the freshly-mounted contentEditable after a textarea → HTML
 // promotion. Uses two RAFs so React has committed the swap by the time
-// we look for the element on real devices.
+// we look for the element on real devices. Works for either host
+// (NoteModal's `note-content-input-html` or FullScreenNote's
+// `fullscreen-content-input-format`).
 function focusHtmlEditorSoon() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      const el = document.querySelector('[data-testid="note-content-input-html"]');
+      const el = findActiveHtmlEditor();
       if (el && typeof el.focus === "function") el.focus();
     });
   });
@@ -412,7 +445,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // Poll for the HTML editor mount/unmount every 250ms. Cheap; the
     // alternative is a MutationObserver which has subtler lifecycle.
     const poll = () => {
-      const el = document.querySelector('[data-testid="note-content-input-html"]');
+      const el = findActiveHtmlEditor();
       if (el !== currentEl) attach(el);
     };
     poll();
@@ -430,8 +463,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       if (e.clientX - rect.left > 28) return;
       const next = li.getAttribute("data-ir-check") === "1" ? "0" : "1";
       li.setAttribute("data-ir-check", next);
-      // Notify React so NoteModal picks up the DOM change and persists.
-      const editor = li.closest('[data-testid="note-content-input-html"]');
+      // Notify React so the host editor picks up the DOM change and
+      // persists. Works for either NoteModal or FullScreenNote.
+      const editor = li.closest(
+        '[data-testid="note-content-input-html"],[data-testid="fullscreen-content-input-format"]'
+      );
       if (editor) {
         editor.dispatchEvent(new Event("input", { bubbles: true }));
         if (historyRef.current) historyRef.current.snapshotImmediate(editor);
@@ -456,8 +492,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   //      change so it visually travels with the keyboard.
   //   3. Hidden again when the editor loses focus or the keyboard closes.
   //   4. Desktop behaviour is unchanged (always shown when open).
-  // Scope: ONLY the Expanded Text Editor (i.e. the two `note-content-input*`
-  // elements inside NoteModal). Other Tile Packs / editors are untouched.
+  // Scope: ALL known Expanded Text Editor targets — NoteModal
+  // (`note-content-input*`) and FullScreenNote
+  // (`fullscreen-content-input*`). Other Tile Packs / editors are untouched.
   // ------------------------------------------------------------------------
   const isMobile = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -466,13 +503,13 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const [editorFocused, setEditorFocused] = useState(false);
   const [keyboardUp, setKeyboardUp] = useState(false);
 
-  // Track focus on the two known Expanded Text Editor targets.
+  // Track focus on the known Expanded Text Editor targets.
   useEffect(() => {
     if (!isOpen) return;
     const isEditorEl = (el) => {
       if (!el || !el.getAttribute) return false;
       const id = el.getAttribute("data-testid");
-      return id === "note-content-input-html" || id === "note-content-input";
+      return !!id && EDITOR_TESTIDS.includes(id);
     };
     const onFocusIn = (e) => { if (isEditorEl(e.target)) setEditorFocused(true); };
     const onFocusOut = (e) => {
@@ -599,21 +636,23 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   // gate effects but above this position effect — see below.)
   const rafRef = useRef(0);
   // Compute the usable rect the toolbar is allowed to occupy. This is
-  // the Radix Dialog content rect (Edit Note editor) intersected with
+  // the host editor's visible container (Radix Dialog for NoteModal or
+  // the `fullscreen-note` panel for FullScreenNote) intersected with
   // the visualViewport (so the on-screen keyboard shrinks the bottom
-  // dynamically). Falls back to the layout viewport when the dialog
-  // isn't found (e.g. toolbar mounted outside a dialog).
+  // dynamically). Falls back to the layout viewport when neither host
+  // is found (e.g. toolbar mounted outside a known container).
   const getUsableRect = useCallback(() => {
     const vv = window.visualViewport;
     const vvTop = vv?.offsetTop || 0;
     const vvBottom = vv ? vvTop + vv.height : window.innerHeight;
     let left = 0, right = window.innerWidth, top = 0, bottom = window.innerHeight;
-    const dialog =
+    const host =
       document.querySelector('[role="dialog"][data-state="open"]') ||
       document.querySelector('[role="dialog"]') ||
-      document.querySelector('[data-radix-dialog-content]');
-    if (dialog) {
-      const r = dialog.getBoundingClientRect();
+      document.querySelector('[data-radix-dialog-content]') ||
+      document.querySelector('[data-testid="fullscreen-note"]');
+    if (host) {
+      const r = host.getBoundingClientRect();
       left = r.left; right = r.right; top = r.top; bottom = r.bottom;
     }
     // Intersect with the visible viewport so the keyboard reduces the
@@ -948,7 +987,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     const html = editor.tagName === "TEXTAREA"
       ? plainTextToHtml(editor.value || "")
       : (editor.innerHTML || "");
-    const titleEl = document.querySelector('[data-testid="note-title-input"]');
+    const titleEl =
+      document.querySelector('[data-testid="note-title-input"]') ||
+      document.querySelector('[data-testid="fullscreen-title-input"]');
     const title = titleEl?.value || "Note";
     const w = window.open("", "_blank");
     if (!w) {

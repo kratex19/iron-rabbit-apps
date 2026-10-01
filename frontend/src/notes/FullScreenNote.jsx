@@ -17,6 +17,7 @@ import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 import DisplayControlsButton from "./DisplayControlsButton";
 import EditingModeToggle from "./EditingModeToggle";
 import ExpandedTextEditor from "./ExpandedTextEditor";
+import FloatingRichTextToolbar from "./editor/FloatingRichTextToolbar";
 import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 import FeaturedImageBanner from "./FeaturedImageBanner";
 
@@ -600,6 +601,11 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         }}
         isDark={isDark}
       />
+      {/* Module 1 — Floating Rich-Text Toolbar. Same component as NoteModal;
+          reused unchanged. It portals to document.body and discovers the
+          FullScreenNote editor targets (`fullscreen-content-input*`) via
+          its internal testid whitelist. */}
+      <FloatingRichTextToolbar isOpen={isOpen} isDark={isDark} />
     </div>
   );
 }
