@@ -332,6 +332,13 @@ const BLOCK_TAG = { h1: "h1", h2: "h2", h3: "h3" };
 const MARK_OPEN = "\u0001IR_OPEN\u0001";
 const MARK_CLOSE = "\u0001IR_CLOSE\u0001";
 
+// Promotion marker — a transient class we stamp onto the newly-wrapped
+// tag inside the HTML we hand to React. After the contentEditable mounts
+// and React commits the new innerHTML, we locate `.ir-caret-target`,
+// restore selection to it, then strip the class. The class is on the
+// DOMPurify ALLOWED_ATTR list so it survives sanitize.
+const CARET_TARGET_CLASS = "ir-caret-target";
+
 function promoteTextareaWithInlineFormat(editor, format) {
   const tag = INLINE_TAG[format];
   if (!tag) return false;
@@ -347,9 +354,13 @@ function promoteTextareaWithInlineFormat(editor, format) {
   const after = value.slice(end);
   const marked = before + MARK_OPEN + middle + MARK_CLOSE + after;
   let html = plainTextToHtml(marked);
-  html = html.split(MARK_OPEN).join(`<${tag}>`).split(MARK_CLOSE).join(`</${tag}>`);
+  html = html
+    .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
+    .split(MARK_CLOSE).join(`</${tag}>`);
   reactSetValue(editor, html);
-  return true;
+  // "range" → select the inner text so the next inline format reuses
+  // the same selection (B → I → U chaining works out of the box).
+  return "range";
 }
 
 function promoteTextareaWithBlockFormat(editor, format) {
@@ -369,21 +380,68 @@ function promoteTextareaWithBlockFormat(editor, format) {
   }
   const marked = before + MARK_OPEN + line + MARK_CLOSE + after;
   let html = plainTextToHtml(marked);
-  html = html.split(MARK_OPEN).join(`<${tag}>`).split(MARK_CLOSE).join(`</${tag}>`);
+  html = html
+    .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
+    .split(MARK_CLOSE).join(`</${tag}>`);
   reactSetValue(editor, html);
-  return true;
+  // "collapsed-end" → place caret at end of the promoted block so the
+  // user can immediately tap H2 to re-level the same line, or type to
+  // continue inside the new heading.
+  return "collapsed-end";
 }
 
 // Refocus the freshly-mounted contentEditable after a textarea → HTML
-// promotion. Uses two RAFs so React has committed the swap by the time
-// we look for the element on real devices. Works for either host
-// (NoteModal's `note-content-input-html` or FullScreenNote's
-// `fullscreen-content-input-format`).
-function focusHtmlEditorSoon() {
+// promotion AND restore selection inside the `.ir-caret-target` wrapper
+// so subsequent toolbar operations find a valid Range to act on. Works
+// for either host (NoteModal's `note-content-input-html` or
+// FullScreenNote's `fullscreen-content-input-format`).
+// `mode` is the return value of a promote* helper:
+//   • "range"          → select the full contents (used for inline formats)
+//   • "collapsed-end"  → caret at end (used for block/heading formats)
+//   • true | falsy     → focus only, no selection restore (legacy call sites)
+function focusHtmlEditorSoon(mode = true) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const el = findActiveHtmlEditor();
-      if (el && typeof el.focus === "function") el.focus();
+      if (!el || typeof el.focus !== "function") return;
+      el.focus();
+      if (mode !== "range" && mode !== "collapsed-end") return;
+      // Locate the promoted wrapper and restore selection inside it.
+      const target = el.querySelector(`.${CARET_TARGET_CLASS}`);
+      if (!target) return;
+      try {
+        const sel = window.getSelection();
+        if (!sel) return;
+        const range = document.createRange();
+        if (mode === "range") {
+          range.selectNodeContents(target);
+        } else {
+          // collapsed-end — place caret at the final offset of the
+          // deepest trailing text node inside the target.
+          let node = target;
+          while (node && node.lastChild) node = node.lastChild;
+          if (node && node.nodeType === Node.TEXT_NODE) {
+            range.setStart(node, node.data.length);
+            range.setEnd(node, node.data.length);
+          } else {
+            // No text node (e.g. empty <br>): collapse to end of target.
+            range.selectNodeContents(target);
+            range.collapse(false);
+          }
+        }
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch { /* fail silent — focus alone is still a usable fallback */ }
+      // Strip the marker class so successive promotions don't collide,
+      // and so the saved HTML stays clean. We use removeAttribute when
+      // the class is the only one, else drop it from classList.
+      try {
+        target.classList.remove(CARET_TARGET_CLASS);
+        if (target.classList.length === 0) target.removeAttribute("class");
+      } catch { /* noop */ }
+      // Notify React that the DOM changed (class strip) so NoteModal's
+      // onInput → setContent fires once with the cleaned HTML.
+      el.dispatchEvent(new Event("input", { bubbles: true }));
     });
   });
 }
@@ -786,9 +844,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     if (!editor) return;
 
     if (editor.tagName === "TEXTAREA") {
-      let ok = false;
-      if (INLINE_TAG[format]) ok = promoteTextareaWithInlineFormat(editor, format);
-      else if (BLOCK_TAG[format]) ok = promoteTextareaWithBlockFormat(editor, format);
+      // Promote helpers now return a selection-restoration mode string
+      // ("range" | "collapsed-end") instead of a plain boolean — see Fix B
+      // (preserve selection across textarea→HTML mount swap). We forward
+      // that mode to focusHtmlEditorSoon so H1 → H2 → H3 chaining and
+      // consecutive inline formats stop misfiring on the Edit Text path.
+      let mode = false;
+      if (INLINE_TAG[format]) mode = promoteTextareaWithInlineFormat(editor, format);
+      else if (BLOCK_TAG[format]) mode = promoteTextareaWithBlockFormat(editor, format);
       else if (format === "undo" || format === "redo") {
         // Native textarea undo/redo is browser-controlled — no-op here.
         toast.info(`${format[0].toUpperCase()}${format.slice(1)} works in HTML mode`, { duration: 1500 });
@@ -802,7 +865,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         toast.info("Add some text and select it first", { duration: 1500 });
         return;
       }
-      if (ok) focusHtmlEditorSoon();
+      if (mode) focusHtmlEditorSoon(mode);
       return;
     }
 
@@ -1234,6 +1297,15 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
           <button
             type="button"
             data-testid="floating-rte-rotate"
+            // Fix A — mobile tap-focus theft. onMouseDown.preventDefault
+            // alone is insufficient on Android Chrome: touchstart (and
+            // the pointerdown that mirrors it) transfer focus BEFORE
+            // mousedown fires. Adding onPointerDown.preventDefault moves
+            // the focus-theft block earlier in the event sequence so the
+            // editor's selection survives the tap. The browser still
+            // dispatches `click` after pointerup, so onClick fires
+            // normally on both touch and mouse paths.
+            onPointerDown={(e) => e.preventDefault()}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setOrientation(o => o === "horizontal" ? "vertical" : "horizontal")}
             aria-label={isH ? "Switch to vertical toolbar" : "Switch to horizontal toolbar"}
@@ -1293,6 +1365,13 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                     type="button"
                     data-testid={`floating-rte-btn-${t.id}`}
                     title={t.title}
+                    // Fix A — mobile tap-focus theft. See the rotate
+                    // button above for the full rationale. In short:
+                    // pointerdown fires BEFORE focus transfer on Android
+                    // Chrome, so preventing default there is what keeps
+                    // the editor's selection alive for the subsequent
+                    // execCommand / wrap / promote operation.
+                    onPointerDown={(e) => e.preventDefault()}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={handle}
                     style={{ touchAction: "manipulation" }}
