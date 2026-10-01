@@ -407,7 +407,19 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className={`max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}>
+        <DialogContent
+          className={`max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
+          onInteractOutside={(e) => {
+            // The Floating Rich-Text Toolbar is portalled to document.body
+            // to escape this Dialog's stacking context (so native scroll
+            // and z-index work correctly on mobile). But that makes
+            // Radix treat every toolbar click/tap as an "interact
+            // outside" and close the dialog. Suppress those.
+            const t = e.target;
+            if (t && t.closest && t.closest('[data-testid="floating-rte-toolbar"]')) {
+              e.preventDefault();
+            }
+          }}>
           <DialogHeader>
             <DialogTitle className={`font-semibold flex items-center justify-between ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <span>{note ? t("note.edit") : t("note.new")}</span>

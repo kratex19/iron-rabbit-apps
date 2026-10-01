@@ -30,18 +30,19 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   Menu, ArrowUpDown, ArrowLeftRight,
-  Heading1, Heading2, Heading3, Type,
+  Heading1, Heading2, Heading3, Type, CaseSensitive, Pilcrow,
   Bold, Italic, Underline, Strikethrough,
   List, ListOrdered, ListChecks,
   Undo2, Redo2,
   Link as LinkIcon, Image as ImageIcon,
   Network, ClipboardList,
+  CornerDownLeft, WrapText,
   // Stubbed set
   AlignLeft, Palette, Highlighter, Scissors, Copy, ClipboardPaste,
   ScanLine, Camera, Mic, FileText, Printer, Share2,
 } from "lucide-react";
 import { FormsPackAdapter, HierarchyAdapter } from "./adapters";
-import { plainTextToHtml } from "../../utils/htmlSanitize";
+import { plainTextToHtml, sanitizeHtml } from "../../utils/htmlSanitize";
 
 // --------------------------------------------------------------------------
 // Small helper — find the active editor element (contentEditable or
@@ -83,6 +84,125 @@ function findActiveEditor() {
 //      existing sanitiser + storage layer already handle.
 // No Markdown markers (**, __, ~~, ##, etc.) are ever inserted anywhere.
 // --------------------------------------------------------------------------
+
+// --------------------------------------------------------------------------
+// HistoryStack — custom multi-level undo/redo for the HTML editor.
+//
+// `document.execCommand("undo"/"redo")` traverses the browser's own stack,
+// which (a) does not include programmatic `innerHTML = …` writes (used by
+// the textarea → HTML promotion in this toolbar), and (b) has no API for
+// snapshotting formatting commands. Per spec §9/§10 we need a stack that:
+//   • groups continuous typing (debounced snapshot) into one entry
+//   • records an immediate snapshot before + after every toolbar command
+//   • supports many undo/redo levels (cap at 200 to bound memory)
+//   • discards the redo branch when the user edits after an undo
+//   • restores both innerHTML AND a serialized caret location
+// Caret location is serialized as a path through child-node indices +
+// offset — robust across innerHTML swaps.
+// --------------------------------------------------------------------------
+function serializeSelection(root) {
+  try {
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    if (!root.contains(range.startContainer)) return null;
+    const path = (node) => {
+      const indices = [];
+      let n = node;
+      while (n && n !== root) {
+        const parent = n.parentNode;
+        if (!parent) return null;
+        indices.unshift(Array.prototype.indexOf.call(parent.childNodes, n));
+        n = parent;
+      }
+      return indices;
+    };
+    return {
+      startPath: path(range.startContainer),
+      startOffset: range.startOffset,
+      endPath: path(range.endContainer),
+      endOffset: range.endOffset,
+    };
+  } catch { return null; }
+}
+function restoreSelection(root, saved) {
+  if (!saved) return;
+  try {
+    const resolve = (indices) => {
+      let n = root;
+      for (const i of indices) {
+        if (!n || !n.childNodes || !n.childNodes[i]) return null;
+        n = n.childNodes[i];
+      }
+      return n;
+    };
+    const startNode = resolve(saved.startPath);
+    const endNode = resolve(saved.endPath);
+    if (!startNode || !endNode) return;
+    const sel = window.getSelection();
+    const r = document.createRange();
+    const sLen = (startNode.textContent || "").length;
+    const eLen = (endNode.textContent || "").length;
+    r.setStart(startNode, Math.min(saved.startOffset, sLen));
+    r.setEnd(endNode, Math.min(saved.endOffset, eLen));
+    sel.removeAllRanges();
+    sel.addRange(r);
+  } catch { /* fail silent — caret just goes to end */ }
+}
+
+class HistoryStack {
+  constructor(max = 200) {
+    this.stack = [];
+    this.pointer = -1;
+    this.max = max;
+    this._timer = null;
+    this._pending = null;
+  }
+  _trim() {
+    if (this.stack.length > this.max) {
+      const drop = this.stack.length - this.max;
+      this.stack.splice(0, drop);
+      this.pointer -= drop;
+    }
+  }
+  _push(entry) {
+    // Discard any redo branch beyond the current pointer.
+    this.stack.splice(this.pointer + 1);
+    const last = this.stack[this.pointer];
+    if (last && last.html === entry.html) return;
+    this.stack.push(entry);
+    this.pointer = this.stack.length - 1;
+    this._trim();
+  }
+  flush() {
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    if (this._pending) { this._push(this._pending); this._pending = null; }
+  }
+  snapshotImmediate(root) {
+    this.flush();
+    this._push({ html: root.innerHTML, sel: serializeSelection(root) });
+  }
+  // Called from input events — debounces to group continuous typing.
+  snapshotDebounced(root, delay = 800) {
+    this._pending = { html: root.innerHTML, sel: serializeSelection(root) };
+    if (this._timer) clearTimeout(this._timer);
+    this._timer = setTimeout(() => {
+      if (this._pending) { this._push(this._pending); this._pending = null; }
+      this._timer = null;
+    }, delay);
+  }
+  canUndo() { return this.pointer > 0; }
+  canRedo() { return this.pointer < this.stack.length - 1; }
+  undo() { this.flush(); if (!this.canUndo()) return null; this.pointer--; return this.stack[this.pointer]; }
+  redo() { this.flush(); if (!this.canRedo()) return null; this.pointer++; return this.stack[this.pointer]; }
+  resetTo(html, sel) {
+    this.stack = [{ html, sel }];
+    this.pointer = 0;
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    this._pending = null;
+  }
+}
+
 
 // React tracks the last-known value on inputs/textareas. Setting `.value`
 // directly bypasses that tracker so NoteModal's controlled `onChange`
@@ -251,6 +371,82 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const [pickerOpen, setPickerOpen] = useState(null); // null | "forms" | "hierarchy"
   const dragStateRef = useRef({ dragging: false, offX: 0, offY: 0 });
   const scrollerRef = useRef(null);
+
+  // Custom undo/redo stack (spec §9/§10). Scoped per toolbar lifetime —
+  // which is per modal-open — so each note gets a fresh history.
+  const historyRef = useRef(null);
+  const historyEditorRef = useRef(null);
+  if (!historyRef.current) historyRef.current = new HistoryStack(200);
+
+  // ------------------------------------------------------------------------
+  // History manager binding + interactive checklist delegation.
+  // Runs as long as the toolbar is open. Polls document for the HTML
+  // editor (which may not exist initially if the note is in textarea
+  // mode) and primes/rebinds whenever it swaps in or out.
+  // ------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isOpen) return;
+    const history = historyRef.current;
+    let currentEl = null;
+    let onInput = null;
+
+    const attach = (el) => {
+      if (currentEl === el) return;
+      detach();
+      currentEl = el;
+      historyEditorRef.current = el;
+      if (!el) return;
+      history.resetTo(el.innerHTML, serializeSelection(el));
+      onInput = () => history.snapshotDebounced(el);
+      el.addEventListener("input", onInput);
+    };
+    const detach = () => {
+      if (currentEl && onInput) {
+        currentEl.removeEventListener("input", onInput);
+      }
+      currentEl = null;
+      onInput = null;
+      historyEditorRef.current = null;
+    };
+
+    // Poll for the HTML editor mount/unmount every 250ms. Cheap; the
+    // alternative is a MutationObserver which has subtler lifecycle.
+    const poll = () => {
+      const el = document.querySelector('[data-testid="note-content-input-html"]');
+      if (el !== currentEl) attach(el);
+    };
+    poll();
+    const timer = setInterval(poll, 250);
+
+    // Interactive checklist click toggle. Delegated at document level so
+    // we only need one listener regardless of how many checklist UL's
+    // the user has in the note.
+    const onDocClick = (e) => {
+      const li = e.target && e.target.closest && e.target.closest("ul.ir-checklist > li");
+      if (!li) return;
+      // Only toggle when the user clicks the box area (left of the text).
+      // Approx: anywhere within 1.75rem (~28px) of the LI's left edge.
+      const rect = li.getBoundingClientRect();
+      if (e.clientX - rect.left > 28) return;
+      const next = li.getAttribute("data-ir-check") === "1" ? "0" : "1";
+      li.setAttribute("data-ir-check", next);
+      // Notify React so NoteModal picks up the DOM change and persists.
+      const editor = li.closest('[data-testid="note-content-input-html"]');
+      if (editor) {
+        editor.dispatchEvent(new Event("input", { bubbles: true }));
+        if (historyRef.current) historyRef.current.snapshotImmediate(editor);
+      }
+      e.preventDefault();
+    };
+    document.addEventListener("click", onDocClick);
+
+    return () => {
+      clearInterval(timer);
+      detach();
+      document.removeEventListener("click", onDocClick);
+    };
+  }, [isOpen]);
+
 
   // ------------------------------------------------------------------------
   // Mobile-only visibility contract (see Module 1 correction):
@@ -558,9 +754,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // Native textarea undo/redo is browser-controlled — no-op here.
         toast.info(`${format[0].toUpperCase()}${format.slice(1)} works in HTML mode`, { duration: 1500 });
         return;
+      } else if (format === "p") {
+        // Already plaintext — "P" is the implicit mode. No-op.
+        return;
       } else {
-        // Lists etc. — promote whole note to HTML first so subsequent
-        // toolbar taps flow through the execCommand path below.
+        // Lists, Checklist, Clear-format etc. — require HTML mode. Prompt
+        // the user to apply any inline format first (which auto-promotes).
         toast.info("Add some text and select it first", { duration: 1500 });
         return;
       }
@@ -572,43 +771,258 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     const execMap = {
       bold: ["bold"], italic: ["italic"], underline: ["underline"], strike: ["strikeThrough"],
       h1: ["formatBlock", "H1"], h2: ["formatBlock", "H2"], h3: ["formatBlock", "H3"],
-      undo: ["undo"], redo: ["redo"],
-      ul: ["insertUnorderedList"], ol: ["insertOrderedList"], checklist: ["insertUnorderedList"],
+      p: ["formatBlock", "P"],
+      ul: ["insertUnorderedList"], ol: ["insertOrderedList"],
+      clearFormat: ["removeFormat"],
     };
+    const history = historyRef.current;
     // Strikethrough gets a deterministic Range-based wrap (see
     // `wrapSelectionWithTag`). Everything else stays on execCommand so
-    // Bold / Italic / Underline / Headings / Lists / Undo / Redo behave
-    // exactly as they did yesterday.
+    // Bold / Italic / Underline / Headings / Lists behave exactly as
+    // before.
     if (format === "strike") {
+      if (history) history.snapshotImmediate(editor);
       wrapSelectionWithTag(editor, "s");
+      if (history) history.snapshotImmediate(editor);
+      return;
+    }
+    // Multi-level undo/redo — custom stack, NOT execCommand. See
+    // HistoryStack above for why.
+    if (format === "undo" || format === "redo") {
+      if (!history) return;
+      const entry = format === "undo" ? history.undo() : history.redo();
+      if (!entry) {
+        toast.info(format === "undo" ? "Nothing to undo" : "Nothing to redo", { duration: 1200 });
+        return;
+      }
+      editor.innerHTML = entry.html;
+      restoreSelection(editor, entry.sel);
+      // Notify React so NoteModal syncs its state + storage.
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return;
+    }
+    // Interactive checklist — real UL with class + per-LI data-ir-check.
+    // We let execCommand build the <ul><li> skeleton, then upgrade it.
+    if (format === "checklist") {
+      if (history) history.snapshotImmediate(editor);
+      runExecCommand(editor, "insertUnorderedList");
+      // Find the UL that now contains the caret and upgrade it.
+      try {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          let node = sel.getRangeAt(0).startContainer;
+          while (node && node !== editor && node.nodeName !== "UL") node = node.parentNode;
+          if (node && node.nodeName === "UL") {
+            node.classList.add("ir-checklist");
+            node.querySelectorAll(":scope > li").forEach((li) => {
+              if (!li.hasAttribute("data-ir-check")) li.setAttribute("data-ir-check", "0");
+            });
+            editor.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        }
+      } catch { /* noop */ }
+      if (history) history.snapshotImmediate(editor);
       return;
     }
     const spec = execMap[format];
-    if (spec) runExecCommand(editor, spec[0], spec[1] ?? null);
+    if (spec) {
+      if (history) history.snapshotImmediate(editor);
+      runExecCommand(editor, spec[0], spec[1] ?? null);
+      if (history) history.snapshotImmediate(editor);
+    }
   }, []);
 
-  const applyLink = useCallback(() => {
-    const url = window.prompt("Enter URL");
-    if (!url) return;
+  // Line break (§12) — inserts a <br> at caret without starting a new
+  // paragraph/block, distinct from pressing Return which commits to the
+  // next <p>.
+  const insertLineBreak = useCallback(() => {
     const editor = findActiveEditor();
     if (!editor) return;
     if (editor.tagName === "TEXTAREA") {
-      // Promote to HTML with the selected/typed URL wrapped in an <a>.
+      // Plain mode: insert a newline character at caret.
+      const start = editor.selectionStart ?? 0;
+      const end = editor.selectionEnd ?? 0;
+      const next = editor.value.slice(0, start) + "\n" + editor.value.slice(end);
+      reactSetValue(editor, next);
+      editor.setSelectionRange(start + 1, start + 1);
+      return;
+    }
+    const history = historyRef.current;
+    if (history) history.snapshotImmediate(editor);
+    runExecCommand(editor, "insertLineBreak");
+    if (history) history.snapshotImmediate(editor);
+  }, []);
+
+  // Copy (§14) — current selection, falls back to the whole editor if
+  // nothing is selected. Writes HTML and plaintext to the clipboard so
+  // rich-text destinations keep formatting.
+  const doCopy = useCallback(async () => {
+    const editor = findActiveEditor();
+    if (!editor) return;
+    const sel = window.getSelection && window.getSelection();
+    let html = "", text = "";
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+      const range = sel.getRangeAt(0);
+      const container = document.createElement("div");
+      container.appendChild(range.cloneContents());
+      html = container.innerHTML;
+      text = container.textContent || "";
+    } else {
+      html = editor.innerHTML || editor.value || "";
+      text = editor.textContent || editor.value || "";
+    }
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        })]);
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        document.execCommand("copy");
+      }
+      toast.success("Copied", { duration: 1000 });
+    } catch {
+      toast.error("Copy blocked by the browser", { duration: 1500 });
+    }
+  }, []);
+
+  // Paste (§15) — reads clipboard and inserts at caret. Prefers HTML
+  // (sanitized) when available, falls back to plaintext.
+  const doPaste = useCallback(async () => {
+    const editor = findActiveEditor();
+    if (!editor) return;
+    try {
+      let html = "", text = "";
+      if (navigator.clipboard && navigator.clipboard.read) {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            if (item.types.includes("text/html") && !html) {
+              const blob = await item.getType("text/html");
+              html = await blob.text();
+            }
+            if (item.types.includes("text/plain") && !text) {
+              const blob = await item.getType("text/plain");
+              text = await blob.text();
+            }
+          }
+        } catch { /* permission denied — fall back below */ }
+      }
+      if (!text && navigator.clipboard?.readText) {
+        try { text = await navigator.clipboard.readText(); } catch { /* ignore */ }
+      }
+      if (!html && !text) {
+        toast.error("Clipboard permission denied", { duration: 1500 });
+        return;
+      }
+      const history = historyRef.current;
+      if (editor.tagName === "TEXTAREA") {
+        const start = editor.selectionStart ?? 0;
+        const end = editor.selectionEnd ?? 0;
+        const next = editor.value.slice(0, start) + (text || "") + editor.value.slice(end);
+        reactSetValue(editor, next);
+        editor.setSelectionRange(start + text.length, start + text.length);
+      } else {
+        if (history) history.snapshotImmediate(editor);
+        if (html) {
+          runExecCommand(editor, "insertHTML", sanitizeHtml(html));
+        } else {
+          runExecCommand(editor, "insertText", text);
+        }
+        if (history) history.snapshotImmediate(editor);
+      }
+    } catch {
+      toast.error("Paste failed", { duration: 1500 });
+    }
+  }, []);
+
+  // Export current note as PDF (§18) via the browser's print pipeline.
+  // Opens a hidden iframe populated with the note's HTML + minimal
+  // styling, then calls `print()`. User picks "Save as PDF" in the
+  // native print dialog. Zero new dependencies, works offline.
+  const exportPdf = useCallback(() => {
+    const editor = findActiveEditor();
+    if (!editor) return;
+    const html = editor.tagName === "TEXTAREA"
+      ? plainTextToHtml(editor.value || "")
+      : (editor.innerHTML || "");
+    const titleEl = document.querySelector('[data-testid="note-title-input"]');
+    const title = titleEl?.value || "Note";
+    const w = window.open("", "_blank");
+    if (!w) {
+      toast.error("Pop-up blocked — allow pop-ups and try again", { duration: 2500 });
+      return;
+    }
+    w.document.open();
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title.replace(/</g, "&lt;")}</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; color: #000; padding: 2rem; max-width: 7in; margin: auto; line-height: 1.5; }
+  h1 { font-size: 2em; margin: 0.8em 0 0.4em; }
+  h2 { font-size: 1.5em; margin: 0.7em 0 0.3em; }
+  h3 { font-size: 1.2em; margin: 0.6em 0 0.2em; }
+  p  { margin: 0.4em 0; }
+  ul, ol { margin: 0.4em 0 0.4em 1.5em; }
+  ul.ir-checklist { list-style: none; padding-left: 0; }
+  ul.ir-checklist > li { padding-left: 1.5em; position: relative; }
+  ul.ir-checklist > li::before { content: "☐"; position: absolute; left: 0; }
+  ul.ir-checklist > li[data-ir-check="1"]::before { content: "☑"; }
+  ul.ir-checklist > li[data-ir-check="1"] { opacity: 0.65; text-decoration: line-through; }
+  a { color: #0366d6; }
+  @media print { @page { margin: 0.6in; } }
+</style></head><body><h1>${title.replace(/</g, "&lt;")}</h1>${sanitizeHtml(html)}</body></html>`);
+    w.document.close();
+    // Give the new window a moment to lay out before invoking print.
+    setTimeout(() => { try { w.focus(); w.print(); } catch {} }, 250);
+  }, []);
+
+  const applyLink = useCallback(() => {
+    const editor = findActiveEditor();
+    if (!editor) return;
+    // Figure out whether the user already has a selection; if yes, use
+    // the selected text as the link label and only prompt for URL. If
+    // no selection, prompt for BOTH label and URL (spec §17).
+    let hasSelection = false, selText = "";
+    if (editor.tagName === "TEXTAREA") {
+      hasSelection = (editor.selectionEnd ?? 0) > (editor.selectionStart ?? 0);
+      if (hasSelection) selText = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+    } else {
+      const sel = window.getSelection && window.getSelection();
+      if (sel && sel.rangeCount && !sel.isCollapsed) {
+        hasSelection = true; selText = sel.toString();
+      }
+    }
+    let label = selText;
+    if (!hasSelection) {
+      label = window.prompt("Link text") || "";
+      if (!label) return;
+    }
+    const url = window.prompt("Enter URL", "https://");
+    if (!url) return;
+    const safeUrl = url.replace(/"/g, "&quot;");
+    const history = historyRef.current;
+    if (editor.tagName === "TEXTAREA") {
       const start = editor.selectionStart ?? 0;
       const end = editor.selectionEnd ?? 0;
       const value = editor.value || "";
-      const label = end > start ? value.slice(start, end) : url;
       const before = value.slice(0, start);
       const after = value.slice(end);
       const marked = before + MARK_OPEN + label + MARK_CLOSE + after;
       let html = plainTextToHtml(marked);
-      const safeUrl = url.replace(/"/g, "&quot;");
       html = html.split(MARK_OPEN).join(`<a href="${safeUrl}">`).split(MARK_CLOSE).join("</a>");
       reactSetValue(editor, html);
       focusHtmlEditorSoon();
-    } else {
-      runExecCommand(editor, "createLink", url);
+      return;
     }
+    if (history) history.snapshotImmediate(editor);
+    if (hasSelection) {
+      runExecCommand(editor, "createLink", url);
+    } else {
+      // Insert new <a>text</a> at caret.
+      runExecCommand(editor, "insertHTML", `<a href="${safeUrl}">${label.replace(/</g, "&lt;")}</a>`);
+    }
+    if (history) history.snapshotImmediate(editor);
   }, []);
 
   const applyImage = useCallback(() => {
@@ -628,7 +1042,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     {
       label: "text",
       tools: [
-        { id: "aa", icon: Type, title: "Text style", stub: true },
+        // Aa — "clear inline formatting" at the current selection.
+        // Does NOT touch headings (which are block-level); applies to
+        // Bold/Italic/Underline/Strike inside the selection.
+        { id: "aa", icon: CaseSensitive, title: "Aa — clear inline format", onClick: () => applyFormat("clearFormat") },
+        { id: "p",  icon: Pilcrow, title: "Paragraph", onClick: () => applyFormat("p") },
         { id: "h1", icon: Heading1, title: "Heading 1", onClick: () => applyFormat("h1") },
         { id: "h2", icon: Heading2, title: "Heading 2", onClick: () => applyFormat("h2") },
         { id: "h3", icon: Heading3, title: "Heading 3", onClick: () => applyFormat("h3") },
@@ -638,12 +1056,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         { id: "strike", icon: Strikethrough, title: "Strikethrough", onClick: () => applyFormat("strike") },
         { id: "color", icon: Palette, title: "Text color", stub: true },
         { id: "highlight", icon: Highlighter, title: "Highlight", stub: true },
+        { id: "br", icon: CornerDownLeft, title: "Line break", onClick: insertLineBreak },
       ],
     },
     {
       label: "lists",
       tools: [
         { id: "align", icon: AlignLeft, title: "Alignment", stub: true },
+        { id: "wrap", icon: WrapText, title: "Wrap", stub: true },
         { id: "ul", icon: List, title: "Bulleted list", onClick: () => applyFormat("ul") },
         { id: "ol", icon: ListOrdered, title: "Numbered list", onClick: () => applyFormat("ol") },
         { id: "checklist", icon: ListChecks, title: "Checklist", onClick: () => applyFormat("checklist") },
@@ -655,8 +1075,8 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         { id: "undo", icon: Undo2, title: "Undo", onClick: () => applyFormat("undo") },
         { id: "redo", icon: Redo2, title: "Redo", onClick: () => applyFormat("redo") },
         { id: "cut", icon: Scissors, title: "Cut", stub: true },
-        { id: "copy", icon: Copy, title: "Copy", stub: true },
-        { id: "paste", icon: ClipboardPaste, title: "Paste", stub: true },
+        { id: "copy", icon: Copy, title: "Copy", onClick: doCopy },
+        { id: "paste", icon: ClipboardPaste, title: "Paste", onClick: doPaste },
       ],
     },
     {
@@ -674,12 +1094,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         { id: "scan", icon: ScanLine, title: "Scan", stub: true },
         { id: "camera", icon: Camera, title: "Camera", stub: true },
         { id: "voice", icon: Mic, title: "Voice-to-text", stub: true },
-        { id: "pdf", icon: FileText, title: "Export PDF", stub: true },
+        { id: "pdf", icon: FileText, title: "Export PDF", onClick: exportPdf },
         { id: "print", icon: Printer, title: "Print", stub: true },
         { id: "share", icon: Share2, title: "Share", stub: true },
       ],
     },
-  ], [applyFormat, applyLink, applyImage]);
+  ], [applyFormat, applyLink, applyImage, insertLineBreak, doCopy, doPaste, exportPdf]);
 
   // Container-level `onClick` swallow ONLY. Earlier iterations also
   // swallowed pointerdown / mousedown / touchstart here to keep taps in

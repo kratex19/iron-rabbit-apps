@@ -1,15 +1,21 @@
 // HTML sanitiser for Expanded Text formatting mode.
 // Uses DOMPurify with a strict allowlist matching the spec:
-//   <p>, <h1>, <h2>, <h3>, <strong>, <em>, <u>, <s>, <a>, <br>
-// Attributes are limited to `href`, `title`, `target`, `rel` on <a>.
-// Links are forced to open in a new tab with `rel="noopener noreferrer"`
-// so the app can never be navigated away from by a malicious paste.
+//   <p>, <h1>, <h2>, <h3>, <strong>, <em>, <u>, <s>, <a>, <br>, <ul>, <ol>, <li>
+// Attributes are limited to `href`, `title`, `target`, `rel` on <a>,
+// plus `class` and `data-ir-check` for interactive checklist items
+// (needed by Module 1 checklist tool). Links are forced to open in a new
+// tab with `rel="noopener noreferrer"` so the app can never be navigated
+// away from by a malicious paste.
 import DOMPurify from "dompurify";
 
 const CONFIG = {
-  ALLOWED_TAGS: ["p", "h1", "h2", "h3", "strong", "em", "u", "s", "a", "br", "b", "i", "strike", "del"],
-  ALLOWED_ATTR: ["href", "title", "target", "rel"],
-  ALLOW_DATA_ATTR: false,
+  ALLOWED_TAGS: [
+    "p", "h1", "h2", "h3",
+    "strong", "em", "u", "s", "a", "br", "b", "i", "strike", "del",
+    "ul", "ol", "li",
+  ],
+  ALLOWED_ATTR: ["href", "title", "target", "rel", "class", "data-ir-check"],
+  ALLOW_DATA_ATTR: false,  // only `data-ir-check` is allowed, via explicit allowlist above
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^:]*$)/i, // block javascript:, data: etc.
 };
 
@@ -35,7 +41,7 @@ export function sanitizeHtml(dirty) {
 // Cheap heuristic to detect whether a stored `content` string is HTML
 // (contains any tag from the allowlist) vs. plain text. Used to auto-pick
 // the initial editing mode when opening an existing note.
-const HTML_TAG_RE = /<(p|h1|h2|h3|strong|b|em|i|u|s|a|br|strike|del)(\s[^>]*)?>/i;
+const HTML_TAG_RE = /<(p|h1|h2|h3|strong|b|em|i|u|s|a|br|strike|del|ul|ol|li)(\s[^>]*)?>/i;
 export function looksLikeHtml(content) {
   return typeof content === "string" && HTML_TAG_RE.test(content);
 }

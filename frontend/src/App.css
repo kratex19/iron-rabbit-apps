@@ -1236,3 +1236,50 @@
 .fs-content-editable strike,
 .fs-content-editable del { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 
+
+/* Lists inside the Expanded Text editor */
+.fs-content-editable ul,
+.fs-content-editable ol { margin: 0.25rem 0 0.25rem 1.25rem; padding: 0; }
+.fs-content-editable ul { list-style: disc; }
+.fs-content-editable ol { list-style: decimal; }
+.fs-content-editable li { margin: 0.1rem 0; }
+
+/* Interactive checklist — Module 1 */
+.fs-content-editable ul.ir-checklist { list-style: none; margin-left: 0; padding-left: 0; }
+.fs-content-editable ul.ir-checklist > li {
+  list-style: none;
+  padding-left: 1.75rem;
+  position: relative;
+  cursor: pointer;
+  user-select: text;
+}
+.fs-content-editable ul.ir-checklist > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  width: 1.05em;
+  height: 1.05em;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  box-sizing: border-box;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.fs-content-editable ul.ir-checklist > li[data-ir-check="1"]::before {
+  background: #f97316;
+  border-color: #f97316;
+}
+.fs-content-editable ul.ir-checklist > li[data-ir-check="1"]::after {
+  content: "";
+  position: absolute;
+  left: 0.3em;
+  top: 0.45em;
+  width: 0.45em;
+  height: 0.75em;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.fs-content-editable ul.ir-checklist > li[data-ir-check="1"] { opacity: 0.65; text-decoration: line-through; }
