@@ -256,7 +256,18 @@ function reactSetValue(el, next) {
 
 function runExecCommand(editor, command, value = null) {
   try {
-    if (editor && typeof editor.focus === "function") editor.focus();
+    // Fix E.1 — avoid Android-Chrome's selection-collapse-on-focus bug.
+    // Calling `.focus()` on an already-focused contentEditable collapses
+    // the active selection to offset 0 on Android Chrome / Capacitor
+    // WebViews. For `formatBlock` this is harmless (it operates on the
+    // containing block, not the selection range) which is why H1/H2/H3
+    // feels reliable. For `bold`/`italic`/`underline` which DO operate
+    // on the range, the collapse turns the command into a pending-state
+    // toggle with no visible effect — forcing the user to tap again.
+    // We only re-focus when focus has genuinely drifted elsewhere.
+    if (editor && typeof editor.focus === "function" && document.activeElement !== editor) {
+      editor.focus();
+    }
     // execCommand is deprecated but universally supported and still the
     // simplest cross-browser bridge to contentEditable formatting.
     document.execCommand(command, false, value);
@@ -267,6 +278,80 @@ function runExecCommand(editor, command, value = null) {
   } catch {
     return false;
   }
+}
+
+// --------------------------------------------------------------------------
+// Fix E.2 — selection stashing for Android touch events.
+//
+// Even with `onPointerDown.preventDefault()` on every tool button,
+// Android Chrome's `touchstart` can transfer focus BEFORE our pointer
+// handler fires (focus-follows-tap heuristic). By the time `click`
+// synthesises and `applyFormat` runs, the editor's selection has been
+// collapsed to offset 0 and `document.execCommand("bold")` silently
+// no-ops against the user's original range.
+//
+// Fix: stash the editor's selection at the earliest moment we can get
+// our hands on it — the button's `onPointerDown`, which runs BEFORE
+// touchstart's default actions are committed on most Android builds.
+// `applyFormat` then checks whether the live selection has drifted and,
+// if so, restores the stashed range before dispatching the command.
+//
+// The stash is keyed by the editor element so multiple
+// `FloatingRichTextToolbar` instances (NoteModal + FullScreenNote) don't
+// clobber each other. On textarea we rely on the browser's native
+// selectionStart/End preservation and skip the stash.
+// --------------------------------------------------------------------------
+const SELECTION_STASH = { editor: null, range: null, start: 0, end: 0 };
+
+function stashSelection() {
+  const editor = findActiveEditor();
+  if (!editor) return;
+  if (editor.tagName === "TEXTAREA") {
+    // Textarea retains selectionStart/End across focus loss natively —
+    // no manual stash is needed. We still record the editor pointer so
+    // `restoreStashedSelectionIfNeeded` knows which element the stash
+    // applies to.
+    SELECTION_STASH.editor = editor;
+    SELECTION_STASH.range = null;
+    SELECTION_STASH.start = editor.selectionStart ?? 0;
+    SELECTION_STASH.end = editor.selectionEnd ?? 0;
+    return;
+  }
+  try {
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+    SELECTION_STASH.editor = editor;
+    SELECTION_STASH.range = range.cloneRange();
+  } catch { /* noop */ }
+}
+
+function restoreStashedSelectionIfNeeded(editor) {
+  if (!editor) return;
+  if (SELECTION_STASH.editor !== editor) return;
+  if (editor.tagName === "TEXTAREA") return; // native preservation
+  if (!SELECTION_STASH.range) return;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel) return;
+  const live = sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+  // Restore only when the live selection has drifted — collapsed when it
+  // was previously a range, or landed outside the editor entirely. If
+  // the user still has an intact selection in the editor, leave it alone.
+  const stashedWasRange = !SELECTION_STASH.range.collapsed;
+  const liveIsBroken =
+    !live
+    || !editor.contains(live.commonAncestorContainer)
+    || (stashedWasRange && live.collapsed);
+  if (!liveIsBroken) return;
+  try {
+    // Guard: the stashed range nodes may have been removed by a prior
+    // DOM mutation (e.g. React re-render). Verify the common ancestor
+    // is still attached inside the editor before restoring.
+    if (!editor.contains(SELECTION_STASH.range.commonAncestorContainer)) return;
+    sel.removeAllRanges();
+    sel.addRange(SELECTION_STASH.range);
+  } catch { /* noop */ }
 }
 
 // --------------------------------------------------------------------------
@@ -290,7 +375,14 @@ function runExecCommand(editor, command, value = null) {
 // --------------------------------------------------------------------------
 function wrapSelectionWithTag(editor, tagName) {
   if (!editor) return false;
-  try { editor.focus(); } catch {}
+  // Fix E.1 — see runExecCommand. Only focus if focus has drifted away;
+  // calling .focus() on an already-focused contentEditable on Android
+  // Chrome collapses the selection, which turns this helper into a
+  // silent no-op (range.collapsed → early return) exactly matching the
+  // "Strike needs multiple taps" symptom reported on-device.
+  try {
+    if (document.activeElement !== editor) editor.focus();
+  } catch {}
   const sel = window.getSelection && window.getSelection();
   if (!sel || sel.rangeCount === 0) return false;
   const range = sel.getRangeAt(0);
@@ -1077,6 +1169,19 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     if (!editor) return;
 
     if (editor.tagName === "TEXTAREA") {
+      // Fix E.2 — the textarea branch reads selectionStart / End from
+      // the stash because Android touchstart may have blurred the
+      // textarea before `click` fires. Textareas preserve those offsets
+      // across focus loss, but only on the element that owned the
+      // selection — so if focus has drifted elsewhere the live editor
+      // may be undefined. Prefer the stashed editor + offsets when they
+      // match the resolved editor.
+      if (SELECTION_STASH.editor === editor && SELECTION_STASH.range === null) {
+        try {
+          editor.focus();
+          editor.setSelectionRange(SELECTION_STASH.start, SELECTION_STASH.end);
+        } catch { /* noop */ }
+      }
       // Promote helpers now return a selection-restoration mode string
       // ("range" | "collapsed-end") instead of a plain boolean — see Fix B
       // (preserve selection across textarea→HTML mount swap). We forward
@@ -1103,6 +1208,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     }
 
     // contentEditable — native execCommand path.
+    // Fix E.2 — restore stashed selection if Android touchstart stole
+    // focus between pointerdown and click. No-op if the live selection
+    // is still intact (desktop + well-behaved mobile paths).
+    restoreStashedSelectionIfNeeded(editor);
     const execMap = {
       bold: ["bold"], italic: ["italic"], underline: ["underline"], strike: ["strikeThrough"],
       h1: ["formatBlock", "H1"], h2: ["formatBlock", "H2"], h3: ["formatBlock", "H3"],
@@ -1625,8 +1734,20 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                     // Chrome, so preventing default there is what keeps
                     // the editor's selection alive for the subsequent
                     // execCommand / wrap / promote operation.
-                    onPointerDown={(e) => e.preventDefault()}
-                    onMouseDown={(e) => e.preventDefault()}
+                    //
+                    // Fix E.2 — belt-and-suspenders: stash the editor's
+                    // current selection synchronously here, BEFORE any
+                    // compatibility event has a chance to collapse it.
+                    // `applyFormat` restores from the stash if the live
+                    // selection has drifted by the time `click` fires.
+                    onPointerDown={(e) => {
+                      stashSelection();
+                      e.preventDefault();
+                    }}
+                    onMouseDown={(e) => {
+                      stashSelection();
+                      e.preventDefault();
+                    }}
                     onClick={handle}
                     style={{ touchAction: "manipulation" }}
                     // Fix C — active-state highlight. When the caret is
