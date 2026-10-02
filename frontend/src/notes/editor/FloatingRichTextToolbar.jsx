@@ -338,29 +338,61 @@ const MARK_CLOSE = "\u0001IR_CLOSE\u0001";
 // restore selection to it, then strip the class. The class is on the
 // DOMPurify ALLOWED_ATTR list so it survives sanitize.
 const CARET_TARGET_CLASS = "ir-caret-target";
+// Zero-width space — used as a caret anchor inside otherwise-empty
+// promoted elements (format-first-then-type flow). Browsers keep inline
+// elements around when they contain at least one character, giving us a
+// stable Range target. The ZWSP is deleted the moment we finish
+// positioning the caret so the user never types past an invisible char.
+const ZWSP = "\u200B";
 
 function promoteTextareaWithInlineFormat(editor, format) {
   const tag = INLINE_TAG[format];
   if (!tag) return false;
   const start = editor.selectionStart ?? 0;
   const end = editor.selectionEnd ?? 0;
-  if (start === end) {
-    toast.info("Select text to format", { duration: 1500 });
-    return false;
-  }
   const value = editor.value || "";
+
+  if (start !== end) {
+    // Existing path (Fix B): user has a selection — wrap it in the
+    // inline tag and tell focusHtmlEditorSoon to re-select the inner
+    // contents so chaining B → I → U keeps working.
+    const before = value.slice(0, start);
+    const middle = value.slice(start, end);
+    const after = value.slice(end);
+    const marked = before + MARK_OPEN + middle + MARK_CLOSE + after;
+    let html = plainTextToHtml(marked);
+    html = html
+      .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
+      .split(MARK_CLOSE).join(`</${tag}>`);
+    reactSetValue(editor, html);
+    return "range";
+  }
+
+  // Fix D — format-first-then-type (no selection). Promote the textarea
+  // while preserving any existing text and the exact caret position,
+  // then signal the pending inline format. focusHtmlEditorSoon will
+  // land the caret at the promoted spot and toggle execCommand(<format>)
+  // so the next keystroke inherits bold/italic/underline — matching
+  // the way every mainstream rich-text editor behaves.
+  //
+  // Caret anchor strategy: we insert `<b class="ir-caret-target">\u200B</b>`
+  // at the caret position. `<b>` + `class` + a ZWSP survive the
+  // sanitiser round-trip, and the ZWSP keeps the empty inline alive
+  // through contentEditable mount (browsers collapse truly-empty inline
+  // elements). The marker is torn down in focusHtmlEditorSoon.
   const before = value.slice(0, start);
-  const middle = value.slice(start, end);
-  const after = value.slice(end);
-  const marked = before + MARK_OPEN + middle + MARK_CLOSE + after;
+  const after = value.slice(start);
+  const marked = before + MARK_OPEN + ZWSP + MARK_CLOSE + after;
   let html = plainTextToHtml(marked);
+  if (!html) {
+    // Empty textarea → emit a minimal paragraph that owns the marker.
+    html = `<p>${MARK_OPEN}${ZWSP}${MARK_CLOSE}</p>`;
+  }
   html = html
-    .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
-    .split(MARK_CLOSE).join(`</${tag}>`);
+    .split(MARK_OPEN).join(`<b class="${CARET_TARGET_CLASS}">`)
+    .split(MARK_CLOSE).join(`</b>`);
   reactSetValue(editor, html);
-  // "range" → select the inner text so the next inline format reuses
-  // the same selection (B → I → U chaining works out of the box).
-  return "range";
+  return `pending-inline:${format}`;
 }
 
 function promoteTextareaWithBlockFormat(editor, format) {
@@ -374,20 +406,37 @@ function promoteTextareaWithBlockFormat(editor, format) {
   const before = value.slice(0, lineStart);
   const line = value.slice(lineStart, lineEnd);
   const after = value.slice(lineEnd);
-  if (!line.trim()) {
-    toast.info("Type on a line first", { duration: 1500 });
-    return false;
+
+  if (line.trim()) {
+    // Existing path (Fix B): wrap the non-empty line in <h1>|<h2>|<h3>
+    // and park the caret at the end of the promoted block so H1 → H2
+    // → H3 re-levelling works.
+    const marked = before + MARK_OPEN + line + MARK_CLOSE + after;
+    let html = plainTextToHtml(marked);
+    html = html
+      .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
+      .split(MARK_CLOSE).join(`</${tag}>`);
+    reactSetValue(editor, html);
+    return "collapsed-end";
   }
-  const marked = before + MARK_OPEN + line + MARK_CLOSE + after;
+
+  // Fix D — format-first-then-type on an empty line (or empty note).
+  // Promote preserving the surrounding text and emit an empty block of
+  // the chosen tag, with a ZWSP marker so the Range has somewhere to
+  // anchor. On mount, focusHtmlEditorSoon strips the ZWSP, drops a <br>
+  // into the empty block so the caret has a visible home, and leaves
+  // the user ready to type directly into the heading.
+  const marked = before + MARK_OPEN + ZWSP + MARK_CLOSE + after;
   let html = plainTextToHtml(marked);
-  html = html
-    .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
-    .split(MARK_CLOSE).join(`</${tag}>`);
+  if (!html) {
+    html = `<${tag} class="${CARET_TARGET_CLASS}">${ZWSP}</${tag}>`;
+  } else {
+    html = html
+      .split(MARK_OPEN).join(`<${tag} class="${CARET_TARGET_CLASS}">`)
+      .split(MARK_CLOSE).join(`</${tag}>`);
+  }
   reactSetValue(editor, html);
-  // "collapsed-end" → place caret at end of the promoted block so the
-  // user can immediately tap H2 to re-level the same line, or type to
-  // continue inside the new heading.
-  return "collapsed-end";
+  return "block-empty";
 }
 
 // Refocus the freshly-mounted contentEditable after a textarea → HTML
@@ -396,54 +445,129 @@ function promoteTextareaWithBlockFormat(editor, format) {
 // for either host (NoteModal's `note-content-input-html` or
 // FullScreenNote's `fullscreen-content-input-format`).
 // `mode` is the return value of a promote* helper:
-//   • "range"          → select the full contents (used for inline formats)
-//   • "collapsed-end"  → caret at end (used for block/heading formats)
-//   • true | falsy     → focus only, no selection restore (legacy call sites)
+//   • "range"                    → select the full contents (inline w/ selection)
+//   • "collapsed-end"            → caret at end (block on non-empty line)
+//   • "pending-inline:<format>"  → caret at marker, strip marker, exec toggle
+//                                   (Fix D — inline format-first-then-type)
+//   • "block-empty"              → caret inside empty block, strip ZWSP + ensure <br>
+//                                   (Fix D — block format-first-then-type)
+//   • true | falsy               → focus only, no selection restore (legacy)
 function focusHtmlEditorSoon(mode = true) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const el = findActiveHtmlEditor();
       if (!el || typeof el.focus !== "function") return;
       el.focus();
-      if (mode !== "range" && mode !== "collapsed-end") return;
-      // Locate the promoted wrapper and restore selection inside it.
+      if (mode === true || mode === false || !mode) return;
+
       const target = el.querySelector(`.${CARET_TARGET_CLASS}`);
       if (!target) return;
+
+      const sel = window.getSelection && window.getSelection();
+      if (!sel) return;
+
       try {
-        const sel = window.getSelection();
-        if (!sel) return;
-        const range = document.createRange();
         if (mode === "range") {
+          const range = document.createRange();
           range.selectNodeContents(target);
-        } else {
-          // collapsed-end — place caret at the final offset of the
-          // deepest trailing text node inside the target.
+          sel.removeAllRanges(); sel.addRange(range);
+          cleanupCaretMarker(target);
+        } else if (mode === "collapsed-end") {
+          const range = document.createRange();
           let node = target;
           while (node && node.lastChild) node = node.lastChild;
           if (node && node.nodeType === Node.TEXT_NODE) {
             range.setStart(node, node.data.length);
             range.setEnd(node, node.data.length);
           } else {
-            // No text node (e.g. empty <br>): collapse to end of target.
-            range.selectNodeContents(target);
-            range.collapse(false);
+            range.selectNodeContents(target); range.collapse(false);
           }
+          sel.removeAllRanges(); sel.addRange(range);
+          cleanupCaretMarker(target);
+        } else if (typeof mode === "string" && mode.startsWith("pending-inline:")) {
+          // Place caret at the ZWSP position inside the <b> marker,
+          // then dissolve the marker (strip ZWSP + unwrap) so the user
+          // is left with a bare caret in the parent paragraph. Toggling
+          // execCommand(<format>) activates the pending inline state so
+          // the first typed character comes out in that format.
+          const fmt = mode.slice("pending-inline:".length);
+          dissolveInlineCaretMarker(el, target, sel);
+          try {
+            document.execCommand(fmt === "strike" ? "strikeThrough" : fmt);
+          } catch { /* execCommand is best-effort; worst case the user
+                       sees their first char unformatted and can tap the
+                       button once more */ }
+        } else if (mode === "block-empty") {
+          // Caret inside the empty block. Strip the ZWSP so the first
+          // keystroke doesn't trail an invisible char, and plant a <br>
+          // so the empty block holds a visible line height on all
+          // browsers.
+          let node = target.firstChild;
+          const range = document.createRange();
+          if (node && node.nodeType === Node.TEXT_NODE) {
+            node.data = "";
+          }
+          // Ensure a <br> placeholder — this is what Chrome itself
+          // writes into empty <p> blocks during contentEditable init.
+          if (!target.querySelector("br") && !target.textContent) {
+            target.appendChild(document.createElement("br"));
+          }
+          range.setStart(target, 0); range.setEnd(target, 0);
+          sel.removeAllRanges(); sel.addRange(range);
+          cleanupCaretMarker(target);
         }
-        sel.removeAllRanges();
-        sel.addRange(range);
       } catch { /* fail silent — focus alone is still a usable fallback */ }
-      // Strip the marker class so successive promotions don't collide,
-      // and so the saved HTML stays clean. We use removeAttribute when
-      // the class is the only one, else drop it from classList.
-      try {
-        target.classList.remove(CARET_TARGET_CLASS);
-        if (target.classList.length === 0) target.removeAttribute("class");
-      } catch { /* noop */ }
-      // Notify React that the DOM changed (class strip) so NoteModal's
-      // onInput → setContent fires once with the cleaned HTML.
+
       el.dispatchEvent(new Event("input", { bubbles: true }));
     });
   });
+}
+
+// Remove the `.ir-caret-target` sentinel class once we've used it to
+// restore selection. Leaves the element itself in place.
+function cleanupCaretMarker(target) {
+  try {
+    target.classList.remove(CARET_TARGET_CLASS);
+    if (target.classList.length === 0) target.removeAttribute("class");
+  } catch { /* noop */ }
+}
+
+// Dissolve the inline `<b class="ir-caret-target">ZWSP</b>` marker used
+// by the pending-inline flow. The caret ends up at the position the
+// marker occupied inside its parent block, with no stray <b> and no
+// invisible chars left over. If anything in this dissolve throws, we
+// fall back to simply positioning the caret inside the marker and
+// stripping the class — the user still gets a caret in the right block.
+function dissolveInlineCaretMarker(editor, target, sel) {
+  const parent = target.parentNode;
+  if (!parent) { cleanupCaretMarker(target); return; }
+  try {
+    // Place caret immediately before the marker in its parent so
+    // subsequent typing goes into the parent's text flow.
+    const range = document.createRange();
+    const indexOfMarker = Array.prototype.indexOf.call(parent.childNodes, target);
+    // Pull marker's children (should be a single ZWSP text node) out
+    // and discard — we don't want them in the parent.
+    while (target.firstChild) target.removeChild(target.firstChild);
+    parent.removeChild(target);
+    // If the parent is now empty (common when promoting an empty
+    // textarea), seed it with a <br> so Chrome maintains a visible
+    // caret line and formatBlock has something to re-wrap later.
+    if (!parent.firstChild) {
+      parent.appendChild(document.createElement("br"));
+    }
+    // Position caret at the index the marker used to occupy. clamp to
+    // parent's current childNodes.length since we just mutated it.
+    const safeIdx = Math.min(indexOfMarker, parent.childNodes.length);
+    range.setStart(parent, safeIdx);
+    range.setEnd(parent, safeIdx);
+    sel.removeAllRanges(); sel.addRange(range);
+    // Refocus so the pending execCommand toggle lands on the right
+    // selection.
+    try { editor.focus(); } catch { /* noop */ }
+  } catch {
+    cleanupCaretMarker(target);
+  }
 }
 
 // --------------------------------------------------------------------------
