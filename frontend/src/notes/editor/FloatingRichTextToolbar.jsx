@@ -561,6 +561,115 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const [editorFocused, setEditorFocused] = useState(false);
   const [keyboardUp, setKeyboardUp] = useState(false);
 
+  // ------------------------------------------------------------------------
+  // Fix C — active-state detection for toolbar highlighting (Edit Text).
+  //
+  // Logic ported from `FormatFloatingToolbar.refreshActive` (the inner
+  // Expanded Text toolbar, which the user has already validated works
+  // correctly). We walk the ancestor chain from the caret / selection
+  // start up to the nearest editable root and look for matching tag
+  // names. We deliberately DO NOT use `document.queryCommandState`
+  // because the Module 1 toolbar uses direct DOM wrappers (<s> for
+  // strike, class-tagged <ul.ir-checklist> for checklists) that
+  // execCommand doesn't know about — queryCommandState would under-
+  // report Strikethrough and over-report Underline on Capacitor
+  // WebViews. The ancestor walk is the single source of truth.
+  //
+  // When the active editor is a <textarea> (plain-text mode in
+  // NoteModal before the first promotion, or `text`/`html` mode in
+  // ExpandedTextEditor), there is no inline markup to detect, so every
+  // flag stays false. This is correct behaviour — pressing Bold in a
+  // textarea goes through the promotion path which switches modes.
+  //
+  // Scope note: this adds visual-only state. It cannot regress
+  // Expanded Text because:
+  //   • The inner FormatFloatingToolbar continues to run its own
+  //     highlight logic completely independently.
+  //   • We never mutate the DOM here — only read it.
+  // ------------------------------------------------------------------------
+  const [active, setActive] = useState({
+    bold: false, italic: false, underline: false, strike: false,
+    link: false,
+    block: null, // "P" | "H1" | "H2" | "H3" | null
+  });
+
+  const refreshActive = useCallback(() => {
+    const editor = findActiveEditor();
+    if (!editor) {
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null }
+        : prev);
+      return;
+    }
+    // Textarea has no inline markup to detect.
+    if (editor.tagName === "TEXTAREA") {
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null }
+        : prev);
+      return;
+    }
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.startContainer)) return;
+    let bold = false, italic = false, underline = false, strike = false, link = false;
+    let block = null;
+    let node = range.startContainer;
+    if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    while (node && node !== editor) {
+      const tag = node.tagName;
+      if (tag === "B" || tag === "STRONG") bold = true;
+      else if (tag === "I" || tag === "EM") italic = true;
+      else if (tag === "U") underline = true;
+      else if (tag === "S" || tag === "STRIKE" || tag === "DEL") strike = true;
+      else if (tag === "A") link = true;
+      else if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) block = tag;
+      node = node.parentElement;
+    }
+    setActive((prev) =>
+      prev.bold === bold && prev.italic === italic && prev.underline === underline
+        && prev.strike === strike && prev.link === link && prev.block === block
+        ? prev
+        : { bold, italic, underline, strike, link, block }
+    );
+  }, []);
+
+  // Listen for selection + focus changes while the toolbar is open and
+  // keep `active` in sync. Also refresh once after every DOM-mutating
+  // tool action — `runExecCommand`, `wrapSelectionWithTag`, and the
+  // history restore path all dispatch `input` events on the editor,
+  // so a document-level `input` listener gives us a free hook with no
+  // changes to applyFormat / applyLink / applyImage call sites.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onSel = () => refreshActive();
+    const onFocusIn = () => refreshActive();
+    const onInput = (e) => {
+      // Only refresh when the input event originates from one of our
+      // known editor targets — ignore stray inputs from title fields,
+      // tag inputs, etc.
+      const t = e.target;
+      if (!t || !t.getAttribute) return;
+      const id = t.getAttribute("data-testid");
+      if (id && EDITOR_TESTIDS.includes(id)) {
+        // Defer one frame so DOM mutations from the format op have
+        // committed before we walk ancestors.
+        requestAnimationFrame(refreshActive);
+      }
+    };
+    document.addEventListener("selectionchange", onSel);
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("input", onInput, true);
+    // Prime on mount so the state is correct even if the caret is
+    // already sitting inside a formatted run (e.g. reopening a note).
+    refreshActive();
+    return () => {
+      document.removeEventListener("selectionchange", onSel);
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("input", onInput, true);
+    };
+  }, [isOpen, refreshActive]);
+
   // Track focus on the known Expanded Text Editor targets.
   useEffect(() => {
     if (!isOpen) return;
@@ -1235,6 +1344,25 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const iconColor = "text-orange-400";
   const stubColor = isDark ? "text-slate-500/70" : "text-slate-400/80";
 
+  // Fix C — map a tool-id → the key on `active` state that governs its
+  // highlight. Any id missing from this map is a non-highlightable tool
+  // (undo/redo/copy/paste/link/image/etc.) and simply never activates.
+  // Blocks (p/h1/h2/h3) read from `active.block`.
+  const isToolActive = (id) => {
+    switch (id) {
+      case "bold": return !!active.bold;
+      case "italic": return !!active.italic;
+      case "underline": return !!active.underline;
+      case "strike": return !!active.strike;
+      case "p": return active.block === "P";
+      case "h1": return active.block === "H1";
+      case "h2": return active.block === "H2";
+      case "h3": return active.block === "H3";
+      case "link": return !!active.link;
+      default: return false;
+    }
+  };
+
   const containerStyle = {
     left: pos.x,
     top: pos.y,
@@ -1359,11 +1487,13 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
               {g.tools.map((t) => {
                 const Icon = t.icon;
                 const handle = t.onClick || stub(t.title);
+                const activeNow = isToolActive(t.id);
                 return (
                   <button
                     key={t.id}
                     type="button"
                     data-testid={`floating-rte-btn-${t.id}`}
+                    data-active={activeNow ? "true" : "false"}
                     title={t.title}
                     // Fix A — mobile tap-focus theft. See the rotate
                     // button above for the full rationale. In short:
@@ -1375,7 +1505,18 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={handle}
                     style={{ touchAction: "manipulation" }}
-                    className={`shrink-0 w-9 h-9 mx-0.5 my-0.5 rounded-lg flex items-center justify-center ${t.accent ? "ring-1 ring-orange-500/50" : ""} hover:bg-white/10 active:scale-95 transition`}
+                    // Fix C — active-state highlight. When the caret is
+                    // inside a run of this format, the button gets a
+                    // solid orange ring + tinted background so the user
+                    // can see at a glance which formats are already
+                    // applied. `t.accent` (static per-tool accent for
+                    // Hierarchy / Insert Form) is preserved as a
+                    // fallback for tools that are never "active".
+                    className={`shrink-0 w-9 h-9 mx-0.5 my-0.5 rounded-lg flex items-center justify-center ${
+                      activeNow
+                        ? "ring-2 ring-orange-500 bg-orange-500/15"
+                        : (t.accent ? "ring-1 ring-orange-500/50" : "")
+                    } hover:bg-white/10 active:scale-95 transition`}
                   >
                     <Icon size={16} className={t.stub ? stubColor : iconColor} />
                   </button>
