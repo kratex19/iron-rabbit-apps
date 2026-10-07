@@ -38,6 +38,17 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Line-height proportional + defensive inline inheritance
+  (2026-02-28, v206/v93)**: The editor was inheriting Tailwind `text-sm`'s
+  fixed `line-height: 1.25rem` (20px). At Aa Size XL (21px) lines collided;
+  at SM (11.9px) they had awkward gaps. Fix was CSS-only:
+  1. Added `line-height: 1.5` (unitless) to `.fs-content-editable` and
+     `.fs-content-editable p` so lines scale with the current font-size.
+  2. Added defensive `font-size: inherit; line-height: inherit` on
+     `strong,b,em,i,u,s,strike,del` so no future utility can secretly
+     resize an inline format.
+  No JS touched; frozen Text Tools, Aa panel, drag handle, viewport anchor,
+  active-ring — all left as-is.
 - **Module 1 — Aa drag coord fix + document-level typography scaling
   (2026-02-28, v205/v92)**:
   1. **Drag coord**: previous drag used `getBoundingClientRect()` (visual

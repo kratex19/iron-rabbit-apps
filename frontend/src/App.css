@@ -1221,15 +1221,41 @@
   -webkit-text-fill-color: #ca8a04 !important;
   opacity: 0.85 !important;
 }
-.fs-content-editable p { margin: 0 0 0.75em 0; font-size: 1em; }
+/* ------------------------------------------------------------------
+   Typography base — ONE coherent system driven by Aa Size.
+   `line-height` is unitless so it scales proportionally with the
+   current `font-size`. Previously the editor inherited Tailwind's
+   `text-sm` fixed `line-height: 1.25rem` (20px), which did not scale
+   with Aa Size — lines collided at Large / Extra Large.
+   ------------------------------------------------------------------ */
+.fs-content-editable { line-height: 1.5; }
+.fs-content-editable p { margin: 0 0 0.75em 0; font-size: 1em; line-height: 1.5; }
 .fs-content-editable p:last-child { margin-bottom: 0; }
 /* Headings use `em` (NOT `rem`) so they scale proportionally with the
    editor's current base font-size. The Aa Size setting changes the
    editor root's font-size (see .fs-content-editable.ir-size-* below),
-   which in turn scales the whole typographic hierarchy. */
+   which in turn scales the whole typographic hierarchy. Line-heights
+   are unitless so they stay proportional at every size.
+   Bold / Italic / Underline / Strike CSS below never touches
+   `font-size` or `line-height` — those styles ONLY change the glyph
+   shape or decoration, so formatted text always inherits the current
+   size from its enclosing block. */
 .fs-content-editable h1 { font-size: 1.5em;  font-weight: 700; line-height: 1.25; margin: 0.45em 0 0.45em 0; }
 .fs-content-editable h2 { font-size: 1.3em;  font-weight: 700; line-height: 1.3;  margin: 0.4em  0 0.4em  0; }
 .fs-content-editable h3 { font-size: 1.15em; font-weight: 700; line-height: 1.35; margin: 0.35em 0 0.35em 0; }
+
+/* Defensive: formatting tags must NEVER declare their own font-size.
+   Setting `font-size: inherit` + `line-height: inherit` makes it
+   explicit so a future Tailwind utility or vendor rule can't sneak
+   in a hard-coded size for one of these inline styles. */
+.fs-content-editable strong,
+.fs-content-editable b,
+.fs-content-editable em,
+.fs-content-editable i,
+.fs-content-editable u,
+.fs-content-editable s,
+.fs-content-editable strike,
+.fs-content-editable del { font-size: inherit; line-height: inherit; }
 .fs-content-editable a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; }
 .fs-content-editable strong,
 .fs-content-editable b { font-weight: 800; }
