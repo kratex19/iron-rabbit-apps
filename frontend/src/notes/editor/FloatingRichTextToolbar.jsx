@@ -373,6 +373,177 @@ function restoreStashedSelectionIfNeeded(editor) {
 // `<s>text</s>` markup that the sanitiser accepts and the CSS renders
 // as line-through ONLY. Underline is completely untouched.
 // --------------------------------------------------------------------------
+// Fix I — reliable format-first-then-type for inline formats in
+// contentEditable mode.
+//
+// Problem: `document.execCommand("bold")` on a collapsed caret relies
+// on the browser's native "pending inline formatting" state. Chrome
+// desktop supports this correctly (verified in preview), but Capacitor
+// Android WebView drops the pending state before the next keystroke
+// lands, so the user sees the Bold button light up but their typing
+// stays plain.
+//
+// Fix: skip native pending-state for inline collapsed-caret taps and
+// instead insert a `<tag class="ir-pending-inline">\u200B</tag>` marker
+// at the caret. The caret lands AFTER the ZWSP, inside the tag. When
+// the user types, the characters land inside the tag — pending-state
+// is implicit in the DOM structure instead of a browser flag that
+// Capacitor can forget.
+//
+// On the first `input` event that lengthens the marker beyond the
+// ZWSP, a document-level listener strips the ZWSP and the
+// `.ir-pending-inline` class, leaving a clean `<strong>text</strong>`
+// (or em / u / s).
+//
+// Toggle-off: if the user taps the same inline format while the caret
+// is still inside a pending marker (they changed their mind before
+// typing), we unwrap the marker and leave the caret where it was.
+//
+// This helper is INLINE-only (bold / italic / underline / strike).
+// H1 / H2 / H3 continue through the unchanged formatBlock path.
+const PENDING_INLINE_CLASS = "ir-pending-inline";
+
+function insertInlinePendingMarker(editor, format) {
+  const tag = INLINE_TAG[format];
+  if (!tag || !editor) return false;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!range.collapsed) return false;
+  if (!editor.contains(range.startContainer)) return false;
+
+  // --------------------------------------------------------------------
+  // Toggle-off: find the NEAREST ancestor matching this format (any —
+  // pending-marker class OR a committed <strong>/<em>/<u>/<s>). If the
+  // caret already lives in such an ancestor, the user wants to exit it:
+  //   • Pending marker + still only a ZWSP inside → unwrap the marker
+  //     entirely (user tapped format twice, no text committed yet).
+  //   • Committed inline tag with real text → move the caret to the
+  //     position immediately AFTER the ancestor in its parent, so the
+  //     next keystrokes land in plain text. The committed tag stays
+  //     intact — this matches Chrome/Google-Docs toggle-off behaviour.
+  // --------------------------------------------------------------------
+  const matchTags = { bold: ["B", "STRONG"], italic: ["I", "EM"], underline: ["U"], strike: ["S", "STRIKE", "DEL"] };
+  const targetTags = matchTags[format] || [];
+  let node = range.startContainer;
+  if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  let ancestor = null;
+  while (node && node !== editor) {
+    if (node.tagName && targetTags.includes(node.tagName)) { ancestor = node; break; }
+    node = node.parentElement;
+  }
+  if (ancestor) {
+    try {
+      const isPending = ancestor.classList && ancestor.classList.contains(PENDING_INLINE_CLASS);
+      const txt = (ancestor.textContent || "");
+      const onlyZwsp = txt === ZWSP || txt === "";
+      const parent = ancestor.parentNode;
+      if (!parent) return false;
+      if (isPending && onlyZwsp) {
+        // Pure pending-marker toggle: remove it, caret where it was.
+        const indexInParent = Array.prototype.indexOf.call(parent.childNodes, ancestor);
+        parent.removeChild(ancestor);
+        const nr = document.createRange();
+        const safeIdx = Math.min(indexInParent, parent.childNodes.length);
+        nr.setStart(parent, safeIdx);
+        nr.setEnd(parent, safeIdx);
+        sel.removeAllRanges(); sel.addRange(nr);
+      } else {
+        // Committed inline: exit by moving caret to just after the
+        // ancestor in its parent. The user's prior formatted text is
+        // preserved verbatim. We also insert a zero-width space node
+        // sibling after the ancestor so the caret has a stable text
+        // anchor to live in — plain contentEditable sometimes "sticks"
+        // the caret back inside the ancestor without this hint. The
+        // ZWSP is stripped on the next real keystroke by
+        // `cleanupPendingInlineMarkers` (which iterates all pending
+        // markers; we also run a tiny inline cleanup for stray exit
+        // anchors below).
+        const exitAnchor = document.createTextNode(ZWSP);
+        exitAnchor.__irExitAnchor = true; // marker for cleanup
+        if (ancestor.nextSibling) parent.insertBefore(exitAnchor, ancestor.nextSibling);
+        else parent.appendChild(exitAnchor);
+        const nr = document.createRange();
+        nr.setStart(exitAnchor, 1);
+        nr.setEnd(exitAnchor, 1);
+        sel.removeAllRanges(); sel.addRange(nr);
+      }
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    } catch { return false; }
+  }
+
+  // --------------------------------------------------------------------
+  // Fresh insert: no matching ancestor → create a pending marker at the
+  // caret, position the caret inside AFTER the ZWSP. User keystrokes
+  // land inside the marker — formatted.
+  // --------------------------------------------------------------------
+  try {
+    const marker = document.createElement(tag);
+    marker.setAttribute("class", PENDING_INLINE_CLASS);
+    marker.appendChild(document.createTextNode(ZWSP));
+    range.insertNode(marker);
+    const nr = document.createRange();
+    nr.setStart(marker.firstChild, 1);
+    nr.setEnd(marker.firstChild, 1);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  } catch { return false; }
+}
+
+// Scan all `.ir-pending-inline` markers in the editor and promote any
+// that now contain real user text (i.e. length > 1 beyond the ZWSP) to
+// permanent inline tags by stripping the ZWSP + the pending class.
+// Markers that still contain only the ZWSP are left alone so the user
+// can chain more format taps (B → I → U → type).
+//
+// Also strips exit-anchor ZWSPs (plain text nodes stamped with
+// `__irExitAnchor`) once the user has typed past them. These are the
+// tiny caret-anchor nodes we inject when toggling OFF a committed
+// inline format — the ZWSP keeps the caret visible outside the tag;
+// once a real char lands next to it we no longer need the padding.
+function cleanupPendingInlineMarkers(editor) {
+  if (!editor) return;
+  try {
+    const markers = editor.querySelectorAll("." + PENDING_INLINE_CLASS);
+    markers.forEach((m) => {
+      const text = m.textContent || "";
+      if (text === ZWSP || text.length === 0) return;
+      let n = m.firstChild;
+      while (n) {
+        if (n.nodeType === Node.TEXT_NODE && n.data && n.data.indexOf(ZWSP) !== -1) {
+          n.data = n.data.replace(new RegExp(ZWSP, "g"), "");
+          if (!n.data) {
+            const nxt = n.nextSibling;
+            m.removeChild(n);
+            n = nxt;
+            continue;
+          }
+        }
+        n = n.nextSibling;
+      }
+      m.classList.remove(PENDING_INLINE_CLASS);
+      if (m.classList.length === 0) m.removeAttribute("class");
+    });
+    // Exit-anchor ZWSP cleanup. We walk every text node in the editor
+    // (cheap — editors are tiny), check for the JS-side flag, and if
+    // the node now contains > 1 character the ZWSP has done its job
+    // and can go.
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+    let n;
+    const toClean = [];
+    while ((n = walker.nextNode())) {
+      if (n.__irExitAnchor && (n.data || "").length > 1) toClean.push(n);
+    }
+    toClean.forEach((n) => {
+      n.data = n.data.replace(new RegExp(ZWSP, "g"), "");
+      n.__irExitAnchor = false;
+    });
+  } catch { /* noop */ }
+}
+
+
 function wrapSelectionWithTag(editor, tagName) {
   if (!editor) return false;
   // Fix E.1 — see runExecCommand. Only focus if focus has drifted away;
@@ -938,6 +1109,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       if (!t || !t.getAttribute) return;
       const id = t.getAttribute("data-testid");
       if (id && EDITOR_TESTIDS.includes(id)) {
+        // Fix I — promote any `.ir-pending-inline` markers whose
+        // content has grown past the ZWSP to permanent inline tags.
+        // Runs BEFORE the active-state refresh so refreshActive sees
+        // the clean DOM.
+        cleanupPendingInlineMarkers(t);
         // Defer one frame so DOM mutations from the format op have
         // committed before we walk ancestors.
         requestAnimationFrame(refreshActive);
@@ -1290,6 +1466,27 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       clearFormat: ["removeFormat"],
     };
     const history = historyRef.current;
+    // Fix I — format-first-then-type for inline formats. When the user
+    // taps Bold / Italic / Underline / Strike with a COLLAPSED caret,
+    // insert a ZWSP-anchored pending marker instead of relying on
+    // native execCommand pending-state (which Capacitor Android drops
+    // before the next keystroke). This makes the four inline buttons
+    // work identically whether the user formats first or selects first.
+    //
+    // Non-collapsed selections still go through the original paths
+    // (wrapSelectionWithTag for strike with toggle, execCommand for the
+    // other three with native toggle) so the previously-verified Test A
+    // / B behaviour is untouched.
+    if (format === "bold" || format === "italic" || format === "underline" || format === "strike") {
+      const liveSel = window.getSelection && window.getSelection();
+      const liveRange = liveSel && liveSel.rangeCount > 0 ? liveSel.getRangeAt(0) : null;
+      if (liveRange && liveRange.collapsed) {
+        if (history) history.snapshotImmediate(editor);
+        insertInlinePendingMarker(editor, format);
+        if (history) history.snapshotImmediate(editor);
+        return;
+      }
+    }
     // Strikethrough gets a deterministic Range-based wrap (see
     // `wrapSelectionWithTag`). Everything else stays on execCommand so
     // Bold / Italic / Underline / Headings / Lists behave exactly as
