@@ -474,15 +474,79 @@ function insertInlinePendingMarker(editor, format) {
   }
 
   // --------------------------------------------------------------------
+  // Format-switch: when the caret sits inside ANY inline-format
+  // ancestor (same or different format, pending-or-committed), the new
+  // format must become a SIBLING of that ancestor — not a nested child.
+  // This implements "selecting the next formatting tool deactivates the
+  // previous typing format" for the format-first-then-type workflow
+  // (collapsed caret only; existing-text selection is handled above and
+  // by wrapSelectionWithTag).
+  //
+  //   • Outermost ancestor is empty-pending (only ZWSP, pending class)
+  //     → dissolve it; caret takes its slot.
+  //   • Outermost ancestor has committed text → leave it intact; caret
+  //     emerges to the position IMMEDIATELY AFTER it in its parent.
+  //     Any empty-pending descendants inside are removed so we don't
+  //     leave stale <em>​</em> fragments behind.
+  //
+  // The subsequent "fresh insert" block will then create a clean
+  // sibling marker and position the caret inside it.
+  // --------------------------------------------------------------------
+  const INLINE_FMT_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, STRIKE: 1, DEL: 1 };
+  try {
+    let walk = range.startContainer;
+    if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+    let outermost = null;
+    while (walk && walk !== editor && walk.tagName && INLINE_FMT_TAGS[walk.tagName]) {
+      outermost = walk;
+      walk = walk.parentElement;
+    }
+    if (outermost) {
+      const parent = outermost.parentNode;
+      if (parent) {
+        const outerText = outermost.textContent || "";
+        const outerIsPending = outermost.classList && outermost.classList.contains(PENDING_INLINE_CLASS);
+        const isOutermostEmpty = (outerText === ZWSP || outerText === "") && outerIsPending;
+        let newIdx;
+        if (isOutermostEmpty) {
+          const outermostIdx = Array.prototype.indexOf.call(parent.childNodes, outermost);
+          parent.removeChild(outermost);
+          newIdx = outermostIdx;
+        } else {
+          // Clean up any empty pending descendants (noise left over from
+          // a previous same-sequence tap, e.g. the empty <em>​</em>
+          // left inside <b>Bold</b> when user had tapped I in-between).
+          const pendingInside = Array.from(outermost.querySelectorAll("." + PENDING_INLINE_CLASS));
+          pendingInside.forEach((m) => {
+            const t = m.textContent || "";
+            if (t === ZWSP || t === "") {
+              try { m.parentNode && m.parentNode.removeChild(m); } catch {}
+            }
+          });
+          const outermostIdx = Array.prototype.indexOf.call(parent.childNodes, outermost);
+          newIdx = outermostIdx + 1;
+        }
+        const safeIdx = Math.min(Math.max(newIdx, 0), parent.childNodes.length);
+        const nr = document.createRange();
+        nr.setStart(parent, safeIdx);
+        nr.setEnd(parent, safeIdx);
+        sel.removeAllRanges(); sel.addRange(nr);
+      }
+    }
+  } catch { /* fall through to fresh insert */ }
+
+  // --------------------------------------------------------------------
   // Fresh insert: no matching ancestor → create a pending marker at the
   // caret, position the caret inside AFTER the ZWSP. User keystrokes
   // land inside the marker — formatted.
   // --------------------------------------------------------------------
   try {
+    // Re-read the (possibly-updated) range after format-switch dissolve.
+    const freshRange = sel.rangeCount > 0 ? sel.getRangeAt(0) : range;
     const marker = document.createElement(tag);
     marker.setAttribute("class", PENDING_INLINE_CLASS);
     marker.appendChild(document.createTextNode(ZWSP));
-    range.insertNode(marker);
+    freshRange.insertNode(marker);
     const nr = document.createRange();
     nr.setStart(marker.firstChild, 1);
     nr.setEnd(marker.firstChild, 1);
@@ -1528,12 +1592,66 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
               liveSel.removeAllRanges(); liveSel.addRange(nr);
             }
           } else {
-            // Fresh inline: insert `<tag>\u200B</tag>` at the caret,
-            // place caret inside at offset 1 (after ZWSP). Typing
-            // extends this tag — exactly how H1 works.
+            // Format-switch: when the caret sits inside a DIFFERENT
+            // inline-format ancestor (user tapped B, typed, now taps I)
+            // the new format must become a SIBLING, not a nested child.
+            // Walk outward to the outermost inline ancestor and emerge
+            // from it before inserting the fresh pending marker. If
+            // that outermost ancestor is itself an empty pending marker
+            // (user tapped format but never typed), dissolve it so the
+            // caret can take its slot.
+            const INLINE_FMT_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, STRIKE: 1, DEL: 1 };
+            let walk = liveRange.startContainer;
+            if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+            let outermost = null;
+            while (walk && walk !== editor && walk.tagName && INLINE_FMT_TAGS[walk.tagName]) {
+              outermost = walk;
+              walk = walk.parentElement;
+            }
+            let insertRange = liveRange;
+            if (outermost) {
+              const parent = outermost.parentNode;
+              if (parent) {
+                const outerText = outermost.textContent || "";
+                const outerIsPending = outermost.classList && outermost.classList.contains(PENDING_INLINE_CLASS);
+                const isOutermostEmpty = (outerText === ZWSP || outerText === "") && outerIsPending;
+                let newIdx;
+                if (isOutermostEmpty) {
+                  const outermostIdx = Array.prototype.indexOf.call(parent.childNodes, outermost);
+                  parent.removeChild(outermost);
+                  newIdx = outermostIdx;
+                } else {
+                  // Remove any empty pending descendants left behind by
+                  // a previous same-sequence tap (e.g. stale <em>​</em>
+                  // inside <b>Bold</b> when user taps U after I).
+                  const pendingInside = Array.from(outermost.querySelectorAll("." + PENDING_INLINE_CLASS));
+                  pendingInside.forEach((m) => {
+                    const t = m.textContent || "";
+                    if (t === ZWSP || t === "") {
+                      try { m.parentNode && m.parentNode.removeChild(m); } catch {}
+                    }
+                  });
+                  const outermostIdx = Array.prototype.indexOf.call(parent.childNodes, outermost);
+                  newIdx = outermostIdx + 1;
+                }
+                const safeIdx = Math.min(Math.max(newIdx, 0), parent.childNodes.length);
+                const nr = document.createRange();
+                nr.setStart(parent, safeIdx);
+                nr.setEnd(parent, safeIdx);
+                liveSel.removeAllRanges(); liveSel.addRange(nr);
+                insertRange = nr;
+              }
+            }
+            // Fresh inline: insert `<tag class="ir-pending-inline">\u200B</tag>`
+            // at the (possibly-updated) caret position and place caret
+            // inside at offset 1 (after ZWSP). Typing extends this tag.
+            // The ir-pending-inline class marks it as a "format-first"
+            // marker so a subsequent format-switch can dissolve it when
+            // still empty.
             const marker = document.createElement(tag);
+            marker.setAttribute("class", PENDING_INLINE_CLASS);
             marker.appendChild(document.createTextNode(ZWSP));
-            liveRange.insertNode(marker);
+            insertRange.insertNode(marker);
             const nr = document.createRange();
             nr.setStart(marker.firstChild, 1);
             nr.setEnd(marker.firstChild, 1);

@@ -21,6 +21,16 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 ## What's Been Implemented
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
+### Feb 2026 Session (latest first)
+- **Module 1 — Format-first state transition (2026-02-28, v197/v84)**: When caret
+  is inside an inline-format ancestor (B/I/U/S, pending or committed) and user
+  taps a different inline format, the new format now becomes a SIBLING of the
+  previous one (not a nested child). Empty pending ancestors dissolve; committed
+  ancestors are preserved and the caret emerges just after them. Also cleans up
+  stale empty-pending descendants left behind by earlier taps. Fix in
+  `FloatingRichTextToolbar.jsx` at the inline-collapsed-caret branch (~L1565).
+  H1/H2/H3 untouched. Existing-text selection path untouched (collapsed-only).
+
 ### Feb 2026 Session
 - **Repair #1**: category/category_path invariant enforcement
 - **Repair #2A**: Empty-Category / Uncategorized undo integrity
