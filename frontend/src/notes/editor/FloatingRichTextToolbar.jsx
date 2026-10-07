@@ -897,7 +897,19 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       else if (tag === "U") underline = true;
       else if (tag === "S" || tag === "STRIKE" || tag === "DEL") strike = true;
       else if (tag === "A") link = true;
-      else if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) block = tag;
+      else if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) {
+        // Fix G — stop the ancestor walk at block boundaries. Inline
+        // formats CANNOT validly wrap block elements (P/H1/H2/H3), so
+        // any <b>/<strong>/<i>/etc. that still exists above a block
+        // boundary is either stale (left over from a prior React
+        // re-render) or Capacitor-WebView-emitted invalid markup. Not
+        // breaking out here was the root of the Android "Bold lights
+        // up inside H1" bug: a <strong> ancestor of the whole editor
+        // (from an earlier promote-with-inline operation) was being
+        // detected even after the heading was applied.
+        block = tag;
+        break;
+      }
       node = node.parentElement;
     }
     setActive((prev) =>
@@ -1341,6 +1353,49 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     if (spec) {
       if (history) history.snapshotImmediate(editor);
       runExecCommand(editor, spec[0], spec[1] ?? null);
+      // Fix G — defensive cleanup after formatBlock. Some Capacitor
+      // Android WebView builds emit `<h1><strong>text</strong></h1>`
+      // (or wrap the heading in <strong>) when `document.execCommand(
+      // "formatBlock", "H1")` runs on a paragraph whose containing block
+      // had any residual Bold pending-state. Desktop Chrome produces a
+      // clean `<h1>text</h1>` so this didn't surface in the preview
+      // tests. The user reported this exact symptom from on-device
+      // testing ("H1 looks bold and the Bold button lights up").
+      //
+      // We only run this cleanup for the three heading commands, so
+      // nothing else (Bold / Italic / Underline / Strike / Lists /
+      // Clear-format) is affected. Inside the resulting heading we
+      // unwrap any direct <b> or <strong> whose text content equals
+      // the entire heading's text — that signature matches a "wrap
+      // whole heading in redundant inline bold" state and never
+      // matches a user-intentional partial-word bold inside a heading,
+      // which would have a shorter textContent.
+      if (format === "h1" || format === "h2" || format === "h3") {
+        try {
+          const headingTag = (BLOCK_TAG[format] || "").toUpperCase();
+          // Find all headings in the editor; cleanup is cheap and
+          // scoped by selector so other blocks are untouched.
+          editor.querySelectorAll("h1,h2,h3").forEach((h) => {
+            if (h.tagName !== headingTag) return;
+            const headingText = (h.textContent || "").trim();
+            if (!headingText) return;
+            // Walk direct inline-bold children only; a nested word-
+            // level bold would be deeper (e.g. inside a text run) and
+            // thus not a direct child.
+            Array.from(h.children).forEach((child) => {
+              const t = child.tagName;
+              if (t !== "B" && t !== "STRONG") return;
+              const childText = (child.textContent || "").trim();
+              // Only unwrap when the <strong> covers the whole heading
+              // — that's the signature of unintentional/emitted bold.
+              if (childText !== headingText) return;
+              while (child.firstChild) h.insertBefore(child.firstChild, child);
+              h.removeChild(child);
+            });
+          });
+          editor.dispatchEvent(new Event("input", { bubbles: true }));
+        } catch { /* noop — leave the DOM as execCommand produced it */ }
+      }
       if (history) history.snapshotImmediate(editor);
     }
   }, [active.strike]);
