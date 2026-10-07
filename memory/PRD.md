@@ -38,6 +38,12 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa color visual fix (2026-02-28, v200/v87)**: Text color was
+  being written to the DOM correctly but rendering as grey because the editor
+  inherits `-webkit-text-fill-color` (from a brightness-scope ancestor), which
+  overrides plain `color` in WebKit/Blink. Added matching
+  `-webkit-text-fill-color` to all 16 `.ir-color-*` classes. CSS-only change,
+  no JS touched. Paragraph (P) + Color + Size now coexist as expected.
 - **Module 1 — Aa touch-through fix (2026-02-28, v199/v86)**: Wrapped the Aa
   panel + backdrop into a single full-viewport `.ir-aa-overlay` layer that
   owns ALL hit-testing while open. Added `pointer-events: auto` +

@@ -1326,23 +1326,27 @@
 
 /* 16-swatch text-color palette (hand-tuned for contrast on dark/translucent
    note backgrounds). `ir-color-default` is intentionally a no-op so picking
-   "Default" strips any previous color class without applying a new one. */
-.fs-content-editable span.ir-color-white   { color: #ffffff; }
-.fs-content-editable span.ir-color-gray    { color: #9ca3af; }
-.fs-content-editable span.ir-color-red     { color: #ef4444; }
-.fs-content-editable span.ir-color-orange  { color: #f97316; }
-.fs-content-editable span.ir-color-amber   { color: #f59e0b; }
-.fs-content-editable span.ir-color-yellow  { color: #eab308; }
-.fs-content-editable span.ir-color-lime    { color: #84cc16; }
-.fs-content-editable span.ir-color-green   { color: #10b981; }
-.fs-content-editable span.ir-color-teal    { color: #14b8a6; }
-.fs-content-editable span.ir-color-cyan    { color: #06b6d4; }
-.fs-content-editable span.ir-color-sky     { color: #0ea5e9; }
-.fs-content-editable span.ir-color-blue    { color: #3b82f6; }
-.fs-content-editable span.ir-color-indigo  { color: #6366f1; }
-.fs-content-editable span.ir-color-violet  { color: #a855f7; }
-.fs-content-editable span.ir-color-pink    { color: #ec4899; }
-.fs-content-editable span.ir-color-rose    { color: #f43f5e; }
+   "Default" strips any previous color class without applying a new one.
+   Both `color` AND `-webkit-text-fill-color` are set because WebKit/Blink
+   use `-webkit-text-fill-color` with higher priority than `color` whenever
+   it's defined by any ancestor rule (and the editor inherits one). Setting
+   both guarantees the swatch color actually paints. */
+.fs-content-editable span.ir-color-white   { color: #ffffff; -webkit-text-fill-color: #ffffff; }
+.fs-content-editable span.ir-color-gray    { color: #9ca3af; -webkit-text-fill-color: #9ca3af; }
+.fs-content-editable span.ir-color-red     { color: #ef4444; -webkit-text-fill-color: #ef4444; }
+.fs-content-editable span.ir-color-orange  { color: #f97316; -webkit-text-fill-color: #f97316; }
+.fs-content-editable span.ir-color-amber   { color: #f59e0b; -webkit-text-fill-color: #f59e0b; }
+.fs-content-editable span.ir-color-yellow  { color: #eab308; -webkit-text-fill-color: #eab308; }
+.fs-content-editable span.ir-color-lime    { color: #84cc16; -webkit-text-fill-color: #84cc16; }
+.fs-content-editable span.ir-color-green   { color: #10b981; -webkit-text-fill-color: #10b981; }
+.fs-content-editable span.ir-color-teal    { color: #14b8a6; -webkit-text-fill-color: #14b8a6; }
+.fs-content-editable span.ir-color-cyan    { color: #06b6d4; -webkit-text-fill-color: #06b6d4; }
+.fs-content-editable span.ir-color-sky     { color: #0ea5e9; -webkit-text-fill-color: #0ea5e9; }
+.fs-content-editable span.ir-color-blue    { color: #3b82f6; -webkit-text-fill-color: #3b82f6; }
+.fs-content-editable span.ir-color-indigo  { color: #6366f1; -webkit-text-fill-color: #6366f1; }
+.fs-content-editable span.ir-color-violet  { color: #a855f7; -webkit-text-fill-color: #a855f7; }
+.fs-content-editable span.ir-color-pink    { color: #ec4899; -webkit-text-fill-color: #ec4899; }
+.fs-content-editable span.ir-color-rose    { color: #f43f5e; -webkit-text-fill-color: #f43f5e; }
 
 /* ---- Aa floating dropdown panel (portaled to document.body) ---- */
 /* Full-viewport overlay wrap owns ALL hit-testing while the panel is
