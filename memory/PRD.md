@@ -18,6 +18,22 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 - Drag/drop: desktop mouse = COPY, Ctrl/Meta = MOVE; touch cross-category = MOVE (Repair #6)
 - PWA cache: bump `CACHE_NAME` on every frontend change (currently `iron-rabbit-v171`)
 
+## 🔒 FROZEN — Text Tools (Module 1) Baseline
+**Checkpoint:** Service worker `v197 / v84` (2026-02-28).
+**Status:** Confirmed working on Android Preview (user-verified).
+**Scope of freeze — DO NOT modify without an explicit, named request from the user:**
+- H1 / H2 / H3
+- Bold / Italic / Underline / Strikethrough
+- Formatting active-state highlighting
+- Format-first typing behaviour (ZWSP-anchor mechanism)
+- Format-switch sibling-emergence logic
+- Caret / selection handling
+- Editor focus handling
+- Toolbar layout, scrolling, orientation, drag behaviour
+
+**Deferred (do NOT fix while addressing other work):**
+- "Write…" placeholder visible in editor area — separate future bug. Must not touch Text Tools when fixing.
+
 ## What's Been Implemented
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
