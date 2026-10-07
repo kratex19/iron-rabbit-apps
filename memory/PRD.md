@@ -38,6 +38,24 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa viewport anchor + active ring + height reduction + Clear-format
+  (2026-02-28, v204/v91)**: Four surgical fixes on top of the Aa panel:
+  1. Panel is now truly viewport-anchored. Dropped the resize-based re-compute
+     (which was using a stale `anchor` DOMRect and dragging the panel when the
+     Android keyboard opened). Added a `visualViewport` scroll/resize listener
+     that paints a `translate3d` correction on the panel, defeating any
+     ancestor-transform or inner-editor-scroll that would otherwise break
+     `position: fixed`. Verified: typing 40+ extra paragraphs and scrolling the
+     editor leaves the panel at the same viewport coordinates.
+  2. Aa toolbar button now lights up with the same orange ring the frozen
+     B/I/U/S/P/H1/H2/H3 tools use. Driven by a new `active.aa` flag read from
+     the caret's ancestor `<span>` classes (`ir-size-*` / `ir-color-*`).
+     Independent of the P/block active state as spec'd.
+  3. Panel padding/gaps tightened for ~20% shorter height while keeping all
+     chips comfortably tappable.
+  4. "Clear formatting" now ALSO strips the Aa appearance classes from the
+     caret's ancestor `<span>` — `execCommand("removeFormat")` ignores custom
+     classes, so Aa stayed lit after Clear. Now Aa de-activates correctly.
 - **Module 1 — Aa size/color independence fix (2026-02-28, v202/v89)**: When
   the browser cloned a pending `<span>` on Enter, the cloned span carried the
   previous line's axis class (e.g. `ir-size-xl`) into the new paragraph. A

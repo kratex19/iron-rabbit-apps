@@ -1380,20 +1380,25 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     bold: false, italic: false, underline: false, strike: false,
     link: false,
     block: null, // "P" | "H1" | "H2" | "H3" | null
+    // Aa (Text Appearance) — independent of the inline-format and block
+    // axes. True iff the caret sits inside any `<span>` carrying an
+    // `ir-size-*` OR `ir-color-*` class. Lights the Aa toolbar button
+    // the same way `bold` lights the Bold button.
+    aa: false,
   });
 
   const refreshActive = useCallback(() => {
     const editor = findActiveEditor();
     if (!editor) {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false }
         : prev);
       return;
     }
     // Textarea has no inline markup to detect.
     if (editor.tagName === "TEXTAREA") {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false }
         : prev);
       return;
     }
@@ -1403,6 +1408,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     if (!editor.contains(range.startContainer)) return;
     let bold = false, italic = false, underline = false, strike = false, link = false;
     let block = null;
+    let aa = false;
     let node = range.startContainer;
     if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
     while (node && node !== editor) {
@@ -1412,7 +1418,13 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       else if (tag === "U") underline = true;
       else if (tag === "S" || tag === "STRIKE" || tag === "DEL") strike = true;
       else if (tag === "A") link = true;
-      else if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) {
+      else if (tag === "SPAN" && node.classList) {
+        // Aa is active when ANY ancestor span carries an appearance class.
+        node.classList.forEach((c) => {
+          if (c.indexOf("ir-size-") === 0 || c.indexOf("ir-color-") === 0) aa = true;
+        });
+      }
+      if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) {
         // Fix G — stop the ancestor walk at block boundaries. Inline
         // formats CANNOT validly wrap block elements (P/H1/H2/H3), so
         // any <b>/<strong>/<i>/etc. that still exists above a block
@@ -1430,8 +1442,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     setActive((prev) =>
       prev.bold === bold && prev.italic === italic && prev.underline === underline
         && prev.strike === strike && prev.link === link && prev.block === block
+        && prev.aa === aa
         ? prev
-        : { bold, italic, underline, strike, link, block }
+        : { bold, italic, underline, strike, link, block, aa }
     );
   }, []);
 
@@ -2362,6 +2375,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       case "h2": return active.block === "H2";
       case "h3": return active.block === "H3";
       case "link": return !!active.link;
+      // Aa — lights whenever ANY appearance (size or color) is active
+      // on the caret. Independent of P/H1/H2/H3/B/I/U/S.
+      case "aa": return !!active.aa;
       default: return false;
     }
   };
@@ -2736,14 +2752,21 @@ function AppearancePanel({ anchor, orientation, onClose }) {
   // Enter-clone). See the long comment on applyAppearanceChange above.
   const ownedSpanRef = useRef(null);
 
-  // Position computation — fixed to viewport; flips if clipped.
-  // If the user has already dragged the panel this session, we keep
-  // their position and skip auto-anchoring entirely.
+  // Position computation — one-shot on open; after that the panel
+  // stays wherever it was placed (either auto-anchored or dragged).
+  // The anchor rect captured on open becomes stale as soon as the
+  // toolbar moves (e.g. Android keyboard opens / resizes the viewport),
+  // so re-running compute on every resize was repositioning the panel
+  // incorrectly. We now compute ONCE, then rely on `position: fixed` +
+  // a visualViewport correction (see next effect) to keep the panel
+  // anchored to the visible viewport regardless of what happens to the
+  // underlying document, editor scroll, or ancestor transforms.
   useEffect(() => {
     if (aaLastUserPos) return; // user already moved it — respect their choice
-    const compute = () => {
-      const panel = panelRef.current;
-      if (!panel || !anchor) return;
+    const panel = panelRef.current;
+    if (!panel || !anchor) return;
+    // Wait one frame so the panel's offsetWidth/offsetHeight are measurable.
+    const run = () => {
       const pw = panel.offsetWidth;
       const ph = panel.offsetHeight;
       const vw = window.innerWidth;
@@ -2763,14 +2786,55 @@ function AppearancePanel({ anchor, orientation, onClose }) {
       }
       setPos({ left, top, ready: true });
     };
-    compute();
-    window.addEventListener("resize", compute);
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", compute);
-    return () => {
-      window.removeEventListener("resize", compute);
-      if (window.visualViewport) window.visualViewport.removeEventListener("resize", compute);
-    };
+    // Immediate + rAF fallback (first measurement is sometimes 0 on first paint).
+    run();
+    const raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
   }, [anchor, orientation]);
+
+  // visualViewport correction — keeps the panel locked to the VISIBLE
+  // viewport even when:
+  //   • The user types enough text to make the editor's own content
+  //     scroll (the panel must stay still — it's a floating UI control,
+  //     not part of the document).
+  //   • The document itself scrolls (window.scrollY changes).
+  //   • The visual viewport shifts (Android keyboard, pinch-zoom).
+  //   • Any ancestor of the portaled overlay has a `transform` /
+  //     `filter` / `will-change` that breaks `position: fixed`'s
+  //     viewport anchoring (classic bug in modal/drawer libraries).
+  // We offset the panel's inline `transform: translate` by whatever
+  // delta the visualViewport reports from the layout viewport. The
+  // base `pos.left/top` from the compute effect remains unchanged —
+  // this effect just paints the panel at the correct VISUAL position.
+  const [vvOffset, setVvOffset] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const read = () => {
+      // visualViewport.offsetLeft/Top is the layout-viewport offset of
+      // the visual viewport (both > 0 when the user has pinch-scrolled
+      // sideways or the keyboard has pushed content up).
+      const vv = window.visualViewport;
+      if (!vv) { setVvOffset({ x: window.scrollX || 0, y: window.scrollY || 0 }); return; }
+      setVvOffset({
+        x: (vv.offsetLeft || 0) + (window.scrollX || 0) - window.scrollX,
+        y: (vv.offsetTop  || 0) + (window.scrollY || 0) - window.scrollY,
+      });
+    };
+    read();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("scroll", read);
+      vv.addEventListener("resize", read);
+    }
+    window.addEventListener("scroll", read, true);  // capture → catch inner-scroll
+    return () => {
+      if (vv) {
+        vv.removeEventListener("scroll", read);
+        vv.removeEventListener("resize", read);
+      }
+      window.removeEventListener("scroll", read, true);
+    };
+  }, []);
 
   // Refresh active state continuously so the highlighted chip/swatch
   // always matches the caret's current context.
@@ -2900,6 +2964,9 @@ function AppearancePanel({ anchor, orientation, onClose }) {
       style={{
         left: pos.left,
         top: pos.top,
+        // Correct for any ancestor-transform / visualViewport offset so
+        // the panel always paints at the user's chosen VISUAL coords.
+        transform: `translate3d(${vvOffset.x}px, ${vvOffset.y}px, 0)`,
         visibility: pos.ready ? "visible" : "hidden",
       }}
       // Stop propagation on EVERY interaction event so taps inside the
@@ -2999,6 +3066,31 @@ function AppearancePanel({ anchor, orientation, onClose }) {
           if (!ed) return;
           try { restoreStashedSelectionIfNeeded(ed); } catch {}
           runExecCommand(ed, "removeFormat");
+          // Clear Aa appearance too. `removeFormat` strips B/I/U/S/font
+          // but ignores our custom `<span class="ir-size-* ir-color-*">`
+          // wrappers. Walk ancestors from the caret and strip the
+          // appearance classes; if the span ends up with no classes,
+          // drop the class attribute entirely so the active-state
+          // detector doesn't keep lighting Aa.
+          try {
+            const sel = window.getSelection && window.getSelection();
+            if (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).startContainer)) {
+              let node = sel.getRangeAt(0).startContainer;
+              if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+              while (node && node !== ed) {
+                if (node.tagName === "SPAN" && node.classList) {
+                  AA_SIZE_CLASSES.forEach((c) => node.classList.remove(c));
+                  AA_COLOR_CLASSES.forEach((c) => node.classList.remove(c));
+                  if (node.classList.length === 0) node.removeAttribute("class");
+                }
+                node = node.parentElement;
+              }
+              // Reset the owned-span ref so a subsequent Aa pick starts
+              // fresh rather than stacking with the now-stripped span.
+              ownedSpanRef.current = null;
+              ed.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+          } catch {}
           try { stashSelection(); } catch {}
         }}
       >Clear formatting</button>
