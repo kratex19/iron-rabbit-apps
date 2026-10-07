@@ -38,6 +38,18 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa size/color independence fix (2026-02-28, v202/v89)**: When
+  the browser cloned a pending `<span>` on Enter, the cloned span carried the
+  previous line's axis class (e.g. `ir-size-xl`) into the new paragraph. A
+  single-axis tap in the new line therefore stacked silently with the stale
+  class. Added `ownedSpanRef` to the Aa panel — it points to the pending
+  span the current panel session has already touched. `applyAppearanceChange`
+  now accepts that ref and resets BOTH axes on an unowned empty-pending span
+  before applying the picked class (treating Enter-clones as orphans), while
+  preserving the stacking case for genuine same-session multi-axis picks.
+  Verified via the full test matrix (size-only, color-only, size+color,
+  change-size, change-color) — each line now carries ONLY the classes the
+  user explicitly chose.
 - **Module 1 — Aa panel drag handle (2026-02-28, v201/v88)**: Added a dedicated
   "Move" handle at the top of the Aa panel so users can reposition the overlay
   when it covers the text they're typing. The handle uses pointer-capture +

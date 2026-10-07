@@ -621,7 +621,22 @@ function findAncestorCommittedAppearanceSpan(editor, node) {
 // Apply exactly ONE change on ONE axis. `axis` is "size" or "color".
 // `className` is the CSS class to apply (e.g. "ir-size-lg", "ir-color-blue")
 // or null to CLEAR the axis.
-function applyAppearanceChange(editor, axis, className) {
+//
+// `ownedSpan` (optional) identifies the span the current Aa panel session
+// has already touched. It lets the function tell apart:
+//   • STACKING   — user picks a second axis on the same pending span
+//                  they just created in this panel session. The other
+//                  axis's class is preserved so Size + Color stack.
+//   • ORPHAN     — the caret sits inside an empty pending span that
+//                  wasn't created in this panel session (classic case:
+//                  the browser cloned the span structure when the user
+//                  pressed Enter at the end of a previous line, so the
+//                  new paragraph's "pending" span inherits the OLD
+//                  axis's class). Both axes are reset so the user's
+//                  current single pick doesn't silently inherit the
+//                  prior axis.
+// Returns `true` on success.
+function applyAppearanceChange(editor, axis, className, ownedSpan) {
   if (!editor) return false;
   // Textarea → promote to contentEditable + inject a pending appearance
   // span. Mirrors how Bold/Italic/Underline/Strike handle this case.
@@ -679,12 +694,23 @@ function applyAppearanceChange(editor, axis, className) {
     const text = pending.textContent || "";
     const isEmpty = text === ZWSP || text === "";
     if (isEmpty) {
-      // Mutate in-place on this axis — the other axis's class survives.
-      stripAxis(pending);
-      if (className) pending.classList.add(className);
-      // If after stripping, pending has no appearance classes AND user is
-      // clearing (className === null), we leave it as a bare pending span
-      // (acts as a no-op marker); typing continues normally.
+      // Distinguish STACKING vs ORPHAN:
+      //   • Owned by this panel session → stack (strip same axis, keep
+      //     opposite axis, add the new class).
+      //   • Not owned (Enter-cloned from a previous line, or any other
+      //     span the panel hasn't touched) → reset BOTH axes so the
+      //     user's single pick doesn't silently inherit stale state
+      //     from before. This is the fix that makes Size and Color
+      //     truly independent properties.
+      const isOwned = ownedSpan && (pending === ownedSpan);
+      if (isOwned) {
+        stripAxis(pending);
+        if (className) pending.classList.add(className);
+      } else {
+        AA_SIZE_CLASSES.forEach((c) => pending.classList.remove(c));
+        AA_COLOR_CLASSES.forEach((c) => pending.classList.remove(c));
+        if (className) pending.classList.add(className);
+      }
       editor.dispatchEvent(new Event("input", { bubbles: true }));
       return true;
     }
@@ -2704,6 +2730,11 @@ function AppearancePanel({ anchor, orientation, onClose }) {
   // drag — size chips / color swatches stay as normal tap targets.
   const dragRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  // Which pending `<span>` the panel currently "owns" (null = none yet
+  // this session). Used by applyAppearanceChange to decide whether a
+  // tap should STACK with the previous axis or RESET (orphan from an
+  // Enter-clone). See the long comment on applyAppearanceChange above.
+  const ownedSpanRef = useRef(null);
 
   // Position computation — fixed to viewport; flips if clipped.
   // If the user has already dragged the panel this session, we keep
@@ -2769,7 +2800,30 @@ function AppearancePanel({ anchor, orientation, onClose }) {
     const ed = findActiveEditor();
     if (!ed) return;
     try { restoreStashedSelectionIfNeeded(ed); } catch {}
-    applyAppearanceChange(ed, axis, className);
+    applyAppearanceChange(ed, axis, className, ownedSpanRef.current);
+    // Re-adopt whichever pending span now holds the caret so a
+    // subsequent tap in the same panel session STACKS with it
+    // (preserving the axis the user just set) instead of being
+    // treated as an orphan. Works for every path:
+    //   • Textarea promote → adopts the freshly-created span.
+    //   • In-place mutate  → re-adopts the same span.
+    //   • Emerge-to-sibling → adopts the new sibling span.
+    requestAnimationFrame(() => {
+      const found = (() => {
+        const sel2 = window.getSelection && window.getSelection();
+        if (!sel2 || sel2.rangeCount === 0) return null;
+        const r = sel2.getRangeAt(0);
+        if (!ed.contains(r.startContainer)) return null;
+        let n = r.startContainer;
+        if (n && n.nodeType === Node.TEXT_NODE) n = n.parentElement;
+        while (n && n !== ed) {
+          if (n.tagName === "SPAN" && n.classList && n.classList.contains(PENDING_INLINE_CLASS)) return n;
+          n = n.parentElement;
+        }
+        return null;
+      })();
+      ownedSpanRef.current = found;
+    });
     try { stashSelection(); } catch {}
   }, []);
 
