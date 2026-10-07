@@ -806,18 +806,35 @@ function focusHtmlEditorSoon(mode = true) {
           sel.removeAllRanges(); sel.addRange(range);
           cleanupCaretMarker(target);
         } else if (typeof mode === "string" && mode.startsWith("pending-inline:")) {
-          // Place caret at the ZWSP position inside the <b> marker,
-          // then dissolve the marker (strip ZWSP + unwrap) so the user
-          // is left with a bare caret in the parent paragraph. Toggling
-          // execCommand(<format>) activates the pending inline state so
-          // the first typed character comes out in that format.
-          const fmt = mode.slice("pending-inline:".length);
-          dissolveInlineCaretMarker(el, target, sel);
-          try {
-            document.execCommand(fmt === "strike" ? "strikeThrough" : fmt);
-          } catch { /* execCommand is best-effort; worst case the user
-                       sees their first char unformatted and can tap the
-                       button once more */ }
+          // Mirror H1/H2/H3's "block-empty" strategy EXACTLY: keep the
+          // promoted inline tag intact, place the caret inside it, and
+          // let the user type directly into the tag. The ZWSP stays as
+          // an invisible content anchor so Chrome doesn't collapse the
+          // empty inline on focus. We do NOT unwrap the marker, do NOT
+          // fire execCommand (unreliable on Capacitor Android), and do
+          // NOT mutate text nodes mid-type (that caused "Oldb").
+          const range = document.createRange();
+          // Caret AFTER the ZWSP so the first typed char lands inside
+          // the tag, after the ZWSP. Result: `<b>\u200BBold</b>` which
+          // renders as "Bold" (ZWSP is zero-width, user never sees it)
+          // with the tag's formatting applied.
+          const firstText = (function findText(n) {
+            if (!n) return null;
+            if (n.nodeType === Node.TEXT_NODE) return n;
+            for (const c of (n.childNodes || [])) {
+              const r = findText(c); if (r) return r;
+            }
+            return null;
+          })(target);
+          if (firstText) {
+            range.setStart(firstText, firstText.data.length);
+            range.setEnd(firstText, firstText.data.length);
+          } else {
+            range.selectNodeContents(target);
+            range.collapse(false);
+          }
+          sel.removeAllRanges(); sel.addRange(range);
+          cleanupCaretMarker(target);
         } else if (mode === "block-empty") {
           // Caret inside the empty block. Strip the ZWSP so the first
           // keystroke doesn't trail an invisible char, and plant a <br>
@@ -1109,13 +1126,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       if (!t || !t.getAttribute) return;
       const id = t.getAttribute("data-testid");
       if (id && EDITOR_TESTIDS.includes(id)) {
-        // Fix I — promote any `.ir-pending-inline` markers whose
-        // content has grown past the ZWSP to permanent inline tags.
-        // Runs BEFORE the active-state refresh so refreshActive sees
-        // the clean DOM.
-        cleanupPendingInlineMarkers(t);
-        // Defer one frame so DOM mutations from the format op have
-        // committed before we walk ancestors.
+        // No marker cleanup here — we deliberately leave the ZWSP
+        // anchor inside freshly-created inline tags intact (mirrors how
+        // H1 leaves a <br> placeholder in an empty heading). Mutating
+        // text nodes under the caret mid-type caused the Capacitor
+        // "Oldb" character-reorder bug and is the single reason the
+        // previous attempts failed.
         requestAnimationFrame(refreshActive);
       }
     };
@@ -1466,22 +1482,69 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       clearFormat: ["removeFormat"],
     };
     const history = historyRef.current;
-    // Fix I was removed in v194 — the ZWSP-anchored pending marker
-    // caused character reordering on Capacitor Android ("Oldb" when the
-    // user typed "Bold"). The marker's input-event cleanup fired on
-    // every keystroke and mutated the text node under the caret,
-    // which Android's text-insertion heuristic interpreted by moving
-    // the caret to a sibling anchor. We revert to the simpler path:
-    //   • Range selection → wrap with execCommand (strike uses direct
-    //     DOM wrap) — unchanged, verified working.
-    //   • Collapsed caret → delegate to native execCommand pending-
-    //     state. Chrome desktop honours this correctly; Capacitor
-    //     Android drops it before the next keystroke so the typed text
-    //     comes out plain. That is a lesser bug than character
-    //     reordering AND is the baseline Chrome behaviour, not a
-    //     regression we introduced. A proper format-first-type path
-    //     needs a beforeinput interceptor — scheduled as a follow-up
-    //     once we can test incremental iterations on-device.
+    // Match H1/H2/H3's reliable mechanism for inline formats with a
+    // collapsed caret. H1 works because its path puts the caret INSIDE
+    // a real `<h1>` element — typing extends that element. We do the
+    // exact same thing for B / I / U / S:
+    //   • Textarea: already handled via the Fix-D "pending-inline:*"
+    //     path which emits `<b class="ir-caret-target">\u200B</b>` and
+    //     (post this change) KEEPS the tag intact with caret inside.
+    //   • ContentEditable: insert `<b>\u200B</b>` at the caret, place
+    //     caret right after the ZWSP, and let the user type into the
+    //     tag. No execCommand pending-state, no mutations during type.
+    //
+    // Toggle-off: if the caret is already inside a matching ancestor
+    // (<b>/<strong>/<em>/<i>/<u>/<s>), position the caret just after
+    // the ancestor in its parent — same visible result as "stop typing
+    // bold". We insert a ZWSP sibling after the ancestor to give Chrome
+    // a stable text anchor outside the tag.
+    if (format === "bold" || format === "italic" || format === "underline" || format === "strike") {
+      const liveSel = window.getSelection && window.getSelection();
+      const liveRange = liveSel && liveSel.rangeCount > 0 ? liveSel.getRangeAt(0) : null;
+      if (liveRange && liveRange.collapsed && editor.contains(liveRange.startContainer)) {
+        const tag = INLINE_TAG[format];
+        const matchTags = { bold: ["B","STRONG"], italic: ["I","EM"], underline: ["U"], strike: ["S","STRIKE","DEL"] };
+        // Walk ancestors looking for a matching inline tag.
+        let node = liveRange.startContainer;
+        if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+        let ancestor = null;
+        while (node && node !== editor) {
+          if (node.tagName && matchTags[format].includes(node.tagName)) { ancestor = node; break; }
+          node = node.parentElement;
+        }
+        if (history) history.snapshotImmediate(editor);
+        try {
+          if (ancestor) {
+            // Toggle-off: place a ZWSP anchor just after the ancestor
+            // in its parent and park the caret in it. User's next
+            // keystrokes land in the parent, outside the format.
+            const parent = ancestor.parentNode;
+            if (parent) {
+              const anchor = document.createTextNode(ZWSP);
+              if (ancestor.nextSibling) parent.insertBefore(anchor, ancestor.nextSibling);
+              else parent.appendChild(anchor);
+              const nr = document.createRange();
+              nr.setStart(anchor, 1); nr.setEnd(anchor, 1);
+              liveSel.removeAllRanges(); liveSel.addRange(nr);
+            }
+          } else {
+            // Fresh inline: insert `<tag>\u200B</tag>` at the caret,
+            // place caret inside at offset 1 (after ZWSP). Typing
+            // extends this tag — exactly how H1 works.
+            const marker = document.createElement(tag);
+            marker.appendChild(document.createTextNode(ZWSP));
+            liveRange.insertNode(marker);
+            const nr = document.createRange();
+            nr.setStart(marker.firstChild, 1);
+            nr.setEnd(marker.firstChild, 1);
+            liveSel.removeAllRanges(); liveSel.addRange(nr);
+          }
+          editor.dispatchEvent(new Event("input", { bubbles: true }));
+        } catch { /* fall through to native path below */ }
+        if (history) history.snapshotImmediate(editor);
+        return;
+      }
+    }
     // Strikethrough gets a deterministic Range-based wrap (see
     // `wrapSelectionWithTag`). Everything else stays on execCommand so
     // Bold / Italic / Underline / Headings / Lists behave exactly as
