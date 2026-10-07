@@ -2684,13 +2684,32 @@ const AA_COLOR_OPTIONS = [
   { className: "ir-color-pink",   name: "pink",    title: "Pink",     hex: "#ec4899"  },
 ];
 
+// Session-scoped memory of the last position the user DRAGGED the Aa
+// panel to. Lives at module scope so re-opening Aa within the same
+// editor session restores the dragged location instead of snapping
+// back over the user's text. Null = use the auto-computed anchor pos.
+let aaLastUserPos = null;
+
 function AppearancePanel({ anchor, orientation, onClose }) {
   const panelRef = useRef(null);
-  const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
+  const [pos, setPos] = useState(() => (
+    aaLastUserPos
+      ? { left: aaLastUserPos.left, top: aaLastUserPos.top, ready: true }
+      : { left: 0, top: 0, ready: false }
+  ));
   const [active, setActive] = useState({ size: null, color: null });
+  // Drag state: null when idle; { startX, startY, origLeft, origTop,
+  // pointerId } while a pointer-driven drag is in progress on the
+  // dedicated handle. The handle is the ONLY region that initiates a
+  // drag — size chips / color swatches stay as normal tap targets.
+  const dragRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Position computation — fixed to viewport; flips if clipped.
+  // If the user has already dragged the panel this session, we keep
+  // their position and skip auto-anchoring entirely.
   useEffect(() => {
+    if (aaLastUserPos) return; // user already moved it — respect their choice
     const compute = () => {
       const panel = panelRef.current;
       if (!panel || !anchor) return;
@@ -2754,6 +2773,69 @@ function AppearancePanel({ anchor, orientation, onClose }) {
     try { stashSelection(); } catch {}
   }, []);
 
+  // ---- Drag handlers for the Move handle ---------------------------------
+  // On pointerdown over the handle, capture the pointer so subsequent
+  // move/up events arrive even if the finger slides off the handle onto
+  // the overlay wrap. Clamp the resulting position so the handle itself
+  // + the first row of controls always stay visible — the user can
+  // never lose the panel completely off-screen.
+  const CLAMP_MARGIN = 4; // px — minimum pixels of panel kept on-screen on each edge
+  const onDragStart = useCallback((e) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origLeft: rect.left,
+      origTop: rect.top,
+      pointerId: e.pointerId,
+    };
+    setIsDragging(true);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    e.stopPropagation();
+    e.preventDefault();
+  }, []);
+
+  const onDragMove = useCallback((e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    const vw = window.innerWidth;
+    const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    const pw = panel.offsetWidth;
+    const ph = panel.offsetHeight;
+    // Keep at least CLAMP_MARGIN of each edge visible.
+    const minLeft = CLAMP_MARGIN - pw + 60; // keep ~60px of the panel visible on the left edge
+    const maxLeft = vw - CLAMP_MARGIN - 60;
+    const minTop  = CLAMP_MARGIN;
+    const maxTop  = vh - CLAMP_MARGIN - 44; // keep handle visible at bottom
+    const nextLeft = Math.min(maxLeft, Math.max(minLeft, d.origLeft + dx));
+    const nextTop  = Math.min(maxTop,  Math.max(minTop,  d.origTop  + dy));
+    setPos({ left: nextLeft, top: nextTop, ready: true });
+    e.stopPropagation();
+    e.preventDefault();
+  }, []);
+
+  const onDragEnd = useCallback((e) => {
+    const d = dragRef.current;
+    if (!d) return;
+    try { e.currentTarget.releasePointerCapture(d.pointerId); } catch {}
+    // Persist the final location so re-opening Aa in this session
+    // starts at the user's chosen position.
+    const panel = panelRef.current;
+    if (panel) {
+      const rect = panel.getBoundingClientRect();
+      aaLastUserPos = { left: rect.left, top: rect.top };
+    }
+    dragRef.current = null;
+    setIsDragging(false);
+    e.stopPropagation();
+  }, []);
+
   const backdrop = null; // integrated into the overlay wrap below
 
   const panel = (
@@ -2777,6 +2859,26 @@ function AppearancePanel({ anchor, orientation, onClose }) {
       onTouchEnd={(e)    => { e.stopPropagation(); }}
       onClick={(e)       => { e.stopPropagation(); }}
     >
+      {/* Dedicated Move/drag handle — the ONLY region that initiates
+          a panel drag. Size chips & color swatches below remain normal
+          tap targets. The handle uses pointer-capture so a finger that
+          slides off still drives the drag. */}
+      <div
+        data-testid="floating-rte-aa-drag-handle"
+        className={`ir-aa-drag-handle ${isDragging ? "dragging" : ""}`}
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
+        onClick={(e) => e.stopPropagation()}
+        title="Drag to move"
+      >
+        <span className="ir-aa-drag-handle-dots" aria-hidden="true">
+          <span /><span /><span />
+        </span>
+        <span>Move</span>
+      </div>
+
       <div className="ir-aa-section-label">Size</div>
       <div className="ir-aa-row" data-testid="floating-rte-aa-size-row">
         {AA_SIZE_OPTIONS.map((s) => (

@@ -38,6 +38,16 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa panel drag handle (2026-02-28, v201/v88)**: Added a dedicated
+  "Move" handle at the top of the Aa panel so users can reposition the overlay
+  when it covers the text they're typing. The handle uses pointer-capture +
+  clamp-to-viewport so the finger can slide off and the panel can never be
+  dragged completely off-screen. Size chips and color swatches remain plain
+  tap targets — only the handle initiates a drag. A module-scoped
+  `aaLastUserPos` persists the dragged location for the rest of the editor
+  session so re-opening Aa doesn't snap the panel back over the user's text.
+  Editor + toolbar don't move during the drag (verified via coordinate
+  snapshots). Works in both horizontal and vertical toolbar orientations.
 - **Module 1 — Aa color visual fix (2026-02-28, v200/v87)**: Text color was
   being written to the DOM correctly but rendering as grey because the editor
   inherits `-webkit-text-fill-color` (from a brightness-scope ancestor), which
