@@ -38,6 +38,14 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa touch-through fix (2026-02-28, v199/v86)**: Wrapped the Aa
+  panel + backdrop into a single full-viewport `.ir-aa-overlay` layer that
+  owns ALL hit-testing while open. Added `pointer-events: auto` +
+  `touch-action: manipulation` to the wrap and every chip/swatch/button, and
+  `stopPropagation` on pointer/mouse/touch/click handlers. Verified via
+  `document.elementFromPoint` at the center of every control — all resolve
+  to the Aa chip, zero tunnel to underlying UI (editor, tile-accent colors,
+  modal body, categories). Visual design unchanged.
 - **Module 1 — Aa Text Appearance dropdown (2026-02-28, v198/v85)**: Added a
   floating smoked-glass dropdown anchored to the Aa toolbar button. Contains:
   size chips (Small/Normal/Large/Extra Large → `0.85em/1em/1.25em/1.5em`),

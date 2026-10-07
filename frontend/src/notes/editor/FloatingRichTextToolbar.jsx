@@ -2754,18 +2754,7 @@ function AppearancePanel({ anchor, orientation, onClose }) {
     try { stashSelection(); } catch {}
   }, []);
 
-  const backdrop = (
-    <div
-      data-testid="floating-rte-aa-backdrop"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 2147483645,
-        background: "transparent",
-      }}
-    />
-  );
+  const backdrop = null; // integrated into the overlay wrap below
 
   const panel = (
     <div
@@ -2777,9 +2766,16 @@ function AppearancePanel({ anchor, orientation, onClose }) {
         top: pos.top,
         visibility: pos.ready ? "visible" : "hidden",
       }}
-      onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
-      onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
-      onClick={(e) => e.stopPropagation()}
+      // Stop propagation on EVERY interaction event so taps inside the
+      // panel never reach the wrap (which would otherwise dismiss) and
+      // never reach underlying UI. `pointer-events: auto` on the panel
+      // guarantees events are delivered here regardless of any inherited
+      // `pointer-events: none` from parent stacking contexts.
+      onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+      onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+      onTouchStart={(e)  => { e.stopPropagation(); }}
+      onTouchEnd={(e)    => { e.stopPropagation(); }}
+      onClick={(e)       => { e.stopPropagation(); }}
     >
       <div className="ir-aa-section-label">Size</div>
       <div className="ir-aa-row" data-testid="floating-rte-aa-size-row">
@@ -2789,9 +2785,11 @@ function AppearancePanel({ anchor, orientation, onClose }) {
             type="button"
             data-testid={`floating-rte-aa-size-${s.className.replace("ir-size-", "")}`}
             className={`ir-aa-size-chip ${active.size === s.className ? "active" : ""}`}
-            onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
-            onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
-            onClick={() => applyOnEditor("size", s.className)}
+            onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onTouchStart={(e)  => { e.stopPropagation(); }}
+            onTouchEnd={(e)    => { e.stopPropagation(); }}
+            onClick={(e)       => { e.stopPropagation(); applyOnEditor("size", s.className); }}
             title={s.label}
           >
             <div
@@ -2822,9 +2820,11 @@ function AppearancePanel({ anchor, orientation, onClose }) {
                 ? "active" : ""
             }`}
             style={c.hex ? { background: c.hex } : undefined}
-            onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
-            onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
-            onClick={() => applyOnEditor("color", c.className)}
+            onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onTouchStart={(e)  => { e.stopPropagation(); }}
+            onTouchEnd={(e)    => { e.stopPropagation(); }}
+            onClick={(e)       => { e.stopPropagation(); applyOnEditor("color", c.className); }}
           />
         ))}
       </div>
@@ -2833,9 +2833,12 @@ function AppearancePanel({ anchor, orientation, onClose }) {
         type="button"
         data-testid="floating-rte-aa-clear-format"
         className="ir-aa-clear-btn"
-        onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
-        onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
-        onClick={() => {
+        onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+        onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+        onTouchStart={(e)  => { e.stopPropagation(); }}
+        onTouchEnd={(e)    => { e.stopPropagation(); }}
+        onClick={(e) => {
+          e.stopPropagation();
           const ed = findActiveEditor();
           if (!ed) return;
           try { restoreStashedSelectionIfNeeded(ed); } catch {}
@@ -2846,6 +2849,31 @@ function AppearancePanel({ anchor, orientation, onClose }) {
     </div>
   );
 
-  if (typeof document === "undefined") return panel;
-  return createPortal(<>{backdrop}{panel}</>, document.body);
+  // Single full-viewport overlay wrap owns ALL hit-testing while the
+  // panel is open. Taps on the panel are handled by the panel (with
+  // stopPropagation). Taps OUTSIDE the panel but INSIDE this wrap close
+  // the panel. Nothing underneath — editor, toolbar, tile accent colors,
+  // category rows, modal body — can receive touches while the panel is
+  // open. This fixes the "touch-through" bug where chip taps were
+  // bleeding through to underlying controls.
+  const overlay = (
+    <div
+      data-testid="floating-rte-aa-overlay"
+      className="ir-aa-overlay"
+      // Dismiss on wrap taps (outside the panel). Stop propagation on
+      // every pointer/touch/mouse event so NOTHING underneath receives
+      // the event. The wrap sits at the top of the stacking order via
+      // its CSS class.
+      onPointerDown={(e) => { e.stopPropagation(); }}
+      onMouseDown={(e)   => { e.stopPropagation(); }}
+      onTouchStart={(e)  => { e.stopPropagation(); }}
+      onTouchEnd={(e)    => { e.stopPropagation(); }}
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      {panel}
+    </div>
+  );
+
+  if (typeof document === "undefined") return overlay;
+  return createPortal(overlay, document.body);
 }
