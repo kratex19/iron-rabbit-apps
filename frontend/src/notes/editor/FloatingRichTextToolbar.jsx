@@ -556,11 +556,217 @@ function insertInlinePendingMarker(editor, format) {
   } catch { return false; }
 }
 
-// Scan all `.ir-pending-inline` markers in the editor and promote any
-// that now contain real user text (i.e. length > 1 beyond the ZWSP) to
-// permanent inline tags by stripping the ZWSP + the pending class.
-// Markers that still contain only the ZWSP are left alone so the user
-// can chain more format taps (B → I → U → type).
+// --------------------------------------------------------------------------
+// Aa Text Appearance — size + color classes applied via `<span>` markers.
+// Lives alongside the inline-format system but on a SEPARATE axis so it
+// never interferes with Bold / Italic / Underline / Strike state.
+//
+// Design:
+//   • Each tap on a size or color option in the Aa dropdown applies ONE
+//     class on its axis (size XOR color). Classes stack across axes so
+//     "Large + Blue" produces `<span class="ir-size-lg ir-color-blue">`.
+//   • When the caret is inside an EMPTY `<span>` pending marker (user
+//     just picked an appearance but hasn't typed yet), we mutate it
+//     in-place: swap the class on that axis, keeping the other axis
+//     intact. The pending marker also stays empty so the user can keep
+//     refining before typing.
+//   • When the caret is inside a `<span>` with committed text, we emerge
+//     to a sibling position AFTER it (so new text with new appearance
+//     doesn't retroactively affect already-typed text) and insert a
+//     fresh pending `<span>`.
+//   • When the caret is inside a non-span inline-format ancestor
+//     (<b>/<i>/<u>/<s>), the appearance `<span>` nests inside — size +
+//     color stack with Bold/Italic/Underline/Strike (different axes).
+//   • cleanupPendingInlineMarkers (below) already strips ONLY the
+//     `ir-pending-inline` class once content > 1 char, so size/color
+//     classes survive the commit — no changes needed there.
+// --------------------------------------------------------------------------
+const AA_SIZE_CLASSES = ["ir-size-sm", "ir-size-md", "ir-size-lg", "ir-size-xl"];
+const AA_COLOR_CLASSES = [
+  "ir-color-white", "ir-color-gray", "ir-color-red", "ir-color-orange",
+  "ir-color-amber", "ir-color-yellow", "ir-color-lime", "ir-color-green",
+  "ir-color-teal", "ir-color-cyan", "ir-color-sky", "ir-color-blue",
+  "ir-color-indigo", "ir-color-violet", "ir-color-pink", "ir-color-rose",
+];
+
+function findAncestorPendingAppearanceSpan(editor, node) {
+  let walk = node;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "SPAN" && walk.classList && walk.classList.contains(PENDING_INLINE_CLASS)) {
+      return walk;
+    }
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+function findAncestorCommittedAppearanceSpan(editor, node) {
+  let walk = node;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "SPAN" && walk.classList) {
+      // Has an ir-size-* OR ir-color-* class and isn't pending
+      let hasAppearance = false;
+      walk.classList.forEach((c) => {
+        if (c.indexOf("ir-size-") === 0 || c.indexOf("ir-color-") === 0) hasAppearance = true;
+      });
+      if (hasAppearance && !walk.classList.contains(PENDING_INLINE_CLASS)) return walk;
+    }
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+// Apply exactly ONE change on ONE axis. `axis` is "size" or "color".
+// `className` is the CSS class to apply (e.g. "ir-size-lg", "ir-color-blue")
+// or null to CLEAR the axis.
+function applyAppearanceChange(editor, axis, className) {
+  if (!editor) return false;
+  // Textarea → promote to contentEditable + inject a pending appearance
+  // span. Mirrors how Bold/Italic/Underline/Strike handle this case.
+  if (editor.tagName === "TEXTAREA") {
+    const mode = promoteTextareaWithAppearance(editor, className);
+    if (mode) focusHtmlEditorSoon(mode);
+    return !!mode;
+  }
+  try { if (document.activeElement !== editor) editor.focus(); } catch {}
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return false;
+
+  const axisClasses = axis === "size" ? AA_SIZE_CLASSES : AA_COLOR_CLASSES;
+  const stripAxis = (el) => {
+    if (!el || !el.classList) return;
+    axisClasses.forEach((c) => el.classList.remove(c));
+  };
+
+  // ---- Selection path (user has non-collapsed selection) ----
+  if (!range.collapsed) {
+    // Wrap the selection in a fresh <span class="ir-size-X"> or add the
+    // class to an existing wrapper. Simplest + safest approach: use a
+    // Range.surroundContents when possible, else fall back to extract +
+    // wrap. Pending-class is NOT applied here — this is a committed op.
+    try {
+      const span = document.createElement("span");
+      if (className) span.classList.add(className);
+      try {
+        range.surroundContents(span);
+      } catch {
+        // Range spans multiple nodes — use extract+wrap
+        const frag = range.extractContents();
+        span.appendChild(frag);
+        range.insertNode(span);
+      }
+      // Place caret just after the wrapped span so the user can continue
+      const nr = document.createRange();
+      const parent = span.parentNode;
+      if (parent) {
+        const idx = Array.prototype.indexOf.call(parent.childNodes, span);
+        nr.setStart(parent, idx + 1);
+        nr.setEnd(parent, idx + 1);
+        sel.removeAllRanges(); sel.addRange(nr);
+      }
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    } catch { return false; }
+  }
+
+  // ---- Collapsed caret path (format-first-then-type) ----
+  const pending = findAncestorPendingAppearanceSpan(editor, range.startContainer);
+  if (pending) {
+    const text = pending.textContent || "";
+    const isEmpty = text === ZWSP || text === "";
+    if (isEmpty) {
+      // Mutate in-place on this axis — the other axis's class survives.
+      stripAxis(pending);
+      if (className) pending.classList.add(className);
+      // If after stripping, pending has no appearance classes AND user is
+      // clearing (className === null), we leave it as a bare pending span
+      // (acts as a no-op marker); typing continues normally.
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    }
+    // Pending span has committed text — emerge to a sibling AFTER it.
+    const parent = pending.parentNode;
+    if (!parent) return false;
+    const idx = Array.prototype.indexOf.call(parent.childNodes, pending);
+    const marker = document.createElement("span");
+    marker.classList.add(PENDING_INLINE_CLASS);
+    if (className) marker.classList.add(className);
+    marker.appendChild(document.createTextNode(ZWSP));
+    if (pending.nextSibling) parent.insertBefore(marker, pending.nextSibling);
+    else parent.appendChild(marker);
+    const nr = document.createRange();
+    nr.setStart(marker.firstChild, 1);
+    nr.setEnd(marker.firstChild, 1);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+
+  // Caret inside a committed appearance span — emerge to a sibling AFTER
+  // it so the new appearance doesn't retroactively affect typed text.
+  const committed = findAncestorCommittedAppearanceSpan(editor, range.startContainer);
+  if (committed) {
+    const parent = committed.parentNode;
+    if (!parent) return false;
+    const marker = document.createElement("span");
+    marker.classList.add(PENDING_INLINE_CLASS);
+    if (className) marker.classList.add(className);
+    marker.appendChild(document.createTextNode(ZWSP));
+    if (committed.nextSibling) parent.insertBefore(marker, committed.nextSibling);
+    else parent.appendChild(marker);
+    const nr = document.createRange();
+    nr.setStart(marker.firstChild, 1);
+    nr.setEnd(marker.firstChild, 1);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+
+  // Fresh insert at caret — no appearance ancestor at all.
+  try {
+    const marker = document.createElement("span");
+    marker.classList.add(PENDING_INLINE_CLASS);
+    if (className) marker.classList.add(className);
+    marker.appendChild(document.createTextNode(ZWSP));
+    range.insertNode(marker);
+    const nr = document.createRange();
+    nr.setStart(marker.firstChild, 1);
+    nr.setEnd(marker.firstChild, 1);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  } catch { return false; }
+}
+
+// Report the CURRENT appearance active at the caret so the Aa dropdown
+// can highlight the right chip/swatch. Walks ancestors looking for ANY
+// `<span>` with ir-size-* / ir-color-* classes (pending or committed).
+function readActiveAppearance(editor) {
+  const result = { size: null, color: null };
+  if (!editor) return result;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return result;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return result;
+  let walk = range.startContainer;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "SPAN" && walk.classList) {
+      walk.classList.forEach((c) => {
+        if (!result.size && c.indexOf("ir-size-") === 0) result.size = c;
+        if (!result.color && c.indexOf("ir-color-") === 0) result.color = c;
+      });
+    }
+    walk = walk.parentElement;
+  }
+  return result;
+}
+
+
 //
 // Also strips exit-anchor ZWSPs (plain text nodes stamped with
 // `__irExitAnchor`) once the user has typed past them. These are the
@@ -780,6 +986,32 @@ function promoteTextareaWithInlineFormat(editor, format) {
   return `pending-inline:${format}`;
 }
 
+// Promote a textarea into contentEditable with a pending `<span>` marker
+// that carries BOTH the caret-target class (so focusHtmlEditorSoon can
+// find it) AND the appearance class (ir-size-* or ir-color-*). After
+// mount, cleanupCaretMarker strips ir-caret-target only, leaving the
+// span as a committed `<span class="ir-pending-inline ir-size-lg">` with
+// the ZWSP + caret inside. User's next keystroke extends the span, same
+// mechanism as Bold/Italic/Underline/Strike.
+function promoteTextareaWithAppearance(editor, className) {
+  if (!editor || editor.tagName !== "TEXTAREA") return false;
+  const value = editor.value || "";
+  const caret = editor.selectionStart ?? 0;
+  const before = value.slice(0, caret);
+  const after = value.slice(caret);
+  const marked = before + MARK_OPEN + ZWSP + MARK_CLOSE + after;
+  let html = plainTextToHtml(marked);
+  if (!html) {
+    html = `<p>${MARK_OPEN}${ZWSP}${MARK_CLOSE}</p>`;
+  }
+  const classAttr = [CARET_TARGET_CLASS, PENDING_INLINE_CLASS, className].filter(Boolean).join(" ");
+  html = html
+    .split(MARK_OPEN).join(`<span class="${classAttr}">`)
+    .split(MARK_CLOSE).join(`</span>`);
+  reactSetValue(editor, html);
+  return `pending-inline:appearance`;
+}
+
 function promoteTextareaWithBlockFormat(editor, format) {
   const tag = BLOCK_TAG[format];
   if (!tag) return false;
@@ -986,6 +1218,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   const [pos, setPos] = useState(null);            // { x, y } in viewport coords
   const [orientation, setOrientation] = useState("horizontal");
   const [pickerOpen, setPickerOpen] = useState(null); // null | "forms" | "hierarchy"
+  // Aa (Text Appearance) dropdown. Floating overlay, portaled to body.
+  // `aaPanel.anchor` is the Aa button's bounding rect at open time, used
+  // to position the panel. Opening/closing does NOT change the toolbar
+  // layout or the editor layout — the panel is a pure overlay.
+  const [aaPanel, setAaPanel] = useState(null); // null | { anchor: DOMRect }
   const dragStateRef = useRef({ dragging: false, offX: 0, offY: 0 });
   const scrollerRef = useRef(null);
 
@@ -1985,10 +2222,18 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     {
       label: "text",
       tools: [
-        // Aa — "clear inline formatting" at the current selection.
-        // Does NOT touch headings (which are block-level); applies to
-        // Bold/Italic/Underline/Strike inside the selection.
-        { id: "aa", icon: CaseSensitive, title: "Aa — clear inline format", onClick: () => applyFormat("clearFormat") },
+        // Aa — opens the floating Text Appearance dropdown (size + color
+        // + clear-format). Floating overlay; does not shift the toolbar
+        // or editor. See AppearancePanel below for the panel itself.
+        { id: "aa", icon: CaseSensitive, title: "Aa — Text appearance",
+          className: "ir-aa-tool-btn",
+          onClick: (e) => {
+            try {
+              const rect = e && e.currentTarget && e.currentTarget.getBoundingClientRect();
+              setAaPanel(rect ? { anchor: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } : { anchor: null });
+            } catch { setAaPanel({ anchor: null }); }
+          },
+        },
         { id: "p",  icon: Pilcrow, title: "Paragraph", onClick: () => applyFormat("p") },
         { id: "h1", icon: Heading1, title: "Heading 1", onClick: () => applyFormat("h1") },
         { id: "h2", icon: Heading2, title: "Heading 2", onClick: () => applyFormat("h2") },
@@ -1997,7 +2242,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         { id: "italic", icon: Italic, title: "Italic", onClick: () => applyFormat("italic") },
         { id: "underline", icon: Underline, title: "Underline", onClick: () => applyFormat("underline") },
         { id: "strike", icon: Strikethrough, title: "Strikethrough", onClick: () => applyFormat("strike") },
-        { id: "color", icon: Palette, title: "Text color", stub: true },
+        // (color moved into Aa dropdown — removed from the toolbar row
+        // to keep the main toolbar lean. `highlight` remains as a future
+        // extension slot.)
         { id: "highlight", icon: Highlighter, title: "Highlight", stub: true },
         { id: "br", icon: CornerDownLeft, title: "Line break", onClick: insertLineBreak },
       ],
@@ -2258,7 +2505,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                       activeNow
                         ? "ring-2 ring-orange-500 bg-orange-500/15"
                         : (t.accent ? "ring-1 ring-orange-500/50" : "")
-                    } hover:bg-white/10 active:scale-95 transition`}
+                    } hover:bg-white/10 active:scale-95 transition ${t.className || ""}`}
                   >
                     <Icon size={16} className={t.stub ? stubColor : iconColor} />
                   </button>
@@ -2320,6 +2567,15 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       {/* ---- Hierarchy picker (read-only preview) ---- */}
       {pickerOpen === "hierarchy" && (
         <HierarchyPreviewDialog isDark={isDark} onClose={() => setPickerOpen(null)} />
+      )}
+
+      {/* ---- Aa Text Appearance dropdown (floating overlay) ---- */}
+      {aaPanel && (
+        <AppearancePanel
+          anchor={aaPanel.anchor}
+          orientation={orientation}
+          onClose={() => setAaPanel(null)}
+        />
       )}
     </>
   );
@@ -2395,4 +2651,201 @@ function HierarchyPreviewDialog({ isDark, onClose }) {
       </div>
     </div>
   );
+}
+
+
+// --------------------------------------------------------------------------
+// AppearancePanel — floating smoked-glass dropdown anchored to the Aa
+// toolbar button. Pure overlay: portaled to body, position: fixed,
+// does NOT alter the toolbar/editor layout.
+// --------------------------------------------------------------------------
+const AA_SIZE_OPTIONS = [
+  { className: "ir-size-sm", label: "Small",       sample: "Aa" },
+  { className: "ir-size-md", label: "Normal",      sample: "Aa" },
+  { className: "ir-size-lg", label: "Large",       sample: "Aa" },
+  { className: "ir-size-xl", label: "Extra Large", sample: "Aa" },
+];
+const AA_COLOR_OPTIONS = [
+  { className: null,              name: "default", title: "Default",  hex: null       },
+  { className: "ir-color-white",  name: "white",   title: "White",    hex: "#ffffff"  },
+  { className: "ir-color-gray",   name: "gray",    title: "Gray",     hex: "#9ca3af"  },
+  { className: "ir-color-red",    name: "red",     title: "Red",      hex: "#ef4444"  },
+  { className: "ir-color-orange", name: "orange",  title: "Orange",   hex: "#f97316"  },
+  { className: "ir-color-amber",  name: "amber",   title: "Amber",    hex: "#f59e0b"  },
+  { className: "ir-color-yellow", name: "yellow",  title: "Yellow",   hex: "#eab308"  },
+  { className: "ir-color-lime",   name: "lime",    title: "Lime",     hex: "#84cc16"  },
+  { className: "ir-color-green",  name: "green",   title: "Green",    hex: "#10b981"  },
+  { className: "ir-color-teal",   name: "teal",    title: "Teal",     hex: "#14b8a6"  },
+  { className: "ir-color-cyan",   name: "cyan",    title: "Cyan",     hex: "#06b6d4"  },
+  { className: "ir-color-sky",    name: "sky",     title: "Sky",      hex: "#0ea5e9"  },
+  { className: "ir-color-blue",   name: "blue",    title: "Blue",     hex: "#3b82f6"  },
+  { className: "ir-color-indigo", name: "indigo",  title: "Indigo",   hex: "#6366f1"  },
+  { className: "ir-color-violet", name: "violet",  title: "Violet",   hex: "#a855f7"  },
+  { className: "ir-color-pink",   name: "pink",    title: "Pink",     hex: "#ec4899"  },
+];
+
+function AppearancePanel({ anchor, orientation, onClose }) {
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
+  const [active, setActive] = useState({ size: null, color: null });
+
+  // Position computation — fixed to viewport; flips if clipped.
+  useEffect(() => {
+    const compute = () => {
+      const panel = panelRef.current;
+      if (!panel || !anchor) return;
+      const pw = panel.offsetWidth;
+      const ph = panel.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      const GAP = 8;
+      let left, top;
+      if (orientation === "vertical") {
+        left = anchor.right + GAP;
+        if (left + pw > vw - 6) left = Math.max(6, anchor.left - pw - GAP);
+        top = anchor.top;
+        if (top + ph > vh - 6) top = Math.max(6, vh - ph - 6);
+      } else {
+        top = anchor.bottom + GAP;
+        if (top + ph > vh - 6) top = Math.max(6, anchor.top - ph - GAP);
+        left = anchor.left;
+        if (left + pw > vw - 6) left = Math.max(6, vw - pw - 6);
+      }
+      setPos({ left, top, ready: true });
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", compute);
+    return () => {
+      window.removeEventListener("resize", compute);
+      if (window.visualViewport) window.visualViewport.removeEventListener("resize", compute);
+    };
+  }, [anchor, orientation]);
+
+  // Refresh active state continuously so the highlighted chip/swatch
+  // always matches the caret's current context.
+  useEffect(() => {
+    const refresh = () => {
+      const ed = findActiveEditor();
+      if (!ed) { setActive({ size: null, color: null }); return; }
+      setActive(readActiveAppearance(ed));
+    };
+    refresh();
+    const t = setInterval(refresh, 220);
+    document.addEventListener("selectionchange", refresh);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("selectionchange", refresh);
+    };
+  }, []);
+
+  // Dismiss on Escape.
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const applyOnEditor = useCallback((axis, className) => {
+    const ed = findActiveEditor();
+    if (!ed) return;
+    try { restoreStashedSelectionIfNeeded(ed); } catch {}
+    applyAppearanceChange(ed, axis, className);
+    try { stashSelection(); } catch {}
+  }, []);
+
+  const backdrop = (
+    <div
+      data-testid="floating-rte-aa-backdrop"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2147483645,
+        background: "transparent",
+      }}
+    />
+  );
+
+  const panel = (
+    <div
+      ref={panelRef}
+      className="ir-aa-panel"
+      data-testid="floating-rte-aa-panel"
+      style={{
+        left: pos.left,
+        top: pos.top,
+        visibility: pos.ready ? "visible" : "hidden",
+      }}
+      onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
+      onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="ir-aa-section-label">Size</div>
+      <div className="ir-aa-row" data-testid="floating-rte-aa-size-row">
+        {AA_SIZE_OPTIONS.map((s) => (
+          <button
+            key={s.className}
+            type="button"
+            data-testid={`floating-rte-aa-size-${s.className.replace("ir-size-", "")}`}
+            className={`ir-aa-size-chip ${active.size === s.className ? "active" : ""}`}
+            onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
+            onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
+            onClick={() => applyOnEditor("size", s.className)}
+            title={s.label}
+          >
+            <div
+              className="ir-aa-size-chip-sample"
+              style={{
+                fontSize: s.className === "ir-size-sm" ? "0.85em"
+                        : s.className === "ir-size-md" ? "1em"
+                        : s.className === "ir-size-lg" ? "1.25em"
+                        : "1.5em",
+              }}
+            >{s.sample}</div>
+            <div className="ir-aa-size-chip-label">{s.label}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="ir-aa-section-label">Color</div>
+      <div className="ir-aa-color-grid" data-testid="floating-rte-aa-color-grid">
+        {AA_COLOR_OPTIONS.map((c) => (
+          <button
+            key={c.name}
+            type="button"
+            data-testid={`floating-rte-aa-color-${c.name}`}
+            data-color={c.name}
+            title={c.title}
+            className={`ir-aa-color-swatch ${
+              (c.className === null && !active.color) || (c.className && active.color === c.className)
+                ? "active" : ""
+            }`}
+            style={c.hex ? { background: c.hex } : undefined}
+            onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
+            onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
+            onClick={() => applyOnEditor("color", c.className)}
+          />
+        ))}
+      </div>
+
+      <button
+        type="button"
+        data-testid="floating-rte-aa-clear-format"
+        className="ir-aa-clear-btn"
+        onPointerDown={(e) => { stashSelection(); e.preventDefault(); }}
+        onMouseDown={(e)   => { stashSelection(); e.preventDefault(); }}
+        onClick={() => {
+          const ed = findActiveEditor();
+          if (!ed) return;
+          try { restoreStashedSelectionIfNeeded(ed); } catch {}
+          runExecCommand(ed, "removeFormat");
+          try { stashSelection(); } catch {}
+        }}
+      >Clear formatting</button>
+    </div>
+  );
+
+  if (typeof document === "undefined") return panel;
+  return createPortal(<>{backdrop}{panel}</>, document.body);
 }

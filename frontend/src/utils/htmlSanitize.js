@@ -13,6 +13,9 @@ const CONFIG = {
     "p", "h1", "h2", "h3",
     "strong", "em", "u", "s", "a", "br", "b", "i", "strike", "del",
     "ul", "ol", "li",
+    // <span class="ir-size-* ir-color-*"> — text appearance via Aa dropdown.
+    // `class` is already on the ALLOWED_ATTR list; `style` remains blocked.
+    "span",
   ],
   ALLOWED_ATTR: ["href", "title", "target", "rel", "class", "data-ir-check"],
   ALLOW_DATA_ATTR: false,  // only `data-ir-check` is allowed, via explicit allowlist above

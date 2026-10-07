@@ -38,6 +38,20 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa Text Appearance dropdown (2026-02-28, v198/v85)**: Added a
+  floating smoked-glass dropdown anchored to the Aa toolbar button. Contains:
+  size chips (Small/Normal/Large/Extra Large → `0.85em/1em/1.25em/1.5em`),
+  a 16-swatch color palette, and a Clear-Format button. Rendered via
+  `createPortal` to `document.body` at `z-index: 2147483646` — pure overlay,
+  does NOT shift the toolbar or editor. Flips above/left when clipped.
+  Reuses the existing ZWSP + pending-marker + caret-target mechanism, with a
+  new `promoteTextareaWithAppearance` helper for the textarea → contentEditable
+  promotion. Size/color stack across axes; within an axis the current class is
+  swapped (empty pending → mutate in-place, committed → emerge to sibling).
+  Sanitiser gained `<span>` on the ALLOWED_TAGS list (class-only). Removed the
+  obsolete standalone `color` toolbar stub (now inside Aa); kept `highlight`
+  stub for future extension. Frozen Text Tools (H1/H2/H3/B/I/U/S) **not
+  touched** — verified via regression typing in the preview.
 - **Module 1 — Format-first state transition (2026-02-28, v197/v84)**: When caret
   is inside an inline-format ancestor (B/I/U/S, pending or committed) and user
   taps a different inline format, the new format now becomes a SIBLING of the
