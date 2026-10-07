@@ -622,22 +622,53 @@ function findAncestorCommittedAppearanceSpan(editor, node) {
 // `className` is the CSS class to apply (e.g. "ir-size-lg", "ir-color-blue")
 // or null to CLEAR the axis.
 //
-// `ownedSpan` (optional) identifies the span the current Aa panel session
-// has already touched. It lets the function tell apart:
-//   • STACKING   — user picks a second axis on the same pending span
-//                  they just created in this panel session. The other
-//                  axis's class is preserved so Size + Color stack.
-//   • ORPHAN     — the caret sits inside an empty pending span that
-//                  wasn't created in this panel session (classic case:
-//                  the browser cloned the span structure when the user
-//                  pressed Enter at the end of a previous line, so the
-//                  new paragraph's "pending" span inherits the OLD
-//                  axis's class). Both axes are reset so the user's
-//                  current single pick doesn't silently inherit the
-//                  prior axis.
-// Returns `true` on success.
+// Axis semantics (post-v205):
+//   • SIZE axis is DOCUMENT-LEVEL. The class lives on the editor root
+//     element so the whole typographic hierarchy (P / H1 / H2 / H3 and
+//     every inline run) scales together via `em`-based CSS. There is no
+//     per-span size wrapper for new picks.
+//   • COLOR axis is PER-SPAN. Each color pick wraps the format-first
+//     caret in a `<span class="ir-pending-inline ir-color-X">` marker
+//     exactly as before (text-run-specific color).
+//
+// `ownedSpan` is only consulted for the color path (stacking vs orphan
+// detection). It is ignored for the size path.
 function applyAppearanceChange(editor, axis, className, ownedSpan) {
   if (!editor) return false;
+  // ---- SIZE axis: document-level ---------------------------------------
+  if (axis === "size") {
+    // Textarea has no root class to carry an inline size — promote to
+    // HTML (empty pending marker, no inline class), then apply the
+    // size class to the HTML editor root once it mounts.
+    if (editor.tagName === "TEXTAREA") {
+      const mode = promoteTextareaWithAppearance(editor, null);
+      if (!mode) return false;
+      focusHtmlEditorSoon(mode);
+      // Deferred: after React swaps the textarea for the HTML editor,
+      // locate the editor root and apply the size class.
+      const applySoon = (attempts) => {
+        const htmlEd = findActiveEditor();
+        if (htmlEd && htmlEd.tagName !== "TEXTAREA" && htmlEd.classList) {
+          AA_SIZE_CLASSES.forEach((c) => htmlEd.classList.remove(c));
+          if (className) htmlEd.classList.add(className);
+          htmlEd.dispatchEvent(new Event("input", { bubbles: true }));
+          return;
+        }
+        if (attempts > 0) setTimeout(() => applySoon(attempts - 1), 20);
+      };
+      setTimeout(() => applySoon(8), 20);
+      return true;
+    }
+    // HTML mode — apply directly to the editor root.
+    try { if (document.activeElement !== editor) editor.focus(); } catch {}
+    if (editor.classList) {
+      AA_SIZE_CLASSES.forEach((c) => editor.classList.remove(c));
+      if (className) editor.classList.add(className);
+    }
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  // ---- COLOR axis: per-span, format-first-then-type -------------------
   // Textarea → promote to contentEditable + inject a pending appearance
   // span. Mirrors how Bold/Italic/Underline/Strike handle this case.
   if (editor.tagName === "TEXTAREA") {
@@ -769,11 +800,18 @@ function applyAppearanceChange(editor, axis, className, ownedSpan) {
 }
 
 // Report the CURRENT appearance active at the caret so the Aa dropdown
-// can highlight the right chip/swatch. Walks ancestors looking for ANY
-// `<span>` with ir-size-* / ir-color-* classes (pending or committed).
+// can highlight the right chip/swatch. Size reads from the EDITOR ROOT
+// (document-level); color walks ancestor spans (per-run).
 function readActiveAppearance(editor) {
   const result = { size: null, color: null };
   if (!editor) return result;
+  // Size — editor root class.
+  if (editor.classList) {
+    AA_SIZE_CLASSES.forEach((c) => {
+      if (editor.classList.contains(c)) result.size = c;
+    });
+  }
+  // Color — ancestor span walk.
   const sel = window.getSelection && window.getSelection();
   if (!sel || sel.rangeCount === 0) return result;
   const range = sel.getRangeAt(0);
@@ -783,7 +821,6 @@ function readActiveAppearance(editor) {
   while (walk && walk !== editor) {
     if (walk.tagName === "SPAN" && walk.classList) {
       walk.classList.forEach((c) => {
-        if (!result.size && c.indexOf("ir-size-") === 0) result.size = c;
         if (!result.color && c.indexOf("ir-color-") === 0) result.color = c;
       });
     }
@@ -1409,6 +1446,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     let bold = false, italic = false, underline = false, strike = false, link = false;
     let block = null;
     let aa = false;
+    // Document-level size on the editor root also counts as "Aa active".
+    try {
+      if (editor.classList) {
+        for (let i = 0; i < AA_SIZE_CLASSES.length; i++) {
+          if (editor.classList.contains(AA_SIZE_CLASSES[i])) { aa = true; break; }
+        }
+      }
+    } catch {}
     let node = range.startContainer;
     if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
     while (node && node !== editor) {
@@ -2892,21 +2937,27 @@ function AppearancePanel({ anchor, orientation, onClose }) {
   }, []);
 
   // ---- Drag handlers for the Move handle ---------------------------------
-  // On pointerdown over the handle, capture the pointer so subsequent
-  // move/up events arrive even if the finger slides off the handle onto
-  // the overlay wrap. Clamp the resulting position so the handle itself
-  // + the first row of controls always stay visible — the user can
-  // never lose the panel completely off-screen.
-  const CLAMP_MARGIN = 4; // px — minimum pixels of panel kept on-screen on each edge
+  // Coordinate math — because the panel paints at
+  //   visualX = pos.left + vvOffset.x
+  //   visualY = pos.top  + vvOffset.y
+  // we must do the drag arithmetic in VISUAL space (where the user's
+  // finger lives). We record the panel's visual-rect at drag start and
+  // the pointer's clientX/Y (also visual), compute the new visual
+  // position from finger delta, clamp it to the visible viewport, then
+  // CONVERT back to layout coords by subtracting vvOffset before
+  // writing to `pos`. This keeps the finger locked to the same point
+  // on the Move handle for the entire drag, regardless of whether the
+  // keyboard is open, the viewport has scrolled, or an ancestor
+  // transform is in play.
   const onDragStart = useCallback((e) => {
     const panel = panelRef.current;
     if (!panel) return;
-    const rect = panel.getBoundingClientRect();
+    const rect = panel.getBoundingClientRect(); // VISUAL rect
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      origLeft: rect.left,
-      origTop: rect.top,
+      origVisualLeft: rect.left,
+      origVisualTop: rect.top,
       pointerId: e.pointerId,
     };
     setIsDragging(true);
@@ -2926,33 +2977,46 @@ function AppearancePanel({ anchor, orientation, onClose }) {
     const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     const pw = panel.offsetWidth;
     const ph = panel.offsetHeight;
-    // Keep at least CLAMP_MARGIN of each edge visible.
-    const minLeft = CLAMP_MARGIN - pw + 60; // keep ~60px of the panel visible on the left edge
-    const maxLeft = vw - CLAMP_MARGIN - 60;
-    const minTop  = CLAMP_MARGIN;
-    const maxTop  = vh - CLAMP_MARGIN - 44; // keep handle visible at bottom
-    const nextLeft = Math.min(maxLeft, Math.max(minLeft, d.origLeft + dx));
-    const nextTop  = Math.min(maxTop,  Math.max(minTop,  d.origTop  + dy));
-    setPos({ left: nextLeft, top: nextTop, ready: true });
+    // Compute new VISUAL position (where the finger wants the panel).
+    let newVisualLeft = d.origVisualLeft + dx;
+    let newVisualTop  = d.origVisualTop + dy;
+    // Clamp in visual space. Loose enough to let the user park the
+    // panel anywhere in the visible viewport, strict enough that the
+    // Move handle itself is always reachable.
+    const EDGE_H = 60; // keep at least this much of the panel on-screen horizontally
+    const EDGE_T = 2;  // may almost touch the top of the visible viewport
+    const EDGE_B = 44; // keep the drag handle (~top 36px) visible if parked near the bottom
+    newVisualLeft = Math.min(vw - EDGE_H, Math.max(EDGE_H - pw, newVisualLeft));
+    newVisualTop  = Math.min(vh - EDGE_B, Math.max(EDGE_T, newVisualTop));
+    // Convert back to layout coords for CSS left/top.
+    setPos({
+      left: newVisualLeft - vvOffset.x,
+      top:  newVisualTop  - vvOffset.y,
+      ready: true,
+    });
     e.stopPropagation();
     e.preventDefault();
-  }, []);
+  }, [vvOffset.x, vvOffset.y]);
 
   const onDragEnd = useCallback((e) => {
     const d = dragRef.current;
     if (!d) return;
     try { e.currentTarget.releasePointerCapture(d.pointerId); } catch {}
-    // Persist the final location so re-opening Aa in this session
-    // starts at the user's chosen position.
+    // Persist the final BASE (layout-coord) pos so re-opening the panel
+    // in this session restores the user's chosen spot even if vvOffset
+    // changes meanwhile. The CSS will add vvOffset back on paint.
     const panel = panelRef.current;
     if (panel) {
       const rect = panel.getBoundingClientRect();
-      aaLastUserPos = { left: rect.left, top: rect.top };
+      aaLastUserPos = {
+        left: rect.left - vvOffset.x,
+        top:  rect.top  - vvOffset.y,
+      };
     }
     dragRef.current = null;
     setIsDragging(false);
     e.stopPropagation();
-  }, []);
+  }, [vvOffset.x, vvOffset.y]);
 
   const backdrop = null; // integrated into the overlay wrap below
 
@@ -3084,6 +3148,11 @@ function AppearancePanel({ anchor, orientation, onClose }) {
                   if (node.classList.length === 0) node.removeAttribute("class");
                 }
                 node = node.parentElement;
+              }
+              // Also strip the document-level size class from the editor
+              // root (post-v205 Aa Size lives here).
+              if (ed.classList) {
+                AA_SIZE_CLASSES.forEach((c) => ed.classList.remove(c));
               }
               // Reset the owned-span ref so a subsequent Aa pick starts
               // fresh rather than stacking with the now-stripped span.

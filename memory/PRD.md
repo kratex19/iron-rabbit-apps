@@ -38,6 +38,25 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Aa drag coord fix + document-level typography scaling
+  (2026-02-28, v205/v92)**:
+  1. **Drag coord**: previous drag used `getBoundingClientRect()` (visual
+     coords) while writing CSS `top/left` (layout coords), so with any
+     non-zero `vvOffset` the panel drifted away from the finger. Rewrote the
+     drag math in visual space: capture visual-rect at drag start, compute
+     new visual position from finger delta, clamp in visual space, convert
+     back to layout coords by subtracting `vvOffset`. Verified: finger moves
+     -180px → panel + handle both move -180px, 0px drift. Also lowered the
+     restrictive upper boundary from ~48px to 2px so the panel can travel
+     almost to the top of the visible viewport.
+  2. **Typography scaling**: Aa Size now sets the EDITOR ROOT's font-size via
+     a class on `.fs-content-editable` (not inline spans). Headings use
+     `em`-based CSS (`H1 1.5em / H2 1.3em / H3 1.15em`), so the whole
+     typographic hierarchy scales as ONE coherent system. Verified: ratios
+     H1/P, H2/P, H3/P stay at 1.50 / 1.30 / 1.15 for Small, Normal, Large,
+     and Extra Large — the hierarchy is preserved exactly across sizes.
+     Legacy per-span `ir-size-*` CSS kept for backward compat with saved
+     notes. Clear-format now also strips the root size class.
 - **Module 1 — Aa viewport anchor + active ring + height reduction + Clear-format
   (2026-02-28, v204/v91)**: Four surgical fixes on top of the Aa panel:
   1. Panel is now truly viewport-anchored. Dropped the resize-based re-compute

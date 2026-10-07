@@ -1221,11 +1221,15 @@
   -webkit-text-fill-color: #ca8a04 !important;
   opacity: 0.85 !important;
 }
-.fs-content-editable p { margin: 0 0 0.75rem 0; }
+.fs-content-editable p { margin: 0 0 0.75em 0; font-size: 1em; }
 .fs-content-editable p:last-child { margin-bottom: 0; }
-.fs-content-editable h1 { font-size: 1.35rem; font-weight: 700; line-height: 1.25; margin: 0.45rem 0 0.45rem 0; }
-.fs-content-editable h2 { font-size: 1.15rem; font-weight: 700; line-height: 1.3;  margin: 0.4rem 0 0.4rem 0; }
-.fs-content-editable h3 { font-size: 1.03rem; font-weight: 700; line-height: 1.35; margin: 0.35rem 0 0.35rem 0; }
+/* Headings use `em` (NOT `rem`) so they scale proportionally with the
+   editor's current base font-size. The Aa Size setting changes the
+   editor root's font-size (see .fs-content-editable.ir-size-* below),
+   which in turn scales the whole typographic hierarchy. */
+.fs-content-editable h1 { font-size: 1.5em;  font-weight: 700; line-height: 1.25; margin: 0.45em 0 0.45em 0; }
+.fs-content-editable h2 { font-size: 1.3em;  font-weight: 700; line-height: 1.3;  margin: 0.4em  0 0.4em  0; }
+.fs-content-editable h3 { font-size: 1.15em; font-weight: 700; line-height: 1.35; margin: 0.35em 0 0.35em 0; }
 .fs-content-editable a { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; }
 .fs-content-editable strong,
 .fs-content-editable b { font-weight: 800; }
@@ -1319,6 +1323,19 @@
    rich-text editor surface. Preview rendering uses the same classes via
    dangerouslySetInnerHTML of sanitised HTML (see htmlSanitize.js).
    ========================================================================== */
+/* Aa Size — document-level base. Applied to the EDITOR ROOT so the
+   whole typographic hierarchy (P/H1/H2/H3 and inline formatting)
+   scales proportionally. 14px matches Tailwind's `text-sm` (the
+   editor's default class). The multipliers mirror the Aa chip labels:
+   Small 0.85 / Normal 1 / Large 1.25 / Extra Large 1.5. */
+.fs-content-editable.ir-size-sm { font-size: 11.9px; }
+.fs-content-editable.ir-size-md { font-size: 14px; }
+.fs-content-editable.ir-size-lg { font-size: 17.5px; }
+.fs-content-editable.ir-size-xl { font-size: 21px; }
+
+/* Backward-compat per-span size — kept so previously-saved notes that
+   contain `<span class="ir-size-...">` keep rendering. New Aa size
+   picks go on the editor root (above), not on inline spans. */
 .fs-content-editable span.ir-size-sm { font-size: 0.85em; }
 .fs-content-editable span.ir-size-md { font-size: 1em; }
 .fs-content-editable span.ir-size-lg { font-size: 1.25em; }
