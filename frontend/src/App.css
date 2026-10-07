@@ -1236,6 +1236,33 @@
 .fs-content-editable strike,
 .fs-content-editable del { text-decoration: line-through; text-decoration-thickness: 1.5px; }
 
+/*
+ * Fix H — translucent ::selection inside the rich-text editor.
+ *
+ * Chrome's default selection highlight is a solid, opaque blue that
+ * fully covers the glyph. When a user selects a word and taps Bold,
+ * `<strong>` is correctly added to the DOM (verified: computed
+ * font-weight 800 vs. parent 400) but the opaque highlight hides the
+ * stroke-weight difference so the user reports "Bold does nothing".
+ * The DOM / toolbar / behaviour is all correct — only the visual
+ * feedback was being swallowed by the selection paint.
+ *
+ * Scoping this to `.fs-content-editable ::selection` keeps the global
+ * selection styling untouched everywhere else in the app (titles,
+ * sidebars, modals, etc.) and only tunes the one surface that matters
+ * for the Bold/Italic/Underline/Strike toggle feedback loop.
+ *
+ * ~40% alpha preserves obvious selection visibility while letting the
+ * underlying font-weight / italic / underline / strike-through strokes
+ * read through — matching the industry norm in Google Docs, Notion
+ * and Linear.
+ */
+.fs-content-editable ::selection,
+.fs-content-editable::selection {
+  background: rgba(99, 102, 241, 0.4); /* indigo-500 @ 40% */
+  color: inherit;
+}
+
 
 /* Lists inside the Expanded Text editor */
 .fs-content-editable ul,
