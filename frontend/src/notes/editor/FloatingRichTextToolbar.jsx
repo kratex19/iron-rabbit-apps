@@ -1466,27 +1466,22 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       clearFormat: ["removeFormat"],
     };
     const history = historyRef.current;
-    // Fix I — format-first-then-type for inline formats. When the user
-    // taps Bold / Italic / Underline / Strike with a COLLAPSED caret,
-    // insert a ZWSP-anchored pending marker instead of relying on
-    // native execCommand pending-state (which Capacitor Android drops
-    // before the next keystroke). This makes the four inline buttons
-    // work identically whether the user formats first or selects first.
-    //
-    // Non-collapsed selections still go through the original paths
-    // (wrapSelectionWithTag for strike with toggle, execCommand for the
-    // other three with native toggle) so the previously-verified Test A
-    // / B behaviour is untouched.
-    if (format === "bold" || format === "italic" || format === "underline" || format === "strike") {
-      const liveSel = window.getSelection && window.getSelection();
-      const liveRange = liveSel && liveSel.rangeCount > 0 ? liveSel.getRangeAt(0) : null;
-      if (liveRange && liveRange.collapsed) {
-        if (history) history.snapshotImmediate(editor);
-        insertInlinePendingMarker(editor, format);
-        if (history) history.snapshotImmediate(editor);
-        return;
-      }
-    }
+    // Fix I was removed in v194 — the ZWSP-anchored pending marker
+    // caused character reordering on Capacitor Android ("Oldb" when the
+    // user typed "Bold"). The marker's input-event cleanup fired on
+    // every keystroke and mutated the text node under the caret,
+    // which Android's text-insertion heuristic interpreted by moving
+    // the caret to a sibling anchor. We revert to the simpler path:
+    //   • Range selection → wrap with execCommand (strike uses direct
+    //     DOM wrap) — unchanged, verified working.
+    //   • Collapsed caret → delegate to native execCommand pending-
+    //     state. Chrome desktop honours this correctly; Capacitor
+    //     Android drops it before the next keystroke so the typed text
+    //     comes out plain. That is a lesser bug than character
+    //     reordering AND is the baseline Chrome behaviour, not a
+    //     regression we introduced. A proper format-first-type path
+    //     needs a beforeinput interceptor — scheduled as a follow-up
+    //     once we can test incremental iterations on-device.
     // Strikethrough gets a deterministic Range-based wrap (see
     // `wrapSelectionWithTag`). Everything else stays on execCommand so
     // Bold / Italic / Underline / Headings / Lists behave exactly as
