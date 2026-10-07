@@ -411,6 +411,64 @@ function wrapSelectionWithTag(editor, tagName) {
   }
 }
 
+// Fix F — strike toggle. When the caret / selection already lives
+// inside an `<s>` (or `<strike>` / `<del>`) ancestor, re-tapping Strike
+// should REMOVE the formatting, matching how Bold/Italic/Underline
+// behave via native execCommand. The existing `wrapSelectionWithTag`
+// unconditionally wraps, producing `<s><s>text</s></s>` on the second
+// tap — which the user caught during Android testing.
+//
+// Strategy: find the nearest strike ancestor that is wholly contained
+// in the editor; unwrap it by replacing the <s> with its own children,
+// then restore the selection to span those children. The caret-is-
+// inside-formatted-text active-state detector (`refreshActive`) already
+// walks the same tag names, so the button correctly lights up / clears.
+//
+// This helper is strike-only on purpose — Bold/Italic/Underline/H1-H3
+// paths remain exactly as they were, so this fix cannot regress any
+// confirmed-working command.
+function unwrapStrikeAtSelection(editor) {
+  if (!editor) return false;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return false;
+  // Walk up from the selection's start container to find the nearest
+  // strike ancestor still contained within the editor.
+  let node = range.startContainer;
+  if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  let strike = null;
+  while (node && node !== editor) {
+    const t = node.tagName;
+    if (t === "S" || t === "STRIKE" || t === "DEL") { strike = node; break; }
+    node = node.parentElement;
+  }
+  if (!strike) return false;
+  try {
+    const parent = strike.parentNode;
+    if (!parent) return false;
+    // Capture the first/last children before unwrap so we can restore
+    // the selection to span exactly the un-struck text — not a tag.
+    const firstChild = strike.firstChild;
+    const lastChild = strike.lastChild;
+    // Move each child of <s> out, in order, into the parent at the
+    // position <s> currently occupies.
+    while (strike.firstChild) parent.insertBefore(strike.firstChild, strike);
+    parent.removeChild(strike);
+    if (firstChild && lastChild) {
+      const nr = document.createRange();
+      nr.setStartBefore(firstChild);
+      nr.setEndAfter(lastChild);
+      sel.removeAllRanges();
+      sel.addRange(nr);
+    }
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Map of format key → inline tag used when promoting a plain textarea
 // into HTML mode. Kept in sync with the sanitiser allowlist in
 // utils/htmlSanitize.js so the promoted markup round-trips through
@@ -1224,9 +1282,20 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // `wrapSelectionWithTag`). Everything else stays on execCommand so
     // Bold / Italic / Underline / Headings / Lists behave exactly as
     // before.
+    //
+    // Fix F — toggle behaviour. If the selection already lives inside
+    // an existing <s>/<strike>/<del>, re-tapping Strike must REMOVE it
+    // instead of wrapping again. We check via `active.strike` (populated
+    // by refreshActive's ancestor walk — the same mechanism that lights
+    // up the toolbar button) which is the source of truth we already
+    // trust elsewhere.
     if (format === "strike") {
       if (history) history.snapshotImmediate(editor);
-      wrapSelectionWithTag(editor, "s");
+      if (active.strike) {
+        unwrapStrikeAtSelection(editor);
+      } else {
+        wrapSelectionWithTag(editor, "s");
+      }
       if (history) history.snapshotImmediate(editor);
       return;
     }
@@ -1274,7 +1343,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       runExecCommand(editor, spec[0], spec[1] ?? null);
       if (history) history.snapshotImmediate(editor);
     }
-  }, []);
+  }, [active.strike]);
 
   // Line break (§12) — inserts a <br> at caret without starting a new
   // paragraph/block, distinct from pressing Return which commits to the
