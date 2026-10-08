@@ -1,0 +1,96 @@
+{
+  "summary": "Verified the caret/new-text alignment fix in FloatingRichTextToolbar.applyAlign. All 13 acceptance scenarios PASS. Collapsed caret in a NON-empty block (p/h1/h2/h3) no longer realigns the existing text — a fresh empty <p class='ir-align-*'><br></p> is inserted immediately after the current block and the caret moves into it. Collapsed caret in an empty block still aligns the current block directly (with toggle). Explicit selection path still realigns spanned blocks (with toggle). H1/H2/H3 identity preserved in selection path. Inline formatting (strong/em/u/s) in previously-typed paragraphs is untouched. Alignment persists through close->reopen (IndexedDB autosave). Toolbar active-ring reflects current block's alignment.",
+  "verdict": "PASS",
+  "scenarios": {
+    "S1_type_enter_center_type_enter_right_type": {
+      "expected": "<p>First sentence</p><p class=\"ir-align-center\">Second sentence</p><p class=\"ir-align-right\">Third sentence</p>",
+      "actual":   "<p>First sentence</p><p class=\"ir-align-center\">Second sentence</p><p class=\"ir-align-right\">Third sentence</p>",
+      "pass": true,
+      "note": "First paragraph remains LEFT with NO class — not retroactively aligned."
+    },
+    "S2_caret_in_nonempty_p_center_inserts_new_block": {
+      "expected": "<p>Hello</p><p class=\"ir-align-center\"><br></p> then typing Hi -> <p>Hello</p><p class=\"ir-align-center\">Hi</p>",
+      "actual_before_type": "<p>Hello</p><p class=\"ir-align-center\"><br></p>",
+      "actual_after_type":  "<p>Hello</p><p class=\"ir-align-center\">Hi</p>",
+      "pass": true,
+      "note": "<p>Hello</p> is UNCHANGED (no class). Caret correctly moved into new block."
+    },
+    "S3_empty_block_caret_center_aligns_current": {
+      "expected": "<p class=\"ir-align-center\"><br></p> then Hi -> <p class=\"ir-align-center\">Hi</p>",
+      "actual_before_type": "<p class=\"ir-align-center\"><br></p>",
+      "actual_after_type":  "<p class=\"ir-align-center\">Hi</p>",
+      "pass": true
+    },
+    "S4_selection_across_two_p_right_adds_class_to_both": {
+      "expected": "<p class=\"ir-align-right\">Alpha</p><p class=\"ir-align-right\">Beta</p>",
+      "actual":   "<p class=\"ir-align-right\">Alpha</p><p class=\"ir-align-right\">Beta</p>",
+      "pass": true
+    },
+    "S5_selection_path_toggle_same_removes_class": {
+      "expected": "<p>Alpha</p><p>Beta</p>",
+      "actual":   "<p>Alpha</p><p>Beta</p>",
+      "pass": true
+    },
+    "S6_H1_nonempty_caret_center_inserts_p_after": {
+      "expected": "<h1>Heading</h1><p class=\"ir-align-center\"><br></p>",
+      "actual":   "<h1>Heading</h1><p class=\"ir-align-center\"><br></p>",
+      "pass": true,
+      "note": "<h1> stays <h1> with NO class. New block below is a <p>, which matches spec."
+    },
+    "S7_H1_selection_path_center_adds_class_keeps_h1": {
+      "expected": "<h1 class=\"ir-align-center\">Heading</h1>",
+      "actual":   "<h1 class=\"ir-align-center\">Heading</h1>",
+      "pass": true
+    },
+    "S8_empty_block_toggle_center_off": {
+      "expected": "<p><br></p>",
+      "actual":   "<p><br></p>",
+      "pass": true
+    },
+    "S9_empty_block_switch_center_to_right": {
+      "expected": "<p class=\"ir-align-right\"><br></p>",
+      "actual":   "<p class=\"ir-align-right\"><br></p>",
+      "pass": true
+    },
+    "S10_persistence_close_reopen": {
+      "html_set": "<p>Left1</p><p class=\"ir-align-center\">Center1</p><p class=\"ir-align-right\">Right1</p>",
+      "html_after_reopen": "<p>Left1</p><p class=\"ir-align-center\">Center1</p><p class=\"ir-align-right\">Right1</p>",
+      "pass": true
+    },
+    "S11_inline_formatting_preserved_after_insert_below": {
+      "expected": "<p>Hello <strong>bold</strong> <em>italic</em> <u>under</u> <s>strike</s> world</p><p class=\"ir-align-center\"><br></p>",
+      "actual":   "<p>Hello <strong>bold</strong> <em>italic</em> <u>under</u> <s>strike</s> world</p><p class=\"ir-align-center\"><br></p>",
+      "pass": true,
+      "note": "First paragraph with inline formatting is untouched. Only the nextSibling slot was modified."
+    },
+    "S12_toolbar_active_ring_follows_caret": {
+      "ring_class_when_caret_in_centered_block": "shrink-0 w-9 h-9 mx-0.5 my-0.5 rounded-lg flex items-center justify-center ring-2 ring-orange-500 bg-orange-500/15 hover:bg-white/10 active:scale-95 transition ",
+      "ring_class_when_caret_in_left_block": "shrink-0 w-9 h-9 mx-0.5 my-0.5 rounded-lg flex items-center justify-center  hover:bg-white/10 active:scale-95 transition ",
+      "pass": true
+    }
+  },
+  "regression_checks": {
+    "H1_H2_H3_toolbar_buttons_present": true,
+    "Highlight_button_present": true,
+    "Aa_panel_button_present": true,
+    "P_button_present": true,
+    "Wrap_button_present": true,
+    "no_console_errors": true
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FloatingRichTextToolbar.jsx is now ~3970 lines — well past the 700-line hard-split threshold. Extract AlignPanel, applyAlign/readActiveAlign, HighlightPanel and AaPanel into separate files.",
+    "applyAlign path 3 toggle-rule (lines 1128-1130): tapping the SAME alignment class a non-empty block already carries silently creates a fresh default-aligned <p> below. This is reasonable but non-obvious — worth a doc comment or user-facing hint; also inconsistent with path 1/2 toggle semantics.",
+    "ALIGN_CLASSES array is duplicated between applyAlign/readActiveAlign and the AlignPanel ALIGN_OPTIONS table (lines 996 vs 3818-3820) — single source of truth would reduce drift risk.",
+    "No automated unit tests cover applyAlign behavior — given this is the second bug-fix iteration on it, a small jest/vitest file would be worthwhile."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (13/13 scenarios pass)"},
+  "seed_data_creation": "Reused the existing 'T2' note under Uncategorized. Tests set/read innerHTML of fullscreen-content-input-format directly. Final content persisted: <p>Left1</p><p class=\"ir-align-center\">Center1</p><p class=\"ir-align-right\">Right1</p>.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Caret/new-text alignment fix is working end-to-end on the FullScreenNote (fullscreen-content-input-format) Format editor. Three paths of applyAlign verified: (1) explicit selection = align spanned blocks with toggle, (2) collapsed caret in empty block = align the block with toggle, (3) collapsed caret in non-empty block = insert fresh aligned <p> after, caret moves there. Previously-typed text is never mutated by path 3. Testids used: floating-rte-btn-align, floating-rte-align-panel, floating-rte-align-left/center/right. To reach the Format editor: expand accordion-note-title-<id>, click accordion-fullscreen-<id>, then click fullscreen-mode-format. The editor's own floating toolbar overlays the top of the contenteditable, so direct Playwright click on the editor can be intercepted — use ed.focus() + manual Range for caret placement."
+}

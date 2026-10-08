@@ -38,6 +38,18 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Alignment caret-vs-selection fix (2026-02-28, v209/v96)**:
+  Fixed critical UX bug: tapping Center/Right/Left at a collapsed caret
+  inside a non-empty block was retroactively moving the already-typed
+  text. New semantics in `applyAlign`:
+    1. Non-collapsed selection → align every spanned block (unchanged).
+    2. Collapsed caret in an EMPTY block → align that block directly
+       (toggle supported).
+    3. Collapsed caret in a NON-empty block → insert a fresh empty
+       `<p class="ir-align-*"><br></p>` AFTER the current block, move
+       the caret into it. Previous text never moves.
+  Explicit selection remains the only way to realign existing text.
+  Testing agent iteration_113: 13/13 PASS.
 - **Module 1 — Text Alignment (Left/Center/Right) (2026-02-28, v208/v95)**:
   Replaced the align stub. Tapping the AlignLeft toolbar icon opens a small
   floating palette (same portal + overlay + visualViewport-anchored pattern
