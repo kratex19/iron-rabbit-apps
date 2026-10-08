@@ -16,9 +16,23 @@ const CONFIG = {
     // <span class="ir-size-* ir-color-*"> — text appearance via Aa dropdown.
     // `class` is already on the ALLOWED_ATTR list; `style` remains blocked.
     "span",
+    // <div class="ir-irow" data-ir="irow"> — INLINE 3-zone row container.
+    // `<div>` is otherwise stripped by the post-sanitize hook unless it is
+    // a properly-formed INLINE row. This is the only tag addition for
+    // Module 1 INLINE support.
+    "div",
   ],
-  ALLOWED_ATTR: ["href", "title", "target", "rel", "class", "data-ir-check"],
-  ALLOW_DATA_ATTR: false,  // only `data-ir-check` is allowed, via explicit allowlist above
+  ALLOWED_ATTR: [
+    "href", "title", "target", "rel", "class", "data-ir-check",
+    // INLINE row attributes. These are structural markers DOMPurify
+    // needs to allow so the serialized HTML round-trips cleanly:
+    //   • data-ir  → "irow" on the <div>, "cell" on each inner <span>
+    //   • data-pos → "left" | "center" | "right" on each inner <span>
+    //   • contenteditable → "true" on each cell so the cell remains
+    //     independently editable even after a round-trip.
+    "data-ir", "data-pos", "contenteditable",
+  ],
+  ALLOW_DATA_ATTR: false,  // only `data-ir-check` / `data-ir` / `data-pos` via explicit allowlist above
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^:]*$)/i, // block javascript:, data: etc.
 };
 
@@ -29,6 +43,46 @@ function ensureHook() {
     if (node.tagName === "A") {
       node.setAttribute("target", "_blank");
       node.setAttribute("rel", "noopener noreferrer");
+    }
+    // Strip bare <div>s. We only permit `<div>` when it is a
+    // well-formed INLINE row — i.e. `class` contains "ir-irow" AND
+    // `data-ir="irow"`. Any other <div> (e.g. pasted from the web)
+    // has its wrapper removed so the content flattens into the
+    // surrounding block flow, exactly as before <div> was allowed.
+    if (node.tagName === "DIV") {
+      const cls = node.getAttribute("class") || "";
+      const dataIr = node.getAttribute("data-ir") || "";
+      const isRow = /\bir-irow\b/.test(cls) && dataIr === "irow";
+      if (!isRow) {
+        // Unwrap: move children into parent and remove the div.
+        const parent = node.parentNode;
+        if (parent) {
+          while (node.firstChild) parent.insertBefore(node.firstChild, node);
+          parent.removeChild(node);
+        }
+        return;
+      }
+      // Normalize an INLINE row: enforce exactly 3 cell children,
+      // discard any stray text/non-cell children (DOMPurify may leave
+      // whitespace text nodes between cells). This keeps saved HTML
+      // consistent and prevents half-formed rows from accumulating.
+      const kids = Array.from(node.childNodes);
+      const cells = kids.filter((n) =>
+        n.nodeType === 1
+        && n.tagName === "SPAN"
+        && /\bir-icell\b/.test(n.getAttribute("class") || "")
+        && n.getAttribute("data-ir") === "cell"
+      );
+      kids.forEach((n) => { if (!cells.includes(n)) node.removeChild(n); });
+      // Clamp to exactly 3 cells. If more, drop the extras. If fewer,
+      // leave as-is — the renderer handles missing cells gracefully.
+      cells.slice(3).forEach((n) => node.removeChild(n));
+    }
+    // On INLINE cell spans, enforce `contenteditable="true"` so the
+    // cell is editable when the note is reopened. If `contenteditable`
+    // was stripped for any reason, set it back.
+    if (node.tagName === "SPAN" && node.getAttribute("data-ir") === "cell") {
+      node.setAttribute("contenteditable", "true");
     }
   });
   hooked = true;

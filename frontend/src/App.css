@@ -1502,6 +1502,50 @@
 .fs-content-editable h3.ir-align-right,
 .fs-content-editable li.ir-align-right  { text-align: right  !important; }
 
+/* ------------------------------------------------------------------
+   INLINE row — three independently editable anchored zones on ONE
+   horizontal row. The row is a flex container; each cell takes an
+   equal share of the row. LEFT text-aligns left inside its cell,
+   CENTER centers inside its cell, RIGHT text-aligns right inside its
+   cell. Typing in one cell wraps *inside* that cell — it never pushes
+   the others onto a new row.
+
+   Scoped to `.fs-content-editable` so these styles never leak outside
+   the editor surface.
+   ------------------------------------------------------------------ */
+.fs-content-editable .ir-irow {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+  margin: 0.25em 0;
+  align-items: flex-start;
+}
+.fs-content-editable .ir-icell {
+  flex: 1 1 0;
+  min-width: 0;              /* allow flex item to shrink below content width */
+  white-space: pre-wrap;
+  word-break: break-word;
+  outline: none;             /* no browser focus ring; we handle visual state */
+  min-height: 1.5em;         /* keep empty cells clickable */
+}
+.fs-content-editable .ir-icell:empty::before,
+.fs-content-editable .ir-icell:focus:empty::before {
+  /* Faint placeholder so empty cells remain discoverable. The pseudo-
+     element is non-editable so it does not interfere with the caret. */
+  content: "";
+  display: inline-block;
+  width: 1px;
+}
+.fs-content-editable .ir-icell-left   { text-align: left; }
+.fs-content-editable .ir-icell-center { text-align: center; }
+.fs-content-editable .ir-icell-right  { text-align: right; }
+/* Dotted baseline for the currently-focused cell so the user has a
+   visual confirmation of which zone they are editing. Low-contrast on
+   purpose — present but unobtrusive. */
+.fs-content-editable .ir-icell:focus {
+  box-shadow: inset 0 -1px 0 0 rgba(249, 115, 22, 0.45);
+}
+
 /* Alignment floating palette — same smoked-glass look as the HL / Aa
    panels but tighter: a single 3-button row. Reuses `.ir-aa-overlay`
    for the pointer-isolation wrap. */

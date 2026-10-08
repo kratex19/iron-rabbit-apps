@@ -1030,6 +1030,144 @@ function toggleHighlightOff(editor) {
   } catch { return false; }
 }
 
+// --------------------------------------------------------------------------
+// INLINE 3-zone row — content model + helpers.
+//
+// Shape (persisted verbatim through htmlSanitize):
+//   <div class="ir-irow" data-ir="irow">
+//     <span class="ir-icell ir-icell-left"   data-ir="cell" data-pos="left"   contenteditable="true">…</span>
+//     <span class="ir-icell ir-icell-center" data-ir="cell" data-pos="center" contenteditable="true">…</span>
+//     <span class="ir-icell ir-icell-right"  data-ir="cell" data-pos="right"  contenteditable="true">…</span>
+//   </div>
+//
+// The three cells are independently editable regions on a single flex
+// row. Each cell is a linear text flow → the frozen ZWSP mechanism
+// (format-first-then-type for B/I/U/S/Highlighter/Aa) works inside a
+// cell exactly as it works in a <p>.
+// --------------------------------------------------------------------------
+const INLINE_POSITIONS = ["left", "center", "right"];
+
+function findInlineCell(editor, node) {
+  let walk = node;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "SPAN" && walk.getAttribute && walk.getAttribute("data-ir") === "cell") return walk;
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+function findInlineRow(editor, node) {
+  let walk = node;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "DIV" && walk.getAttribute && walk.getAttribute("data-ir") === "irow") return walk;
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+// Build a fresh, well-formed INLINE row with 3 empty cells. Each cell
+// seeded with a ZWSP so the browser can place the caret inside; the
+// ZWSP is harmless and is dropped the moment the user types.
+function buildInlineRow(doc) {
+  const row = doc.createElement("div");
+  row.className = "ir-irow";
+  row.setAttribute("data-ir", "irow");
+  INLINE_POSITIONS.forEach((pos) => {
+    const cell = doc.createElement("span");
+    cell.className = `ir-icell ir-icell-${pos}`;
+    cell.setAttribute("data-ir", "cell");
+    cell.setAttribute("data-pos", pos);
+    cell.setAttribute("contenteditable", "true");
+    cell.appendChild(doc.createTextNode(ZWSP));
+    row.appendChild(cell);
+  });
+  return row;
+}
+
+// Place the caret at the end of a given cell's text and focus it.
+function moveCaretToCell(cell) {
+  if (!cell) return false;
+  try {
+    cell.focus();
+    const sel = window.getSelection && window.getSelection();
+    if (!sel) return false;
+    const nr = document.createRange();
+    nr.selectNodeContents(cell);
+    nr.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(nr);
+    return true;
+  } catch { return false; }
+}
+
+// Insert a fresh INLINE row at the block boundary nearest the caret
+// and park the caret in the requested cell.
+//   • If the caret's host block is EMPTY → replace it with the row.
+//   • Otherwise → insert AFTER the host block (preserves prior text
+//     verbatim; honours the "no retroactive movement" invariant).
+// If the caret is already inside an INLINE row, returns null — the
+// caller is expected to call moveCaretToCell(...) instead.
+function insertInlineRow(editor, pos) {
+  if (!editor) return null;
+  if (editor.tagName === "TEXTAREA") return null;
+  try { if (document.activeElement !== editor && !editor.contains(document.activeElement)) editor.focus(); } catch {}
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return null;
+  if (findInlineCell(editor, range.startContainer)) return null;
+
+  const row = buildInlineRow(document);
+  const blockAncestor = (() => {
+    let w = range.startContainer;
+    if (w && w.nodeType === Node.TEXT_NODE) w = w.parentElement;
+    while (w && w !== editor) {
+      if (w.tagName === "P" || w.tagName === "H1" || w.tagName === "H2" || w.tagName === "H3" || w.tagName === "LI") return w;
+      w = w.parentElement;
+    }
+    return null;
+  })();
+
+  if (blockAncestor) {
+    const visible = (blockAncestor.textContent || "").replace(new RegExp(ZWSP, "g"), "").replace(/\s/g, "");
+    if (visible.length === 0 && blockAncestor.tagName === "P") {
+      blockAncestor.parentNode.replaceChild(row, blockAncestor);
+    } else {
+      if (blockAncestor.nextSibling) blockAncestor.parentNode.insertBefore(row, blockAncestor.nextSibling);
+      else blockAncestor.parentNode.appendChild(row);
+    }
+  } else {
+    editor.appendChild(row);
+  }
+
+  const target = row.querySelector(`[data-pos="${pos}"]`);
+  moveCaretToCell(target);
+  editor.dispatchEvent(new Event("input", { bubbles: true }));
+  return row;
+}
+
+// Exit the current row by inserting a fresh empty <p> AFTER the row
+// and moving the caret into it. Called by the Enter interceptor.
+function exitInlineRow(editor, row) {
+  if (!editor || !row) return false;
+  const p = document.createElement("p");
+  p.appendChild(document.createElement("br"));
+  if (row.nextSibling) row.parentNode.insertBefore(p, row.nextSibling);
+  else row.parentNode.appendChild(p);
+  try {
+    const sel = window.getSelection && window.getSelection();
+    const nr = document.createRange();
+    nr.setStart(p, 0); nr.setEnd(p, 0);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.focus();
+  } catch {}
+  editor.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
+
 
 
 // --------------------------------------------------------------------------
@@ -1900,6 +2038,59 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       document.removeEventListener("input", onInput, true);
     };
   }, [isOpen, refreshActive]);
+
+  // ---- INLINE row keyboard interception ------------------------------------
+  // When the caret is INSIDE an INLINE cell:
+  //   • Enter → exit the row, drop a new <p> below, caret into it.
+  //   • Backspace at offset 0 of a cell → prevent (keeps row intact).
+  // Everything else routes through the normal editor keyboard path and
+  // is unaffected. This is the ONLY global keyboard handler that
+  // mutates content on behalf of INLINE rows.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e) => {
+      // Scope: only act when the event target is inside an INLINE cell.
+      const ed = findActiveEditor();
+      if (!ed || ed.tagName === "TEXTAREA") return;
+      const cell = findInlineCell(ed, e.target);
+      if (!cell) return;
+      if (e.key === "Enter" && !e.shiftKey) {
+        const row = findInlineRow(ed, cell);
+        if (row) {
+          e.preventDefault();
+          exitInlineRow(ed, row);
+        }
+        return;
+      }
+      if (e.key === "Backspace") {
+        const sel = window.getSelection && window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) return;
+        // Compute cell "offset-from-start" — treat the seed ZWSP as
+        // part of the empty state (so Backspace at the very start of a
+        // ZWSP-only cell is still "offset 0 of empty").
+        const text = (cell.textContent || "");
+        const stripped = text.replace(new RegExp(ZWSP, "g"), "");
+        if (stripped.length === 0) {
+          // Cell is empty — never let Backspace eat the cell scaffold.
+          e.preventDefault();
+          return;
+        }
+        // Non-empty cell: if caret is at the very start of the cell,
+        // suppress Backspace too — otherwise contenteditable would try
+        // to merge the cell into a previous sibling text node.
+        if (range.startOffset === 0 && (range.startContainer === cell || range.startContainer.parentNode === cell && !range.startContainer.previousSibling)) {
+          e.preventDefault();
+          return;
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [isOpen]);
+
+
 
   // Track focus on the known Expanded Text Editor targets.
   useEffect(() => {
@@ -3954,14 +4145,25 @@ function AlignPanel({ anchor, orientation, onClose }) {
     setActiveAlign(readActiveAlign(ed));
   }, []);
 
-  // INLINE mode handler — STUB. No content mutation. Shows a one-shot
-  // toast on first tap in the panel's lifetime so the user is not
-  // spammed when playing with the three buttons.
-  const inlineToastedRef = useRef(false);
-  const stubInlineTap = useCallback((_name) => {
-    if (inlineToastedRef.current) return;
-    inlineToastedRef.current = true;
-    try { toast.message("Inline alignment coming soon", { id: "ir-inline-align-soon", description: "Mode preview only — Left/Center/Right currently work in Block mode." }); } catch {}
+  // INLINE mode handler — inserts a fresh 3-zone row at the caret, or
+  // (if the caret is already inside a row) jumps to the requested cell
+  // without touching existing content. See `insertInlineRow` /
+  // `moveCaretToCell`. Side-effect free for all other content.
+  const applyInline = useCallback((pos) => {
+    const ed = findActiveEditor();
+    if (!ed) return;
+    try { restoreStashedSelectionIfNeeded(ed); } catch {}
+    // If caret is already in a row cell, jump; otherwise insert new row.
+    const sel = window.getSelection && window.getSelection();
+    const node = sel && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
+    const existingRow = node ? findInlineRow(ed, node) : null;
+    if (existingRow) {
+      const target = existingRow.querySelector(`[data-pos="${pos}"]`);
+      moveCaretToCell(target);
+    } else {
+      insertInlineRow(ed, pos);
+    }
+    try { stashSelection(); } catch {}
   }, []);
 
   const panel = (
@@ -4032,7 +4234,7 @@ function AlignPanel({ anchor, orientation, onClose }) {
               onTouchEnd={(e)    => { e.stopPropagation(); }}
               onClick={(e) => {
                 e.stopPropagation();
-                if (isInline) stubInlineTap(name);
+                if (isInline) applyInline(name);
                 else applyOnEditor(className);
               }}
             >
