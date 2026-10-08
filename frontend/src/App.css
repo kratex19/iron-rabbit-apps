@@ -1526,6 +1526,49 @@
   align-items: center;
   gap: 4px;
 }
+/* Mode toggle header: tiny button + small chip, top-left of the panel.
+   Keeps the panel the same visual height as before (chip is 12px). */
+.ir-align-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px 0;
+  padding: 0 2px;
+}
+.ir-align-mode-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.ir-align-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+.ir-align-mode-btn[data-mode="inline"] {
+  color: #fff;
+  background: rgba(249, 115, 22, 0.22);
+  border-color: rgba(249, 115, 22, 0.75);
+}
+.ir-align-mode-chip {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+  font-weight: 600;
+}
+.ir-align-panel.mode-inline .ir-align-mode-chip { color: rgba(249, 115, 22, 0.95); }
+.ir-align-panel.mode-inline { border-color: rgba(249, 115, 22, 0.7); }
 .ir-align-btn {
   width: 36px;
   height: 36px;
@@ -1552,6 +1595,19 @@
   background: rgba(249, 115, 22, 0.18);
   border-color: rgba(249, 115, 22, 0.65);
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.35);
+}
+/* INLINE mode — all three alignment buttons share a tinted scheme so the
+   mode is unmistakable at a glance. Taps are currently stubbed in JS
+   (Step A only). */
+.ir-align-btn.inline {
+  color: rgba(249, 115, 22, 0.95);
+  background: rgba(249, 115, 22, 0.08);
+  border-color: rgba(249, 115, 22, 0.42);
+}
+.ir-align-btn.inline:hover {
+  background: rgba(249, 115, 22, 0.16);
+  border-color: rgba(249, 115, 22, 0.65);
+  color: #fff;
 }
 
 

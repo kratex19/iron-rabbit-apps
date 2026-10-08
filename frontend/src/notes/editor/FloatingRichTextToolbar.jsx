@@ -38,7 +38,7 @@ import {
   Network, ClipboardList,
   CornerDownLeft, WrapText,
   // Stubbed set
-  AlignLeft, AlignCenter, AlignRight, Palette, Highlighter, Scissors, Copy, ClipboardPaste,
+  AlignLeft, AlignCenter, AlignRight, Rows3, Palette, Highlighter, Scissors, Copy, ClipboardPaste,
   ScanLine, Camera, Mic, FileText, Printer, Share2,
 } from "lucide-react";
 import { FormsPackAdapter, HierarchyAdapter } from "./adapters";
@@ -3854,6 +3854,20 @@ function AlignPanel({ anchor, orientation, onClose }) {
   const panelRef = useRef(null);
   const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
   const [activeAlign, setActiveAlign] = useState(null);
+  // Dual-mode state (Step A only — UI shell).
+  //   • "block"  (default) → the three alignment buttons apply BLOCK-level
+  //      text-align via `.ir-align-left/center/right` on the caret's block
+  //      ancestor. This is the fully-working behaviour.
+  //   • "inline" → the three buttons still render in the same positions,
+  //      but their taps are STUBBED with a toast ("Inline alignment coming
+  //      soon"). No editor content is mutated in INLINE mode. The
+  //      underlying content-model work is pending explicit approval
+  //      (Step B).
+  // The mode toggle is a single-icon button in the top-left corner of
+  // the panel. Icon reflects CURRENT mode: Rows3 (= block) ⇄
+  // ArrowLeftRight (= inline). Tapping flips the mode and keeps the
+  // panel open. BLOCK remains the default every time the panel opens.
+  const [mode, setMode] = useState("block");
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -3940,10 +3954,21 @@ function AlignPanel({ anchor, orientation, onClose }) {
     setActiveAlign(readActiveAlign(ed));
   }, []);
 
+  // INLINE mode handler — STUB. No content mutation. Shows a one-shot
+  // toast on first tap in the panel's lifetime so the user is not
+  // spammed when playing with the three buttons.
+  const inlineToastedRef = useRef(false);
+  const stubInlineTap = useCallback((_name) => {
+    if (inlineToastedRef.current) return;
+    inlineToastedRef.current = true;
+    try { toast.message("Inline alignment coming soon", { description: "Mode preview only — Left/Center/Right currently work in Block mode." }); } catch {}
+  }, []);
+
   const panel = (
     <div
       ref={panelRef}
-      className="ir-align-panel"
+      className={`ir-align-panel ${mode === "inline" ? "mode-inline" : "mode-block"}`}
+      data-mode={mode}
       data-testid="floating-rte-align-panel"
       style={{
         left: pos.left,
@@ -3957,25 +3982,64 @@ function AlignPanel({ anchor, orientation, onClose }) {
       onTouchEnd={(e)    => { e.stopPropagation(); }}
       onClick={(e)       => { e.stopPropagation(); }}
     >
+      {/* Mode toggle header — Rows3 (block) ⇄ ArrowLeftRight (inline).
+          Lives in the top-left of the panel. Keeps the panel open on
+          toggle. BLOCK is always the opening default. */}
+      <div className="ir-align-head">
+        <button
+          type="button"
+          className="ir-align-mode-btn"
+          data-testid="floating-rte-align-mode-toggle"
+          data-mode={mode}
+          aria-pressed={mode === "inline"}
+          title={mode === "inline" ? "Switch to Block alignment" : "Switch to Inline alignment"}
+          aria-label={mode === "inline" ? "Switch to Block alignment" : "Switch to Inline alignment"}
+          onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+          onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+          onTouchStart={(e)  => { e.stopPropagation(); }}
+          onTouchEnd={(e)    => { e.stopPropagation(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMode((m) => (m === "block" ? "inline" : "block"));
+          }}
+        >
+          {mode === "block" ? <Rows3 size={14} /> : <ArrowLeftRight size={14} />}
+        </button>
+        <span className="ir-align-mode-chip" data-testid="floating-rte-align-mode-chip">
+          {mode === "inline" ? "Inline" : "Block"}
+        </span>
+      </div>
+
       <div className="ir-align-row" data-testid="floating-rte-align-row">
-        {ALIGN_OPTIONS.map(({ className, name, title, Icon }) => (
-          <button
-            key={name}
-            type="button"
-            data-testid={`floating-rte-align-${name}`}
-            data-align={name}
-            title={title}
-            aria-label={title}
-            className={`ir-align-btn ${activeAlign === className ? "active" : ""}`}
-            onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
-            onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
-            onTouchStart={(e)  => { e.stopPropagation(); }}
-            onTouchEnd={(e)    => { e.stopPropagation(); }}
-            onClick={(e)       => { e.stopPropagation(); applyOnEditor(className); }}
-          >
-            <Icon size={16} />
-          </button>
-        ))}
+        {ALIGN_OPTIONS.map(({ className, name, title, Icon }) => {
+          const isInline = mode === "inline";
+          const btnTitle = isInline
+            ? `Inline ${title.replace(/^Align\s*/i, "")}`
+            : title;
+          return (
+            <button
+              key={name}
+              type="button"
+              data-testid={`floating-rte-align-${name}`}
+              data-align={name}
+              data-mode={mode}
+              title={btnTitle}
+              aria-label={btnTitle}
+              className={`ir-align-btn ${!isInline && activeAlign === className ? "active" : ""} ${isInline ? "inline" : ""}`}
+              onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+              onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+              onTouchStart={(e)  => { e.stopPropagation(); }}
+              onTouchEnd={(e)    => { e.stopPropagation(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isInline) stubInlineTap(name);
+                else applyOnEditor(className);
+              }}
+            >
+              <Icon size={16} />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
