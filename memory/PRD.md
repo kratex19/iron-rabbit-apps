@@ -38,6 +38,20 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Text Alignment (Left/Center/Right) (2026-02-28, v208/v95)**:
+  Replaced the align stub. Tapping the AlignLeft toolbar icon opens a small
+  floating palette (same portal + overlay + visualViewport-anchored pattern
+  as Highlighter/Aa) positioned ABOVE the toolbar in horizontal mode (falls
+  through to below only when there's no overhead room). Palette contains
+  AlignLeft / AlignCenter / AlignRight. Alignment is applied as a scoped
+  class (`ir-align-left|center|right`) on the NEAREST block ancestor
+  (P/H1/H2/H3/LI) — headings stay headings, inline formatting (B/I/U/S +
+  Highlight + Aa Size/Color) is untouched because it lives on inline
+  descendant spans. Multi-paragraph selections align every spanned block.
+  Toggle: tapping the same alignment removes the class (reverts to default).
+  Active-state ring on both the palette button AND the toolbar entry.
+  Persists through save → close → reopen (sanitiser already allows `class`).
+  Testing agent: 100% pass on all 16 acceptance criteria (iteration_112).
 - **Module 1 — Highlighter (text background color) (2026-02-28, v207/v94)**:
   Wired the existing Highlighter toolbar icon. Opens a floating palette panel
   (same portal + overlay + touch-isolation pattern as the Aa panel) with 16
