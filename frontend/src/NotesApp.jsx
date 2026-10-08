@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import "@/App.css";
 import { useNavigate } from "react-router-dom";
-import { Toaster, toast } from "sonner";
+import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { format, isToday, isThisWeek, isThisMonth, parseISO } from "date-fns";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -3083,7 +3083,10 @@ export default function NotesApp() {
       className={`ir-app-shell transition-colors duration-300 ${isDark ? 'bg-[#020617]' : 'bg-gray-50'}`}
       data-testid="app-container"
     >
-      <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} />
+      {/* Toaster is mounted globally in App.js — do NOT remount here
+          (previous duplicate caused every toast to render twice, defeating
+          sonner's id-based dedupe). The global Toaster already handles
+          all pages. If we need per-page theming, lift it to App.js. */}
       <QuickGuideModal isDark={isDark} />
       <WeeklyDigest notes={notes} />
       <InstallPrompt isDark={isDark} />
