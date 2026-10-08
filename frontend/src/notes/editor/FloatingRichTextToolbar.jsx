@@ -829,6 +829,155 @@ function readActiveAppearance(editor) {
   return result;
 }
 
+// --------------------------------------------------------------------------
+// Highlighter — text BACKGROUND color. Follows the exact same per-span
+// mechanism as Aa Color: wraps the current selection in a span (or
+// inserts a pending `<span class="ir-pending-inline ir-hl-X">` at the
+// caret for format-first-then-type). Fully independent axis from the
+// Aa Size (document-level) and Aa Color (foreground) systems — all
+// three can stack on the same text run.
+// --------------------------------------------------------------------------
+const HL_CLASSES = [
+  "ir-hl-white", "ir-hl-gray", "ir-hl-red", "ir-hl-orange",
+  "ir-hl-amber", "ir-hl-yellow", "ir-hl-lime", "ir-hl-green",
+  "ir-hl-teal", "ir-hl-cyan", "ir-hl-sky", "ir-hl-blue",
+  "ir-hl-indigo", "ir-hl-violet", "ir-hl-pink", "ir-hl-rose",
+];
+
+function findAncestorHighlightSpan(editor, node) {
+  let walk = node;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "SPAN" && walk.classList) {
+      let has = false;
+      walk.classList.forEach((c) => { if (c.indexOf("ir-hl-") === 0) has = true; });
+      if (has) return walk;
+    }
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+function readActiveHighlight(editor) {
+  if (!editor) return null;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return null;
+  let walk = range.startContainer;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName === "SPAN" && walk.classList) {
+      let found = null;
+      walk.classList.forEach((c) => { if (!found && c.indexOf("ir-hl-") === 0) found = c; });
+      if (found) return found;
+    }
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+// Apply a highlight. `className` is a `ir-hl-*` class (or null to
+// clear). Behaviour mirrors Aa Color's "collapsed caret = pending
+// marker, non-empty selection = wrap selection".
+function applyHighlight(editor, className) {
+  if (!editor) return false;
+  // Textarea → promote to HTML with a pending highlight span.
+  if (editor.tagName === "TEXTAREA") {
+    const mode = promoteTextareaWithAppearance(editor, className);
+    if (mode) focusHtmlEditorSoon(mode);
+    return !!mode;
+  }
+  try { if (document.activeElement !== editor) editor.focus(); } catch {}
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return false;
+
+  const stripHl = (el) => {
+    if (!el || !el.classList) return;
+    HL_CLASSES.forEach((c) => el.classList.remove(c));
+  };
+
+  // ---- Non-collapsed selection → wrap/update directly ----
+  if (!range.collapsed) {
+    // If the whole selection is inside a single highlight span, just
+    // swap/clear its hl class in place (no new wrapping needed).
+    const commonAncestor = range.commonAncestorContainer;
+    const existing = findAncestorHighlightSpan(editor, commonAncestor);
+    if (existing && existing.contains(range.startContainer) && existing.contains(range.endContainer)) {
+      stripHl(existing);
+      if (className) existing.classList.add(className);
+      if (existing.classList.length === 0) existing.removeAttribute("class");
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    }
+    // Otherwise wrap the selection in a fresh span.
+    try {
+      const span = document.createElement("span");
+      if (className) span.classList.add(className);
+      try {
+        range.surroundContents(span);
+      } catch {
+        const frag = range.extractContents();
+        span.appendChild(frag);
+        range.insertNode(span);
+      }
+      // Caret just after the wrapped span so the user can continue typing.
+      const nr = document.createRange();
+      const parent = span.parentNode;
+      if (parent) {
+        const idx = Array.prototype.indexOf.call(parent.childNodes, span);
+        nr.setStart(parent, idx + 1);
+        nr.setEnd(parent, idx + 1);
+        sel.removeAllRanges(); sel.addRange(nr);
+      }
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    } catch { return false; }
+  }
+
+  // ---- Collapsed caret (format-first-then-type) ----
+  const pending = findAncestorPendingAppearanceSpan(editor, range.startContainer);
+  if (pending) {
+    const text = pending.textContent || "";
+    const isEmpty = text === ZWSP || text === "";
+    if (isEmpty) {
+      stripHl(pending);
+      if (className) pending.classList.add(className);
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    }
+    // Pending has committed text → emerge sibling.
+    const parent = pending.parentNode;
+    if (!parent) return false;
+    const marker = document.createElement("span");
+    marker.classList.add(PENDING_INLINE_CLASS);
+    if (className) marker.classList.add(className);
+    marker.appendChild(document.createTextNode(ZWSP));
+    if (pending.nextSibling) parent.insertBefore(marker, pending.nextSibling);
+    else parent.appendChild(marker);
+    const nr = document.createRange();
+    nr.setStart(marker.firstChild, 1); nr.setEnd(marker.firstChild, 1);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+  // Fresh insert.
+  try {
+    const marker = document.createElement("span");
+    marker.classList.add(PENDING_INLINE_CLASS);
+    if (className) marker.classList.add(className);
+    marker.appendChild(document.createTextNode(ZWSP));
+    range.insertNode(marker);
+    const nr = document.createRange();
+    nr.setStart(marker.firstChild, 1); nr.setEnd(marker.firstChild, 1);
+    sel.removeAllRanges(); sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  } catch { return false; }
+}
+
 
 //
 // Also strips exit-anchor ZWSPs (plain text nodes stamped with
@@ -1286,6 +1435,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   // to position the panel. Opening/closing does NOT change the toolbar
   // layout or the editor layout — the panel is a pure overlay.
   const [aaPanel, setAaPanel] = useState(null); // null | { anchor: DOMRect }
+  // Highlighter — floating color palette for text-background highlighting.
+  // Same overlay / portal / touch-isolation pattern as the Aa panel.
+  const [hlPanel, setHlPanel] = useState(null);
   const dragStateRef = useRef({ dragging: false, offX: 0, offY: 0 });
   const scrollerRef = useRef(null);
 
@@ -1422,20 +1574,24 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // `ir-size-*` OR `ir-color-*` class. Lights the Aa toolbar button
     // the same way `bold` lights the Bold button.
     aa: false,
+    // Highlight (text-background) — true iff caret is inside a span
+    // carrying any `ir-hl-*` class. Independent of Aa / block / inline
+    // formats; stacks with all of them.
+    hl: false,
   });
 
   const refreshActive = useCallback(() => {
     const editor = findActiveEditor();
     if (!editor) {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false }
         : prev);
       return;
     }
     // Textarea has no inline markup to detect.
     if (editor.tagName === "TEXTAREA") {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false }
         : prev);
       return;
     }
@@ -1446,6 +1602,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     let bold = false, italic = false, underline = false, strike = false, link = false;
     let block = null;
     let aa = false;
+    let hl = false;
     // Document-level size on the editor root also counts as "Aa active".
     try {
       if (editor.classList) {
@@ -1467,6 +1624,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // Aa is active when ANY ancestor span carries an appearance class.
         node.classList.forEach((c) => {
           if (c.indexOf("ir-size-") === 0 || c.indexOf("ir-color-") === 0) aa = true;
+          if (c.indexOf("ir-hl-") === 0) hl = true;
         });
       }
       if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) {
@@ -1487,9 +1645,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     setActive((prev) =>
       prev.bold === bold && prev.italic === italic && prev.underline === underline
         && prev.strike === strike && prev.link === link && prev.block === block
-        && prev.aa === aa
+        && prev.aa === aa && prev.hl === hl
         ? prev
-        : { bold, italic, underline, strike, link, block, aa }
+        : { bold, italic, underline, strike, link, block, aa, hl }
     );
   }, []);
 
@@ -2329,7 +2487,17 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // (color moved into Aa dropdown — removed from the toolbar row
         // to keep the main toolbar lean. `highlight` remains as a future
         // extension slot.)
-        { id: "highlight", icon: Highlighter, title: "Highlight", stub: true },
+        // Highlighter — floating palette for text-BACKGROUND color.
+        // Mirrors the Aa panel infrastructure (portal + overlay +
+        // touch-isolation) but shows only a 16-swatch grid.
+        { id: "highlight", icon: Highlighter, title: "Highlight",
+          onClick: (e) => {
+            try {
+              const rect = e && e.currentTarget && e.currentTarget.getBoundingClientRect();
+              setHlPanel(rect ? { anchor: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } : { anchor: null });
+            } catch { setHlPanel({ anchor: null }); }
+          },
+        },
         { id: "br", icon: CornerDownLeft, title: "Line break", onClick: insertLineBreak },
       ],
     },
@@ -2423,6 +2591,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // Aa — lights whenever ANY appearance (size or color) is active
       // on the caret. Independent of P/H1/H2/H3/B/I/U/S.
       case "aa": return !!active.aa;
+      case "highlight": return !!active.hl;
       default: return false;
     }
   };
@@ -2662,6 +2831,15 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
           anchor={aaPanel.anchor}
           orientation={orientation}
           onClose={() => setAaPanel(null)}
+        />
+      )}
+
+      {/* ---- Highlighter (text background) palette ---- */}
+      {hlPanel && (
+        <HighlightPanel
+          anchor={hlPanel.anchor}
+          orientation={orientation}
+          onClose={() => setHlPanel(null)}
         />
       )}
     </>
@@ -3181,6 +3359,214 @@ function AppearancePanel({ anchor, orientation, onClose }) {
       // every pointer/touch/mouse event so NOTHING underneath receives
       // the event. The wrap sits at the top of the stacking order via
       // its CSS class.
+      onPointerDown={(e) => { e.stopPropagation(); }}
+      onMouseDown={(e)   => { e.stopPropagation(); }}
+      onTouchStart={(e)  => { e.stopPropagation(); }}
+      onTouchEnd={(e)    => { e.stopPropagation(); }}
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      {panel}
+    </div>
+  );
+
+  if (typeof document === "undefined") return overlay;
+  return createPortal(overlay, document.body);
+}
+
+
+// --------------------------------------------------------------------------
+// HighlightPanel — a small floating palette for the Highlighter button.
+// Same portal + overlay + touch-isolation pattern as AppearancePanel,
+// but only shows a color grid + a Clear button.
+// --------------------------------------------------------------------------
+const HL_OPTIONS = [
+  { className: null,            name: "none",    title: "No highlight", hex: null       },
+  { className: "ir-hl-white",   name: "white",   title: "White",         hex: "rgba(255,255,255,0.35)" },
+  { className: "ir-hl-gray",    name: "gray",    title: "Gray",          hex: "rgba(156,163,175,0.45)" },
+  { className: "ir-hl-red",     name: "red",     title: "Red",           hex: "rgba(239,68,68,0.40)" },
+  { className: "ir-hl-orange",  name: "orange",  title: "Orange",        hex: "rgba(249,115,22,0.45)" },
+  { className: "ir-hl-amber",   name: "amber",   title: "Amber",         hex: "rgba(245,158,11,0.50)" },
+  { className: "ir-hl-yellow",  name: "yellow",  title: "Yellow",        hex: "rgba(234,179,8,0.55)" },
+  { className: "ir-hl-lime",    name: "lime",    title: "Lime",          hex: "rgba(132,204,22,0.50)" },
+  { className: "ir-hl-green",   name: "green",   title: "Green",         hex: "rgba(16,185,129,0.40)" },
+  { className: "ir-hl-teal",    name: "teal",    title: "Teal",          hex: "rgba(20,184,166,0.40)" },
+  { className: "ir-hl-cyan",    name: "cyan",    title: "Cyan",          hex: "rgba(6,182,212,0.40)" },
+  { className: "ir-hl-sky",     name: "sky",     title: "Sky",           hex: "rgba(14,165,233,0.40)" },
+  { className: "ir-hl-blue",    name: "blue",    title: "Blue",          hex: "rgba(59,130,246,0.40)" },
+  { className: "ir-hl-indigo",  name: "indigo",  title: "Indigo",        hex: "rgba(99,102,241,0.40)" },
+  { className: "ir-hl-violet",  name: "violet",  title: "Violet",        hex: "rgba(168,85,247,0.40)" },
+  { className: "ir-hl-pink",    name: "pink",    title: "Pink",          hex: "rgba(236,72,153,0.40)" },
+  { className: "ir-hl-rose",    name: "rose",    title: "Rose",          hex: "rgba(244,63,94,0.40)" },
+];
+
+function HighlightPanel({ anchor, orientation, onClose }) {
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
+  const [activeHl, setActiveHl] = useState(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !anchor) return;
+    const run = () => {
+      const pw = panel.offsetWidth;
+      const ph = panel.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      const GAP = 8;
+      let left, top;
+      if (orientation === "vertical") {
+        left = anchor.right + GAP;
+        if (left + pw > vw - 6) left = Math.max(6, anchor.left - pw - GAP);
+        top = anchor.top;
+        if (top + ph > vh - 6) top = Math.max(6, vh - ph - 6);
+      } else {
+        top = anchor.bottom + GAP;
+        if (top + ph > vh - 6) top = Math.max(6, anchor.top - ph - GAP);
+        left = anchor.left;
+        if (left + pw > vw - 6) left = Math.max(6, vw - pw - 6);
+      }
+      setPos({ left, top, ready: true });
+    };
+    run();
+    const raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
+  }, [anchor, orientation]);
+
+  const [vvOffset, setVvOffset] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    const read = () => {
+      const vv = window.visualViewport;
+      if (!vv) { setVvOffset({ x: 0, y: 0 }); return; }
+      setVvOffset({ x: vv.offsetLeft || 0, y: vv.offsetTop || 0 });
+    };
+    read();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("scroll", read);
+      vv.addEventListener("resize", read);
+    }
+    window.addEventListener("scroll", read, true);
+    return () => {
+      if (vv) {
+        vv.removeEventListener("scroll", read);
+        vv.removeEventListener("resize", read);
+      }
+      window.removeEventListener("scroll", read, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      const ed = findActiveEditor();
+      setActiveHl(ed ? readActiveHighlight(ed) : null);
+    };
+    refresh();
+    const t = setInterval(refresh, 220);
+    document.addEventListener("selectionchange", refresh);
+    return () => { clearInterval(t); document.removeEventListener("selectionchange", refresh); };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const applyOnEditor = useCallback((className) => {
+    const ed = findActiveEditor();
+    if (!ed) return;
+    try { restoreStashedSelectionIfNeeded(ed); } catch {}
+    applyHighlight(ed, className);
+    try { stashSelection(); } catch {}
+  }, []);
+
+  const panel = (
+    <div
+      ref={panelRef}
+      className="ir-hl-panel"
+      data-testid="floating-rte-hl-panel"
+      style={{
+        left: pos.left,
+        top: pos.top,
+        transform: `translate3d(${vvOffset.x}px, ${vvOffset.y}px, 0)`,
+        visibility: pos.ready ? "visible" : "hidden",
+      }}
+      onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+      onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+      onTouchStart={(e)  => { e.stopPropagation(); }}
+      onTouchEnd={(e)    => { e.stopPropagation(); }}
+      onClick={(e)       => { e.stopPropagation(); }}
+    >
+      <div className="ir-hl-grid" data-testid="floating-rte-hl-grid">
+        {HL_OPTIONS.map((h) => (
+          <button
+            key={h.name}
+            type="button"
+            data-testid={`floating-rte-hl-${h.name}`}
+            data-color={h.name}
+            title={h.title}
+            className={`ir-hl-swatch ${
+              (h.className === null && !activeHl) || (h.className && activeHl === h.className)
+                ? "active" : ""
+            }`}
+            style={h.hex ? { background: h.hex } : undefined}
+            onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onTouchStart={(e)  => { e.stopPropagation(); }}
+            onTouchEnd={(e)    => { e.stopPropagation(); }}
+            onClick={(e)       => { e.stopPropagation(); applyOnEditor(h.className); }}
+          />
+        ))}
+      </div>
+      <button
+        type="button"
+        data-testid="floating-rte-hl-clear"
+        className="ir-hl-clear-btn"
+        onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+        onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+        onTouchStart={(e)  => { e.stopPropagation(); }}
+        onTouchEnd={(e)    => { e.stopPropagation(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          const ed = findActiveEditor();
+          if (!ed) return;
+          try { restoreStashedSelectionIfNeeded(ed); } catch {}
+          const sel = window.getSelection && window.getSelection();
+          if (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).startContainer)) {
+            const r = sel.getRangeAt(0);
+            if (r.collapsed) {
+              let node = r.startContainer;
+              if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+              while (node && node !== ed) {
+                if (node.tagName === "SPAN" && node.classList) {
+                  HL_CLASSES.forEach((c) => node.classList.remove(c));
+                  if (node.classList.length === 0) node.removeAttribute("class");
+                }
+                node = node.parentElement;
+              }
+            } else {
+              const container = r.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+                ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement;
+              if (container) {
+                container.querySelectorAll('span').forEach((s) => {
+                  if (!r.intersectsNode(s)) return;
+                  HL_CLASSES.forEach((c) => s.classList.remove(c));
+                  if (s.classList.length === 0) s.removeAttribute("class");
+                });
+              }
+            }
+            ed.dispatchEvent(new Event("input", { bubbles: true }));
+          }
+          try { stashSelection(); } catch {}
+        }}
+      >Clear highlight</button>
+    </div>
+  );
+
+  const overlay = (
+    <div
+      data-testid="floating-rte-hl-overlay"
+      className="ir-aa-overlay"
       onPointerDown={(e) => { e.stopPropagation(); }}
       onMouseDown={(e)   => { e.stopPropagation(); }}
       onTouchStart={(e)  => { e.stopPropagation(); }}

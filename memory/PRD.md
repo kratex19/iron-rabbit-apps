@@ -38,6 +38,18 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — Highlighter (text background color) (2026-02-28, v207/v94)**:
+  Wired the existing Highlighter toolbar icon. Opens a floating palette panel
+  (same portal + overlay + touch-isolation pattern as the Aa panel) with 16
+  translucent background colors + "No highlight" + "Clear highlight". Uses
+  the SAME per-span format-first mechanism as Aa Color: wraps selection in
+  `<span class="ir-hl-X">...</span>` for non-collapsed selections, or inserts
+  a pending `<span class="ir-pending-inline ir-hl-X">` at the caret for
+  format-first-then-type. New `applyHighlight` helper + `readActiveHighlight`
+  for the toolbar active-state ring. Translucent (rgba 0.35-0.55) so text on
+  top stays readable at every brightness setting. Independent of Aa Size, Aa
+  Color, B/I/U/S — all four axes can stack on the same text run. Sanitiser
+  needed zero changes (`<span>` + `class` already on the allowlist).
 - **Module 1 — Line-height proportional + defensive inline inheritance
   (2026-02-28, v206/v93)**: The editor was inheriting Tailwind `text-sm`'s
   fixed `line-height: 1.25rem` (20px). At Aa Size XL (21px) lines collided;
