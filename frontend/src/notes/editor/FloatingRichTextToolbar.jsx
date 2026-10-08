@@ -978,6 +978,60 @@ function applyHighlight(editor, className) {
   } catch { return false; }
 }
 
+// Toggle the Highlighter OFF at the current caret. Called when the user
+// taps the Highlighter button while `active.hl` is already true. It
+// MUST NOT remove highlights elsewhere in the document — only exit the
+// highlight state at the caret so continuing to type produces plain
+// (non-highlighted) text. Mirrors the same "exit anchor" strategy used
+// when toggling off any committed inline format: insert a ZWSP sibling
+// after the highlight span and move the caret there. For a still-
+// pending highlight marker (ZWSP-only, no real text yet), simply strip
+// the ir-hl-* / pending class in-place — no sibling needed.
+function toggleHighlightOff(editor) {
+  if (!editor) return false;
+  if (editor.tagName === "TEXTAREA") return false; // nothing to toggle in plain text
+  try { if (document.activeElement !== editor) editor.focus(); } catch {}
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return false;
+  const ancestor = findAncestorHighlightSpan(editor, range.startContainer);
+  if (!ancestor) return false;
+
+  const text = (ancestor.textContent || "");
+  const stripped = text.replace(new RegExp(ZWSP, "g"), "");
+  // Still-pending (empty / ZWSP-only) → strip classes in place.
+  if (stripped.length === 0) {
+    HL_CLASSES.forEach((c) => ancestor.classList.remove(c));
+    ancestor.classList.remove(PENDING_INLINE_CLASS);
+    if (ancestor.classList.length === 0) ancestor.removeAttribute("class");
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+
+  // Committed highlight with real text → leave the span intact. Emerge
+  // the caret to a ZWSP sibling just after it so new typing lands
+  // outside the highlight. Cleanup walker will strip the ZWSP once the
+  // user types a real character past it.
+  const parent = ancestor.parentNode;
+  if (!parent) return false;
+  try {
+    const exitAnchor = document.createTextNode(ZWSP);
+    exitAnchor.__irExitAnchor = true;
+    if (ancestor.nextSibling) parent.insertBefore(exitAnchor, ancestor.nextSibling);
+    else parent.appendChild(exitAnchor);
+    const nr = document.createRange();
+    nr.setStart(exitAnchor, 1);
+    nr.setEnd(exitAnchor, 1);
+    sel.removeAllRanges();
+    sel.addRange(nr);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  } catch { return false; }
+}
+
+
+
 // --------------------------------------------------------------------------
 // Text Alignment — scoped block-level `text-align` via utility classes
 // `ir-align-left|center|right` applied to the NEAREST block ancestor
@@ -1055,17 +1109,15 @@ function collectAlignBlocksInSelection(editor, range) {
 // clear. Toggle rule: if the block already has `className`, remove it
 // (revert to default). Otherwise swap in the new class.
 //
-// Caret-vs-selection semantics (the critical bit, per user spec):
-//   • NON-COLLAPSED selection → align every block the selection spans.
-//     This is the ONLY way to realign existing text.
-//   • COLLAPSED caret inside an EMPTY block (no visible text) → align
-//     that block directly. Typing starts aligned.
-//   • COLLAPSED caret inside a block WITH content → DO NOT touch the
-//     existing block. Instead insert a fresh empty <p> AFTER the
-//     current block (preserving its original alignment), stamp the
-//     requested alignment on the new <p>, and move the caret into it.
-//     This is the "set alignment for the next line I'm about to type"
-//     path. Previously-typed text never moves retroactively.
+// Caret-vs-selection semantics (per user's spec):
+//   • NON-COLLAPSED selection → align every block the selection spans
+//     (toggle-off when the same alignment is already applied to all).
+//   • COLLAPSED caret → align the block that CONTAINS the caret
+//     (toggle-off on same alignment). This matches native WYSIWYG
+//     behaviour (Word / Google Docs). The alignment tool NEVER creates
+//     a new block on its own — Return/Enter is the only way to create
+//     a new paragraph. Earlier paragraphs are never touched because we
+//     only ever act on the single block hosting the caret.
 function applyAlign(editor, className) {
   if (!editor) return false;
   if (editor.tagName === "TEXTAREA") {
@@ -1083,64 +1135,24 @@ function applyAlign(editor, className) {
   const range = sel.getRangeAt(0);
   if (!editor.contains(range.startContainer)) return false;
 
-  // ---- Path 1 — explicit non-collapsed selection: realign spanned blocks.
-  if (!range.collapsed) {
-    const blocks = collectAlignBlocksInSelection(editor, range);
-    if (blocks.length === 0) return false;
-    blocks.forEach((block) => {
-      const already = className && block.classList.contains(className);
-      ALIGN_CLASSES.forEach((c) => block.classList.remove(c));
-      if (className && !already) block.classList.add(className);
-      if (block.classList.length === 0) block.removeAttribute("class");
-    });
-    editor.dispatchEvent(new Event("input", { bubbles: true }));
-    return true;
-  }
+  // Collect the block(s) to act on:
+  //   • Non-collapsed selection → every spanned block.
+  //   • Collapsed caret → only the single block hosting the caret.
+  // In both cases we NEVER insert, split, or create new blocks.
+  const blocks = range.collapsed
+    ? (() => {
+        const b = findAlignBlockAncestor(editor, range.startContainer);
+        return b ? [b] : [];
+      })()
+    : collectAlignBlocksInSelection(editor, range);
+  if (blocks.length === 0) return false;
 
-  // ---- Path 2 — collapsed caret.
-  const block = findAlignBlockAncestor(editor, range.startContainer);
-  if (!block) return false;
-
-  // "Empty" means no visible characters: strip ZWSPs + whitespace.
-  const visibleText = (block.textContent || "").replace(/\u200B/g, "").replace(/\s/g, "");
-  const isEmpty = visibleText.length === 0;
-
-  if (isEmpty) {
-    // Caret in an empty block → align the block directly. Toggle rule:
-    // tapping the same alignment removes the class.
+  blocks.forEach((block) => {
     const already = className && block.classList.contains(className);
     ALIGN_CLASSES.forEach((c) => block.classList.remove(c));
     if (className && !already) block.classList.add(className);
     if (block.classList.length === 0) block.removeAttribute("class");
-    editor.dispatchEvent(new Event("input", { bubbles: true }));
-    return true;
-  }
-
-  // Caret in a NON-empty block → DO NOT mutate the existing block.
-  // Insert a fresh empty <p> after it with the chosen alignment and
-  // move the caret inside. Previously-typed text stays put.
-  //
-  // Toggle rule in this path: tapping the same alignment class that the
-  // CURRENT (non-empty) block already carries is interpreted as "turn
-  // this one off" — which, since we're not supposed to touch existing
-  // text, we treat as "give me a fresh default-aligned line below".
-  // (Rare edge-case; prevents a dead no-op.)
-  const sameAsCurrent = className && block.classList.contains(className);
-  const newBlock = document.createElement("p");
-  if (className && !sameAsCurrent) newBlock.classList.add(className);
-  // Empty <p> needs a <br> to be visible and give the caret somewhere
-  // to live in all browsers.
-  newBlock.appendChild(document.createElement("br"));
-  if (block.nextSibling) block.parentNode.insertBefore(newBlock, block.nextSibling);
-  else block.parentNode.appendChild(newBlock);
-  // Caret inside the new block (before the <br>).
-  try {
-    const nr = document.createRange();
-    nr.setStart(newBlock, 0);
-    nr.setEnd(newBlock, 0);
-    sel.removeAllRanges();
-    sel.addRange(nr);
-  } catch { /* noop */ }
+  });
   editor.dispatchEvent(new Event("input", { bubbles: true }));
   return true;
 }
@@ -2690,6 +2702,24 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // touch-isolation) but shows only a 16-swatch grid.
         { id: "highlight", icon: Highlighter, title: "Highlight",
           onClick: (e) => {
+            // Toggle semantics: if the Highlighter is currently ACTIVE
+            // on the caret (i.e. caret is inside an ir-hl-* span, or an
+            // ir-pending-inline ir-hl-* marker), tapping again turns
+            // highlighting OFF immediately — DO NOT open the palette.
+            // Existing highlighted text elsewhere in the doc is NOT
+            // removed; only the caret's current highlight state exits.
+            try {
+              const ed = findActiveEditor();
+              if (ed) {
+                try { restoreStashedSelectionIfNeeded(ed); } catch {}
+                if (readActiveHighlight(ed)) {
+                  toggleHighlightOff(ed);
+                  try { stashSelection(); } catch {}
+                  return;
+                }
+              }
+            } catch { /* fall through to palette-open path */ }
+            // Inactive → open the color palette as before.
             try {
               const rect = e && e.currentTarget && e.currentTarget.getBoundingClientRect();
               setHlPanel(rect ? { anchor: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } : { anchor: null });
