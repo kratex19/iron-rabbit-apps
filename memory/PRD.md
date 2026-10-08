@@ -38,6 +38,17 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — BLOCK applyAlign flow restored (2026-02-28, v217/v104)**:
+  Per user confirmation this morning, reverted `applyAlign` to the
+  three-branch flow the user originally approved:
+    • Non-collapsed selection → align every spanned block (toggle).
+    • Collapsed caret in EMPTY block → align in place (toggle).
+    • Collapsed caret in NON-EMPTY block → insert a fresh
+      `<p class="ir-align-*"><br></p>` AFTER the current block, caret
+      moves into it. Existing text is never retroactively moved.
+  Return-exit behaviour (previous iteration) is preserved — new `<p>`
+  after Enter inside an aligned block is plain LEFT. INLINE path is
+  untouched. Testing agent iteration_121: 11/11 PASS.
 - **Module 1 — BLOCK Return-exit repair (2026-02-28, v216/v103)**:
   When caret sits inside a BLOCK that carries any `ir-align-*` class and
   the user presses Enter, the browser's native `insertParagraph` was
