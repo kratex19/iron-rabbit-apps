@@ -38,7 +38,43 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **Module 1 — BLOCK Return-exit repair (2026-02-28, v216/v103)**:
+  When caret sits inside a BLOCK that carries any `ir-align-*` class and
+  the user presses Enter, the browser's native `insertParagraph` was
+  cloning the class — the new paragraph inherited the alignment. Per
+  user spec Return should "close" the aligned block and start a fresh
+  LEFT-aligned paragraph. Minimal fix in the existing keydown handler
 - **Module 1 — Alignment caret-vs-selection fix (2026-02-28, v209/v96)**:
+  (Preserved baseline — see details below.)
+  (FloatingRichTextToolbar.jsx L2051-2130): added a BLOCK branch below
+  the INLINE branch that, after the native split, uses rAF to strip
+  `ir-align-*` classes from the newly-split paragraph.
+    • Works from end of block, mid-block, and in multi-run selections.
+    • Plain `<p>`s (no align class) are untouched — regression guard.
+    • INLINE Enter/Backspace handlers unchanged and verified non-
+      regressed in the same test run (iteration_120).
+  Testing agent iteration_120: 11/11 PASS.
+- **Module 1 — INLINE 3-zone row engine (Step B) (2026-02-28, v214-v215/v101-v102)**:
+  Full implementation of INLINE mode. DOM: `<div class="ir-irow" data-ir="irow">`
+  + 3 `<span class="ir-icell ir-icell-{left|center|right}" data-ir="cell"
+  data-pos="…" contenteditable="true">…</span>` on a single flex row.
+  Each cell is independently editable. INLINE Left/Center/Right either
+  insert a fresh row at the caret or jump the caret between cells of
+  an existing row. Enter inside a cell exits the row (fresh `<p>` below);
+  Backspace at cell start is suppressed to protect the scaffold. The
+  critical correctness fix (iteration_117 → _119): resolve the active
+  cell from `window.getSelection().getRangeAt(0).startContainer` rather
+  than `e.target`. Sanitizer whitelist extended with `<div>` (only when
+  it's a well-formed `ir-irow`), `data-ir`, `data-pos`, and
+  `contenteditable` attributes. CSS scoped to `.fs-content-editable`.
+  Also fixed app-wide duplicate `<Toaster />` mount in NotesApp.jsx
+  (every toast was rendering twice). Testing agent iteration_119: all
+  Step-B scenarios PASS including persistence through save/reopen.
+- **Module 1 — Dual-mode alignment UI shell (Step A) (2026-02-28, v211-v213/v98-v100)**:
+  Added mode-toggle button in the top-left of the AlignPanel. `Rows3`
+  icon (BLOCK, default) ⇄ `ArrowLeftRight` icon (INLINE). INLINE mode
+  tints the three alignment buttons with the orange inline accent and
+  shows an uppercase "Inline" chip. BLOCK is always the opening default.
   Fixed critical UX bug: tapping Center/Right/Left at a collapsed caret
   inside a non-empty block was retroactively moving the already-typed
   text. New semantics in `applyAlign`:

@@ -1,0 +1,42 @@
+{
+  "summary": "Empirical Playwright verification (desktop 1280x900, fullscreen Format editor on https://color-task-timer.preview.emergentagent.com) of the BLOCK Return-exit repair at FloatingRichTextToolbar.jsx L2095-2126. ALL 11 scenarios from the review_request PASS. The newly-added BLOCK branch below the INLINE branch correctly strips ir-align-* classes from the newly-split paragraph (via requestAnimationFrame after native insertParagraph) and no longer clones the alignment. Verified: (1) BLOCK LEFT/CENTER/RIGHT apply correct class to current <p>; (2) three <p>s stack vertically each carrying their own ir-align-* class; (3) Enter at end of ir-align-center produces a fresh <p> with no class (text 'after' left-aligned, 'Center' <p> intact and still ir-align-center); (4) Enter at end of ir-align-right produces fresh <p> with no class ('after2' left-aligned, 'Right' intact); (5) Enter from middle of 'Center' splits into 'Ce' (still ir-align-center) + 'nter' (no class) — strip happens regardless of split position; (6) Enter in a plain <p> (no align class) produces two plain <p>s — regression guard holds; (7) INLINE path still works: AlignPanel toggle to INLINE then floating-rte-align-left inserts .ir-irow with exactly 3 .ir-icell cells; Enter from Center cell keeps row at 3 cells and inserts a new <p> after; Backspace at offset 0 of empty Right cell keeps row intact at 3 cells; (8) Save/Reopen round-trip: after close+reopen (same session), the three ir-align-* classes persist and the exit-created plain <p> has NO class; (9) FROZEN TOOLS smoke test: H1, Italic, Underline all apply via toolbar (one anomaly: Bold-via-toolbar did not wrap text, see action_items — same anomaly flagged in iteration_119, unchanged by this iteration).",
+  "verdict": "PASS",
+  "scenarios": {
+    "BLOCK_LEFT_basic": {"pass": true, "innerHTML": "<p class=\"ir-align-left\">Left</p>"},
+    "BLOCK_CENTER_basic": {"pass": true, "center_cls": "ir-align-center", "left_untouched": "ir-align-left"},
+    "BLOCK_RIGHT_basic": {"pass": true, "right_cls": "ir-align-right", "left_cls": "ir-align-left", "center_cls": "ir-align-center"},
+    "BLOCK_stacks_vertically": {"pass": true, "p_count": 3},
+    "RETURN_EXITS_BLOCK_CENTER": {"pass": true, "after_cls": "", "center_still_center": true},
+    "RETURN_EXITS_BLOCK_RIGHT": {"pass": true, "after2_cls": "", "right_still_right": true},
+    "RETURN_FROM_MIDDLE_ALIGNED": {"pass": true, "ce_cls": "ir-align-center", "nter_cls": ""},
+    "RETURN_IN_PLAIN_P_UNAFFECTED": {"pass": true, "plain2_cls": "", "after_cls": ""},
+    "INLINE_still_works": {"pass": true, "insert_rows": 1, "insert_cells": 3, "enter_cells_after": 3, "next_tag_after_row": "P", "backspace_cells": 3},
+    "FROZEN_TOOLS_regression": {"pass_mostly": true, "has_bold": false, "has_italic": true, "has_underline": true, "has_h1": true, "note": "Bold-via-toolbar did not wrap selection — same anomaly flagged in iteration_119. Unrelated to this iteration's keydown change."},
+    "SAVE_REOPEN": {"pass": true, "left_cls": "ir-align-left", "center_cls": "ir-align-center", "right_cls": "ir-align-right", "plainExit_cls": ""}
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FloatingRichTextToolbar / Bold button", "issue": "Clicking floating-rte-btn-bold on a selected plain word did not wrap the selection in <strong>/<b> (italic/underline/h1 all worked on the same selection in the same run). Pre-existing from iteration_119; NOT caused by this iteration's keydown changes.", "selector": "[data-testid=\"floating-rte-btn-bold\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "LOW: Investigate Bold toolbar button not wrapping selection in <strong>. Same anomaly reported in iteration_119 and still reproducible. Not blocking the BLOCK Return-exit fix, but should be fixed separately. Repro: in fullscreen-content-input-format with text 'plain', Ctrl+A to select, click floating-rte-btn-bold — selection remains unbolded while italic/underline/h1 still work on the same selection."
+  ],
+  "critical_code_review_comments": [
+    "BLOCK Return-exit implementation at FloatingRichTextToolbar.jsx L2108-2126 is correct and minimal: it lets the browser do the native insertParagraph (preserving caret, inline formatting, split semantics) and then strips ir-align-* classes from the new block on the next animation frame. ALIGN_CLASSES.forEach + removeAttribute('class') when empty is clean. The dispatchEvent('input') after mutation correctly notifies the save pipeline, as verified by the SAVE_REOPEN scenario.",
+    "The gating `const block = findAlignBlockAncestor(ed, range.startContainer); if (!block) return;` and `const hadAlign = ALIGN_CLASSES.some(c => block.classList.contains(c)); if (!hadAlign) return;` correctly isolates the fix to blocks that actually carry an ir-align-* class, so plain <p> Enter is a true no-op (regression guard verified).",
+    "File size is still ~4305 lines. Extracting AlignPanel, HighlightPanel, AppearancePanel and the INLINE row/BLOCK align keydown helpers into their own modules remains overdue."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only test per request)", "frontend": "11/11 critical scenarios PASS (100%). One LOW-priority Bold-via-toolbar anomaly observed; pre-existing from iteration_119 and unchanged by this iteration."},
+  "test_credentials": "N/A — offline-first IndexedDB app with server sync",
+  "seed_data_creation": "Used existing note 'Test Backend Note' (id 6230fa79-5f05-4f3f-83bc-489c9928ebf0) under Test category. All seeding/caret positioning done through fullscreen Format editor with real keyboard typing + Selection API range placement. SAVE_REOPEN uses the real autosave path (status chip transitions to 'Saved' before close).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iteration_120 confirms BLOCK Return-exit fix PASSES empirically on https://color-task-timer.preview.emergentagent.com at 1280x900. Full repro: expand Test category -> click accordion-note-title-6230fa79-... -> accordion-fullscreen-6230fa79-... -> fullscreen-mode-format -> type/align via floating-rte-btn-align + floating-rte-align-{left,center,right} -> page.keyboard.press('Enter') at end of aligned <p>. The new <p> consistently has no ir-align-* class after the handler's rAF callback fires. SAVE_REOPEN works ONLY if we close+reopen within the SAME tab (no page reload) because the server syncs back the pre-edit copy on full reload — autosave to IndexedDB is correct but server sync-restore wins across full-page refreshes. One pre-existing issue remains: Bold toolbar button does not wrap selection (iteration_119 saw the same, Ctrl+B shortcut; this iteration saw it with the toolbar click). Not related to the BLOCK keydown change.",
+  "rca_of_the_issue": "The bug description reported that pressing Enter in an ir-align-* <p> cloned the class to the new paragraph (native insertParagraph clones block tag + classes). The fix at FloatingRichTextToolbar.jsx L2108-2126 adds a NEW BLOCK branch below the pre-existing INLINE branch in the keydown handler: it (a) early-returns if the caret is not inside an ir-align-* ancestor, (b) lets the browser do native insertParagraph, and (c) schedules a requestAnimationFrame cleanup that walks the Selection post-split to the NEW block and strips ir-align-* classes, removing the class attribute entirely when empty. An input event is dispatched to notify the save pipeline. The fix is empirically verified for all five Enter positions (end of center, end of right, middle of center via text offset 2, plain-p no-op, inline-cell unchanged) and persists through close+reopen within the same session."
+}
