@@ -1273,24 +1273,79 @@ function applyAlign(editor, className) {
   const range = sel.getRangeAt(0);
   if (!editor.contains(range.startContainer)) return false;
 
-  // Collect the block(s) to act on:
-  //   • Non-collapsed selection → every spanned block.
-  //   • Collapsed caret → only the single block hosting the caret.
-  // In both cases we NEVER insert, split, or create new blocks.
-  const blocks = range.collapsed
-    ? (() => {
-        const b = findAlignBlockAncestor(editor, range.startContainer);
-        return b ? [b] : [];
-      })()
-    : collectAlignBlocksInSelection(editor, range);
-  if (blocks.length === 0) return false;
+  // Caret-vs-selection semantics (per user spec — restored flow):
+  //
+  //   • NON-COLLAPSED selection → align every block the selection spans
+  //     (toggle-off when the same class is already there).
+  //
+  //   • COLLAPSED caret in an EMPTY block → align that block in place.
+  //     Typing starts aligned. Toggle rule applies.
+  //
+  //   • COLLAPSED caret in a NON-EMPTY block → DO NOT retroactively
+  //     move the existing text. Instead, insert a FRESH <p> just AFTER
+  //     the current block, stamp the requested alignment on it, and
+  //     move the caret into the new block. New text the user types
+  //     next lands aligned on the new line below. Previously-typed
+  //     text keeps its own alignment untouched. This is the behaviour
+  //     the user confirmed working this morning.
+  //
+  // Return (Enter) inside an aligned block still "exits" to a plain
+  // LEFT paragraph via the keydown interceptor — orthogonal to this
+  // function and intentionally kept.
+  if (!range.collapsed) {
+    const blocks = collectAlignBlocksInSelection(editor, range);
+    if (blocks.length === 0) return false;
+    blocks.forEach((block) => {
+      const already = className && block.classList.contains(className);
+      ALIGN_CLASSES.forEach((c) => block.classList.remove(c));
+      if (className && !already) block.classList.add(className);
+      if (block.classList.length === 0) block.removeAttribute("class");
+    });
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
 
-  blocks.forEach((block) => {
+  const block = findAlignBlockAncestor(editor, range.startContainer);
+  if (!block) return false;
+
+  // "Empty" means no visible characters: strip ZWSPs + whitespace.
+  const visibleText = (block.textContent || "").replace(/\u200B/g, "").replace(/\s/g, "");
+  const isEmpty = visibleText.length === 0;
+
+  if (isEmpty) {
+    // Align the empty block in place. Toggle rule: same class twice
+    // removes it (block reverts to editor-default alignment).
     const already = className && block.classList.contains(className);
     ALIGN_CLASSES.forEach((c) => block.classList.remove(c));
     if (className && !already) block.classList.add(className);
     if (block.classList.length === 0) block.removeAttribute("class");
-  });
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    return true;
+  }
+
+  // Non-empty block → insert a fresh aligned <p> AFTER the current
+  // block. Caret moves into the new <p>. Previous text is never moved.
+  //
+  // Toggle edge-case: if the current block already carries exactly the
+  // requested class, treat it as "give me a plain line below"
+  // (prevents a dead no-op; still never mutates the existing block).
+  const sameAsCurrent = className && block.classList.contains(className);
+  const newBlock = document.createElement("p");
+  if (className && !sameAsCurrent) newBlock.classList.add(className);
+  // Empty <p> needs a <br> so it has caret-visible height in every
+  // engine. The <br> is stripped on first real keystroke by the
+  // browser's native input handling — same convention we use for the
+  // Return-exit path.
+  newBlock.appendChild(document.createElement("br"));
+  if (block.nextSibling) block.parentNode.insertBefore(newBlock, block.nextSibling);
+  else block.parentNode.appendChild(newBlock);
+  try {
+    const nr = document.createRange();
+    nr.setStart(newBlock, 0);
+    nr.setEnd(newBlock, 0);
+    sel.removeAllRanges();
+    sel.addRange(nr);
+  } catch { /* noop */ }
   editor.dispatchEvent(new Event("input", { bubbles: true }));
   return true;
 }
