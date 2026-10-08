@@ -2049,10 +2049,19 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e) => {
-      // Scope: only act when the event target is inside an INLINE cell.
+      // Scope: only act when the CARET lives inside an INLINE cell.
+      // Note: e.target for keydown inside a nested contenteditable
+      // span is the OUTER editor root, not the inner cell — so we
+      // must resolve the active cell from the current Selection, not
+      // from e.target. This is the critical correctness fix (Step B
+      // test iteration_117 FAIL root cause).
       const ed = findActiveEditor();
       if (!ed || ed.tagName === "TEXTAREA") return;
-      const cell = findInlineCell(ed, e.target);
+      const sel = window.getSelection && window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      if (!ed.contains(range.startContainer)) return;
+      const cell = findInlineCell(ed, range.startContainer);
       if (!cell) return;
       if (e.key === "Enter" && !e.shiftKey) {
         const row = findInlineRow(ed, cell);
@@ -2063,24 +2072,25 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         return;
       }
       if (e.key === "Backspace") {
-        const sel = window.getSelection && window.getSelection();
-        if (!sel || sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
         if (!range.collapsed) return;
-        // Compute cell "offset-from-start" — treat the seed ZWSP as
-        // part of the empty state (so Backspace at the very start of a
-        // ZWSP-only cell is still "offset 0 of empty").
+        // Compute whether cell is "visually empty" — only ZWSP + ws.
         const text = (cell.textContent || "");
         const stripped = text.replace(new RegExp(ZWSP, "g"), "");
         if (stripped.length === 0) {
-          // Cell is empty — never let Backspace eat the cell scaffold.
+          // Cell empty — never let Backspace eat the cell scaffold.
           e.preventDefault();
           return;
         }
-        // Non-empty cell: if caret is at the very start of the cell,
-        // suppress Backspace too — otherwise contenteditable would try
-        // to merge the cell into a previous sibling text node.
-        if (range.startOffset === 0 && (range.startContainer === cell || range.startContainer.parentNode === cell && !range.startContainer.previousSibling)) {
+        // Non-empty cell: suppress Backspace when the caret is at the
+        // very start of the cell so contenteditable cannot merge it
+        // into a previous sibling text node (which would corrupt the
+        // row scaffold).
+        const atStart = (range.startContainer === cell && range.startOffset === 0)
+          || (range.startContainer.nodeType === Node.TEXT_NODE
+              && range.startContainer.parentNode === cell
+              && range.startOffset === 0
+              && !range.startContainer.previousSibling);
+        if (atStart) {
           e.preventDefault();
           return;
         }
