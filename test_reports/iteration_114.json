@@ -1,0 +1,41 @@
+{
+  "summary": "Verified the two final corrections to the floating rich-text toolbar in FloatingRichTextToolbar.jsx. (1) ALIGNMENT is now a pure block-level property — tapping L/C/R mutates ONLY the single caret-block (collapsed) or every spanned block (selection). It NEVER manufactures a new paragraph/<br>. Tapping the same alignment removes it. (2) HIGHLIGHTER is a true ON/OFF toggle — inactive tap opens the color palette, ACTIVE tap turns highlighting off at the caret WITHOUT opening the palette and WITHOUT removing any existing highlighted text in the document. 14/14 acceptance scenarios PASS, zero console errors.",
+  "verdict": "PASS",
+  "scenarios": {
+    "A1_center_nonempty_p": {"expected": "<p class=\"ir-align-center\">Hello world</p>", "actual": "<p class=\"ir-align-center\">Hello world</p>", "children_count": 1, "pass": true, "note": "Same <p> mutated; no new block/<br> created."},
+    "A2_center_toggle_off": {"expected": "<p>Hello world</p>", "actual": "<p>Hello world</p>", "pass": true},
+    "A3_h1_center": {"expected": "<h1 class=\"ir-align-center\">Heading</h1>", "actual": "<h1 class=\"ir-align-center\">Heading</h1>", "pass": true, "note": "H1 tag preserved."},
+    "A4_selection_across_two_p_right": {"expected": "<p class=\"ir-align-right\">Alpha</p><p class=\"ir-align-right\">Beta</p>", "actual": "<p class=\"ir-align-right\">Alpha</p><p class=\"ir-align-right\">Beta</p>", "pass": true},
+    "A5_selection_right_toggle_off": {"expected": "<p>Alpha</p><p>Beta</p>", "actual": "<p>Alpha</p><p>Beta</p>", "pass": true},
+    "A6_no_new_block_critical": {"expected": "<p class=\"ir-align-right\">Only line</p>", "actual": "<p class=\"ir-align-right\">Only line</p>", "children_count": 1, "pass": true, "note": "CRITICAL: caret in non-empty <p> + align no longer injects a sibling block."},
+    "A7_inline_formatting_preserved": {"expected": "<p class=\"ir-align-center\">Hello <strong>bold</strong> <em>italic</em> <u>under</u> <s>strike</s> world</p>", "actual": "<p class=\"ir-align-center\">Hello <strong>bold</strong> <em>italic</em> <u>under</u> <s>strike</s> world</p>", "pass": true},
+    "A9_three_row_LEFT_CENTER_RIGHT": {"expected": "<p>LEFT TITLE</p><p class=\"ir-align-center\">CENTER TITLE</p><p class=\"ir-align-right\">RIGHT TITLE</p>", "actual": "<p>LEFT TITLE</p><p class=\"ir-align-center\">CENTER TITLE</p><p class=\"ir-align-right\">RIGHT TITLE</p>", "pass": true, "note": "The user's exact example — all three rows produced via Return/Enter only; alignment buttons created ZERO blocks. First paragraph stays left with NO class."},
+    "H1_palette_opens_when_inactive": {"active_before_click": "false", "panel_visible_after_click": true, "pass": true},
+    "H2_pending_marker_created": {"html": "<p>plain para<span class=\"ir-pending-inline ir-hl-yellow\">\u200b</span></p>", "active_after": "true", "pass": true},
+    "H3_toggle_off_pending_ZWSP_only": {"palette_opened_on_active_click": false, "active_after_toggle": "false", "html": "<p>plain para<span>\u200b</span></p>", "pass": true, "note": "ir-pending-inline and ir-hl-* classes stripped in place from pending marker; palette did NOT open."},
+    "H4_palette_reopens_after_toggle_off": {"panel_visible": true, "pass": true},
+    "H5_committed_toggle_off": {"palette_opened": false, "html_after_toggle": "<p>hello <span class=\"ir-hl-yellow\">world</span>\u200b foo</p>", "span_text_still_world": "world", "active_in_span": "true", "active_after_toggle": "false", "pass": true, "note": "Existing <span class=\"ir-hl-yellow\">world</span> remains intact; exit-anchor ZWSP injected after span; active ring turned off."},
+    "H5b_type_lands_outside_highlight": {"html": "<p>hello <span class=\"ir-hl-yellow\">world</span>\u200bZ foo</p>", "z_position": "Z_outside_span", "pass": true, "note": "Typing 'Z' after toggling off produced plain text immediately after the highlighted span."}
+  },
+  "test_environment": {
+    "viewport": "1280x900 desktop",
+    "editor_target": "fullscreen-content-input-format (Format mode of fullscreen note)",
+    "note_used": "existing TestNote accordion node"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FloatingRichTextToolbar.jsx is now ~4000 lines — strongly recommend extracting AlignPanel, HighlightPanel, AaPanel, and the applyAlign/toggleHighlightOff utilities into dedicated files.",
+    "ALIGN_CLASSES is still duplicated between applyAlign/readActiveAlign and the AlignPanel ALIGN_OPTIONS table — single source of truth would reduce drift risk.",
+    "No automated jest/vitest unit tests cover applyAlign or toggleHighlightOff despite three bug-fix iterations touching them. A small test harness around these pure DOM functions would prevent future regressions.",
+    "toggleHighlightOff leaves a ZWSP exit-anchor node (\u200b) in the DOM for committed highlights until the user types past it. The cleanupPendingInlineMarkers walker handles pending markers but not these raw exit anchors — ensure they are stripped on save/export so copy-paste out of the app does not include invisible chars."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% (14/14 scenarios pass)"},
+  "seed_data_creation": "Reused existing TestNote accordion. Final document left in editor: <p>LEFT TITLE</p><p class=\"ir-align-center\">CENTER TITLE</p><p class=\"ir-align-right\">RIGHT TITLE</p>.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both fixes verified holistically on Format editor (fullscreen-content-input-format). applyAlign: collapsed-caret path acts on a single block; selection path acts on every spanned block; same-class tap removes the class; NO <br>/new block is ever injected. toggleHighlightOff: for ZWSP-only pending markers, strips ir-hl-* and ir-pending-inline in place; for committed highlights (real text), span stays, caret moves to a ZWSP exit-anchor sibling just after the span, and new typing is unhighlighted. Highlighter button onClick checks readActiveHighlight(ed) first and short-circuits to toggleHighlightOff without opening the palette. Overlay dismissal note: both the align-panel and hl-panel use data-testid='floating-rte-align-overlay' / 'floating-rte-hl-overlay' click-outside layers; test scripts must click/dispatch on these overlays to dismiss before clicking the next toolbar button, otherwise Playwright reports pointer-interception failures."
+}
