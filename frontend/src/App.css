@@ -1478,6 +1478,83 @@
   color: #fff;
 }
 
+/* ------------------------------------------------------------------
+   Text Alignment — block-level `text-align` applied via scoped classes
+   on P/H1/H2/H3/LI. Scoped to `.fs-content-editable` so no bleed
+   outside the editor surface. Headings keep their native sizing;
+   only alignment changes. `!important` guards against conflicting
+   browser defaults on LI inside UL/OL (which inherit UL/OL alignment
+   in some engines).
+   ------------------------------------------------------------------ */
+.fs-content-editable p.ir-align-left,
+.fs-content-editable h1.ir-align-left,
+.fs-content-editable h2.ir-align-left,
+.fs-content-editable h3.ir-align-left,
+.fs-content-editable li.ir-align-left   { text-align: left   !important; }
+.fs-content-editable p.ir-align-center,
+.fs-content-editable h1.ir-align-center,
+.fs-content-editable h2.ir-align-center,
+.fs-content-editable h3.ir-align-center,
+.fs-content-editable li.ir-align-center { text-align: center !important; }
+.fs-content-editable p.ir-align-right,
+.fs-content-editable h1.ir-align-right,
+.fs-content-editable h2.ir-align-right,
+.fs-content-editable h3.ir-align-right,
+.fs-content-editable li.ir-align-right  { text-align: right  !important; }
+
+/* Alignment floating palette — same smoked-glass look as the HL / Aa
+   panels but tighter: a single 3-button row. Reuses `.ir-aa-overlay`
+   for the pointer-isolation wrap. */
+.ir-align-panel {
+  position: fixed;
+  z-index: 1;
+  pointer-events: auto;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(18, 18, 24, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  animation: ir-aa-pop-in 120ms ease-out;
+}
+.ir-align-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+.ir-align-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+.ir-align-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.ir-align-btn:active { transform: scale(0.95); }
+.ir-align-btn.active {
+  color: #fff;
+  background: rgba(249, 115, 22, 0.18);
+  border-color: rgba(249, 115, 22, 0.65);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.35);
+}
+
+
 /* ---- Aa floating dropdown panel (portaled to document.body) ---- */
 /* Full-viewport overlay wrap owns ALL hit-testing while the panel is
    open. Nothing underneath (editor, toolbar, tile accents, modal body,

@@ -38,7 +38,7 @@ import {
   Network, ClipboardList,
   CornerDownLeft, WrapText,
   // Stubbed set
-  AlignLeft, Palette, Highlighter, Scissors, Copy, ClipboardPaste,
+  AlignLeft, AlignCenter, AlignRight, Palette, Highlighter, Scissors, Copy, ClipboardPaste,
   ScanLine, Camera, Mic, FileText, Printer, Share2,
 } from "lucide-react";
 import { FormsPackAdapter, HierarchyAdapter } from "./adapters";
@@ -978,6 +978,114 @@ function applyHighlight(editor, className) {
   } catch { return false; }
 }
 
+// --------------------------------------------------------------------------
+// Text Alignment — scoped block-level `text-align` via utility classes
+// `ir-align-left|center|right` applied to the NEAREST block ancestor
+// (P/H1/H2/H3/LI). This design keeps inline formatting (B/I/U/S/
+// Highlight/Aa Color/Aa Size) 100% untouched because those live on
+// descendant inline spans. Headings remain their native tag; we only
+// toggle the alignment class on the block itself. Mirrors the data
+// model used by the frozen Text Tools baseline — no DOM re-wrapping,
+// no block re-promotion, no regression surface.
+//
+// Toggle semantics: tapping the SAME alignment currently in effect
+// removes the class entirely (block reverts to the editor's default
+// alignment — i.e. left in LTR). Tapping a DIFFERENT alignment swaps
+// the class. This matches the user-approved "A" option.
+// --------------------------------------------------------------------------
+const ALIGN_CLASSES = ["ir-align-left", "ir-align-center", "ir-align-right"];
+const BLOCK_TAGS_FOR_ALIGN = new Set(["P", "H1", "H2", "H3", "LI"]);
+
+function findAlignBlockAncestor(editor, node) {
+  let walk = node;
+  if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
+  while (walk && walk !== editor) {
+    if (walk.tagName && BLOCK_TAGS_FOR_ALIGN.has(walk.tagName)) return walk;
+    walk = walk.parentElement;
+  }
+  return null;
+}
+
+function readActiveAlign(editor) {
+  if (!editor) return null;
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return null;
+  const block = findAlignBlockAncestor(editor, range.startContainer);
+  if (!block || !block.classList) return null;
+  for (let i = 0; i < ALIGN_CLASSES.length; i++) {
+    if (block.classList.contains(ALIGN_CLASSES[i])) return ALIGN_CLASSES[i];
+  }
+  return null;
+}
+
+// Collect every block ancestor touched by the current selection — single
+// block for a collapsed caret; every spanned block for a multi-block
+// range. Alignment is applied/toggled on each. Keeps multi-paragraph
+// selections working the same as any native WYSIWYG.
+function collectAlignBlocksInSelection(editor, range) {
+  const blocks = [];
+  const seen = new Set();
+  const add = (b) => { if (b && !seen.has(b)) { seen.add(b); blocks.push(b); } };
+  if (range.collapsed) {
+    add(findAlignBlockAncestor(editor, range.startContainer));
+    return blocks;
+  }
+  // Walk every block descendant inside the common ancestor and keep
+  // those that intersect the range. Cheap for note-sized documents.
+  const container = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+    ? range.commonAncestorContainer
+    : range.commonAncestorContainer.parentElement;
+  if (!container) return blocks;
+  // Start/end's own block always counts.
+  add(findAlignBlockAncestor(editor, range.startContainer));
+  add(findAlignBlockAncestor(editor, range.endContainer));
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, null);
+  let el;
+  while ((el = walker.nextNode())) {
+    if (!BLOCK_TAGS_FOR_ALIGN.has(el.tagName)) continue;
+    if (!editor.contains(el)) continue;
+    try { if (range.intersectsNode(el)) add(el); } catch {}
+  }
+  return blocks;
+}
+
+// Apply alignment. `className` must be one of ALIGN_CLASSES or null to
+// clear. Toggle rule: if the block already has `className`, remove it
+// (revert to default). Otherwise swap in the new class.
+function applyAlign(editor, className) {
+  if (!editor) return false;
+  if (editor.tagName === "TEXTAREA") {
+    // Promote to HTML first so there is a real block to align on.
+    const mode = promoteTextareaWithAppearance(editor, null);
+    if (mode) focusHtmlEditorSoon(mode);
+    // Re-resolve editor after promotion.
+    const ed2 = findActiveEditor();
+    if (!ed2 || ed2.tagName === "TEXTAREA") return !!mode;
+    return applyAlign(ed2, className);
+  }
+  try { if (document.activeElement !== editor) editor.focus(); } catch {}
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return false;
+
+  const blocks = collectAlignBlocksInSelection(editor, range);
+  if (blocks.length === 0) return false;
+
+  blocks.forEach((block) => {
+    const already = className && block.classList.contains(className);
+    ALIGN_CLASSES.forEach((c) => block.classList.remove(c));
+    if (className && !already) block.classList.add(className);
+    if (block.classList.length === 0) block.removeAttribute("class");
+  });
+  editor.dispatchEvent(new Event("input", { bubbles: true }));
+  return true;
+}
+
+
+
 
 //
 // Also strips exit-anchor ZWSPs (plain text nodes stamped with
@@ -1438,6 +1546,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   // Highlighter — floating color palette for text-background highlighting.
   // Same overlay / portal / touch-isolation pattern as the Aa panel.
   const [hlPanel, setHlPanel] = useState(null);
+  // Alignment — small floating palette (L/C/R) mirroring the Highlighter
+  // panel architecture. Positioned ABOVE the toolbar (preferred) with a
+  // fall-through to below when there is not enough vertical room.
+  const [alignPanel, setAlignPanel] = useState(null);
   const dragStateRef = useRef({ dragging: false, offX: 0, offY: 0 });
   const scrollerRef = useRef(null);
 
@@ -1578,20 +1690,26 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // carrying any `ir-hl-*` class. Independent of Aa / block / inline
     // formats; stacks with all of them.
     hl: false,
+    // Alignment — the active ir-align-* class on the nearest block
+    // ancestor (P/H1/H2/H3/LI), or null when the block has none
+    // (editor-default alignment). Used by `isToolActive("align")` to
+    // light up the Alignment toolbar button, and by the AlignPanel to
+    // show the currently-selected swatch.
+    align: null,
   });
 
   const refreshActive = useCallback(() => {
     const editor = findActiveEditor();
     if (!editor) {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl || prev.align)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false, align: null }
         : prev);
       return;
     }
     // Textarea has no inline markup to detect.
     if (editor.tagName === "TEXTAREA") {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl || prev.align)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false, align: null }
         : prev);
       return;
     }
@@ -1603,6 +1721,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     let block = null;
     let aa = false;
     let hl = false;
+    let align = null;
     // Document-level size on the editor root also counts as "Aa active".
     try {
       if (editor.classList) {
@@ -1638,16 +1757,34 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // (from an earlier promote-with-inline operation) was being
         // detected even after the heading was applied.
         block = tag;
+        // Read alignment off the SAME block that terminates the walk —
+        // one DOM touch, no second pass.
+        if (node.classList) {
+          for (let i = 0; i < ALIGN_CLASSES.length; i++) {
+            if (node.classList.contains(ALIGN_CLASSES[i])) { align = ALIGN_CLASSES[i]; break; }
+          }
+        }
         break;
       }
       node = node.parentElement;
     }
+    // If the block walk didn't land on a P/H1/H2/H3 (e.g. caret inside a
+    // <li>), fall back to the generic block-ancestor finder so we still
+    // reflect alignment on list items.
+    if (align === null) {
+      const b = findAlignBlockAncestor(editor, range.startContainer);
+      if (b && b.classList) {
+        for (let i = 0; i < ALIGN_CLASSES.length; i++) {
+          if (b.classList.contains(ALIGN_CLASSES[i])) { align = ALIGN_CLASSES[i]; break; }
+        }
+      }
+    }
     setActive((prev) =>
       prev.bold === bold && prev.italic === italic && prev.underline === underline
         && prev.strike === strike && prev.link === link && prev.block === block
-        && prev.aa === aa && prev.hl === hl
+        && prev.aa === aa && prev.hl === hl && prev.align === align
         ? prev
-        : { bold, italic, underline, strike, link, block, aa, hl }
+        : { bold, italic, underline, strike, link, block, aa, hl, align }
     );
   }, []);
 
@@ -2504,7 +2641,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     {
       label: "lists",
       tools: [
-        { id: "align", icon: AlignLeft, title: "Alignment", stub: true },
+        { id: "align", icon: AlignLeft, title: "Alignment",
+          onClick: (e) => {
+            try {
+              const rect = e && e.currentTarget && e.currentTarget.getBoundingClientRect();
+              setAlignPanel(rect ? { anchor: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } : { anchor: null });
+            } catch { setAlignPanel({ anchor: null }); }
+          },
+        },
         { id: "wrap", icon: WrapText, title: "Wrap", stub: true },
         { id: "ul", icon: List, title: "Bulleted list", onClick: () => applyFormat("ul") },
         { id: "ol", icon: ListOrdered, title: "Numbered list", onClick: () => applyFormat("ol") },
@@ -2592,6 +2736,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // on the caret. Independent of P/H1/H2/H3/B/I/U/S.
       case "aa": return !!active.aa;
       case "highlight": return !!active.hl;
+      case "align": return !!active.align;
       default: return false;
     }
   };
@@ -2840,6 +2985,15 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
           anchor={hlPanel.anchor}
           orientation={orientation}
           onClose={() => setHlPanel(null)}
+        />
+      )}
+
+      {/* ---- Alignment palette (L / C / R) ---- */}
+      {alignPanel && (
+        <AlignPanel
+          anchor={alignPanel.anchor}
+          orientation={orientation}
+          onClose={() => setAlignPanel(null)}
         />
       )}
     </>
@@ -3566,6 +3720,178 @@ function HighlightPanel({ anchor, orientation, onClose }) {
   const overlay = (
     <div
       data-testid="floating-rte-hl-overlay"
+      className="ir-aa-overlay"
+      onPointerDown={(e) => { e.stopPropagation(); }}
+      onMouseDown={(e)   => { e.stopPropagation(); }}
+      onTouchStart={(e)  => { e.stopPropagation(); }}
+      onTouchEnd={(e)    => { e.stopPropagation(); }}
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+    >
+      {panel}
+    </div>
+  );
+
+  if (typeof document === "undefined") return overlay;
+  return createPortal(overlay, document.body);
+}
+
+
+// --------------------------------------------------------------------------
+// AlignPanel — small floating palette for Left / Center / Right block
+// alignment. Mirrors HighlightPanel's architecture 1-for-1:
+//   • portaled to document.body inside an ir-aa-overlay touch wrap
+//   • position anchored to the toolbar button rect
+//   • visualViewport offset applied via translate3d
+//   • keyboard-safe (visualViewport.height, not window.innerHeight)
+//   • follows the toolbar when the toolbar moves (anchor is read on open;
+//     the overlay auto-dismisses on outside taps, same as the HL panel)
+//   • respects horizontal/vertical toolbar orientation
+//
+// Positioning preference: ABOVE the toolbar in horizontal mode (per
+// user's request), with a graceful fall-through to BELOW when there is
+// insufficient room overhead. In vertical mode the panel sits to the
+// side of the toolbar (same rule as the HL panel) because "above" has
+// no geometric meaning there.
+// --------------------------------------------------------------------------
+const ALIGN_OPTIONS = [
+  { className: "ir-align-left",   name: "left",   title: "Align left",   Icon: AlignLeft   },
+  { className: "ir-align-center", name: "center", title: "Align center", Icon: AlignCenter },
+  { className: "ir-align-right",  name: "right",  title: "Align right",  Icon: AlignRight  },
+];
+
+function AlignPanel({ anchor, orientation, onClose }) {
+  const panelRef = useRef(null);
+  const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
+  const [activeAlign, setActiveAlign] = useState(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !anchor) return;
+    const run = () => {
+      const pw = panel.offsetWidth;
+      const ph = panel.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      const GAP = 8;
+      let left, top;
+      if (orientation === "vertical") {
+        // Side-of-toolbar placement (mirrors HL panel in vertical mode).
+        left = anchor.right + GAP;
+        if (left + pw > vw - 6) left = Math.max(6, anchor.left - pw - GAP);
+        top = anchor.top;
+        if (top + ph > vh - 6) top = Math.max(6, vh - ph - 6);
+      } else {
+        // PREFER ABOVE the toolbar — user requirement. Fall back to below
+        // only if the panel would clip above the visualViewport top.
+        top = anchor.top - ph - GAP;
+        if (top < 6) {
+          const belowTop = anchor.bottom + GAP;
+          top = (belowTop + ph <= vh - 6) ? belowTop : Math.max(6, vh - ph - 6);
+        }
+        left = anchor.left;
+        if (left + pw > vw - 6) left = Math.max(6, vw - pw - 6);
+      }
+      setPos({ left, top, ready: true });
+    };
+    run();
+    const raf = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(raf);
+  }, [anchor, orientation]);
+
+  const [vvOffset, setVvOffset] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    const read = () => {
+      const vv = window.visualViewport;
+      if (!vv) { setVvOffset({ x: 0, y: 0 }); return; }
+      setVvOffset({ x: vv.offsetLeft || 0, y: vv.offsetTop || 0 });
+    };
+    read();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("scroll", read);
+      vv.addEventListener("resize", read);
+    }
+    window.addEventListener("scroll", read, true);
+    return () => {
+      if (vv) {
+        vv.removeEventListener("scroll", read);
+        vv.removeEventListener("resize", read);
+      }
+      window.removeEventListener("scroll", read, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      const ed = findActiveEditor();
+      setActiveAlign(ed ? readActiveAlign(ed) : null);
+    };
+    refresh();
+    const t = setInterval(refresh, 220);
+    document.addEventListener("selectionchange", refresh);
+    return () => { clearInterval(t); document.removeEventListener("selectionchange", refresh); };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const applyOnEditor = useCallback((className) => {
+    const ed = findActiveEditor();
+    if (!ed) return;
+    try { restoreStashedSelectionIfNeeded(ed); } catch {}
+    applyAlign(ed, className);
+    try { stashSelection(); } catch {}
+    // Refresh local active-state immediately so the swatch state updates
+    // without waiting for the 220ms poll.
+    setActiveAlign(readActiveAlign(ed));
+  }, []);
+
+  const panel = (
+    <div
+      ref={panelRef}
+      className="ir-align-panel"
+      data-testid="floating-rte-align-panel"
+      style={{
+        left: pos.left,
+        top: pos.top,
+        transform: `translate3d(${vvOffset.x}px, ${vvOffset.y}px, 0)`,
+        visibility: pos.ready ? "visible" : "hidden",
+      }}
+      onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+      onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+      onTouchStart={(e)  => { e.stopPropagation(); }}
+      onTouchEnd={(e)    => { e.stopPropagation(); }}
+      onClick={(e)       => { e.stopPropagation(); }}
+    >
+      <div className="ir-align-row" data-testid="floating-rte-align-row">
+        {ALIGN_OPTIONS.map(({ className, name, title, Icon }) => (
+          <button
+            key={name}
+            type="button"
+            data-testid={`floating-rte-align-${name}`}
+            data-align={name}
+            title={title}
+            aria-label={title}
+            className={`ir-align-btn ${activeAlign === className ? "active" : ""}`}
+            onPointerDown={(e) => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onMouseDown={(e)   => { stashSelection(); e.stopPropagation(); e.preventDefault(); }}
+            onTouchStart={(e)  => { e.stopPropagation(); }}
+            onTouchEnd={(e)    => { e.stopPropagation(); }}
+            onClick={(e)       => { e.stopPropagation(); applyOnEditor(className); }}
+          >
+            <Icon size={16} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const overlay = (
+    <div
+      data-testid="floating-rte-align-overlay"
       className="ir-aa-overlay"
       onPointerDown={(e) => { e.stopPropagation(); }}
       onMouseDown={(e)   => { e.stopPropagation(); }}
