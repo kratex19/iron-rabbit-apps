@@ -2049,51 +2049,80 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e) => {
-      // Scope: only act when the CARET lives inside an INLINE cell.
-      // Note: e.target for keydown inside a nested contenteditable
-      // span is the OUTER editor root, not the inner cell — so we
-      // must resolve the active cell from the current Selection, not
-      // from e.target. This is the critical correctness fix (Step B
-      // test iteration_117 FAIL root cause).
       const ed = findActiveEditor();
       if (!ed || ed.tagName === "TEXTAREA") return;
       const sel = window.getSelection && window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
       const range = sel.getRangeAt(0);
       if (!ed.contains(range.startContainer)) return;
+
+      // ---- INLINE path: caret inside an INLINE cell ----
+      // Resolve the active cell from Selection (not e.target — the
+      // outer editor root is the e.target for nested contenteditable
+      // spans; fix root-caused in iteration_117).
       const cell = findInlineCell(ed, range.startContainer);
-      if (!cell) return;
-      if (e.key === "Enter" && !e.shiftKey) {
-        const row = findInlineRow(ed, cell);
-        if (row) {
-          e.preventDefault();
-          exitInlineRow(ed, row);
+      if (cell) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          const row = findInlineRow(ed, cell);
+          if (row) {
+            e.preventDefault();
+            exitInlineRow(ed, row);
+          }
+          return;
+        }
+        if (e.key === "Backspace") {
+          if (!range.collapsed) return;
+          const text = (cell.textContent || "");
+          const stripped = text.replace(new RegExp(ZWSP, "g"), "");
+          if (stripped.length === 0) {
+            // Cell empty — never let Backspace eat the cell scaffold.
+            e.preventDefault();
+            return;
+          }
+          const atStart = (range.startContainer === cell && range.startOffset === 0)
+            || (range.startContainer.nodeType === Node.TEXT_NODE
+                && range.startContainer.parentNode === cell
+                && range.startOffset === 0
+                && !range.startContainer.previousSibling);
+          if (atStart) {
+            e.preventDefault();
+            return;
+          }
         }
         return;
       }
-      if (e.key === "Backspace") {
-        if (!range.collapsed) return;
-        // Compute whether cell is "visually empty" — only ZWSP + ws.
-        const text = (cell.textContent || "");
-        const stripped = text.replace(new RegExp(ZWSP, "g"), "");
-        if (stripped.length === 0) {
-          // Cell empty — never let Backspace eat the cell scaffold.
-          e.preventDefault();
-          return;
-        }
-        // Non-empty cell: suppress Backspace when the caret is at the
-        // very start of the cell so contenteditable cannot merge it
-        // into a previous sibling text node (which would corrupt the
-        // row scaffold).
-        const atStart = (range.startContainer === cell && range.startOffset === 0)
-          || (range.startContainer.nodeType === Node.TEXT_NODE
-              && range.startContainer.parentNode === cell
-              && range.startOffset === 0
-              && !range.startContainer.previousSibling);
-        if (atStart) {
-          e.preventDefault();
-          return;
-        }
+
+      // ---- BLOCK Return-exit path ----
+      // When Enter is pressed inside a BLOCK that carries an ir-align-*
+      // class, the browser's default `insertParagraph` clones the block
+      // tag AND its classes, so the new paragraph would inherit the
+      // alignment. Per user spec: Return should "close" the aligned
+      // block and start a fresh, LEFT-aligned paragraph.
+      //
+      // Implementation (minimum surgical change): let the browser do
+      // its native split so inline formatting, caret position, and
+      // text content are preserved exactly as the engine handles them.
+      // Immediately after, strip the ir-align-* classes from the NEW
+      // block (the one the caret now sits in). Zero impact on blocks
+      // that didn't carry an alignment class.
+      if (e.key === "Enter" && !e.shiftKey) {
+        const block = findAlignBlockAncestor(ed, range.startContainer);
+        if (!block) return;
+        const hadAlign = ALIGN_CLASSES.some((c) => block.classList.contains(c));
+        if (!hadAlign) return;
+        // Native split happens — then we fix up on the next frame.
+        requestAnimationFrame(() => {
+          try {
+            const s2 = window.getSelection && window.getSelection();
+            if (!s2 || s2.rangeCount === 0) return;
+            const newBlock = findAlignBlockAncestor(ed, s2.getRangeAt(0).startContainer);
+            if (newBlock && newBlock !== block) {
+              ALIGN_CLASSES.forEach((c) => newBlock.classList.remove(c));
+              if (newBlock.classList.length === 0) newBlock.removeAttribute("class");
+              ed.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+          } catch { /* non-fatal */ }
+        });
       }
     };
     document.addEventListener("keydown", onKeyDown, true);
