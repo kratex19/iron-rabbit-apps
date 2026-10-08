@@ -1,0 +1,106 @@
+{
+  "summary": "Verified Step A dual-mode UI shell for the Text Alignment floating popup in FloatingRichTextToolbar.jsx (AlignPanel ~L3853). Tested on fullscreen Format editor (fullscreen-content-input-format) at 1280x900. 8/9 scenarios PASS. One minor defect: a single tap on an INLINE-mode alignment button fires the sonner toast twice (two <li data-sonner-toast> appear) — idempotence across subsequent taps in the SAME panel session still holds (count stays at 2, not 3/4), so no spam on repeated taps, but the first tap is not single-shot. Likely cause is React 18 StrictMode double-invocation in dev or a duplicate click dispatch from the overlay/panel pointer handlers.",
+  "verdict": "PASS_WITH_MINOR",
+  "scenarios": {
+    "S1_panel_header_default_block": {
+      "panelDataMode": "block",
+      "panelClass": "ir-align-panel mode-block",
+      "toggleDataMode": "block",
+      "toggleIconRows3": true,
+      "chipText": "Block",
+      "left_btn_has_inline_class": false,
+      "pass": true
+    },
+    "S2_default_no_inline_tint": {
+      "btn_classes_no_inline": "ir-align-btn  ",
+      "pass": true
+    },
+    "S3_block_functional_regression": {
+      "before": "<p>Hello world</p>",
+      "after_center": "<p class=\"ir-align-center\">Hello world</p>",
+      "after_toggle_off": "<p>Hello world</p>",
+      "pass": true,
+      "note": "Confirmed with proper <p> block ancestor. applyAlign untouched."
+    },
+    "S4_toggle_to_inline": {
+      "panelDataMode": "inline",
+      "panelClass": "ir-align-panel mode-inline",
+      "toggleIconArrowLeftRight": true,
+      "chipText": "Inline",
+      "all_three_buttons_have_inline_class": true,
+      "panel_stays_open": true,
+      "pass": true
+    },
+    "S5_inline_stub_no_mutation_and_toast": {
+      "html_before": "<p>Hello</p>",
+      "html_after": "<p>Hello</p>",
+      "editor_unchanged": true,
+      "toast_text_contains_expected": true,
+      "toast_text": "Inline alignment coming soon — Mode preview only — Left/Center/Right currently work in Block mode.",
+      "active_ring_not_applied": true,
+      "pass": true
+    },
+    "S6_inline_idempotence": {
+      "editor_unchanged_after_center": true,
+      "editor_unchanged_after_right": true,
+      "toasts_count_after_single_tap": 2,
+      "toasts_count_after_c_r_taps": 2,
+      "pass": "partial",
+      "note": "Idempotence (no additional toasts on subsequent taps) HOLDS. However the first tap already produced TWO identical toasts instead of ONE. Reproduced with both Playwright click and native element.click()."
+    },
+    "S7_restore_block_mode": {
+      "panelDataMode": "block",
+      "toggleIconRows3": true,
+      "chipText": "Block",
+      "left_btn_has_inline_class": false,
+      "pass": true
+    },
+    "S8_mode_default_on_reopen": {
+      "closed_on_outside_click": true,
+      "reopened_panelDataMode": "block",
+      "reopened_chipText": "Block",
+      "pass": true,
+      "note": "Mode is NOT persisted across panel sessions — default returns to BLOCK."
+    },
+    "S9_block_regression_verified_after_full_flow": {
+      "pass": true,
+      "note": "Highlighter, H1/H2/H3, B/I/U/S, Aa, P/Return, Wrap, Expanded Text, panel positioning not re-exercised in depth but no incidental breakage observed; iteration_114 behavior preserved for applyAlign."
+    }
+  },
+  "test_environment": {
+    "viewport": "1280x900 desktop",
+    "editor_target": "fullscreen-content-input-format (Format mode of fullscreen note)",
+    "note_used": "existing 'Deep note' accordion node"
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AlignPanel (inline stub)",
+        "issue": "Single tap on an INLINE-mode alignment button renders TWO identical sonner toasts ('Inline alignment coming soon') instead of ONE. Verified with both Playwright click and raw element.click(). Idempotence across follow-up taps still holds (count stays at 2 after Center/Right in the same panel session).",
+        "selector": "[data-testid=\"floating-rte-align-left|center|right\"] in inline mode",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate why stubInlineTap results in two toast() invocations per single click. Likely culprits: (a) React 18 StrictMode double-invocation in dev; (b) toast fired both from onClick AND some other handler (verify no onMouseUp/onPointerUp path); (c) sonner duplicate-insert when the panel re-renders between click dispatch and toast state update. Suggested fix: inside stubInlineTap, in addition to the ref guard, dedupe via toast id, e.g. toast.message('...', { id: 'ir-inline-align-coming-soon' }) so sonner collapses duplicates."
+  ],
+  "critical_code_review_comments": [
+    "FloatingRichTextToolbar.jsx is 4064 lines — AlignPanel/HighlightPanel/AaPanel should be extracted into dedicated files; the dual-mode shell is a good opportunity to refactor.",
+    "stubInlineTap guards with inlineToastedRef but still produces 2 toasts on first tap — add a sonner `id` to the toast call to make it truly idempotent regardless of double-dispatch.",
+    "ALIGN_CLASSES still duplicated between applyAlign/readActiveAlign and ALIGN_OPTIONS — consolidate into a single source of truth.",
+    "ArrowLeftRight icon import must be present at the top of the file (verified it renders fine)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "8/9 scenarios pass (89%)"},
+  "test_credentials": "N/A",
+  "seed_data_creation": "Reused existing 'Deep note' node; set editor HTML to <p>Hello world</p> programmatically for block-regression verification. No persistent writes to the DB are needed for this UI-shell test.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To reproduce: open an existing accordion note (e.g., 'Deep note') → click accordion-fullscreen-* → click fullscreen-mode-format → set editor innerHTML to '<p>Hello</p>' and place caret → click floating-rte-btn-align → click floating-rte-align-mode-toggle (chip flips to 'Inline', icon flips to ArrowLeftRight, buttons gain 'inline' class) → click floating-rte-align-left ONCE → count 'li[data-sonner-toast]' nodes. Observed: 2 nodes. Expected: 1. Idempotence of subsequent inline taps in the same panel session works correctly (no new toasts stacked). Closing panel (click overlay) and reopening correctly resets mode back to BLOCK. Block mode applyAlign regression confirmed intact.",
+  "rca of the issue": "Suspected root cause of the duplicate toast: either React 18 StrictMode double-invocation of the onClick handler in development build, or the fact that both the AlignPanel wrapper and the overlay portal are mounted in the DOM subtree and each may be re-triggering synthetic click events. The useRef guard inside stubInlineTap short-circuits only on the SECOND invocation per component instance; if the component re-renders between the two invocations the ref would still persist, so the two toasts most likely come from two synchronous calls within one event tick before the ref flip takes effect — but useRef write is synchronous, so this is unlikely. More likely: onClick is being dispatched twice (either React dev-mode or a bubbled click reaching an ancestor). Mitigation: pass a stable `id` to the sonner `toast.message(...)` call so sonner deduplicates even if invoked twice."
+}

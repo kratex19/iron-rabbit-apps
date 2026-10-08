@@ -3961,7 +3961,7 @@ function AlignPanel({ anchor, orientation, onClose }) {
   const stubInlineTap = useCallback((_name) => {
     if (inlineToastedRef.current) return;
     inlineToastedRef.current = true;
-    try { toast.message("Inline alignment coming soon", { description: "Mode preview only — Left/Center/Right currently work in Block mode." }); } catch {}
+    try { toast.message("Inline alignment coming soon", { id: "ir-inline-align-soon", description: "Mode preview only — Left/Center/Right currently work in Block mode." }); } catch {}
   }, []);
 
   const panel = (
