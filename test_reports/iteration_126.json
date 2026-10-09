@@ -1,0 +1,60 @@
+{
+  "summary": "Verified three targeted FloatingRichTextToolbar fixes (git diff vs HEAD~1): (A) Highlighter stale-active — pending ir-pending-inline + ir-hl-* span no longer lights the Highlighter button unless it contains real (non-ZWSP) text; empty primed markers are also GC'd when the caret moves away. (B) BR line-break caret preservation — insertLineBreak now calls restoreStashedSelectionIfNeeded(editor) BEFORE runExecCommand so the pointerdown focus-steal no longer collapses the Selection to offset 0. (C) List active-state — new `list` field in refreshActive detects UL / OL / UL.ir-checklist ancestors and lights the matching toolbar button; auto-generated data-testids `floating-rte-btn-ul`, `floating-rte-btn-ol`, `floating-rte-btn-checklist`, `floating-rte-btn-br` all present via the existing map at L3331. All three fixes PASS end-to-end on live preview URL.",
+  "verdict": "ALL THREE FIXES WORK",
+  "results": {
+    "data_testids_present": {
+      "floating-rte-btn-ul": "FOUND",
+      "floating-rte-btn-ol": "FOUND",
+      "floating-rte-btn-checklist": "FOUND",
+      "floating-rte-btn-br": "FOUND"
+    },
+    "list_active_state": {
+      "initial_P": {"ul": "false", "ol": "false", "checklist": "false"},
+      "after_UL_click": {"ul": "true", "ol": "false", "checklist": "false"},
+      "after_OL_click": {"ul": "false", "ol": "true", "checklist": "false"},
+      "after_checklist_click": {"ul": "false", "ol": "false", "checklist": "true"},
+      "after_toggle_off": {"ul": "false", "ol": "false", "checklist": "false"},
+      "mutual_exclusivity": "PASS",
+      "checklist_detected_via_ir-checklist_class": "PASS"
+    },
+    "br_caret_preservation": {
+      "initial_html": "<p>AlphaBetaGamma</p>",
+      "caret_offset_before_BR": 5,
+      "html_after_BR": "<p>Alpha<br>BetaGamma</p>",
+      "html_after_typing_X": "<p>Alpha<br>XBetaGamma</p>",
+      "verdict": "PASS — X lands immediately after the <br>, not at the top of the paragraph"
+    },
+    "highlighter_stale_active": {
+      "html_after_prime_empty_span": "<p>Hello world<span class=\"ir-pending-inline ir-hl-gray\">\u200b</span></p>",
+      "hl_active_after_prime_empty": "false  (previously true — BUG FIXED)",
+      "hl_active_after_typing_MARK_into_primed_span": "true",
+      "hl_active_after_caret_moves_outside": "false",
+      "verdict": "PASS — empty primed highlight no longer keeps the icon lit; real highlighted text still lights it; mutual exclusivity preserved"
+    }
+  },
+  "code_review_of_fix": [
+    "FloatingRichTextToolbar.jsx L1991-2113 (refreshActive): correctly introduces `list` tracking, scoped to UL/OL ancestor walk. OL takes precedence; `ir-checklist` on UL maps to 'checklist' before falling through to 'ul'. Mutually exclusive by construction (first UL/OL ancestor wins).",
+    "L2010-2056: Highlighter rewrite splits span handling into (a) committed hl spans always light, (b) pending-inline-hl spans only light when non-ZWSP text content exists. `pendingHlAncestor` is tracked so the caret-under span is preserved from GC — correct for 'resume priming' UX.",
+    "L2078-2096: Stale pending-highlight orphan cleanup — scoped to spans with BOTH ir-pending-inline AND ir-hl-* classes AND empty (ZWSP-only) text content AND not the caret's current ancestor. Safe conditions; cannot wipe legitimate authoring state.",
+    "L2832-2841 (insertLineBreak): restoreStashedSelectionIfNeeded is wrapped in try/catch and gated to the HTML path (textarea short-circuits earlier). Order is correct: restore stash → snapshot history → runExecCommand. No regression on textarea path.",
+    "L3192-3195 (isToolActive): new cases for ul/ol/checklist compare active.list to the literal. Clean, consistent with existing pattern.",
+    "`data-testid={`floating-rte-btn-${t.id}`}` auto-generation at L3331 already produces all four requested testids (ul/ol/checklist/br) since the id definitions at L3093, L3108-3110 use exactly those keys — no explicit testid change needed.",
+    "Non-regression: existing active-state logic for bold/italic/underline/strike/link/block/aa/align unchanged. Dirty-check at L2119-2124 extended to compare `list` so no spurious setActive calls.",
+    "Minor nit (non-blocking): the stale-highlight cleanup loop (L2085) iterates on every refreshActive invocation (selectionchange / focus / mousemove-ish). On very large notes this is O(N spans) per selection change. Acceptable at current scale but worth batching into a mutation-based GC in the future."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All three fixes land in the correct refs with surgical scope. Comments inside the diff accurately document intent and preserve the existing active-state contract. Safe to ship."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% (3/3 fixes verified; all data-testids present)"},
+  "test_credentials": "N/A — offline IndexedDB app, no auth",
+  "seed_data_creation": "Transient unsaved content inside New Note modal (never persisted).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Three toolbar fixes verified on 2026-01-09 against preview URL. Reproduction: viewport 1280x900, press 'n' to open New Note modal, type seed text in the TextareaAutosize ([data-testid=note-content-input]), then click [data-testid=floating-rte-btn-h1] to promote to contenteditable mode. From there: (A) list buttons toggle data-active correctly and are mutually exclusive; (B) placing caret mid-text and clicking [data-testid=floating-rte-btn-br] inserts <br> at the caret (NOT at offset 0); (C) opening HL palette and picking a color creates an empty <span class='ir-pending-inline ir-hl-*'>ZWSP</span> whose Highlighter icon stays OFF until real text is typed into it. All data-testids `floating-rte-btn-ul/ol/checklist/br` are present via the existing t.id→testid auto-generation at L3331; no explicit JSX changes needed.",
+  "rca_of_the_issue": "N/A — this iteration is verification, not RCA. The three underlying root causes were (A) refreshActive marked ANY ancestor span with ir-hl-* as active regardless of whether it was still a pending empty primer; (B) insertLineBreak skipped the shared `restoreStashedSelectionIfNeeded` step that every other format tool uses to compensate for the toolbar's pointerdown focus-steal; (C) refreshActive had no `list` tracking at all, so UL/OL/checklist buttons could never light up. All three were fixed in a single surgical diff."
+}
