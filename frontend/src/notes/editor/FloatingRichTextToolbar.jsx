@@ -888,7 +888,26 @@ function applyHighlight(editor, className) {
     if (mode) focusHtmlEditorSoon(mode);
     return !!mode;
   }
+  // CRITICAL ORDERING FIX (Highlighter repair, 2026-02-28):
+  //
+  // Previously this function focused the editor and then IMMEDIATELY
+  // read the live Selection. On Android Chrome and Capacitor WebViews,
+  // calling `.focus()` on an already-focused contentEditable collapses
+  // the active selection to offset 0 (same bug called out in
+  // `runExecCommand`). That meant: when the user had text selected,
+  // tapped Highlighter → palette → a swatch, the swatch's click fired
+  // AFTER the panel overlay had already blurred the editor's visible
+  // selection — the stash restored it correctly in `applyOnEditor`,
+  // but THIS function then focus()'d the editor a second time and
+  // collapsed the just-restored range before `sel.getRangeAt(0)` ran.
+  // Net effect: `range.collapsed === true`, non-collapsed path was
+  // skipped, pending-marker path ran, nothing visibly highlighted.
+  //
+  // Fix: focus FIRST, then restore the stash AFTER the focus() has
+  // done its damage, THEN read the live Selection. This mirrors the
+  // defence used by every other format tool via `applyFormat`.
   try { if (document.activeElement !== editor) editor.focus(); } catch {}
+  try { restoreStashedSelectionIfNeeded(editor); } catch {}
   const sel = window.getSelection && window.getSelection();
   if (!sel || sel.rangeCount === 0) return false;
   const range = sel.getRangeAt(0);
