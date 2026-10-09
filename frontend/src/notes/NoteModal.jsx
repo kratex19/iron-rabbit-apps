@@ -542,6 +542,41 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     onInput={handleHtmlInput}
                     onBlur={handleHtmlInput}
                     onPaste={handleHtmlPaste}
+                    onPointerDown={(e) => {
+                      // Android native text-action menu dismiss helper.
+                      //
+                      // When the user long-presses a misspelled word
+                      // Android's WebView auto-selects it (Selection
+                      // becomes a non-collapsed Range) and shows the
+                      // "Suggestion / ADD TO DICTIONARY / DELETE"
+                      // overlay. Because every button in our floating
+                      // toolbar calls `pointerdown.preventDefault()`
+                      // (needed to keep caret stashed for format
+                      // commands), a tap on the toolbar never reaches
+                      // Android as "selection should dismiss" — the
+                      // menu stays open and blocks editing.
+                      //
+                      // Fix: on any pointer-down INSIDE the editor
+                      // itself, if the Selection is still a Range we
+                      // did not initiate (menu-open state), collapse
+                      // it. Android treats the selection change as
+                      // "menu should dismiss" and the overlay closes
+                      // instantly. The pending caret placement from
+                      // the user's tap then proceeds normally — this
+                      // handler does NOT call `preventDefault`, so the
+                      // browser still processes the tap as a caret
+                      // move. Zero impact on highlights/lists/undo
+                      // and no change to spellCheck.
+                      try {
+                        const sel = window.getSelection && window.getSelection();
+                        if (!sel || sel.type !== "Range" || sel.isCollapsed) return;
+                        if (sel.rangeCount === 0) return;
+                        const range = sel.getRangeAt(0);
+                        if (e.currentTarget && e.currentTarget.contains(range.startContainer)) {
+                          sel.removeAllRanges();
+                        }
+                      } catch { /* non-fatal */ }
+                    }}
                     className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[min(38rem,65vh)] max-h-[85vh]' : 'min-h-[5.5rem] max-h-[26rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
                     style={{
                       background: brightnessToBg(paintBrightness?.bg ?? 0.3),
