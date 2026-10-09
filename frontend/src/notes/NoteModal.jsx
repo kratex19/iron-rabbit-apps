@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import * as LucideIcons from "lucide-react";
 import {
-  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X, Languages,
+  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X, Languages, Maximize2, Minimize2,
 } from "lucide-react";
 import useVoiceInput from "../utils/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,12 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  // Edit Canvas View — a scoped layout toggle that enlarges the
+  // editing canvas within the modal for easier viewing/editing on
+  // mobile. Independent of Expanded Text (a separate feature). Not
+  // persisted across sessions by design — mode resets each time the
+  // modal is reopened so the user is never surprised by a huge canvas.
+  const [canvasExpanded, setCanvasExpanded] = useState(false);
   const [color, setColor] = useState("purple");
   const [icon, setIcon] = useState(null);
   const [background, setBackground] = useState(null);
@@ -408,7 +414,9 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     <>
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent
-          className={`max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
+          className={`${canvasExpanded ? 'max-w-5xl max-h-[95vh] sm:max-h-[95vh]' : 'max-w-lg max-h-[85vh]'} overflow-y-auto overflow-x-hidden transition-[max-width,max-height] duration-200 ease-out ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
+          data-canvas-expanded={canvasExpanded ? "true" : "false"}
+          data-testid="note-modal-dialog"
           onInteractOutside={(e) => {
             // The Floating Rich-Text Toolbar is portalled to document.body
             // to escape this Dialog's stacking context (so native scroll
@@ -423,13 +431,36 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
           <DialogHeader>
             <DialogTitle className={`font-semibold flex items-center justify-between ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <span>{note ? t("note.edit") : t("note.new")}</span>
-              <div className="flex items-center gap-1">
+              {/* Header icon group — order (left→right): Templates (new
+                  only), Help (?), Edit Canvas View toggle, Settings
+                  (brightness sliders). The shadcn Dialog's built-in
+                  Close (X) is absolute-positioned at top-right; `mr-8`
+                  reserves clearance so Settings never crowds it. */}
+              <div className="flex items-center gap-1 mr-8">
                 {!note && (
                   <Button variant="ghost" size="sm" onClick={() => setShowTemplates(true)} className="text-indigo-500 h-7">
                     <FileText className="w-4 h-4 mr-1" /> Templates
                   </Button>
                 )}
                 <QuickGuideButton resourceId="IRR-1900" origin="note-editor" isDark={isDark} size="sm" />
+                {/* Edit Canvas View — enlarges/restores the editing
+                    canvas inside the modal. Independent of the frozen
+                    Expanded Text feature. Icon reflects CURRENT state:
+                    Maximize2 (= tap to enlarge) ⇄ Minimize2 (= tap to
+                    restore). */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCanvasExpanded((v) => !v)}
+                  className={`h-7 w-7 ${isDark ? 'text-slate-300 hover:text-white hover:bg-white/5' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                  aria-pressed={canvasExpanded}
+                  aria-label={canvasExpanded ? "Restore edit canvas" : "Enlarge edit canvas"}
+                  title={canvasExpanded ? "Restore edit canvas" : "Enlarge edit canvas"}
+                  data-testid="note-canvas-view-toggle"
+                  data-state={canvasExpanded ? "expanded" : "normal"}
+                >
+                  {canvasExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </Button>
                 <DisplayControlsButton
                   value={noteBrightness}
                   onChange={setNoteBrightness}
@@ -511,7 +542,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     onInput={handleHtmlInput}
                     onBlur={handleHtmlInput}
                     onPaste={handleHtmlPaste}
-                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[5.5rem] max-h-[26rem] overflow-y-auto ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[22rem] max-h-[65vh]' : 'min-h-[5.5rem] max-h-[26rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
                     style={{
                       background: brightnessToBg(paintBrightness?.bg ?? 0.3),
                       color: brightnessToText(paintBrightness?.text ?? 0.7),
@@ -529,8 +560,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder={t("note.content_placeholder")}
-                    minRows={3}
-                    maxRows={20}
+                    minRows={canvasExpanded ? 14 : 3}
+                    maxRows={canvasExpanded ? 32 : 20}
                     className={`ir-brightness-scope relative w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
                     style={{
                       background: brightnessToBg(paintBrightness?.bg ?? 0.3),
