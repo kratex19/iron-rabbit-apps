@@ -542,7 +542,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     onInput={handleHtmlInput}
                     onBlur={handleHtmlInput}
                     onPaste={handleHtmlPaste}
-                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[22rem] max-h-[65vh]' : 'min-h-[5.5rem] max-h-[26rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[min(38rem,65vh)] max-h-[85vh]' : 'min-h-[5.5rem] max-h-[26rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
                     style={{
                       background: brightnessToBg(paintBrightness?.bg ?? 0.3),
                       color: brightnessToText(paintBrightness?.text ?? 0.7),
@@ -560,8 +560,8 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder={t("note.content_placeholder")}
-                    minRows={canvasExpanded ? 14 : 3}
-                    maxRows={canvasExpanded ? 32 : 20}
+                    minRows={canvasExpanded ? 25 : 3}
+                    maxRows={canvasExpanded ? 44 : 20}
                     className={`ir-brightness-scope relative w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:opacity-60 ${isDark ? 'border-white/10' : 'border-gray-200 caret-indigo-600 selection:bg-indigo-100 selection:text-gray-900'}`}
                     style={{
                       background: brightnessToBg(paintBrightness?.bg ?? 0.3),
