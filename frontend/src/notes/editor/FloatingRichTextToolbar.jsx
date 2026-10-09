@@ -1962,20 +1962,23 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // light up the Alignment toolbar button, and by the AlignPanel to
     // show the currently-selected swatch.
     align: null,
+    // List — "ul" | "ol" | "checklist" | null. Lights the matching
+    // Bulleted / Numbered / Checklist tool button.
+    list: null,
   });
 
   const refreshActive = useCallback(() => {
     const editor = findActiveEditor();
     if (!editor) {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl || prev.align)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false, align: null }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl || prev.align || prev.list)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false, align: null, list: null }
         : prev);
       return;
     }
     // Textarea has no inline markup to detect.
     if (editor.tagName === "TEXTAREA") {
-      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl || prev.align)
-        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false, align: null }
+      setActive((prev) => (prev.bold || prev.italic || prev.underline || prev.strike || prev.link || prev.block || prev.aa || prev.hl || prev.align || prev.list)
+        ? { bold: false, italic: false, underline: false, strike: false, link: false, block: null, aa: false, hl: false, align: null, list: null }
         : prev);
       return;
     }
@@ -1988,6 +1991,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     let aa = false;
     let hl = false;
     let align = null;
+    // list — "ul" (plain bulleted), "ol" (numbered), or "checklist"
+    // (UL with the `ir-checklist` class). Mutually exclusive by design;
+    // the UL/OL ancestor terminates the walk the same way P/H1/H2/H3
+    // does. Enables active-state highlight on the Bulleted / Numbered
+    // / Checklist toolbar buttons.
+    let list = null;
     // Document-level size on the editor root also counts as "Aa active".
     try {
       if (editor.classList) {
@@ -1998,6 +2007,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     } catch {}
     let node = range.startContainer;
     if (node && node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    // Track the deepest/innermost pending-inline-hl ancestor so we can
+    // keep its icon lit while it's still "primed", but we only light
+    // the Highlighter if the span is NOT empty — otherwise a stale
+    // empty marker (user tapped HL, moved caret away, came back) kept
+    // the icon lit even though no new text was highlighted.
+    let pendingHlAncestor = null;
     while (node && node !== editor) {
       const tag = node.tagName;
       if (tag === "B" || tag === "STRONG") bold = true;
@@ -2006,11 +2021,37 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       else if (tag === "S" || tag === "STRIKE" || tag === "DEL") strike = true;
       else if (tag === "A") link = true;
       else if (tag === "SPAN" && node.classList) {
-        // Aa is active when ANY ancestor span carries an appearance class.
+        const isPendingInline = node.classList.contains(PENDING_INLINE_CLASS);
+        const spanHasHl = (() => {
+          for (const c of node.classList) { if (c.indexOf("ir-hl-") === 0) return true; }
+          return false;
+        })();
+        // Aa flag — stays true as long as a size/color class is above
+        // the caret, regardless of pending/empty state (unchanged).
         node.classList.forEach((c) => {
           if (c.indexOf("ir-size-") === 0 || c.indexOf("ir-color-") === 0) aa = true;
-          if (c.indexOf("ir-hl-") === 0) hl = true;
         });
+        // Highlighter flag — committed highlight spans always light.
+        // Pending-inline-hl markers only light when they contain real
+        // user text (not just a ZWSP). Prevents the stale "icon stays
+        // lit after priming + walking away" glitch.
+        if (spanHasHl) {
+          if (!isPendingInline) {
+            hl = true;
+          } else {
+            pendingHlAncestor = node;
+            const txt = (node.textContent || "").replace(new RegExp(ZWSP, "g"), "");
+            if (txt.length > 0) hl = true;
+          }
+        }
+      }
+      // List detection — first UL/OL ancestor wins. `ir-checklist` on
+      // UL means the "Checklist" tool button lights (not the plain
+      // Bulleted icon). Mutually exclusive with ol.
+      if (list === null && (tag === "UL" || tag === "OL")) {
+        if (tag === "OL") list = "ol";
+        else if (node.classList && node.classList.contains("ir-checklist")) list = "checklist";
+        else list = "ul";
       }
       if (!block && (tag === "P" || tag === "H1" || tag === "H2" || tag === "H3")) {
         // Fix G — stop the ancestor walk at block boundaries. Inline
@@ -2034,6 +2075,24 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       }
       node = node.parentElement;
     }
+    // Clean up stale empty pending-highlight orphans elsewhere in the
+    // editor — these are empty <span class="ir-pending-inline ir-hl-*">
+    // markers that were primed earlier and never used. Keeping them
+    // around a) kept the Highlighter icon falsely lit if the caret
+    // happened to re-enter one, and b) accumulated clutter inside the
+    // saved HTML. The pending ancestor the caret is CURRENTLY inside
+    // is preserved so the user can still "resume" a fresh prime.
+    try {
+      const stale = editor.querySelectorAll('span.' + PENDING_INLINE_CLASS);
+      stale.forEach((s) => {
+        if (s === pendingHlAncestor) return;
+        let hasHlClass = false;
+        s.classList.forEach((c) => { if (c.indexOf("ir-hl-") === 0) hasHlClass = true; });
+        if (!hasHlClass) return;
+        const txt = (s.textContent || "").replace(new RegExp(ZWSP, "g"), "");
+        if (txt.length === 0 && s.parentNode) s.parentNode.removeChild(s);
+      });
+    } catch {}
     // If the block walk didn't land on a P/H1/H2/H3 (e.g. caret inside a
     // <li>), fall back to the generic block-ancestor finder so we still
     // reflect alignment on list items.
@@ -2059,8 +2118,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       prev.bold === bold && prev.italic === italic && prev.underline === underline
         && prev.strike === strike && prev.link === link && prev.block === block
         && prev.aa === aa && prev.hl === hl && prev.align === align
+        && prev.list === list
         ? prev
-        : { bold, italic, underline, strike, link, block, aa, hl, align }
+        : { bold, italic, underline, strike, link, block, aa, hl, align, list }
     );
   }, []);
 
@@ -2772,6 +2832,15 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       editor.setSelectionRange(start + 1, start + 1);
       return;
     }
+    // Fix — Toolbar buttons steal focus on pointerdown; the caret stash
+    // is restored for every other format tool via `applyFormat`, but
+    // `insertLineBreak` was going straight to `runExecCommand` with
+    // whatever Selection the browser had after the focus bounce. When
+    // the Selection collapsed to offset 0 of the editor root, the
+    // execCommand inserted a <br> at the top of the document and the
+    // caret jumped to the beginning. Restoring the stash FIRST keeps
+    // the caret where the user actually tapped.
+    try { restoreStashedSelectionIfNeeded(editor); } catch {}
     const history = historyRef.current;
     if (history) history.snapshotImmediate(editor);
     runExecCommand(editor, "insertLineBreak");
@@ -3123,6 +3192,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       case "aa": return !!active.aa;
       case "highlight": return !!active.hl;
       case "align": return !!active.align;
+      case "ul": return active.list === "ul";
+      case "ol": return active.list === "ol";
+      case "checklist": return active.list === "checklist";
       default: return false;
     }
   };
