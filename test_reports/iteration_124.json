@@ -1,0 +1,71 @@
+{
+  "summary": "DIAGNOSE ONLY (no code changes) — Formatting toolbar active-state highlighting in NoteModal. Verified via Playwright on desktop 1280x900. The highlight pipeline (refreshActive → setActive → isToolActive → data-active='true' + ring-2 ring-orange-500 bg-orange-500/15) works correctly for every INLINE format (bold/italic/underline/strike) and for every BLOCK format (P/H1/H2/H3) WHEN the caret sits inside a proper block element. The user-visible 'missing highlight' happens on lines that are BARE TOP-LEVEL TEXT NODES in the contenteditable (no P/H1/H2/H3 wrapper, separated by <br>). The DOM shape itself is produced by the H1/promote-block operation, not by the active-state detector.",
+  "verdict": "Active-state highlight code is CORRECT by its own contract; upstream block-promote operation leaves bare text nodes which the detector (correctly, per its design) refuses to classify as any block → no block button lights up for those lines.",
+  "repro_steps": [
+    "1. Open app → press 'n' to open the New Note modal (textarea mode because content is empty / plaintext).",
+    "2. Type 'Alpha\\nBeta\\nGamma' in [data-testid=note-content-input].",
+    "3. Select the first line 'Alpha' only (Home → Shift+Right x5).",
+    "4. Click [data-testid=floating-rte-btn-h1]. Editor swaps to contenteditable [data-testid=note-content-input-html].",
+    "5. Inspect DOM — observed: <p></p><h1>Alpha</h1><br>Beta<br>Gamma<p></p>. 'Beta' and 'Gamma' are BARE TEXT NODES as direct children of the editor, siblings of <br>, NOT wrapped in <p>.",
+    "6. Click caret into 'Beta' → read [data-testid=floating-rte-btn-p].data-active → 'false'. Click into 'Gamma' → same. H1/H2/H3 also 'false'. User perceives this as 'the P button never highlights for a normal line'.",
+    "7. Click caret into 'Alpha' (inside <h1>) → h1.data-active='true', p/h2/h3='false' ✓.",
+    "8. Click [data-testid=floating-rte-btn-p] while caret is in H1 → <h1>Alpha</h1> becomes <p>Alpha</p>, p.data-active flips to 'true' ✓.",
+    "9. Click H2 → <h2>Alpha</h2>, h2.data-active='true' ✓.",
+    "10. Select 2 chars inside the block, click Underline → <u>Al</u>pha appears, caret inside <u> → underline.data-active='true' ✓."
+  ],
+  "verified_working": {
+    "bold":  "Caret inside <b>/<strong> → data-active=true; outside → false. Class 'ring-2 ring-orange-500 bg-orange-500/15' applied.",
+    "italic":"Caret inside <i>/<em> → true (also stacks when inside H1: italic=true AND h1=true).",
+    "underline":"Caret inside <u> → true.",
+    "strike":"Caret inside <s>/<strike>/<del> → true.",
+    "p/h1/h2/h3":"Mutually exclusive, only the block matching active.block lights up. Toggle P↔H1↔H2↔H3 reflects immediately.",
+    "selection_sync":"document-level 'selectionchange', 'focusin', and 'input' (rAF-deferred) listeners all fire; state updates within ~1 frame.",
+    "textarea_shortcut":"When editor is a TEXTAREA (plaintext mode before first format click), refreshActive short-circuits to all-false (lines 1976-1980) — intentional, no inline markup to detect."
+  },
+  "root_cause_of_user_observed_bug": {
+    "symptom": "P / H1 / H2 / H3 toolbar buttons do NOT highlight when the caret is on a line that looks like a normal paragraph.",
+    "where_in_dom": "The 'line' is a bare Text node whose parentElement === the contenteditable root (no <p>/<h*> ancestor between the text and the editor).",
+    "where_in_code": "/app/frontend/src/notes/editor/FloatingRichTextToolbar.jsx :: refreshActive() lines 1999-2036. The ancestor walk is `let node = range.startContainer; if (TEXT_NODE) node = node.parentElement; while (node && node !== editor) { ...detect P/H1/H2/H3... }`. For bare top-level text, parentElement IS the editor, so the loop body never executes → block stays null → NO block button highlights.",
+    "why_this_dom_shape_exists": "The block-promote operation that applied H1 to 'Alpha' did NOT wrap the surrounding sibling text in <p>. It emitted <p></p><h1>Alpha</h1><br>Beta<br>Gamma<p></p> — bare text + <br>. This is the real upstream defect. Also seen after applying P: <p></p><h1>Alpha</h1><br><p>Beta</p>Gamma<p></p> (only the targeted line got wrapped; the other bare siblings stayed bare).",
+    "scope": "Affects NoteModal.jsx HTML editor (data-testid=note-content-input-html). Same refreshActive logic lives on FullScreenNote 'format' mode (data-testid=fullscreen-content-input-format) — same symptom will manifest there if the same DOM shape appears."
+  },
+  "recommended_minimal_fix_for_main_agent": [
+    "PREFERRED (fixes root cause): in the block-promote/applyBlock pipeline that handles H1/H2/H3/P, after mutating the targeted line, scan the editor's direct childNodes and wrap any bare Text node (and any orphan <br>-delimited text run) in a <p>. This normalizes the editor to 'every top-level content lives in a block element', which (a) lets refreshActive classify every caret position, (b) makes alignment/list operations deterministic, (c) prevents the empty <p></p> sentinels that currently bracket the content.",
+    "SECONDARY (defensive, 1-line patch in refreshActive at ~L2036 after the walk): `if (block === null && editor.contains(range.startContainer) && !findAlignBlockAncestor(editor, range.startContainer)) block = 'P';` — treats implicit paragraph context as P so the P button lights up even for bare text. Caveat: this masks the real DOM-shape bug and may give false confidence; prefer the structural fix above and keep refreshActive honest.",
+    "DO NOT remove the TEXTAREA short-circuit (lines 1976-1980) — plaintext mode genuinely has no markup to detect; first-click swap-to-HTML behavior relies on it."
+  ],
+  "additional_minor_findings": [
+    "First click on any format button in a brand-new (empty-content) note swaps textarea → contenteditable; this is correct but means the user never sees any 'pre-click' active-state in a fresh note (expected).",
+    "Toolbar portal z-index 2147483000 and `pointerEvents: auto` on container confirmed; no overlay interception observed.",
+    "Fix G (break ancestor walk on first block boundary) is in effect — confirmed italic inside H1 does NOT falsely report bold from a stale <strong> wrapper above.",
+    "`active.aa`, `active.hl`, `active.align` paths were not exercised to a 'true' state in this run (require opening the Aa/Highlight/Align sub-panels and picking a value); worth a follow-up pass but detector logic for them mirrors the inline-span class scan at L2008-2013 and the block-class scan at L2028-2032, which looked correct on code review."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FloatingRichTextToolbar / applyBlock", "issue": "Block-promote leaves sibling lines as bare text nodes + <br>; downstream, block active-state buttons never highlight for those lines.", "selector": "[data-testid=floating-rte-btn-p|h1|h2|h3]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Main agent: normalize editor top-level children to block elements inside the applyBlock pipeline (wrap bare Text nodes in <p>, remove the empty <p></p> sentinels at start/end). This is the precise minimal correction the user asked for.",
+    "Optionally add the 1-line defensive fallback in refreshActive to default `block='P'` when no block ancestor is found inside the editor."
+  ],
+  "critical_code_review_comments": [
+    "FloatingRichTextToolbar.jsx L1999-2036: refreshActive is clean, O(ancestor-depth), and correctly stops at block boundaries (Fix G). Its only blind spot is bare top-level text nodes, which should not exist if applyBlock normalized output.",
+    "L2048-2054: setActive uses structural-equality guard — avoids re-renders when state hasn't changed. Good.",
+    "L2063-2095: useEffect wires `selectionchange`, `focusin`, `input` (capture, rAF-deferred). Priming call at L2089 ensures correct state on reopen. Teardown clean.",
+    "L3244-3290: button renders `data-active` and the orange ring/bg classes correctly. `t.accent` fallback for non-highlightable tools preserved.",
+    "NoteModal.jsx L129 `isHtml = looksLikeHtml(content)` is read every render — fine, but the textarea→HTML swap on first format click means `refreshActive` can briefly target a stale TEXTAREA until the next render. In practice the input/selectionchange cascade re-reads findActiveEditor so this is self-correcting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend diagnosis only)", "frontend": "Active-state code: PASS for inline (B/I/U/S) and block-when-wrapped (P/H1/H2/H3). Edge case FAIL for bare top-level text — root cause is applyBlock DOM output, not refreshActive."},
+  "test_credentials": "N/A — offline IndexedDB app, no auth",
+  "seed_data_creation": "Created a transient 'Alpha / Beta / Gamma' note via 'n' shortcut inside the New Note modal; not saved.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To reproduce: desktop 1280x900, press 'n', type 'Alpha\\nBeta\\nGamma', select 'Alpha', click floating-rte-btn-h1. Inspect [data-testid=note-content-input-html].innerHTML — you'll see '<p></p><h1>Alpha</h1><br>Beta<br>Gamma<p></p>'. Click caret into 'Beta' → floating-rte-btn-p[data-active] stays 'false'. Click into 'Alpha' → h1 lights. All inline (bold/italic/underline/strike) formats were verified working via (a) selecting text, (b) clicking the tool, (c) placing caret inside the resulting <b>/<i>/<u>/<s> and reading data-active='true'.",
+  "rca_of_the_issue": "FloatingRichTextToolbar.refreshActive (L1999-2036) requires caret to live under a P/H1/H2/H3 element to classify a block. The applyBlock operation that converts a selected line to H1 does not wrap the surrounding sibling lines in <p> — they remain as bare Text nodes separated by <br>. Caret placed in those bare lines → no block ancestor → no block button highlights. Precise minimal fix: normalize the editor's top-level children to block elements inside applyBlock (wrap bare text in <p>, drop empty <p></p> sentinels)."
+}

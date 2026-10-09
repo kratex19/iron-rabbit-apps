@@ -2045,6 +2045,16 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         }
       }
     }
+    // Default-block fallback — when the caret sits on a bare text node
+    // or empty line (just a <br>) directly under the editor root, the
+    // ancestor walk above finds NO P/H1/H2/H3/LI wrapper. Historically
+    // that produced `block = null`, which left the P / H1 / H2 / H3
+    // buttons dark even though the line is conceptually a plain
+    // left-aligned paragraph. Treat the "no block ancestor" case as
+    // P so the P button lights up and the user can see at a glance
+    // which block type the caret is currently in. This is detector-
+    // only; no formatting command or DOM mutation is affected.
+    if (block === null) block = "P";
     setActive((prev) =>
       prev.bold === bold && prev.italic === italic && prev.underline === underline
         && prev.strike === strike && prev.link === link && prev.block === block
