@@ -577,7 +577,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                         }
                       } catch { /* non-fatal */ }
                     }}
-                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[min(38rem,65vh)] max-h-[85vh]' : 'min-h-[5.5rem] max-h-[26rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+                    className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[min(38rem,65vh)] max-h-[85vh]' : 'min-h-[5.5rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
                     style={{
                       background: brightnessToBg(paintBrightness?.bg ?? 0.3),
                       color: brightnessToText(paintBrightness?.text ?? 0.7),
