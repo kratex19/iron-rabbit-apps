@@ -38,7 +38,22 @@ Iron Rabbit is a highly-polished offline-first PWA React app with:
 See `/app/memory/CHANGELOG.md` for the full timeline.
 
 ### Feb 2026 Session (latest first)
+- **NoteModal — Edit Canvas View (2026-02-28)**:
+  New scoped feature in `NoteModal.jsx`. Added `canvasExpanded` state
+  and a Maximize2 ⇄ Minimize2 toggle button in the Edit Note header,
+  positioned between the Help (?) button and the Settings/sliders
+  (DisplayControlsButton). Toggle enlarges the DialogContent from
+  `max-w-lg max-h-[85vh]` → `max-w-5xl max-h-[95vh]` and the editor
+  area from `min-h-[5.5rem] max-h-[26rem]` → `min-h-[22rem] max-h-[65vh]`
+  (contenteditable path) + `minRows 3→14, maxRows 20→32` (textarea
 - **Module 1 — BLOCK applyAlign flow restored (2026-02-28, v217/v104)**:
+  (See earlier entries for details.)
+  path), with a 200ms transition. Icon group now has `mr-8` so the
+  Settings button no longer crowds shadcn's built-in Close (X). State
+  resets each time the modal reopens — no persistence by design.
+  Independent of the frozen Expanded Text feature; name used
+  consistently as "Edit Canvas View". Testing agent iteration_122:
+  all acceptance scenarios PASS, no regressions.
   Per user confirmation this morning, reverted `applyAlign` to the
   three-branch flow the user originally approved:
     • Non-collapsed selection → align every spanned block (toggle).
