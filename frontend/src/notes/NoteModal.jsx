@@ -179,6 +179,97 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────
+  // DIAGNOSTIC — TEMPORARY — Android Return-expansion investigation.
+  //
+  // Purpose: determine whether a Return keypress on the contentEditable
+  // div actually produces `keydown` → `beforeinput("insertParagraph")`
+  // → `input` events, and whether `isComposing` is set on the keydown
+  // (indicating a Gboard IME composition is swallowing the Enter).
+  //
+  // This block is READ-ONLY instrumentation:
+  //   • No preventDefault, no stopPropagation.
+  //   • No DOM mutation, no selection changes.
+  //   • No synthetic events dispatched.
+  //   • Logs to console with the tag `[IR-RET]` and to a global ring
+  //     buffer `window.__irReturnDiag` (last 50 entries) so the user
+  //     can retrieve them on Android via chrome://inspect by typing
+  //     `copy(window.__irReturnDiag)` or `JSON.stringify(window.__irReturnDiag)`.
+  //
+  // Remove this entire block after root cause is identified.
+  // ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isHtml) return undefined;
+    const el = htmlEditableRef.current;
+    if (!el) return undefined;
+    if (typeof window === "undefined") return undefined;
+    if (!Array.isArray(window.__irReturnDiag)) window.__irReturnDiag = [];
+    const push = (entry) => {
+      try {
+        window.__irReturnDiag.push(entry);
+        if (window.__irReturnDiag.length > 50) window.__irReturnDiag.shift();
+        // eslint-disable-next-line no-console
+        console.log("[IR-RET]", entry);
+      } catch { /* non-fatal */ }
+    };
+    const stamp = () => {
+      try {
+        const now = (performance && performance.now) ? Math.round(performance.now()) : Date.now();
+        return now;
+      } catch { return Date.now(); }
+    };
+    const onKeyDown = (e) => {
+      if (e.key !== "Enter") return;
+      push({
+        t: stamp(),
+        type: "keydown",
+        key: e.key,
+        shift: !!e.shiftKey,
+        isComposing: !!e.isComposing,
+        keyCode: e.keyCode,
+        which: e.which,
+        repeat: !!e.repeat,
+      });
+    };
+    const onBeforeInput = (e) => {
+      const it = e.inputType || "";
+      if (it !== "insertParagraph" && it !== "insertLineBreak" && it !== "insertReplacementText") return;
+      push({
+        t: stamp(),
+        type: "beforeinput",
+        inputType: it,
+        isComposing: !!e.isComposing,
+        data: typeof e.data === "string" ? e.data : null,
+      });
+    };
+    const onInput = (e) => {
+      const it = e.inputType || "";
+      if (it !== "insertParagraph" && it !== "insertLineBreak" && it !== "insertReplacementText") return;
+      push({
+        t: stamp(),
+        type: "input",
+        inputType: it,
+        isComposing: !!e.isComposing,
+      });
+    };
+    const onCompositionStart = () => push({ t: stamp(), type: "compositionstart" });
+    const onCompositionEnd = (e) => push({ t: stamp(), type: "compositionend", data: typeof e.data === "string" ? e.data : null });
+    el.addEventListener("keydown", onKeyDown, true);
+    el.addEventListener("beforeinput", onBeforeInput, true);
+    el.addEventListener("input", onInput, true);
+    el.addEventListener("compositionstart", onCompositionStart, true);
+    el.addEventListener("compositionend", onCompositionEnd, true);
+    return () => {
+      el.removeEventListener("keydown", onKeyDown, true);
+      el.removeEventListener("beforeinput", onBeforeInput, true);
+      el.removeEventListener("input", onInput, true);
+      el.removeEventListener("compositionstart", onCompositionStart, true);
+      el.removeEventListener("compositionend", onCompositionEnd, true);
+    };
+  }, [isHtml, isOpen]);
+
+
+
   // Debounced brightness auto-save for EXISTING notes. Mirrors the
   // FullScreenNote behavior so slider drags persist immediately without
   // requiring the user to hit "Update". Skips the initial mount and
