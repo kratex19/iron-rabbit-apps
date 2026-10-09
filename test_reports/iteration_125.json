@@ -1,0 +1,41 @@
+{
+  "summary": "RETEST of iteration_124 formatting toolbar active-state highlighting fix. Main agent added a one-line defensive fallback in FloatingRichTextToolbar.refreshActive (L2057): `if (block === null) block = 'P';`. Verified via Playwright on desktop 1280x900 reproducing the exact scenario from iteration_124: typed 'Alpha / Beta / Gamma', promoted 'Alpha' to H1 producing the known DOM shape <p></p><h1>Alpha</h1><br>Beta<br>Gamma<p></p>. Placed caret in each of the three semantic lines and read data-active on P and H1 buttons.",
+  "verdict": "FIX WORKS. All 6 active-state expectations pass.",
+  "results": {
+    "editor_html_after_h1": "<p></p><h1>Alpha</h1><br>Beta<br>Gamma<p></p>  (unchanged DOM shape — the structural upstream issue was NOT fixed, only the detector fallback was applied, as the main agent intended)",
+    "caret_in_bare_Beta":  {"P.data-active": "true", "H1.data-active": "false"},
+    "caret_in_H1_Alpha":   {"P.data-active": "false", "H1.data-active": "true"},
+    "caret_in_bare_Gamma": {"P.data-active": "true", "H1.data-active": "false"},
+    "mutual_exclusivity_preserved": true,
+    "regression_H1_still_lights_when_in_h1": true,
+    "P_now_lights_for_bare_top_level_text": true
+  },
+  "code_review_of_fix": [
+    "FloatingRichTextToolbar.jsx L2048-2057: Fallback `if (block === null) block = 'P';` is placed AFTER the ancestor walk and AFTER the align-block ancestor lookup. Comment accurately documents intent and limits scope to the detector only — no formatting command or DOM mutation touched. ✓",
+    "The fallback is unconditional on `block === null`. This means in TEXTAREA plaintext mode (where refreshActive short-circuits at L1976-1980 and returns early), the fallback does NOT execute — correct, no regression there. ✓",
+    "Mutual exclusivity preserved because the fallback only fires when NO other block was detected; it cannot overwrite a found H1/H2/H3/LI. ✓",
+    "Non-regression for inline formats (bold/italic/underline/strike) — their classification is independent of `block` and the setActive guard still compares all fields; verified in previous iteration and unaffected by this change.",
+    "KNOWN LIMITATION: the underlying applyBlock DOM shape (bare Text nodes + <br> as siblings of <h1>) is still produced. iteration_124's PREFERRED structural fix (normalize top-level children to block elements) was NOT applied. The current fix is the SECONDARY defensive patch iteration_124 described. User-visible symptom is resolved, but downstream operations like alignment, lists, and indent on those bare-text lines may still behave inconsistently because they rely on a real block ancestor. Flagging as a follow-up for the main agent to consider."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, follow-up) Still recommend applying iteration_124's PREFERRED fix in applyBlock to wrap bare top-level Text nodes in <p> so alignment/list/indent operations on 'plain' lines become deterministic. Not blocking — current defensive fix resolves the user-reported active-state symptom."
+  ],
+  "critical_code_review_comments": [
+    "One-line fix at L2057 is minimal, well-commented, and does what iteration_124's SECONDARY recommendation described. Safe and correct for the reported symptom."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100% (6/6 active-state assertions pass)"},
+  "test_credentials": "N/A — offline IndexedDB app, no auth",
+  "seed_data_creation": "Transient unsaved 'Alpha/Beta/Gamma' note inside New Note modal.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Fix in FloatingRichTextToolbar.jsx L2057 (`if (block === null) block = 'P';`) verified working on 2026-01-09. Reproduction script: viewport 1280x900, press 'n', type Alpha\\nBeta\\nGamma, select Alpha, click [data-testid=floating-rte-btn-h1], then place caret via JS Range in bare 'Beta' or 'Gamma' text nodes — [data-testid=floating-rte-btn-p][data-active] now reads 'true'. H1 button still correctly reads 'true' when caret is inside the <h1>Alpha</h1>. Underlying DOM shape (bare text siblings of <br>) still exists; main agent chose detector fallback over structural normalization — acceptable trade-off for the current scope.",
+  "rca_of_the_issue": "Previously, refreshActive classified a caret position by walking ancestors looking for P/H1/H2/H3/LI. For bare top-level Text nodes (produced by the applyBlock H1 operation on sibling lines), that walk returned null and no block button lit up. The one-line fallback `if (block === null) block = 'P';` treats the 'no block ancestor' case as an implicit paragraph, which matches browser default rendering of bare text as left-aligned paragraph flow. User-visible highlight restored. Mutual exclusivity preserved. No side effects on inline-format detection or formatting commands."
+}
