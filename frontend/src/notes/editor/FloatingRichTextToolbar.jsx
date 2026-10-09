@@ -2032,6 +2032,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // empty marker (user tapped HL, moved caret away, came back) kept
     // the icon lit even though no new text was highlighted.
     let pendingHlAncestor = null;
+    // Also track the innermost COMMITTED (non-pending) ir-hl-* span
+    // the caret is inside. The orphan sweep below must spare this
+    // span even if it happens to be empty right now — the user may
+    // be mid-edit inside a legitimately highlighted run.
+    let committedHlAncestor = null;
     while (node && node !== editor) {
       const tag = node.tagName;
       if (tag === "B" || tag === "STRONG") bold = true;
@@ -2057,6 +2062,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         if (spanHasHl) {
           if (!isPendingInline) {
             hl = true;
+            if (!committedHlAncestor) committedHlAncestor = node;
           } else {
             pendingHlAncestor = node;
             const txt = (node.textContent || "").replace(new RegExp(ZWSP, "g"), "");
@@ -2094,17 +2100,30 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       }
       node = node.parentElement;
     }
-    // Clean up stale empty pending-highlight orphans elsewhere in the
-    // editor — these are empty <span class="ir-pending-inline ir-hl-*">
-    // markers that were primed earlier and never used. Keeping them
-    // around a) kept the Highlighter icon falsely lit if the caret
-    // happened to re-enter one, and b) accumulated clutter inside the
-    // saved HTML. The pending ancestor the caret is CURRENTLY inside
-    // is preserved so the user can still "resume" a fresh prime.
+    // Clean up stale EMPTY highlight spans elsewhere in the editor.
+    // Two sources of these orphans:
+    //   (a) `<span class="ir-pending-inline ir-hl-*">\u200B</span>` —
+    //       primed but never used, left behind when caret moved away.
+    //   (b) `<span class="ir-hl-*"></span>` — committed highlight
+    //       wrappers that lost all their text (user deleted everything
+    //       inside, or browser cloned the inline span on Enter).
+    //
+    // Why this matters: (a) was already handled in iteration_126 and
+    // keeps the icon from staying falsely lit. (b) is new in this fix
+    // — Chrome's `insertParagraph` command refuses to produce fresh
+    // lines when the caret is chained through empty inline wrappers,
+    // which made repeated Android Return presses stop expanding the
+    // canvas after the first one. Sweeping these empty committed
+    // wrappers removes the obstacle without altering any visible
+    // text.
+    //
+    // The ancestors the caret is CURRENTLY inside are preserved so
+    // a legitimately-primed or mid-edit highlight is not disturbed.
     try {
-      const stale = editor.querySelectorAll('span.' + PENDING_INLINE_CLASS);
+      const stale = editor.querySelectorAll('span[class*="ir-hl-"]');
       stale.forEach((s) => {
         if (s === pendingHlAncestor) return;
+        if (s === committedHlAncestor) return;
         let hasHlClass = false;
         s.classList.forEach((c) => { if (c.indexOf("ir-hl-") === 0) hasHlClass = true; });
         if (!hasHlClass) return;
@@ -2250,6 +2269,33 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // block (the one the caret now sits in). Zero impact on blocks
       // that didn't carry an alignment class.
       if (e.key === "Enter" && !e.shiftKey) {
+        // Pre-emptive empty-highlight-span strip. Chrome's
+        // `insertParagraph` refuses to open new paragraphs when the
+        // caret is nested inside an empty inline wrapper — the user
+        // sees "first Return expands one line, further Returns do
+        // nothing". If the caret is INSIDE an empty ir-hl-* span
+        // right now, remove the wrapper and reposition the caret
+        // where the wrapper was. We never call `preventDefault` here,
+        // so the browser's native Enter still runs — it just now
+        // operates on a clean caret position and produces a real new
+        // paragraph. Scoped strictly to EMPTY highlight spans; a span
+        // containing real highlighted text is left untouched.
+        try {
+          const r = range;
+          const hl = findAncestorHighlightSpan(ed, r.startContainer);
+          if (hl) {
+            const txt = (hl.textContent || "").replace(new RegExp(ZWSP, "g"), "");
+            if (txt.length === 0 && hl.parentNode) {
+              const parent = hl.parentNode;
+              const idx = Array.prototype.indexOf.call(parent.childNodes, hl);
+              parent.removeChild(hl);
+              const nr = document.createRange();
+              nr.setStart(parent, idx);
+              nr.setEnd(parent, idx);
+              sel.removeAllRanges(); sel.addRange(nr);
+            }
+          }
+        } catch { /* non-fatal */ }
         const block = findAlignBlockAncestor(ed, range.startContainer);
         if (!block) return;
         const hadAlign = ALIGN_CLASSES.some((c) => block.classList.contains(c));
