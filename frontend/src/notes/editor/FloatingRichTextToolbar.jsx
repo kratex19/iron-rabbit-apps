@@ -1207,6 +1207,26 @@ function exitInlineRow(editor, row) {
 const ALIGN_CLASSES = ["ir-align-left", "ir-align-center", "ir-align-right"];
 const BLOCK_TAGS_FOR_ALIGN = new Set(["P", "H1", "H2", "H3", "LI"]);
 
+// Used by the pre-emptive empty-inline-wrapper strip on Enter (see the
+// BLOCK Return-exit path below). Scoped intentionally wide for the
+// BLOCK boundary (we halt the upward walk at any real block, including
+// list containers and preformatted blocks); the INLINE_WRAPPER set is
+// the exact tag list that may legitimately host a format-first ZWSP or
+// end up empty after a Backspace / Chrome-insertParagraph clone. The
+// strip only removes elements whose textContent (after ZWSP removal)
+// is empty, so non-empty formatted runs are never affected.
+const BLOCK_SET_FOR_INLINE_STRIP = new Set([
+  "P", "H1", "H2", "H3", "H4", "H5", "H6",
+  "LI", "UL", "OL",
+  "DIV", "BLOCKQUOTE", "PRE",
+  "TD", "TH", "TR", "TABLE",
+]);
+const INLINE_WRAPPER_SET_FOR_STRIP = new Set([
+  "SPAN", "B", "STRONG", "I", "EM", "U",
+  "S", "STRIKE", "DEL",
+  "A", "MARK", "CODE", "SUB", "SUP", "FONT",
+]);
+
 function findAlignBlockAncestor(editor, node) {
   let walk = node;
   if (walk && walk.nodeType === Node.TEXT_NODE) walk = walk.parentElement;
@@ -2269,31 +2289,57 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // block (the one the caret now sits in). Zero impact on blocks
       // that didn't carry an alignment class.
       if (e.key === "Enter" && !e.shiftKey) {
-        // Pre-emptive empty-highlight-span strip. Chrome's
+        // Pre-emptive empty-inline-wrapper strip. Chrome's native
         // `insertParagraph` refuses to open new paragraphs when the
         // caret is nested inside an empty inline wrapper — the user
         // sees "first Return expands one line, further Returns do
-        // nothing". If the caret is INSIDE an empty ir-hl-* span
-        // right now, remove the wrapper and reposition the caret
-        // where the wrapper was. We never call `preventDefault` here,
-        // so the browser's native Enter still runs — it just now
-        // operates on a clean caret position and produces a real new
-        // paragraph. Scoped strictly to EMPTY highlight spans; a span
-        // containing real highlighted text is left untouched.
+        // nothing" (reported for repeated Android Return presses in
+        // the Edit Note editor; selecting a spelling replacement
+        // "unstuck" it because `insertReplacementText` writes a real
+        // TextNode and clears the empty wrapper state).
+        //
+        // Generalised from the previous ir-hl-*-only strip: walk UP
+        // from the caret container, collect every empty inline
+        // wrapper (<b>/<strong>, <i>/<em>, <u>, <s>/<strike>/<del>,
+        // <span class="ir-pending-inline …">, <span class="ir-hl-…">,
+        // <span class="ir-size-…">, <span class="ir-color-…">, <a>,
+        // <mark>, <code>, <sub>, <sup>, <font>) up to the first block
+        // ancestor (P/H1/H2/H3/LI/UL/OL/DIV/BLOCKQUOTE/PRE). Remove
+        // the OUTERMOST empty inline wrapper (which drops any nested
+        // empty wrappers along with it) and re-seat the caret at the
+        // same position in its parent. We never call preventDefault,
+        // so Chrome's native Enter still runs — it just now operates
+        // on a clean caret position and produces a real new paragraph.
+        //
+        // Scoped strictly to EMPTY wrappers (text content === "" after
+        // ZWSP stripping), so a <b>hello</b> or <span class="ir-hl-X">
+        // text</span> is never touched — bold/italic/underline/strike
+        // active-state, highlights, Aa size/color, and format-first
+        // typing after any real character typed all continue to work
+        // exactly as before.
         try {
-          const r = range;
-          const hl = findAncestorHighlightSpan(ed, r.startContainer);
-          if (hl) {
-            const txt = (hl.textContent || "").replace(new RegExp(ZWSP, "g"), "");
-            if (txt.length === 0 && hl.parentNode) {
-              const parent = hl.parentNode;
-              const idx = Array.prototype.indexOf.call(parent.childNodes, hl);
-              parent.removeChild(hl);
-              const nr = document.createRange();
-              nr.setStart(parent, idx);
-              nr.setEnd(parent, idx);
-              sel.removeAllRanges(); sel.addRange(nr);
+          const BLOCK_SET = BLOCK_SET_FOR_INLINE_STRIP;
+          const INLINE_WRAPPER_SET = INLINE_WRAPPER_SET_FOR_STRIP;
+          const zwspRe = new RegExp(ZWSP, "g");
+          let startEl = range.startContainer;
+          if (startEl && startEl.nodeType === Node.TEXT_NODE) startEl = startEl.parentNode;
+          let outerEmpty = null;
+          let walk = startEl;
+          while (walk && walk !== ed && walk.tagName && !BLOCK_SET.has(walk.tagName)) {
+            if (INLINE_WRAPPER_SET.has(walk.tagName)) {
+              const txt = (walk.textContent || "").replace(zwspRe, "");
+              if (txt.length === 0) outerEmpty = walk;
             }
+            walk = walk.parentNode;
+          }
+          if (outerEmpty && outerEmpty.parentNode) {
+            const parent = outerEmpty.parentNode;
+            const idx = Array.prototype.indexOf.call(parent.childNodes, outerEmpty);
+            parent.removeChild(outerEmpty);
+            const nr = document.createRange();
+            nr.setStart(parent, idx);
+            nr.setEnd(parent, idx);
+            sel.removeAllRanges(); sel.addRange(nr);
           }
         } catch { /* non-fatal */ }
         const block = findAlignBlockAncestor(ed, range.startContainer);
