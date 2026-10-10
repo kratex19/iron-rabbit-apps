@@ -22,6 +22,23 @@ import Attachments from "../components/Attachments";
 import FeaturedImageBanner from "./FeaturedImageBanner";
 import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
 import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
+
+// Edit Text local HTML detector. Extends the shared `looksLikeHtml`
+// (which only recognises p/h1/h2/h3/strong/b/em/i/u/s/a/br/strike/del/
+// ul/ol/li) to also treat `<span>` as HTML, so content whose ONLY
+// non-text structure is a WrapText container (`<span class="ir-wrap-box">`)
+// is correctly identified as HTML on reopen. Without this, Save
+// persisted the raw string and reopen chose the plaintext `<textarea>`
+// path — making the wrapper visually vanish even though storage still
+// contained it.
+//
+// Scoped intentionally to NoteModal: `FullScreenNote.jsx` (Expanded
+// Text) continues to call the shared `looksLikeHtml` and its mode
+// selection + save contract are preserved exactly as before.
+function isHtmlContent(s) {
+  if (looksLikeHtml(s)) return true;
+  return typeof s === "string" && /<span\b/i.test(s);
+}
 import DisplayControlsButton from "./DisplayControlsButton";
 import QuickGuideButton from "../quickguide/QuickGuideButton";
 import StorageService from "../storage/storageService";
@@ -167,7 +184,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const contentTextareaRef = useRef(null);
   const htmlEditableRef = useRef(null);
   const lastAppliedHtmlRef = useRef(null);
-  const isHtml = looksLikeHtml(content);
+  const isHtml = isHtmlContent(content);
   // Effective brightness used ONLY for painting text + underlay colours.
   // Falls through to the note's own `noteBrightness` unless Focus Mode is
   // active AND the user has enabled Night Visuals with "Apply to all notes"
@@ -311,7 +328,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
         stage: "load",
         noteId: note.id || null,
         content: irSaveDiagPreview(note.content || ""),
-        isHtml: looksLikeHtml(note.content || ""),
+        isHtml: isHtmlContent(note.content || ""),
       });
       setIcon(note.icon || null); setBackground(note.background || null);
       // Infinite path: prefer the modern `category_path` if present, else
@@ -398,7 +415,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     // run it through DOMPurify one more time on save so anything the
     // user pasted that slipped past the render step is neutralised
     // before it hits storage.
-    const safeContent = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+    const safeContent = isHtmlContent(content) ? sanitizeHtml(content) : content;
     // DIAGNOSTIC: snapshot the content pipeline AT save time so we can
     // tell whether a reverted-content report is a state problem, a
     // sanitizer transform, or a storage/round-trip issue.
