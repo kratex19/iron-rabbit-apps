@@ -3186,6 +3186,88 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     runExecCommand(editor, "insertImage", src);
   }, []);
 
+  // WrapText — rounded-corner inline container.
+  //
+  // User-visible behavior (per spec):
+  //   • Select text → tap Wrap → the selection is enclosed in a
+  //     `<span class="ir-wrap-box">` AT ITS ORIGINAL LOCATION. Nothing
+  //     is moved, nothing is appended elsewhere; the span simply
+  //     surrounds the extracted range contents and is re-inserted in
+  //     place.
+  //   • No selection → brief toast, no mutation.
+  //   • Selection already inside an existing `.ir-wrap-box` → toast
+  //     "Already wrapped" and bail (no nested duplicates).
+  //
+  // Implementation notes:
+  //   • `<span>` (not `<div>`) with CSS `box-decoration-break: clone`
+  //     + `display: inline` so the rounded box flows with surrounding
+  //     text and wraps naturally on narrow mobile viewports without
+  //     shifting the paragraph.
+  //   • `extractContents()` → `appendChild` preserves nested
+  //     formatting (H1/H2/H3/B/I/U/S/HL/lists where structurally
+  //     valid inside the span).
+  //   • Caret re-seated AFTER the wrapper so continued typing lands
+  //     outside the box (matches blockquote-style ergonomics).
+  //   • Snapshots the editor state immediately before + after via the
+  //     existing HistoryStack, so this operation participates in the
+  //     existing Undo/Redo path without touching that implementation.
+  //   • Dispatches an `input` event so NoteModal syncs its React
+  //     state and persists via the normal Save path.
+  const applyWrapText = useCallback(() => {
+    const editor = findActiveEditor();
+    if (!editor || editor.tagName === "TEXTAREA") return;
+    try { restoreStashedSelectionIfNeeded(editor); } catch { /* noop */ }
+    const sel = window.getSelection && window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      toast.info("Select text first, then tap Wrap", { duration: 1600 });
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+      toast.info("Select text first, then tap Wrap", { duration: 1600 });
+      return;
+    }
+    // Already-wrapped guard. Walk up from each endpoint; if BOTH live
+    // inside the same existing ir-wrap-box, bail with a toast. If only
+    // one endpoint is inside a wrap-box the selection crosses a
+    // boundary — bail with the same message to keep the structure
+    // predictable (no partial re-wraps).
+    const findWrapAncestor = (node) => {
+      let n = node;
+      if (n && n.nodeType === Node.TEXT_NODE) n = n.parentNode;
+      while (n && n !== editor) {
+        if (n.classList && n.classList.contains("ir-wrap-box")) return n;
+        n = n.parentNode;
+      }
+      return null;
+    };
+    const aStart = findWrapAncestor(range.startContainer);
+    const aEnd = findWrapAncestor(range.endContainer);
+    if (aStart || aEnd) {
+      toast.info("Already inside a wrap container", { duration: 1600 });
+      return;
+    }
+    const history = historyRef.current;
+    if (history) history.snapshotImmediate(editor);
+    try {
+      const wrap = document.createElement("span");
+      wrap.className = "ir-wrap-box";
+      const fragment = range.extractContents();
+      wrap.appendChild(fragment);
+      range.insertNode(wrap);
+      // Re-seat caret just AFTER the wrapper so subsequent typing
+      // lands outside the box (predictable UX; matches blockquote
+      // ergonomics). The user can still tap into the box to edit.
+      const after = document.createRange();
+      after.setStartAfter(wrap);
+      after.setEndAfter(wrap);
+      sel.removeAllRanges();
+      sel.addRange(after);
+    } catch { /* non-fatal — leave DOM untouched */ }
+    if (history) history.snapshotImmediate(editor);
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+  }, []);
+
   // ------ Tool descriptor list ------
   const groups = useMemo(() => [
     {
@@ -3257,7 +3339,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             } catch { setAlignPanel({ anchor: null }); }
           },
         },
-        { id: "wrap", icon: WrapText, title: "Wrap", stub: true },
+        { id: "wrap", icon: WrapText, title: "Wrap", onClick: applyWrapText },
         { id: "ul", icon: List, title: "Bulleted list", onClick: () => applyFormat("ul") },
         { id: "ol", icon: ListOrdered, title: "Numbered list", onClick: () => applyFormat("ol") },
         { id: "checklist", icon: ListChecks, title: "Checklist", onClick: () => applyFormat("checklist") },
@@ -3293,7 +3375,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         { id: "share", icon: Share2, title: "Share", stub: true },
       ],
     },
-  ], [applyFormat, applyLink, applyImage, insertLineBreak, doCopy, doPaste, exportPdf]);
+  ], [applyFormat, applyLink, applyImage, applyWrapText, insertLineBreak, doCopy, doPaste, exportPdf]);
 
   // Container-level `onClick` swallow ONLY. Earlier iterations also
   // swallowed pointerdown / mousedown / touchstart here to keep taps in
