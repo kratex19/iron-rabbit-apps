@@ -39,6 +39,47 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
  * Create/edit dialog for a note. Includes icon + background editor
  * for the Icon-view tile.
  */
+
+// ─────────────────────────────────────────────────────────────────
+// DIAGNOSTIC — TEMPORARY — Edit Note save/reopen lifecycle probe.
+//
+// Writes a compact event trail to localStorage key `ir_save_diag`
+// (ring buffer, last 30 entries) so the user can retrieve the trail
+// on Android via `localStorage.getItem('ir_save_diag')` from any
+// browser context — removes the "wrong tab / wrong execution context"
+// uncertainty that broke the window.__irReturnDiag approach.
+//
+// Pure passive logging:
+//   • No DOM mutation, no behavior change.
+//   • Each entry is a single JSON object with a short content preview
+//     + the full length (not the full content, to keep storage small
+//     and avoid persisting PII beyond the first/last 60 chars).
+// Remove once Bug B root cause is identified and confirmed.
+// ─────────────────────────────────────────────────────────────────
+const IR_SAVE_DIAG_KEY = "ir_save_diag";
+const IR_SAVE_DIAG_MAX = 30;
+function irSaveDiagPush(entry) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    const raw = localStorage.getItem(IR_SAVE_DIAG_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    const list = Array.isArray(arr) ? arr : [];
+    list.push({ ...entry, t: Date.now() });
+    while (list.length > IR_SAVE_DIAG_MAX) list.shift();
+    localStorage.setItem(IR_SAVE_DIAG_KEY, JSON.stringify(list));
+    // eslint-disable-next-line no-console
+    console.log("[IR-SAVE]", entry);
+  } catch { /* non-fatal */ }
+}
+function irSaveDiagPreview(s) {
+  if (typeof s !== "string") return { len: 0, head: "", tail: "" };
+  return {
+    len: s.length,
+    head: s.slice(0, 60),
+    tail: s.length > 60 ? s.slice(-60) : "",
+  };
+}
+
 export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange, focusOverrideBrightness = null, pinnedSubcategoryKeys = null }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
@@ -265,6 +306,13 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   useEffect(() => {
     if (note) {
       setTitle(note.title || ""); setContent(note.content || ""); setColor(note.color || "purple");
+      // DIAGNOSTIC: capture what was loaded for this note.
+      if (isOpen) irSaveDiagPush({
+        stage: "load",
+        noteId: note.id || null,
+        content: irSaveDiagPreview(note.content || ""),
+        isHtml: looksLikeHtml(note.content || ""),
+      });
       setIcon(note.icon || null); setBackground(note.background || null);
       // Infinite path: prefer the modern `category_path` if present, else
       // migrate from legacy category/subcategory. Trim trailing empties.
@@ -351,6 +399,18 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     // user pasted that slipped past the render step is neutralised
     // before it hits storage.
     const safeContent = looksLikeHtml(content) ? sanitizeHtml(content) : content;
+    // DIAGNOSTIC: snapshot the content pipeline AT save time so we can
+    // tell whether a reverted-content report is a state problem, a
+    // sanitizer transform, or a storage/round-trip issue.
+    irSaveDiagPush({
+      stage: "save-pre",
+      noteId: note?.id || null,
+      stateContent: irSaveDiagPreview(content),
+      domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
+      lastApplied: irSaveDiagPreview(lastAppliedHtmlRef.current || ""),
+      safeContent: irSaveDiagPreview(safeContent),
+      activeIsEditor: typeof document !== "undefined" && document.activeElement === htmlEditableRef.current,
+    });
     // Normalize the nested path (drop empty strings, trim segments).
     const cleanPath = (Array.isArray(categoryPath) ? categoryPath : [])
       .map((s) => String(s || "").trim())
@@ -388,6 +448,12 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       ui_brightness: noteBrightness,
     };
     await onSave(noteData, note?.id);
+    // DIAGNOSTIC: confirm the save handler accepted/completed.
+    irSaveDiagPush({
+      stage: "save-done",
+      noteId: note?.id || null,
+      safeContent: irSaveDiagPreview(safeContent),
+    });
     // If this was a brand-new note, its brightness scratch buffer has
     // now been folded into the note itself — clear the scratch key so
     // the NEXT new note starts from the global default instead of the
@@ -412,7 +478,20 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          // DIAGNOSTIC: distinguish close-without-save (any dialog
+          // dismiss not routed through the Save button) from the
+          // explicit "save-done → onClose()" path.
+          irSaveDiagPush({
+            stage: "close-no-save",
+            noteId: note?.id || null,
+            stateContent: irSaveDiagPreview(content),
+            domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
+          });
+          onClose();
+        }
+      }}>
         <DialogContent
           className={`${canvasExpanded ? 'max-w-5xl max-h-[95vh] sm:max-h-[95vh]' : 'max-w-lg max-h-[85vh]'} overflow-y-auto overflow-x-hidden transition-[max-width,max-height] duration-200 ease-out ${isDark ? 'bg-[#0B1221] border-white/10' : 'bg-white border-gray-200'}`}
           data-canvas-expanded={canvasExpanded ? "true" : "false"}
@@ -916,7 +995,14 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" onClick={onClose} data-testid="note-modal-cancel" className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
+              <Button variant="outline" onClick={() => {
+                irSaveDiagPush({
+                  stage: "cancel-click",
+                  noteId: note?.id || null,
+                  stateContent: irSaveDiagPreview(content),
+                });
+                onClose();
+              }} data-testid="note-modal-cancel" className={`flex-1 h-9 ${isDark ? 'border-white/10 text-slate-300' : ''}`}>{t("action.cancel")}</Button>
               <Button onClick={handleSave} disabled={saving} data-testid="note-modal-save" className="flex-1 h-9 bg-indigo-500 hover:bg-indigo-600 text-white">
                 {saving ? "..." : (note ? t("action.update") : t("action.create"))}
               </Button>
