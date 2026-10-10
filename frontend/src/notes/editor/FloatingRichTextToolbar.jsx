@@ -3215,8 +3215,72 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   //     state and persists via the normal Save path.
   const applyWrapText = useCallback(() => {
     const editor = findActiveEditor();
-    if (!editor || editor.tagName === "TEXTAREA") return;
+    if (!editor) return;
     try { restoreStashedSelectionIfNeeded(editor); } catch { /* noop */ }
+
+    // ── Fix A2 — Textarea path. Mirrors `promoteTextareaWithInlineFormat`'s
+    // "range" branch: build an HTML string with the selection wrapped in
+    // `<span class="ir-wrap-box ir-caret-target">…</span>`, hand it to
+    // `reactSetValue` so React swaps the <textarea> for the HTML editor,
+    // and once the HTML editor mounts, strip the caret-target class and
+    // seat the caret in a ZWSP TextNode immediately AFTER the wrap span.
+    // No new persistence code — the HTML content follows the existing
+    // reactSetValue → `handleHtmlInput` → `setContent` pipeline. New
+    // notes now behave the same as existing HTML notes for Wrap.
+    if (editor.tagName === "TEXTAREA") {
+      const start = editor.selectionStart ?? 0;
+      const end = editor.selectionEnd ?? 0;
+      if (start === end) {
+        toast.info("Select text first, then tap Wrap", { duration: 1600 });
+        return;
+      }
+      const value = editor.value || "";
+      const before = value.slice(0, start);
+      const middle = value.slice(start, end);
+      const after = value.slice(end);
+      const marked = before + MARK_OPEN + middle + MARK_CLOSE + after;
+      let html = plainTextToHtml(marked);
+      html = html
+        .split(MARK_OPEN).join(`<span class="ir-wrap-box ${CARET_TARGET_CLASS}">`)
+        .split(MARK_CLOSE).join(`</span>`);
+      reactSetValue(editor, html);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            const el = findActiveHtmlEditor();
+            if (!el || typeof el.focus !== "function") return;
+            el.focus();
+            const wrap = el.querySelector(`.${CARET_TARGET_CLASS}`);
+            if (!wrap) return;
+            // Strip the transient promotion marker, keep ir-wrap-box.
+            wrap.classList.remove(CARET_TARGET_CLASS);
+            // Landing ZWSP AFTER the wrap gives the caret a real
+            // position outside the box, preventing the "trapped caret"
+            // symptom (Chrome otherwise seats the caret inside the
+            // trailing padding of an inline span that sits at end of
+            // block, so typing extends the wrap).
+            // Caret-boundary ZWSP: Chrome resolves "offset 0 of a
+            // text node immediately following an inline span" by
+            // seating the caret INSIDE the preceding span's trailing
+            // edge, which traps the next keystroke. A fresh ZWSP
+            // TextNode inserted BEFORE the existing trailing content
+            // gives us an unambiguous caret position outside the box.
+            const landing = document.createTextNode(ZWSP);
+            if (wrap.parentNode) wrap.parentNode.insertBefore(landing, wrap.nextSibling);
+            const sel = window.getSelection && window.getSelection();
+            if (!sel) return;
+            const r = document.createRange();
+            r.setStart(landing, 1);
+            r.setEnd(landing, 1);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          } catch { /* non-fatal */ }
+        });
+      });
+      return;
+    }
+
+    // ── Existing HTML (contentEditable) path.
     const sel = window.getSelection && window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
       toast.info("Select text first, then tap Wrap", { duration: 1600 });
@@ -3227,11 +3291,6 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       toast.info("Select text first, then tap Wrap", { duration: 1600 });
       return;
     }
-    // Already-wrapped guard. Walk up from each endpoint; if BOTH live
-    // inside the same existing ir-wrap-box, bail with a toast. If only
-    // one endpoint is inside a wrap-box the selection crosses a
-    // boundary — bail with the same message to keep the structure
-    // predictable (no partial re-wraps).
     const findWrapAncestor = (node) => {
       let n = node;
       if (n && n.nodeType === Node.TEXT_NODE) n = n.parentNode;
@@ -3255,12 +3314,19 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       const fragment = range.extractContents();
       wrap.appendChild(fragment);
       range.insertNode(wrap);
-      // Re-seat caret just AFTER the wrapper so subsequent typing
-      // lands outside the box (predictable UX; matches blockquote
-      // ergonomics). The user can still tap into the box to edit.
+      // ── Fix A1 — Trapped caret. Insert a landing ZWSP TextNode
+      // immediately AFTER the wrap if there isn't already a TextNode
+      // there, so Chrome has a real DOM position to seat the caret
+      // OUTSIDE the span's trailing padding. Without this, when the
+      // wrap sits at end-of-block, the visual caret sticks to the
+      // span's trailing edge and typing extends the span, giving the
+      // "trapped" perception. ZWSP is invisible, survives the DOMPurify
+      // round-trip, and gets displaced the moment the user types.
+      const landing = document.createTextNode(ZWSP);
+      if (wrap.parentNode) wrap.parentNode.insertBefore(landing, wrap.nextSibling);
       const after = document.createRange();
-      after.setStartAfter(wrap);
-      after.setEndAfter(wrap);
+      after.setStart(landing, 1);
+      after.setEnd(landing, 1);
       sel.removeAllRanges();
       sel.addRange(after);
     } catch { /* non-fatal — leave DOM untouched */ }
