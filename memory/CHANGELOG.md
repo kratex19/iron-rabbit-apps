@@ -1,3 +1,39 @@
+## 2026-02-10 — WrapText Caret-Escape Repair
+
+**Two files touched; service-worker cache bumped.**
+
+### Objective
+Fix regression where creating a `.ir-wrap-box` left the caret trapped inside the box — Enter inside the empty `.ir-wrap-tail` kept producing more `<p>` siblings inside the box instead of allowing the user to continue typing in a normal paragraph outside it.
+
+### Root cause
+1. `applyWrapText` did not drop a trailing `<p><br></p>` sibling AFTER the newly-inserted wrap-div. If the user wrapped the last line of a note, nothing existed outside the box for the caret to land in.
+2. Chrome's native `insertParagraph` on Enter inside `.ir-wrap-tail` just split the tail into another `<p>` STILL INSIDE the `.ir-wrap-box` div.
+
+### Fix (minimal, additive)
+- `FloatingRichTextToolbar.jsx` → `applyWrapText`:
+  - Textarea path: ensure `afterHtml` is at least `<p><br></p>` so the HTML template always contains a sibling paragraph after the wrap-div.
+  - HTML (contentEditable) path: after inserting the wrap-div, if the next sibling is missing/not a block-level element, append `<p><br></p>` directly after `.ir-wrap-box`.
+- `FloatingRichTextToolbar.jsx` → global `keydown` handler (ir-wrap-box escape, pre-empts the existing align/empty-wrapper logic):
+  - On `Enter` (no shift) when the caret sits inside a direct-child block of `.ir-wrap-box` AND that block is empty AND is the LAST child of the wrap-box, `preventDefault`, remove the empty tail, ensure a sibling `<p>` exists after the wrap-box, and seat the caret at its start. Dispatches `input` so React/NoteModal sync and persist.
+  - Blockquote-style ergonomics: tap Wrap → Enter escapes immediately (tail is empty by default). Type in the tail → first Enter creates a new empty line inside, second Enter (now empty+last) escapes.
+- `service-worker.js`: `CACHE_NAME` v227→v228, `RUNTIME` v114→v115 so Android PWA pulls the new bundle.
+
+### Preserved
+- Wrap-box persistence (new + existing notes) — DOMPurify whitelist unchanged.
+- Text Tools (H1/H2/H3, Bold/Italic/Underline/Strike, format-first typing, ZWSP anchoring) — untouched.
+- Expanded Text, Alignment, Undo/Redo, Paste, inline-row ergonomics — untouched.
+- No testing-agent or deploy launched.
+
+### Files changed
+- `/app/frontend/src/notes/editor/FloatingRichTextToolbar.jsx`
+- `/app/frontend/public/service-worker.js`
+
+### Manual verification (preview, DOM-inspected)
+- Wrap applied to first of two lines → DOM: `<div class="ir-wrap-box"><p>…</p><p class="ir-wrap-tail"><br></p></div><p><br>…</p>` ✅
+- Enter inside the empty tail → caret moves OUT of box; typed text lands in sibling `<p>` outside; final HTML: `<div class="ir-wrap-box"><p>First line to wrap</p></div><p>outside text<br>Second line stays</p>` ✅
+- `caretInBox: false` confirmed by DOM query after Enter+type. ✅
+
+
 ## 2026-09-22 — v170: Repair #8 · Serpentine Deep-Hierarchy Visual Direction
 
 **Two files, +18/-3. Presentation-only.**

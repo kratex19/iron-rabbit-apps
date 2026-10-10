@@ -2296,6 +2296,74 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // block (the one the caret now sits in). Zero impact on blocks
       // that didn't carry an alignment class.
       if (e.key === "Enter" && !e.shiftKey) {
+        // ---- Wrap-box escape ----
+        // When the caret is inside a `.ir-wrap-box` AND the direct
+        // child block containing the caret is empty and is the LAST
+        // child of the wrap-box, Return should EXIT the container and
+        // move the caret into the next sibling paragraph OUTSIDE the
+        // box. Mirrors classic blockquote-escape ergonomics so the
+        // user can continue typing in a normal paragraph after the
+        // wrap-box. `applyWrapText` guarantees a trailing sibling
+        // paragraph exists; we also create one on the fly if a stale
+        // document is missing it.
+        try {
+          let n = range.startContainer;
+          if (n && n.nodeType === Node.TEXT_NODE) n = n.parentNode;
+          let wrapBox = null;
+          let curBlock = null;
+          const BLOCK_TAGS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "UL", "OL", "DIV", "BLOCKQUOTE", "PRE"]);
+          let walk = n;
+          while (walk && walk !== ed) {
+            if (walk.classList && walk.classList.contains("ir-wrap-box")) { wrapBox = walk; break; }
+            if (!curBlock && walk.tagName && BLOCK_TAGS.has(walk.tagName)) curBlock = walk;
+            walk = walk.parentNode;
+          }
+          if (wrapBox) {
+            // curBlock must be a DIRECT child of wrapBox for a clean
+            // escape (otherwise the caret is nested in a list item or
+            // similar — let the native Return handle one more level
+            // of exit first).
+            const block = (curBlock && curBlock.parentNode === wrapBox) ? curBlock : null;
+            const isEmpty = block
+              && !(block.textContent || "").replace(new RegExp(ZWSP, "g"), "").length
+              && !block.querySelector("img, input");
+            const isLast = block && (block === wrapBox.lastElementChild);
+            if (block && isEmpty && isLast) {
+              e.preventDefault();
+              e.stopPropagation();
+              // Remove the empty tail/last block.
+              wrapBox.removeChild(block);
+              // Ensure a sibling paragraph exists AFTER the wrap-box.
+              let target = wrapBox.nextSibling;
+              const needsTarget = !target
+                || (target.nodeType === Node.TEXT_NODE
+                    && !(target.textContent || "").replace(new RegExp(ZWSP, "g"), "").length)
+                || (target.nodeType === Node.ELEMENT_NODE
+                    && !BLOCK_TAGS.has(target.tagName));
+              if (needsTarget) {
+                const outP = document.createElement("p");
+                outP.appendChild(document.createElement("br"));
+                if (wrapBox.nextSibling) ed.insertBefore(outP, wrapBox.nextSibling);
+                else ed.appendChild(outP);
+                target = outP;
+              }
+              // Seat the caret at the start of the external block.
+              const nr = document.createRange();
+              nr.setStart(target, 0);
+              nr.setEnd(target, 0);
+              sel.removeAllRanges();
+              sel.addRange(nr);
+              // Keep wrap-box valid: if it ended up with zero children
+              // (shouldn't happen, but defensive), drop the box.
+              if (!wrapBox.firstChild) {
+                try { wrapBox.parentNode && wrapBox.parentNode.removeChild(wrapBox); } catch { /* noop */ }
+              }
+              ed.dispatchEvent(new Event("input", { bubbles: true }));
+              return;
+            }
+          }
+        } catch { /* non-fatal — fall through to native Return */ }
+
         // Pre-emptive empty-inline-wrapper strip. Chrome's native
         // `insertParagraph` refuses to open new paragraphs when the
         // caret is nested inside an empty inline wrapper — the user
@@ -3258,7 +3326,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       const after = value.slice(end);
       const beforeHtml = plainTextToHtml(before);
       const middleHtml = plainTextToHtml(middle) || "<p></p>";
-      const afterHtml = plainTextToHtml(after);
+      // Always append a trailing paragraph OUTSIDE the wrap-box so the
+      // caret has a sibling to escape into when the user presses Return
+      // at the end of the box. Without this, wrapping the final line of
+      // a note left no block-level target outside the container and the
+      // caret stayed trapped inside .ir-wrap-tail.
+      const afterHtml = plainTextToHtml(after) || "<p><br></p>";
       const html =
         beforeHtml +
         `<div class="ir-wrap-box ${CARET_TARGET_CLASS}">${middleHtml}<p class="ir-wrap-tail"><br></p></div>` +
@@ -3379,6 +3452,25 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // range sits between them). Direct insertion is clean.
         range.insertNode(wrap);
       }
+
+      // Guarantee a block-level sibling AFTER the wrap-box so the
+      // caret has somewhere to escape to when the user presses Return
+      // at the end of the box. Without this, wrapping the final line
+      // of a note left the box as the last editor child and Enter
+      // inside .ir-wrap-tail could only produce more <p> siblings
+      // INSIDE the box (trapping the caret).
+      try {
+        const nextSib = wrap.nextSibling;
+        const needsTrailing = !nextSib
+          || (nextSib.nodeType === Node.TEXT_NODE
+              && !(nextSib.textContent || "").replace(new RegExp(ZWSP, "g"), "").length);
+        if (needsTrailing) {
+          const outP = document.createElement("p");
+          outP.appendChild(document.createElement("br"));
+          if (wrap.nextSibling) editor.insertBefore(outP, wrap.nextSibling);
+          else editor.appendChild(outP);
+        }
+      } catch { /* non-fatal */ }
 
       // Caret inside the trailing paragraph for seamless typing in
       // the empty tap area.
