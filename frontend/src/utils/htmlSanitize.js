@@ -106,6 +106,83 @@ export function sanitizeHtml(dirty) {
   return DOMPurify.sanitize(dirty, CONFIG);
 }
 
+// ---- WrapText spacing normalization -----------------------------------
+// Enforces the "always-editable-around-boxes" invariant required by the
+// Edit Text contract:
+//   • Between two consecutive `.ir-wrap-box` siblings → ≥ 1 node must
+//     exist. If the slot is literally empty (no sibling of any kind,
+//     not even whitespace), insert ONE `<p><br></p>` separator.
+//   • After the last `.ir-wrap-box` child of the editor root → if the
+//     wrap-box is the LAST child, append ONE `<p><br></p>` after it.
+//
+// This function is STRICTLY ADDITIVE — never deletes, merges, or
+// re-orders. User-authored content (leading blank lines, mid-document
+// typed text, intentionally-empty paragraphs) is preserved verbatim.
+// Idempotent: after one pass every gap slot has ≥ 1 node, so a second
+// invocation produces identical output.
+//
+// Operates on a direct DOM element (editor root). String form is handled
+// by the `normalizeWrapBoxSpacingHtml` wrapper below.
+function makeSeparator(doc) {
+  const p = doc.createElement("p");
+  p.appendChild(doc.createElement("br"));
+  return p;
+}
+
+export function normalizeWrapBoxSpacingDom(root) {
+  if (!root || root.nodeType !== 1) return;
+  const doc = root.ownerDocument || document;
+  // Leading-case: if the FIRST child of the editor root is a wrap-box,
+  // prepend one `<p><br></p>` so the user always has an editable line
+  // above it. Idempotent — once we've prepended, the first child is
+  // the <p> and this branch no longer fires. Preserves user-authored
+  // leading blank lines (if any node already precedes the first
+  // wrap-box, we leave the leading region untouched).
+  const firstEl = root.firstElementChild;
+  if (firstEl
+      && firstEl === root.firstChild
+      && firstEl.classList
+      && firstEl.classList.contains("ir-wrap-box")) {
+    root.insertBefore(makeSeparator(doc), firstEl);
+  }
+  // Snapshot children — we mutate during iteration.
+  const kids = Array.from(root.children);
+  const isWrap = (el) => el && el.nodeType === 1
+    && el.classList && el.classList.contains("ir-wrap-box");
+  for (let i = 0; i < kids.length; i++) {
+    const cur = kids[i];
+    if (!isWrap(cur)) continue;
+    // Between-case: next *immediate* sibling (any node type) missing.
+    // `cur.nextSibling === null` means the LAST-child case; else if
+    // next element sibling is a wrap AND there is NO node between
+    // them, insert a separator.
+    const nextSib = cur.nextSibling;         // any node (incl. text)
+    const nextEl = cur.nextElementSibling;   // element only
+    if (nextSib === null) {
+      // Trailing-case: wrap is the last child → append one separator.
+      root.appendChild(makeSeparator(doc));
+      continue;
+    }
+    // If next element sibling is also a wrap AND `nextSib === nextEl`
+    // (i.e. zero nodes in-between, not even whitespace text), insert.
+    if (isWrap(nextEl) && nextSib === nextEl) {
+      root.insertBefore(makeSeparator(doc), nextEl);
+    }
+  }
+}
+
+// String-form wrapper — parses `html`, normalises, serialises back.
+// Used on the load path (post-sanitize) and the save path.
+export function normalizeWrapBoxSpacing(html) {
+  if (typeof html !== "string" || html.length === 0) return html;
+  // Fast path: if no wrap-boxes at all, nothing to normalise.
+  if (html.indexOf("ir-wrap-box") === -1) return html;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  normalizeWrapBoxSpacingDom(tmp);
+  return tmp.innerHTML;
+}
+
 // Cheap heuristic to detect whether a stored `content` string is HTML
 // (contains any tag from the allowlist) vs. plain text. Used to auto-pick
 // the initial editing mode when opening an existing note.

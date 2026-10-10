@@ -1,3 +1,29 @@
+## 2026-02-10 — WrapText Spacing: Leading Paragraph
+
+**One file touched; service-worker cache bumped.**
+
+### Objective
+After the between/trailing spacing repair, there was no editable paragraph ABOVE the first wrap box when the editor root's first child was a `.ir-wrap-box`. Users could not tap above the first box to start typing.
+
+### Fix
+`normalizeWrapBoxSpacingDom` in `/app/frontend/src/utils/htmlSanitize.js` extended with a symmetric leading-case:
+- If the FIRST child of the editor root is a `.ir-wrap-box` → prepend one `<p><br></p>` directly before it.
+- Idempotent: on the second pass the first child is the newly-prepended `<p>`, so the branch no longer fires.
+- User-authored leading blanks preserved: if ANY node already precedes the first wrap-box (another `<p>`, a heading, typed text), the leading region is left untouched.
+
+### Preserved
+- Existing between-box separators, trailing-after-last-box separator, and wrap-box persistence — all unchanged.
+- Text Tools, Expanded Text, Alignment, Undo/Redo — untouched.
+
+### Files changed
+- `/app/frontend/src/utils/htmlSanitize.js`
+- `/app/frontend/public/service-worker.js` (CACHE_NAME v229→v230, RUNTIME v116→v117)
+
+### Verification
+- 7 unit cases (jsdom) covering leading-case, preservation, and idempotence — all pass.
+- Live new-note round-trip: injected worst-case `<div.ir-wrap-box>…</div>`, saved, read back from IndexedDB → stored content exactly `<p><br></p><div class="ir-wrap-box"><p>FirstBox</p></div><p><br></p>`. Running the normalizer twice yields identical output.
+
+
 ## 2026-02-10 — WrapText Caret-Escape Repair
 
 **Two files touched; service-worker cache bumped.**

@@ -42,7 +42,7 @@ import {
   ScanLine, Camera, Mic, FileText, Printer, Share2,
 } from "lucide-react";
 import { FormsPackAdapter, HierarchyAdapter } from "./adapters";
-import { plainTextToHtml, sanitizeHtml } from "../../utils/htmlSanitize";
+import { plainTextToHtml, sanitizeHtml, normalizeWrapBoxSpacingDom } from "../../utils/htmlSanitize";
 
 // --------------------------------------------------------------------------
 // Small helper — find the active editor element (contentEditable or
@@ -3453,24 +3453,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         range.insertNode(wrap);
       }
 
-      // Guarantee a block-level sibling AFTER the wrap-box so the
-      // caret has somewhere to escape to when the user presses Return
-      // at the end of the box. Without this, wrapping the final line
-      // of a note left the box as the last editor child and Enter
-      // inside .ir-wrap-tail could only produce more <p> siblings
-      // INSIDE the box (trapping the caret).
-      try {
-        const nextSib = wrap.nextSibling;
-        const needsTrailing = !nextSib
-          || (nextSib.nodeType === Node.TEXT_NODE
-              && !(nextSib.textContent || "").replace(new RegExp(ZWSP, "g"), "").length);
-        if (needsTrailing) {
-          const outP = document.createElement("p");
-          outP.appendChild(document.createElement("br"));
-          if (wrap.nextSibling) editor.insertBefore(outP, wrap.nextSibling);
-          else editor.appendChild(outP);
-        }
-      } catch { /* non-fatal */ }
+      // Enforce the editor-wide "editable gap around wrap-boxes" invariant
+      // via the shared normaliser — strictly additive, idempotent, covers
+      // between-boxes AND trailing-after-last-box in one pass. Replaces
+      // the earlier ad-hoc trailing-sibling snippet.
+      try { normalizeWrapBoxSpacingDom(editor); } catch { /* non-fatal */ }
 
       // Caret inside the trailing paragraph for seamless typing in
       // the empty tap area.
