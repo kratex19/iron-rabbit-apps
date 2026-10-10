@@ -3213,20 +3213,38 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   //     existing Undo/Redo path without touching that implementation.
   //   • Dispatches an `input` event so NoteModal syncs its React
   //     state and persists via the normal Save path.
+  // WrapText — ONE continuous rounded block container per selection.
+  //
+  // Visible contract (final):
+  //   • Wrap entire selection in a SINGLE `<div class="ir-wrap-box">`
+  //     regardless of how many lines/paragraphs it spans. Never one
+  //     container per visual line.
+  //   • Preserve selected content order, position, and inline
+  //     formatting. Headings and lists survive wherever structurally
+  //     valid inside a `<div>`.
+  //   • Append a trailing empty `<p class="ir-wrap-tail">` INSIDE the
+  //     container as the usable ~1–2 line tap/typing area. The
+  //     container grows naturally with additional content; the tail
+  //     is initial empty space, not a cap.
+  //   • Caret seated inside the trailing paragraph on apply so the
+  //     user can continue typing immediately.
+  //   • Nested-wrap guard: no duplicate wrappers.
+  //
+  // Textarea path (new notes): emits final HTML via `reactSetValue`
+  // so React swaps textarea → HTML editor; caret seated after mount.
+  // HTML path (existing notes): `extractContents()` → normalise →
+  // `execCommand("insertHTML", …)` which handles the block-split
+  // when the collapsed cursor sits inside a `<p>`/`<h1>`.
+  //
+  // Snapshots the editor via HistoryStack before + after so Undo/Redo
+  // participate. Dispatches a bubbling `input` so NoteModal syncs
+  // React state and persists via the existing Save path.
   const applyWrapText = useCallback(() => {
     const editor = findActiveEditor();
     if (!editor) return;
     try { restoreStashedSelectionIfNeeded(editor); } catch { /* noop */ }
 
-    // ── Fix A2 — Textarea path. Mirrors `promoteTextareaWithInlineFormat`'s
-    // "range" branch: build an HTML string with the selection wrapped in
-    // `<span class="ir-wrap-box ir-caret-target">…</span>`, hand it to
-    // `reactSetValue` so React swaps the <textarea> for the HTML editor,
-    // and once the HTML editor mounts, strip the caret-target class and
-    // seat the caret in a ZWSP TextNode immediately AFTER the wrap span.
-    // No new persistence code — the HTML content follows the existing
-    // reactSetValue → `handleHtmlInput` → `setContent` pipeline. New
-    // notes now behave the same as existing HTML notes for Wrap.
+    // ─── Textarea (new-note) path.
     if (editor.tagName === "TEXTAREA") {
       const start = editor.selectionStart ?? 0;
       const end = editor.selectionEnd ?? 0;
@@ -3238,11 +3256,13 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       const before = value.slice(0, start);
       const middle = value.slice(start, end);
       const after = value.slice(end);
-      const marked = before + MARK_OPEN + middle + MARK_CLOSE + after;
-      let html = plainTextToHtml(marked);
-      html = html
-        .split(MARK_OPEN).join(`<span class="ir-wrap-box ${CARET_TARGET_CLASS}">`)
-        .split(MARK_CLOSE).join(`</span>`);
+      const beforeHtml = plainTextToHtml(before);
+      const middleHtml = plainTextToHtml(middle) || "<p></p>";
+      const afterHtml = plainTextToHtml(after);
+      const html =
+        beforeHtml +
+        `<div class="ir-wrap-box ${CARET_TARGET_CLASS}">${middleHtml}<p class="ir-wrap-tail"><br></p></div>` +
+        afterHtml;
       reactSetValue(editor, html);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -3252,26 +3272,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             el.focus();
             const wrap = el.querySelector(`.${CARET_TARGET_CLASS}`);
             if (!wrap) return;
-            // Strip the transient promotion marker, keep ir-wrap-box.
             wrap.classList.remove(CARET_TARGET_CLASS);
-            // Landing ZWSP AFTER the wrap gives the caret a real
-            // position outside the box, preventing the "trapped caret"
-            // symptom (Chrome otherwise seats the caret inside the
-            // trailing padding of an inline span that sits at end of
-            // block, so typing extends the wrap).
-            // Caret-boundary ZWSP: Chrome resolves "offset 0 of a
-            // text node immediately following an inline span" by
-            // seating the caret INSIDE the preceding span's trailing
-            // edge, which traps the next keystroke. A fresh ZWSP
-            // TextNode inserted BEFORE the existing trailing content
-            // gives us an unambiguous caret position outside the box.
-            const landing = document.createTextNode(ZWSP);
-            if (wrap.parentNode) wrap.parentNode.insertBefore(landing, wrap.nextSibling);
+            const tail = wrap.querySelector("p.ir-wrap-tail");
+            if (!tail) return;
             const sel = window.getSelection && window.getSelection();
             if (!sel) return;
             const r = document.createRange();
-            r.setStart(landing, 1);
-            r.setEnd(landing, 1);
+            r.setStart(tail, 0);
+            r.setEnd(tail, 0);
             sel.removeAllRanges();
             sel.addRange(r);
           } catch { /* non-fatal */ }
@@ -3280,7 +3288,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       return;
     }
 
-    // ── Existing HTML (contentEditable) path.
+    // ─── HTML (contentEditable, existing-note) path.
     const sel = window.getSelection && window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
       toast.info("Select text first, then tap Wrap", { duration: 1600 });
@@ -3300,35 +3308,88 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       }
       return null;
     };
-    const aStart = findWrapAncestor(range.startContainer);
-    const aEnd = findWrapAncestor(range.endContainer);
-    if (aStart || aEnd) {
+    if (findWrapAncestor(range.startContainer) || findWrapAncestor(range.endContainer)) {
       toast.info("Already inside a wrap container", { duration: 1600 });
       return;
     }
+
     const history = historyRef.current;
     if (history) history.snapshotImmediate(editor);
     try {
-      const wrap = document.createElement("span");
-      wrap.className = "ir-wrap-box";
       const fragment = range.extractContents();
-      wrap.appendChild(fragment);
-      range.insertNode(wrap);
-      // ── Fix A1 — Trapped caret. Insert a landing ZWSP TextNode
-      // immediately AFTER the wrap if there isn't already a TextNode
-      // there, so Chrome has a real DOM position to seat the caret
-      // OUTSIDE the span's trailing padding. Without this, when the
-      // wrap sits at end-of-block, the visual caret sticks to the
-      // span's trailing edge and typing extends the span, giving the
-      // "trapped" perception. ZWSP is invisible, survives the DOMPurify
-      // round-trip, and gets displaced the moment the user types.
-      const landing = document.createTextNode(ZWSP);
-      if (wrap.parentNode) wrap.parentNode.insertBefore(landing, wrap.nextSibling);
-      const after = document.createRange();
-      after.setStart(landing, 1);
-      after.setEnd(landing, 1);
-      sel.removeAllRanges();
-      sel.addRange(after);
+      // Normalise: if the fragment has no block-level children, wrap
+      // the inline/text content in a single <p>.
+      const BLOCK_TAGS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "UL", "OL", "LI", "DIV", "BLOCKQUOTE", "PRE"]);
+      let hasBlock = false;
+      for (const c of Array.from(fragment.children)) {
+        if (BLOCK_TAGS.has(c.tagName)) { hasBlock = true; break; }
+      }
+      // Build the wrap-div natively (no execCommand — Chrome's
+      // insertHTML strips the outer <div> when inserting inside a <p>).
+      const wrap = document.createElement("div");
+      wrap.className = "ir-wrap-box";
+      if (hasBlock) {
+        wrap.appendChild(fragment);
+      } else {
+        const p = document.createElement("p");
+        p.appendChild(fragment);
+        wrap.appendChild(p);
+      }
+      const tailP = document.createElement("p");
+      tailP.className = "ir-wrap-tail";
+      tailP.appendChild(document.createElement("br"));
+      wrap.appendChild(tailP);
+
+      // Find the top-level block ancestor of the collapsed cursor —
+      // the direct editor child. If none, cursor is at editor root
+      // and we insert directly.
+      let topBlock = range.startContainer;
+      if (topBlock && topBlock.nodeType === Node.TEXT_NODE) topBlock = topBlock.parentNode;
+      while (topBlock && topBlock.parentNode && topBlock.parentNode !== editor) {
+        topBlock = topBlock.parentNode;
+      }
+      const inSingleBlock = !!(topBlock && topBlock !== editor && topBlock.parentNode === editor);
+
+      if (inSingleBlock) {
+        // Split topBlock at the collapsed range so the wrap-div lands
+        // as a clean sibling at the editor root (not nested inside a
+        // <p>/<h1> which would be invalid HTML and render oddly).
+        const splitEnd = document.createRange();
+        splitEnd.setStart(range.startContainer, range.startOffset);
+        splitEnd.setEnd(topBlock, topBlock.childNodes.length);
+        const afterFrag = splitEnd.extractContents();
+        const afterBlock = topBlock.cloneNode(false); // same tag, no children, keeps classes
+        afterBlock.removeAttribute("id");
+        afterBlock.appendChild(afterFrag);
+        // Insert the afterBlock, then the wrap-div BEFORE it so the
+        // final order is: topBlock(before) → wrap → afterBlock(after).
+        if (topBlock.nextSibling) {
+          editor.insertBefore(afterBlock, topBlock.nextSibling);
+        } else {
+          editor.appendChild(afterBlock);
+        }
+        editor.insertBefore(wrap, afterBlock);
+        // Clean up empty halves (no visible content).
+        const emptyish = (el) => !el.textContent && !el.querySelector("img, br, input");
+        if (emptyish(topBlock)) editor.removeChild(topBlock);
+        if (emptyish(afterBlock)) editor.removeChild(afterBlock);
+      } else {
+        // Cursor at editor root (multi-block selection extracted both
+        // partial blocks were preserved as siblings; the collapsed
+        // range sits between them). Direct insertion is clean.
+        range.insertNode(wrap);
+      }
+
+      // Caret inside the trailing paragraph for seamless typing in
+      // the empty tap area.
+      const tail = wrap.querySelector("p.ir-wrap-tail");
+      if (tail) {
+        const r = document.createRange();
+        r.setStart(tail, 0);
+        r.setEnd(tail, 0);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
     } catch { /* non-fatal — leave DOM untouched */ }
     if (history) history.snapshotImmediate(editor);
     editor.dispatchEvent(new Event("input", { bubbles: true }));

@@ -1546,22 +1546,44 @@
   box-shadow: inset 0 -1px 0 0 rgba(249, 115, 22, 0.45);
 }
 
-/* WrapText — rounded-corner inline container for a user-selected
-   range (toolbar: `floating-rte-btn-wrap`). Applied via the Wrap tool
-   in FloatingRichTextToolbar as `<span class="ir-wrap-box">…</span>`.
-   `box-decoration-break: clone` keeps the rounded ends on every line
-   when the wrapped text flows onto multiple lines on narrow viewports.
-   Unscoped (not `.fs-content-editable .ir-wrap-box`) so tile previews
-   and list renderers keep the same visual treatment. */
+/* WrapText — ONE continuous rounded block container per selection
+   (toolbar: `floating-rte-btn-wrap`). Produced by the Wrap tool in
+   FloatingRichTextToolbar as:
+     <div class="ir-wrap-box">
+       …selected content (paragraphs preserved)…
+       <p class="ir-wrap-tail"><br></p>  ← initial empty tap area
+     </div>
+   The container is a BLOCK element (never inline + box-decoration-break)
+   so multi-line selections render as a single rounded container, not
+   one per visual line. The trailing `.ir-wrap-tail` paragraph gives
+   the caret a usable ~1–2 line empty area inside the container; the
+   container grows naturally as the user types more content there.
+   Unscoped so tile previews and list renderers keep the same look. */
 .ir-wrap-box {
-  display: inline;
-  padding: 2px 8px;
-  margin: 0 1px;
-  border-radius: 10px;
+  display: block;
+  padding: 10px 14px;
+  margin: 6px 0;
+  border-radius: 12px;
   background-color: rgba(148, 163, 184, 0.14);
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.32);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+}
+.ir-wrap-box > p,
+.ir-wrap-box > h1,
+.ir-wrap-box > h2,
+.ir-wrap-box > h3 {
+  margin: 0;
+}
+.ir-wrap-box > p + p,
+.ir-wrap-box > h1 + p,
+.ir-wrap-box > h2 + p,
+.ir-wrap-box > h3 + p,
+.ir-wrap-box > p + h1,
+.ir-wrap-box > p + h2,
+.ir-wrap-box > p + h3 {
+  margin-top: 4px;
+}
+.ir-wrap-box > p.ir-wrap-tail {
+  min-height: 2.4em;
 }
 .dark .ir-wrap-box,
 [data-theme="dark"] .ir-wrap-box {

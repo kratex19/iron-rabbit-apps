@@ -37,7 +37,7 @@ import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 // selection + save contract are preserved exactly as before.
 function isHtmlContent(s) {
   if (looksLikeHtml(s)) return true;
-  return typeof s === "string" && /<span\b/i.test(s);
+  return typeof s === "string" && /<(span|div)\b/i.test(s);
 }
 import DisplayControlsButton from "./DisplayControlsButton";
 import QuickGuideButton from "../quickguide/QuickGuideButton";

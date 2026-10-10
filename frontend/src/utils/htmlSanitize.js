@@ -46,20 +46,31 @@ function ensureHook() {
     }
     // Strip bare <div>s. We only permit `<div>` when it is a
     // well-formed INLINE row — i.e. `class` contains "ir-irow" AND
-    // `data-ir="irow"`. Any other <div> (e.g. pasted from the web)
-    // has its wrapper removed so the content flattens into the
-    // surrounding block flow, exactly as before <div> was allowed.
+    // `data-ir="irow"` — OR a WrapText container (`class` contains
+    // "ir-wrap-box"). Any other <div> (e.g. pasted from the web) has
+    // its wrapper removed so the content flattens into the surrounding
+    // block flow, exactly as before <div> was allowed.
     if (node.tagName === "DIV") {
       const cls = node.getAttribute("class") || "";
       const dataIr = node.getAttribute("data-ir") || "";
       const isRow = /\bir-irow\b/.test(cls) && dataIr === "irow";
-      if (!isRow) {
+      const isWrap = /\bir-wrap-box\b/.test(cls);
+      if (!isRow && !isWrap) {
         // Unwrap: move children into parent and remove the div.
         const parent = node.parentNode;
         if (parent) {
           while (node.firstChild) parent.insertBefore(node.firstChild, node);
           parent.removeChild(node);
         }
+        return;
+      }
+      if (isWrap) {
+        // No normalisation needed for the wrap container — the
+        // producer (`applyWrapText` in FloatingRichTextToolbar) always
+        // emits a well-formed structure with a trailing
+        // `<p class="ir-wrap-tail">`. DOMPurify's default behavior
+        // preserves children. Any stripped attributes other than
+        // `class` are intentional (we never want `style`, `id`, etc.).
         return;
       }
       // Normalize an INLINE row: enforce exactly 3 cell children,
