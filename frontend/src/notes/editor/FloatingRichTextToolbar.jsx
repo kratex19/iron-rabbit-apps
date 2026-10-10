@@ -197,10 +197,17 @@ class HistoryStack {
     }
   }
   _push(entry) {
-    // Discard any redo branch beyond the current pointer.
-    this.stack.splice(this.pointer + 1);
+    // Duplicate guard FIRST — before the redo-branch splice. Otherwise
+    // the synthetic `input` event dispatched after Undo/Redo triggers
+    // `snapshotDebounced` → a pending snapshot equal to the current
+    // pointer's state. On the next Redo (or any later `_push`),
+    // `splice(pointer+1)` would destroy the redo branch and only then
+    // discover the duplicate, so the subsequent Redo turns into a
+    // no-op even though the branch should still exist.
     const last = this.stack[this.pointer];
     if (last && last.html === entry.html) return;
+    // Discard any redo branch beyond the current pointer.
+    this.stack.splice(this.pointer + 1);
     this.stack.push(entry);
     this.pointer = this.stack.length - 1;
     this._trim();
