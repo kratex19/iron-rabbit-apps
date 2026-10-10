@@ -2848,8 +2848,43 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         toast.info(format === "undo" ? "Nothing to undo" : "Nothing to redo", { duration: 1200 });
         return;
       }
+      // Preserve scroll position across the full-DOM swap.
+      // `editor.innerHTML = entry.html` wipes the contentEditable's
+      // children, which forces every scroll container up the tree
+      // (the editor itself when `canvasExpanded`, and the containing
+      // DialogContent with `max-h-[85vh] overflow-y-auto`) to reset
+      // `scrollTop` to 0 because the referenced content no longer
+      // exists until the new DOM paints. Visually this reads as
+      // "Redo jumped the editor to the top-left of the page".
+      //
+      // Capture scroll offsets on the editor and every ancestor whose
+      // computed `overflow-y` is auto/scroll BEFORE the swap, restore
+      // them AFTER `restoreSelection`. No API or behavior change — we
+      // only put each affected container back where it was.
+      const savedScrolls = [];
+      try {
+        savedScrolls.push({ el: editor, top: editor.scrollTop, left: editor.scrollLeft });
+        let anc = editor.parentNode;
+        while (anc && anc.nodeType === 1 && anc !== document.body) {
+          const oy = (anc.ownerDocument && anc.ownerDocument.defaultView)
+            ? anc.ownerDocument.defaultView.getComputedStyle(anc).overflowY
+            : "";
+          if (oy === "auto" || oy === "scroll") {
+            savedScrolls.push({ el: anc, top: anc.scrollTop, left: anc.scrollLeft });
+          }
+          anc = anc.parentNode;
+        }
+      } catch { /* non-fatal */ }
       editor.innerHTML = entry.html;
       restoreSelection(editor, entry.sel);
+      try {
+        for (const s of savedScrolls) {
+          if (s.el && typeof s.top === "number") {
+            s.el.scrollTop = s.top;
+            s.el.scrollLeft = s.left;
+          }
+        }
+      } catch { /* non-fatal */ }
       // Notify React so NoteModal syncs its state + storage.
       editor.dispatchEvent(new Event("input", { bubbles: true }));
       return;
