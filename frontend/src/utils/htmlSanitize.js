@@ -125,11 +125,6 @@ export function sanitizeHtml(dirty) {
 // by the `normalizeWrapBoxSpacingHtml` wrapper below.
 function makeSeparator(doc) {
   const p = doc.createElement("p");
-  // `ir-wrap-sep` is a styling-only marker for auto-added separator
-  // paragraphs. It lets the CSS layer draw a subtle "Tap to write…"
-  // ghost hint ONLY on separators we inserted — never on user-authored
-  // blank lines (those remain unclassed and get no hint).
-  p.className = "ir-wrap-sep";
   p.appendChild(doc.createElement("br"));
   return p;
 }
@@ -172,50 +167,6 @@ export function normalizeWrapBoxSpacingDom(root) {
     // (i.e. zero nodes in-between, not even whitespace text), insert.
     if (isWrap(nextEl) && nextSib === nextEl) {
       root.insertBefore(makeSeparator(doc), nextEl);
-    }
-  }
-
-  // ---- Tap-to-write-container extension ------------------------------
-  // When the document contains ANY wrap-box, mark every empty `<p>`
-  // (a paragraph whose only child is a <br> — i.e. a user-authored or
-  // auto-added blank line) with the `ir-wrap-sep` class so the CSS
-  // ghost hint ("Tap to write…") and the dotted container render over
-  // EVERY tappable gap, not only the auto-inserted separators.
-  //
-  // Strictly additive: we only ADD the class — never remove it, never
-  // merge, split, re-order, or delete paragraphs. Idempotent:
-  // classList.add on an already-tagged paragraph is a no-op.
-  //
-  // Preserves user content: paragraphs with any text or other elements
-  // are untouched. Only pure `<p><br></p>` paragraphs qualify.
-  //
-  // Gated by the presence of at least one wrap-box so plain-prose
-  // notes (no boxes) retain their current rendering with no hint
-  // noise anywhere.
-  const hasAnyWrap = !!root.querySelector(".ir-wrap-box");
-  if (hasAnyWrap) {
-    const paras = root.children;
-    for (let i = 0; i < paras.length; i++) {
-      const p = paras[i];
-      if (!p || p.tagName !== "P") continue;
-      if (p.classList && p.classList.contains("ir-wrap-sep")) continue;
-      // "Blank" definition — a paragraph the user perceives as an
-      // empty tap zone. We tag it when:
-      //   • it has no visible text (textContent is empty after
-      //     stripping ZWSP and whitespace), AND
-      //   • it contains no interactive / media content, AND
-      //   • it has at least one child so the browser renders it with
-      //     measurable height (a truly empty <p></p> collapses to 0).
-      //
-      // This is LOOSER than requiring `<br>` as only child, which
-      // misses the common textarea→HTML promotion artefact
-      // `<p><br>text</p>` once `text` has been extracted into a
-      // wrap-box, leaving `<p><br></p>` with a stray trailing text
-      // node, or `<p><br><br></p>` from multiple Returns.
-      if ((p.textContent || "").replace(/\u200B/g, "").trim().length) continue;
-      if (p.querySelector("img, input, iframe, video, button, audio, select, textarea")) continue;
-      if (!p.firstChild) continue;
-      p.classList.add("ir-wrap-sep");
     }
   }
 }

@@ -497,48 +497,15 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     <>
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
-          // ── TASK 1 (save-on-close) ─────────────────────────────────
-          // Any dismiss not routed through the Save button lands here:
-          // backdrop tap, Escape, Android back-swipe, X button, etc.
-          // Previously this path just called `onClose()` and dropped
-          // every in-flight edit (title/content/WrapText text/etc.)
-          // because the React `content` state is wiped on unmount
-          // while the IndexedDB copy still holds the pre-edit version.
-          //
-          // We now auto-flush via the EXISTING `handleSave` path when
-          // the modal is dirty AND has a title AND a save isn't
-          // already running. `handleSave` itself calls `onClose()` at
-          // the end, so this branch returns early. No new storage
-          // code, no new validation — same contract as the explicit
-          // Update/Create button.
-          //
-          // Fallbacks (fall through to the plain onClose):
-          //   • `saving` already true (an explicit Save is finishing)
-          //   • Title is blank (matches the Save button's own guard;
-          //     prevents silent orphan untitled drafts)
-          //   • Nothing has changed since load (idempotent)
-          try {
-            const origTitle = (note?.title || "").trim();
-            const origContent = note?.content || "";
-            const curTitle = title.trim();
-            const dirty = (curTitle !== origTitle) || (content !== origContent);
-            irSaveDiagPush({
-              stage: "close-no-save",
-              noteId: note?.id || null,
-              stateContent: irSaveDiagPreview(content),
-              domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
-              dirty,
-              hasTitle: !!curTitle,
-              saving,
-            });
-            if (!saving && dirty && curTitle) {
-              // Fire-and-forget — handleSave is async; it closes the
-              // dialog itself on completion. Any error path throws and
-              // falls back to onClose below.
-              handleSave().catch(() => { try { onClose(); } catch { /* noop */ } });
-              return;
-            }
-          } catch { /* non-fatal — fall through */ }
+          // DIAGNOSTIC: distinguish close-without-save (any dialog
+          // dismiss not routed through the Save button) from the
+          // explicit "save-done → onClose()" path.
+          irSaveDiagPush({
+            stage: "close-no-save",
+            noteId: note?.id || null,
+            stateContent: irSaveDiagPreview(content),
+            domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
+          });
           onClose();
         }
       }}>
