@@ -185,6 +185,34 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const htmlEditableRef = useRef(null);
   const lastAppliedHtmlRef = useRef(null);
   const isHtml = isHtmlContent(content);
+  // PHASE 2a — expose a one-tap diagnostic retrieval hook so the
+  // user can share the IME log from their Android device without
+  // USB debugging. Attached to `window` and `globalThis` for both
+  // Chrome DevTools and in-app PWA access. The helper tries the
+  // Clipboard API first; falls back to opening a textarea alert
+  // when clipboard isn't available (older Android WebView). No
+  // behavioural impact — the function only reads, never writes.
+  useEffect(() => {
+    try {
+      const g = (typeof window !== "undefined") ? window : globalThis;
+      g.__ir_copy_diag = async () => {
+        const raw = localStorage.getItem("ir_save_diag") || "[]";
+        try {
+          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(raw);
+            // eslint-disable-next-line no-alert
+            alert("Diagnostic log copied to clipboard (" + raw.length + " chars). Paste it into the chat.");
+            return raw;
+          }
+        } catch { /* fall through to prompt */ }
+        try {
+          // eslint-disable-next-line no-alert
+          window.prompt("Copy this diagnostic log:", raw);
+        } catch { /* noop */ }
+        return raw;
+      };
+    } catch { /* non-fatal */ }
+  }, []);
   // Effective brightness used ONLY for painting text + underlay colours.
   // Falls through to the note's own `noteBrightness` unless Focus Mode is
   // active AND the user has enabled Night Visuals with "Apply to all notes"
@@ -497,15 +525,48 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     <>
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) {
-          // DIAGNOSTIC: distinguish close-without-save (any dialog
-          // dismiss not routed through the Save button) from the
-          // explicit "save-done → onClose()" path.
-          irSaveDiagPush({
-            stage: "close-no-save",
-            noteId: note?.id || null,
-            stateContent: irSaveDiagPreview(content),
-            domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
-          });
+          // ── TASK 1 (save-on-close) ─────────────────────────────────
+          // Any dismiss not routed through the Save button lands here:
+          // backdrop tap, Escape, Android back-swipe, X button, etc.
+          // Previously this path just called `onClose()` and dropped
+          // every in-flight edit (title/content/WrapText text/etc.)
+          // because the React `content` state is wiped on unmount
+          // while the IndexedDB copy still holds the pre-edit version.
+          //
+          // We now auto-flush via the EXISTING `handleSave` path when
+          // the modal is dirty AND has a title AND a save isn't
+          // already running. `handleSave` itself calls `onClose()` at
+          // the end, so this branch returns early. No new storage
+          // code, no new validation — same contract as the explicit
+          // Update/Create button.
+          //
+          // Fallbacks (fall through to the plain onClose):
+          //   • `saving` already true (an explicit Save is finishing)
+          //   • Title is blank (matches the Save button's own guard;
+          //     prevents silent orphan untitled drafts)
+          //   • Nothing has changed since load (idempotent)
+          try {
+            const origTitle = (note?.title || "").trim();
+            const origContent = note?.content || "";
+            const curTitle = title.trim();
+            const dirty = (curTitle !== origTitle) || (content !== origContent);
+            irSaveDiagPush({
+              stage: "close-no-save",
+              noteId: note?.id || null,
+              stateContent: irSaveDiagPreview(content),
+              domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
+              dirty,
+              hasTitle: !!curTitle,
+              saving,
+            });
+            if (!saving && dirty && curTitle) {
+              // Fire-and-forget — handleSave is async; it closes the
+              // dialog itself on completion. Any error path throws and
+              // falls back to onClose below.
+              handleSave().catch(() => { try { onClose(); } catch { /* noop */ } });
+              return;
+            }
+          } catch { /* non-fatal — fall through */ }
           onClose();
         }
       }}>
@@ -636,7 +697,86 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     aria-label="Note content"
                     spellCheck
                     onInput={handleHtmlInput}
-                    onBlur={handleHtmlInput}
+                    onBlur={(e) => {
+                      // PHASE 2a (diagnostic only — IME investigation).
+                      // Non-functional: just logs to the existing ring
+                      // buffer. No behaviour change.
+                      try {
+                        irSaveDiagPush({
+                          stage: "editor-blur",
+                          noteId: note?.id || null,
+                          nextActive: (document.activeElement && document.activeElement.tagName) || null,
+                        });
+                      } catch { /* noop */ }
+                      handleHtmlInput(e);
+                    }}
+                    onFocus={() => {
+                      try { irSaveDiagPush({ stage: "editor-focus", noteId: note?.id || null }); } catch { /* noop */ }
+                    }}
+                    onCompositionStart={(e) => {
+                      // PHASE 2a. Android IME has begun composition
+                      // (typically fired when the user taps a spelling
+                      // suggestion / autocomplete). Snapshot current
+                      // selection for post-event analysis. We do NOT
+                      // alter composition, cancel it, or move the caret.
+                      try {
+                        const sel = window.getSelection && window.getSelection();
+                        const rng = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+                        irSaveDiagPush({
+                          stage: "ime-start",
+                          data: e.data || "",
+                          collapsed: rng ? rng.collapsed : null,
+                          startOffset: rng ? rng.startOffset : null,
+                          endOffset: rng ? rng.endOffset : null,
+                        });
+                      } catch { /* noop */ }
+                    }}
+                    onCompositionEnd={(e) => {
+                      // PHASE 2a. Composition committed. Capture the
+                      // post-correction selection AND the first
+                      // characters immediately after the caret so we
+                      // can tell whether the browser placed the caret
+                      // at the correct position after the replacement.
+                      try {
+                        const sel = window.getSelection && window.getSelection();
+                        const rng = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+                        let container = null;
+                        let nearText = "";
+                        if (rng) {
+                          const node = rng.startContainer;
+                          container = node ? (node.nodeType === 3 ? (node.parentNode && node.parentNode.tagName) : node.tagName) : null;
+                          try {
+                            const text = (node && node.nodeType === 3) ? (node.textContent || "") : "";
+                            const o = rng.startOffset || 0;
+                            nearText = text.slice(Math.max(0, o - 8), o) + "│" + text.slice(o, o + 8);
+                          } catch { /* noop */ }
+                        }
+                        irSaveDiagPush({
+                          stage: "ime-end",
+                          data: e.data || "",
+                          collapsed: rng ? rng.collapsed : null,
+                          startOffset: rng ? rng.startOffset : null,
+                          endOffset: rng ? rng.endOffset : null,
+                          container,
+                          nearText,
+                        });
+                      } catch { /* noop */ }
+                    }}
+                    onBeforeInput={(e) => {
+                      // PHASE 2a. inputType reveals the EXACT nature
+                      // of the mutation (e.g. "insertReplacementText"
+                      // for spell-correct, "insertCompositionText"
+                      // during IME composition). We only log — the
+                      // browser's default is NOT prevented.
+                      try {
+                        irSaveDiagPush({
+                          stage: "beforeinput",
+                          inputType: e.nativeEvent ? e.nativeEvent.inputType : null,
+                          data: e.data || "",
+                          isComposing: e.nativeEvent ? !!e.nativeEvent.isComposing : null,
+                        });
+                      } catch { /* noop */ }
+                    }}
                     onPaste={handleHtmlPaste}
                     onPointerDown={(e) => {
                       // Android native text-action menu dismiss helper.
