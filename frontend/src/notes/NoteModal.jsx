@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import * as LucideIcons from "lucide-react";
 import {
-  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X, Languages, Maximize2, Minimize2, Clipboard,
+  Bell, Repeat, FileText, Calculator, StickyNote as StickyNoteIcon, Pin, Mic, MicOff, Hash, X, Languages, Maximize2, Minimize2,
 } from "lucide-react";
 import useVoiceInput from "../utils/useVoiceInput";
 import { Button } from "@/components/ui/button";
@@ -185,81 +185,6 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
   const htmlEditableRef = useRef(null);
   const lastAppliedHtmlRef = useRef(null);
   const isHtml = isHtmlContent(content);
-  // PHASE 2a — expose a one-tap diagnostic retrieval hook so the
-  // user can share the IME log from their Android device without
-  // USB debugging. Attached to `window` and `globalThis` for both
-  // Chrome DevTools and in-app PWA access. The helper tries the
-  // Clipboard API first; falls back to opening a textarea alert
-  // when clipboard isn't available (older Android WebView). No
-  // behavioural impact — the function only reads, never writes.
-  useEffect(() => {
-    try {
-      const g = (typeof window !== "undefined") ? window : globalThis;
-      g.__ir_copy_diag = async () => {
-        const raw = localStorage.getItem("ir_save_diag") || "[]";
-        try {
-          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(raw);
-            // eslint-disable-next-line no-alert
-            alert("Diagnostic log copied to clipboard (" + raw.length + " chars). Paste it into the chat.");
-            return raw;
-          }
-        } catch { /* fall through to prompt */ }
-        try {
-          // eslint-disable-next-line no-alert
-          window.prompt("Copy this diagnostic log:", raw);
-        } catch { /* noop */ }
-        return raw;
-      };
-      g.__ir_clear_diag = () => {
-        try { localStorage.removeItem("ir_save_diag"); } catch {}
-        return "cleared";
-      };
-    } catch { /* non-fatal */ }
-  }, []);
-
-  // PHASE 2a — document-level `selectionchange` observer, active
-  // ONLY while the Edit Text contenteditable is focused. Fires at
-  // most once per animation frame (throttled with a simple flag)
-  // so we don't bloat the ring buffer during normal typing. Logs
-  // selection anchor/focus/offsets and 8 chars of surrounding
-  // text so we can reconstruct where the caret actually landed vs
-  // where the user tapped.
-  useEffect(() => {
-    if (typeof document === "undefined") return undefined;
-    let scheduled = false;
-    const onSelChange = () => {
-      if (scheduled) return;
-      scheduled = true;
-      requestAnimationFrame(() => {
-        scheduled = false;
-        try {
-          const el = htmlEditableRef.current;
-          if (!el || document.activeElement !== el) return;
-          const sel = window.getSelection && window.getSelection();
-          if (!sel || sel.rangeCount === 0) {
-            irSaveDiagPush({ stage: "selchange", sel: null });
-            return;
-          }
-          const r = sel.getRangeAt(0);
-          const anchorNode = sel.anchorNode;
-          const anchorText = anchorNode && anchorNode.nodeType === 3 ? (anchorNode.textContent || "") : "";
-          const slice = (txt, off) => (txt.slice(Math.max(0, off - 8), off) + "│" + txt.slice(off, off + 8));
-          irSaveDiagPush({
-            stage: "selchange",
-            type: sel.type,
-            collapsed: r.collapsed,
-            anchorOffset: sel.anchorOffset,
-            focusOffset: sel.focusOffset,
-            anchorNear: anchorText ? slice(anchorText, sel.anchorOffset) : null,
-            startContainerTag: (r.startContainer && r.startContainer.nodeType === 3 ? "#text" : (r.startContainer && r.startContainer.tagName) || null),
-          });
-        } catch { /* noop */ }
-      });
-    };
-    document.addEventListener("selectionchange", onSelChange);
-    return () => document.removeEventListener("selectionchange", onSelChange);
-  }, []);
   // Effective brightness used ONLY for painting text + underlay colours.
   // Falls through to the note's own `noteBrightness` unless Focus Mode is
   // active AND the user has enabled Night Visuals with "Apply to all notes"
@@ -744,86 +669,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     aria-label="Note content"
                     spellCheck
                     onInput={handleHtmlInput}
-                    onBlur={(e) => {
-                      // PHASE 2a (diagnostic only — IME investigation).
-                      // Non-functional: just logs to the existing ring
-                      // buffer. No behaviour change.
-                      try {
-                        irSaveDiagPush({
-                          stage: "editor-blur",
-                          noteId: note?.id || null,
-                          nextActive: (document.activeElement && document.activeElement.tagName) || null,
-                        });
-                      } catch { /* noop */ }
-                      handleHtmlInput(e);
-                    }}
-                    onFocus={() => {
-                      try { irSaveDiagPush({ stage: "editor-focus", noteId: note?.id || null }); } catch { /* noop */ }
-                    }}
-                    onCompositionStart={(e) => {
-                      // PHASE 2a. Android IME has begun composition
-                      // (typically fired when the user taps a spelling
-                      // suggestion / autocomplete). Snapshot current
-                      // selection for post-event analysis. We do NOT
-                      // alter composition, cancel it, or move the caret.
-                      try {
-                        const sel = window.getSelection && window.getSelection();
-                        const rng = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
-                        irSaveDiagPush({
-                          stage: "ime-start",
-                          data: e.data || "",
-                          collapsed: rng ? rng.collapsed : null,
-                          startOffset: rng ? rng.startOffset : null,
-                          endOffset: rng ? rng.endOffset : null,
-                        });
-                      } catch { /* noop */ }
-                    }}
-                    onCompositionEnd={(e) => {
-                      // PHASE 2a. Composition committed. Capture the
-                      // post-correction selection AND the first
-                      // characters immediately after the caret so we
-                      // can tell whether the browser placed the caret
-                      // at the correct position after the replacement.
-                      try {
-                        const sel = window.getSelection && window.getSelection();
-                        const rng = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
-                        let container = null;
-                        let nearText = "";
-                        if (rng) {
-                          const node = rng.startContainer;
-                          container = node ? (node.nodeType === 3 ? (node.parentNode && node.parentNode.tagName) : node.tagName) : null;
-                          try {
-                            const text = (node && node.nodeType === 3) ? (node.textContent || "") : "";
-                            const o = rng.startOffset || 0;
-                            nearText = text.slice(Math.max(0, o - 8), o) + "│" + text.slice(o, o + 8);
-                          } catch { /* noop */ }
-                        }
-                        irSaveDiagPush({
-                          stage: "ime-end",
-                          data: e.data || "",
-                          collapsed: rng ? rng.collapsed : null,
-                          startOffset: rng ? rng.startOffset : null,
-                          endOffset: rng ? rng.endOffset : null,
-                          container,
-                          nearText,
-                        });
-                      } catch { /* noop */ }
-                    }}
-                    onBeforeInput={(e) => {
-                      // PHASE 2a. inputType reveals the EXACT nature
-                      // of the mutation (e.g. "insertReplacementText"
-                      // for spell-correct, "insertCompositionText"
-                      // during IME composition). We only log — the
-                      // browser's default is NOT prevented.
-                      try {
-                        irSaveDiagPush({
-                          stage: "beforeinput",
-                          inputType: e.nativeEvent ? e.nativeEvent.inputType : null,
-                          data: e.data || "",
-                          isComposing: e.nativeEvent ? !!e.nativeEvent.isComposing : null,
-                        });
-                      } catch { /* noop */ }
-                    }}
+                    onBlur={handleHtmlInput}
                     onPaste={handleHtmlPaste}
                     onPointerDown={(e) => {
                       // Android native text-action menu dismiss helper.
@@ -851,58 +697,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                       // move. Zero impact on highlights/lists/undo
                       // and no change to spellCheck.
                       try {
-                        // PHASE 2a (extended). Snapshot the FULL
-                        // tap context so we can tell why Android
-                        // places the caret at the end of a misspelled
-                        // word instead of at the tapped position.
-                        //
-                        // We log once per pointerdown:
-                        //   • event clientX/Y + target.tagName
-                        //   • bounding rect of e.target so we can tell
-                        //     if the tap was near a word-end
-                        //   • current selection anchor/focus/offsets
-                        //     with +/- 8 chars of surrounding text
-                        //   • whether we WOULD have collapsed the
-                        //     selection in the existing helper (and
-                        //     did so). We do NOT change the helper's
-                        //     behaviour — just surface it.
                         const sel = window.getSelection && window.getSelection();
-                        let selState = null;
-                        if (sel && sel.rangeCount) {
-                          const r = sel.getRangeAt(0);
-                          const anchorNode = sel.anchorNode;
-                          const focusNode = sel.focusNode;
-                          const anchorText = anchorNode && anchorNode.nodeType === 3 ? (anchorNode.textContent || "") : "";
-                          const focusText = focusNode && focusNode.nodeType === 3 ? (focusNode.textContent || "") : "";
-                          const slice = (txt, off) => (txt.slice(Math.max(0, off - 8), off) + "│" + txt.slice(off, off + 8));
-                          selState = {
-                            type: sel.type,
-                            collapsed: r.collapsed,
-                            anchorOffset: sel.anchorOffset,
-                            focusOffset: sel.focusOffset,
-                            anchorNear: anchorText ? slice(anchorText, sel.anchorOffset) : null,
-                            focusNear: focusText ? slice(focusText, sel.focusOffset) : null,
-                            startContainer: (r.startContainer && r.startContainer.nodeType === 3 ? "#text" : (r.startContainer && r.startContainer.tagName) || null),
-                          };
-                        }
-                        const target = e.target;
-                        const rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
-                        const willCollapse = !!(sel && sel.type === "Range" && !sel.isCollapsed
-                          && sel.rangeCount && e.currentTarget && e.currentTarget.contains(sel.getRangeAt(0).startContainer));
-                        irSaveDiagPush({
-                          stage: "pointerdown",
-                          clientX: e.clientX, clientY: e.clientY,
-                          pointerType: e.pointerType,
-                          targetTag: target && target.tagName || null,
-                          targetClass: target && target.className && typeof target.className === "string" ? target.className.slice(0, 60) : null,
-                          targetRect: rect ? { x: Math.round(rect.left), y: Math.round(rect.top), w: Math.round(rect.width), h: Math.round(rect.height) } : null,
-                          sel: selState,
-                          willCollapse,
-                        });
-
-                        // Existing behaviour UNCHANGED: dismiss the
-                        // Android text-action menu by collapsing a
-                        // non-collapsed Range that we did not initiate.
                         if (!sel || sel.type !== "Range" || sel.isCollapsed) return;
                         if (sel.rangeCount === 0) return;
                         const range = sel.getRangeAt(0);
@@ -910,37 +705,6 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                           sel.removeAllRanges();
                         }
                       } catch { /* non-fatal */ }
-                    }}
-                    onClick={(e) => {
-                      // PHASE 2a. Log the SELECTION STATE that resulted
-                      // from the native tap-to-move-caret handling —
-                      // this fires AFTER pointerdown's event chain is
-                      // complete. If the browser placed the caret at a
-                      // position OTHER than where the user tapped, we
-                      // see it here. No behaviour change.
-                      try {
-                        const sel = window.getSelection && window.getSelection();
-                        let selState = null;
-                        if (sel && sel.rangeCount) {
-                          const r = sel.getRangeAt(0);
-                          const anchorNode = sel.anchorNode;
-                          const anchorText = anchorNode && anchorNode.nodeType === 3 ? (anchorNode.textContent || "") : "";
-                          const slice = (txt, off) => (txt.slice(Math.max(0, off - 8), off) + "│" + txt.slice(off, off + 8));
-                          selState = {
-                            type: sel.type,
-                            collapsed: r.collapsed,
-                            anchorOffset: sel.anchorOffset,
-                            focusOffset: sel.focusOffset,
-                            anchorNear: anchorText ? slice(anchorText, sel.anchorOffset) : null,
-                            startContainerTag: (r.startContainer && r.startContainer.nodeType === 3 ? "#text" : (r.startContainer && r.startContainer.tagName) || null),
-                          };
-                        }
-                        irSaveDiagPush({
-                          stage: "click",
-                          clientX: e.clientX, clientY: e.clientY,
-                          sel: selState,
-                        });
-                      } catch { /* noop */ }
                     }}
                     className={`ir-brightness-scope fs-content-editable relative w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 overflow-y-auto ${canvasExpanded ? 'min-h-[min(38rem,65vh)] max-h-[85vh]' : 'min-h-[5.5rem]'} transition-[min-height,max-height] duration-200 ease-out ${isDark ? 'border-white/10' : 'border-gray-200'}`}
                     style={{
@@ -1281,24 +1045,6 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             </div>
 
             <div className="flex gap-2 pt-2">
-              {/* PHASE 2a debug affordance — one-tap copy of the IME
-                  diagnostic ring buffer. Appears as a tiny clipboard
-                  icon so it doesn't crowd the primary actions. Remove
-                  once Issue B root cause is identified. */}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  try {
-                    const fn = (typeof window !== "undefined") && window.__ir_copy_diag;
-                    if (typeof fn === "function") fn();
-                  } catch { /* noop */ }
-                }}
-                data-testid="note-modal-copy-diag"
-                title="Copy diagnostic log"
-                className={`h-9 px-2 shrink-0 ${isDark ? 'border-white/10 text-slate-400' : 'text-slate-500'}`}
-              >
-                <Clipboard className="h-4 w-4" />
-              </Button>
               <Button variant="outline" onClick={() => {
                 irSaveDiagPush({
                   stage: "cancel-click",
