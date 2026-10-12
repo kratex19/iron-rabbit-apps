@@ -174,6 +174,42 @@ export function normalizeWrapBoxSpacingDom(root) {
       root.insertBefore(makeSeparator(doc), nextEl);
     }
   }
+
+  // ---- Tap-to-write-container extension ------------------------------
+  // When the document contains ANY wrap-box, mark every empty `<p>`
+  // (a paragraph whose only child is a <br> — i.e. a user-authored or
+  // auto-added blank line) with the `ir-wrap-sep` class so the CSS
+  // ghost hint ("Tap to write…") and the dotted container render over
+  // EVERY tappable gap, not only the auto-inserted separators.
+  //
+  // Strictly additive: we only ADD the class — never remove it, never
+  // merge, split, re-order, or delete paragraphs. Idempotent:
+  // classList.add on an already-tagged paragraph is a no-op.
+  //
+  // Preserves user content: paragraphs with any text or other elements
+  // are untouched. Only pure `<p><br></p>` paragraphs qualify.
+  //
+  // Gated by the presence of at least one wrap-box so plain-prose
+  // notes (no boxes) retain their current rendering with no hint
+  // noise anywhere.
+  const hasAnyWrap = !!root.querySelector(".ir-wrap-box");
+  if (hasAnyWrap) {
+    const paras = root.children;
+    for (let i = 0; i < paras.length; i++) {
+      const p = paras[i];
+      if (!p || p.tagName !== "P") continue;
+      if (p.classList && p.classList.contains("ir-wrap-sep")) continue;
+      // Pure `<p><br></p>` test: exactly one child, a <br>, with no
+      // non-whitespace text content.
+      const only = p.firstChild;
+      if (!only) continue;
+      if (!(only === p.lastChild
+            && only.nodeType === 1
+            && only.tagName === "BR")) continue;
+      if ((p.textContent || "").replace(/\u200B/g, "").trim().length) continue;
+      p.classList.add("ir-wrap-sep");
+    }
+  }
 }
 
 // String-form wrapper — parses `html`, normalises, serialises back.
