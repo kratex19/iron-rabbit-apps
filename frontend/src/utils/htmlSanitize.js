@@ -199,14 +199,22 @@ export function normalizeWrapBoxSpacingDom(root) {
       const p = paras[i];
       if (!p || p.tagName !== "P") continue;
       if (p.classList && p.classList.contains("ir-wrap-sep")) continue;
-      // Pure `<p><br></p>` test: exactly one child, a <br>, with no
-      // non-whitespace text content.
-      const only = p.firstChild;
-      if (!only) continue;
-      if (!(only === p.lastChild
-            && only.nodeType === 1
-            && only.tagName === "BR")) continue;
+      // "Blank" definition — a paragraph the user perceives as an
+      // empty tap zone. We tag it when:
+      //   • it has no visible text (textContent is empty after
+      //     stripping ZWSP and whitespace), AND
+      //   • it contains no interactive / media content, AND
+      //   • it has at least one child so the browser renders it with
+      //     measurable height (a truly empty <p></p> collapses to 0).
+      //
+      // This is LOOSER than requiring `<br>` as only child, which
+      // misses the common textarea→HTML promotion artefact
+      // `<p><br>text</p>` once `text` has been extracted into a
+      // wrap-box, leaving `<p><br></p>` with a stray trailing text
+      // node, or `<p><br><br></p>` from multiple Returns.
       if ((p.textContent || "").replace(/\u200B/g, "").trim().length) continue;
+      if (p.querySelector("img, input, iframe, video, button, audio, select, textarea")) continue;
+      if (!p.firstChild) continue;
       p.classList.add("ir-wrap-sep");
     }
   }
