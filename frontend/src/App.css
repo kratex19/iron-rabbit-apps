@@ -1607,13 +1607,42 @@
   min-height: 1.4em;
   position: relative;
 }
-/* E1a (2026-10-12): the previous ghost-hint `::before` rules that
-   rendered "Tap to write…" over empty `.ir-wrap-sep` paragraphs were
-   removed because they interfered with contentEditable caret
-   placement on Android, preventing the user from tapping the empty
-   gap between wrap-boxes to seat the caret. The class marker and
-   base layout (`position: relative; min-height: 1.4em`) remain so
-   the paragraph still has a tappable touch zone. */
+/* Hint renders ONLY inside live editable contexts (the Note editor's
+   contenteditable region OR the textarea-promoted editor). Non-editable
+   previews — tile summaries, printed PDFs, list cards — do NOT show the
+   hint because tapping them does not seat a caret, so the prompt would
+   be misleading. We scope by `[contenteditable="true"]` ancestor. */
+[contenteditable="true"] .ir-wrap-sep:has(br:only-child) {
+  border: 1px dashed rgba(148, 163, 184, 0.55);
+  border-radius: 8px;
+  padding: 4px 10px;
+  min-height: 1.9em;
+  margin: 4px 0;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+.dark [contenteditable="true"] .ir-wrap-sep:has(br:only-child),
+[data-theme="dark"] [contenteditable="true"] .ir-wrap-sep:has(br:only-child) {
+  border-color: rgba(148, 163, 184, 0.45);
+}
+[contenteditable="true"] .ir-wrap-sep:has(br:only-child)::before {
+  content: 'Tap to write…';
+  position: absolute;
+  inset: 4px 10px auto 10px;
+  opacity: 0.42;
+  pointer-events: none;
+  font-style: italic;
+  font-weight: 400;
+  color: inherit;
+  letter-spacing: 0.01em;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.18s ease;
+}
+/* Dim the hint further while the editor is actively focused so the
+   caret has visual precedence; still faintly visible as a nudge. */
+[contenteditable="true"]:focus-within .ir-wrap-sep:has(br:only-child)::before {
+  opacity: 0.25;
+}
 
 
 
