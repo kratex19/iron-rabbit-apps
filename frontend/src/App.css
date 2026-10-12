@@ -1591,6 +1591,50 @@
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.38);
 }
 
+/* ---- Smart Separator Hint ----------------------------------------------
+   Auto-added paragraphs between/around wrap-boxes carry the
+   `ir-wrap-sep` class (see `normalizeWrapBoxSpacing` in
+   /app/frontend/src/utils/htmlSanitize.js). While such a paragraph
+   is "empty" (contains only a <br>), we render a subtle ghost
+   placeholder so new users notice it is tappable and editable.
+   The moment any text is typed, `br:only-child` no longer matches
+   and the hint disappears automatically. User-authored blank lines
+   (which do NOT have the `ir-wrap-sep` class) are deliberately
+   left without the hint — they already know those paragraphs are
+   editable, and we must not add visual noise to their intentional
+   blank space. */
+.ir-wrap-sep {
+  min-height: 1.4em;
+  position: relative;
+}
+/* Hint renders ONLY inside live editable contexts (the Note editor's
+   contenteditable region OR the textarea-promoted editor). Non-editable
+   previews — tile summaries, printed PDFs, list cards — do NOT show the
+   hint because tapping them does not seat a caret, so the prompt would
+   be misleading. We scope by `[contenteditable="true"]` ancestor. */
+[contenteditable="true"] .ir-wrap-sep:has(br:only-child)::before {
+  content: 'Tap to write…';
+  position: absolute;
+  inset: 0 0 auto 0;
+  padding: 0 2px;
+  opacity: 0.32;
+  pointer-events: none;
+  font-style: italic;
+  font-weight: 400;
+  color: inherit;
+  letter-spacing: 0.01em;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.18s ease;
+}
+/* Dim the hint further while the editor is actively focused so the
+   caret has visual precedence; still faintly visible as a nudge. */
+[contenteditable="true"]:focus-within .ir-wrap-sep:has(br:only-child)::before {
+  opacity: 0.2;
+}
+
+
+
 
 
 /* Alignment floating palette — same smoked-glass look as the HL / Aa

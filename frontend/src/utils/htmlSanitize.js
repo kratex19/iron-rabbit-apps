@@ -125,6 +125,11 @@ export function sanitizeHtml(dirty) {
 // by the `normalizeWrapBoxSpacingHtml` wrapper below.
 function makeSeparator(doc) {
   const p = doc.createElement("p");
+  // `ir-wrap-sep` is a styling-only marker for auto-added separator
+  // paragraphs. It lets the CSS layer draw a subtle "Tap to write…"
+  // ghost hint ONLY on separators we inserted — never on user-authored
+  // blank lines (those remain unclassed and get no hint).
+  p.className = "ir-wrap-sep";
   p.appendChild(doc.createElement("br"));
   return p;
 }

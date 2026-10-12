@@ -1,3 +1,33 @@
+## 2026-02-12 — Smart Separator Hint
+
+**Two files touched; service-worker cache bumped.**
+
+### Objective
+Give new users a subtle visual nudge that the auto-added paragraphs around wrap-boxes are tappable editable lines, without adding noise to user-authored blank lines or non-editable surfaces.
+
+### How user-authored vs auto-added paragraphs are distinguished
+`normalizeWrapBoxSpacing` now tags every separator paragraph it inserts with `class="ir-wrap-sep"`. User-authored blank lines (typed via Enter) have no such class and therefore no hint. Idempotence preserved — the first-child check still fires only on `.ir-wrap-box`, never on `.ir-wrap-sep`.
+
+### CSS behaviour
+- Hint renders ONLY when `.ir-wrap-sep` sits inside an ancestor with `contenteditable="true"` (the live Note editor). Preview tiles, PDFs, printed views, and list cards do NOT display the prompt — tapping them doesn't open an editor so the hint would be misleading.
+- Hint is shown only while the paragraph truly holds a lone `<br>` (`:has(br:only-child)`). The moment any text is typed the selector no longer matches and the hint vanishes automatically.
+- Opacity: 0.32 by default, 0.20 while the editor is focused (`:focus-within`) so the caret has visual precedence.
+- `pointer-events: none` and `user-select: none` so taps and selection pass straight through to the paragraph (caret seats correctly, hint doesn't get copied).
+
+### Files changed
+- `/app/frontend/src/utils/htmlSanitize.js` (`makeSeparator()` emits `<p class="ir-wrap-sep">`)
+- `/app/frontend/src/App.css` (editor-scoped `.ir-wrap-sep:has(br:only-child)::before` rule)
+- `/app/frontend/public/service-worker.js` (CACHE_NAME v230→v231, RUNTIME v117→v118)
+
+### Verification
+- 4 jsdom unit cases — three glued boxes get `ir-wrap-sep` on all four separators, user blanks between boxes stay unclassed, user leading blanks preserved, user text between boxes untouched. All idempotent.
+- Live preview: created `HintEditor` note with 3 glued wrap-boxes → stored content exactly matches expected `<p class="ir-wrap-sep">…` sequence → opened in editor → all 4 "Tap to write…" hints render correctly, dim, italic, non-interactive.
+- Non-editor contexts (list tile preview) confirm no hint rendered.
+
+### Preserved
+- Wrap-box persistence, Text Tools, Expanded Text, Alignment, Undo/Redo, DOMPurify allowlist, normalizer idempotence.
+
+
 ## 2026-02-10 — WrapText Spacing: Leading Paragraph
 
 **One file touched; service-worker cache bumped.**
