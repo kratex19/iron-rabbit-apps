@@ -326,3 +326,10 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - Resend (emails — user API key pending)
 - Slack (webhooks — user API key pending)
 - Gemini / OpenAI — via Emergent LLM Key
+
+## 2026-10-13 — Save-on-close re-applied (post Oct 10 rollback)
+- NoteModal.jsx: onOpenChange(false) saves through existing handleSave when dirty + titled + not saving; reads live editor innerHTML. Cancel still discards.
+- handleSave(overrideContent?) accepts string override (button click event ignored).
+- c4c05b02 Phase 2a synthetic IME handlers NOT reintroduced.
+- SW cache bumped v240 / runtime v127.
+- Status: AWAITING USER ANDROID VERIFICATION (new + existing notes).

@@ -395,8 +395,10 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     setShowTemplates(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (overrideContent) => {
     if (!title.trim()) { toast.error("Please enter a title"); return; }
+    // Close path passes the live editor HTML; button clicks pass an event.
+    const srcContent = typeof overrideContent === "string" ? overrideContent : content;
     setSaving(true);
     let alarmDateTime = null;
     if (alarm.enabled && alarmDate) {
@@ -415,7 +417,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     // run it through DOMPurify one more time on save so anything the
     // user pasted that slipped past the render step is neutralised
     // before it hits storage.
-    const safeContent = isHtmlContent(content) ? normalizeWrapBoxSpacing(sanitizeHtml(content)) : content;
+    const safeContent = isHtmlContent(srcContent) ? normalizeWrapBoxSpacing(sanitizeHtml(srcContent)) : srcContent;
     // DIAGNOSTIC: snapshot the content pipeline AT save time so we can
     // tell whether a reverted-content report is a state problem, a
     // sanitizer transform, or a storage/round-trip issue.
@@ -500,12 +502,23 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
           // DIAGNOSTIC: distinguish close-without-save (any dialog
           // dismiss not routed through the Save button) from the
           // explicit "save-done → onClose()" path.
+          // Save-on-close: route dirty + titled dismissals through handleSave.
+          const liveContent = isHtml && htmlEditableRef.current ? htmlEditableRef.current.innerHTML : content;
+          const curTitle = title.trim();
+          const dirty = curTitle !== (note?.title || "").trim() || liveContent !== (note?.content || "");
           irSaveDiagPush({
             stage: "close-no-save",
             noteId: note?.id || null,
             stateContent: irSaveDiagPreview(content),
             domInnerHtml: irSaveDiagPreview(htmlEditableRef.current ? htmlEditableRef.current.innerHTML : ""),
+            dirty,
+            hasTitle: !!curTitle,
+            saving,
           });
+          if (!saving && dirty && curTitle) {
+            handleSave(liveContent).catch(() => onClose());
+            return;
+          }
           onClose();
         }
       }}>
