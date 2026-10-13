@@ -1536,6 +1536,12 @@
   display: inline-block;
   width: 1px;
 }
+/* Edit Note only: let Inline cells inherit the text-slider colour set on the editor
+   instead of the global [contenteditable="true"] theme colour (index.css). */
+[data-testid="note-content-input-html"] .ir-icell {
+  color: inherit;
+  -webkit-text-fill-color: inherit;
+}
 .fs-content-editable .ir-icell-left   { text-align: left; }
 .fs-content-editable .ir-icell-center { text-align: center; }
 .fs-content-editable .ir-icell-right  { text-align: right; }
