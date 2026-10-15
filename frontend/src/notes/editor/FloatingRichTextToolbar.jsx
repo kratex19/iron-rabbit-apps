@@ -42,7 +42,7 @@ import {
   ScanLine, Camera, Mic, FileText, Printer, Share2,
 } from "lucide-react";
 import { FormsPackAdapter, HierarchyAdapter } from "./adapters";
-import { plainTextToHtml, sanitizeHtml, normalizeWrapBoxSpacingDom } from "../../utils/htmlSanitize";
+import { plainTextToHtml, sanitizeHtml, normalizeWrapBoxSpacingDom, markWrapSeparators, markWrapSeparatorsDom } from "../../utils/htmlSanitize";
 
 // --------------------------------------------------------------------------
 // Small helper — find the active editor element (contentEditable or
@@ -3332,10 +3332,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // a note left no block-level target outside the container and the
       // caret stayed trapped inside .ir-wrap-tail.
       const afterHtml = plainTextToHtml(after) || "<p><br></p>";
-      const html =
+      const rawHtml =
         beforeHtml +
         `<div class="ir-wrap-box ${CARET_TARGET_CLASS}">${middleHtml}<p class="ir-wrap-tail"><br></p></div>` +
         afterHtml;
+      // Edit Note only: seat the "Tap to write" separators immediately.
+      const html = editor.getAttribute("data-testid") === "note-content-input" ? markWrapSeparators(rawHtml) : rawHtml;
       reactSetValue(editor, html);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -3457,7 +3459,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // via the shared normaliser — strictly additive, idempotent, covers
       // between-boxes AND trailing-after-last-box in one pass. Replaces
       // the earlier ad-hoc trailing-sibling snippet.
-      try { normalizeWrapBoxSpacingDom(editor); } catch { /* non-fatal */ }
+      try {
+        if (editor.getAttribute("data-testid") === "note-content-input-html") markWrapSeparatorsDom(editor);
+        else normalizeWrapBoxSpacingDom(editor);
+      } catch { /* non-fatal */ }
 
       // Caret inside the trailing paragraph for seamless typing in
       // the empty tap area.

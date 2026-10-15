@@ -183,6 +183,69 @@ export function normalizeWrapBoxSpacing(html) {
   return tmp.innerHTML;
 }
 
+// ---- Edit Note "Tap to write" separators --------------------------------
+// Regions = before the first top-level wrap-box, between each pair of
+// consecutive wrap-boxes, after the last one. Per region: if it holds any
+// user content → leave it alone; else mark exactly ONE empty <p> with
+// `ir-wrap-sep` (closest to the box), inserting one only if none exists.
+// Never deletes or moves content. Idempotent (marks are recomputed).
+const WRAP_SEP = "ir-wrap-sep";
+const MEDIA_SEL = "img, input, iframe, video, audio, button, select, textarea";
+const isWrapBox = (n) => n && n.nodeType === 1 && n.classList.contains("ir-wrap-box");
+const isEmptyPara = (n) => n.nodeType === 1 && n.tagName === "P"
+  && !(n.textContent || "").replace(/\u200B/g, "").trim()
+  && !n.querySelector(MEDIA_SEL);
+const isBlankNode = (n) => (n.nodeType === 3 && !n.data.replace(/\u200B/g, "").trim())
+  || n.nodeType === 8
+  || (n.nodeType === 1 && n.tagName === "BR");
+
+export function markWrapSeparatorsDom(root) {
+  if (!root || root.nodeType !== 1) return;
+  const doc = root.ownerDocument || document;
+  Array.from(root.children).forEach((el) => {
+    if (el.tagName === "P" && el.classList.contains(WRAP_SEP)) {
+      el.classList.remove(WRAP_SEP);
+      if (!el.getAttribute("class")) el.removeAttribute("class");
+    }
+  });
+  const nodes = Array.from(root.childNodes);
+  const boxIdx = [];
+  nodes.forEach((n, i) => { if (isWrapBox(n)) boxIdx.push(i); });
+  if (!boxIdx.length) return;
+  const makeSep = () => {
+    const p = doc.createElement("p");
+    p.className = WRAP_SEP;
+    p.appendChild(doc.createElement("br"));
+    return p;
+  };
+  // [start, end) slices of `nodes`, plus which end sits next to a box.
+  const regions = [{ s: 0, e: boxIdx[0], near: "end" }];
+  for (let k = 0; k + 1 < boxIdx.length; k++) {
+    regions.push({ s: boxIdx[k] + 1, e: boxIdx[k + 1], near: "start" });
+  }
+  regions.push({ s: boxIdx[boxIdx.length - 1] + 1, e: nodes.length, near: "start" });
+  regions.forEach(({ s, e, near }) => {
+    const slice = nodes.slice(s, e);
+    if (slice.some((n) => !isBlankNode(n) && !isEmptyPara(n))) return;
+    const empties = slice.filter(isEmptyPara);
+    if (empties.length) {
+      empties[near === "end" ? empties.length - 1 : 0].classList.add(WRAP_SEP);
+      return;
+    }
+    const anchor = near === "end" ? nodes[e] : nodes[s - 1];
+    root.insertBefore(makeSep(), near === "end" ? anchor : anchor.nextSibling);
+  });
+}
+
+export function markWrapSeparators(html) {
+  if (typeof html !== "string" || html.length === 0) return html;
+  if (html.indexOf("ir-wrap-box") === -1) return html;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  markWrapSeparatorsDom(tmp);
+  return tmp.innerHTML;
+}
+
 // Cheap heuristic to detect whether a stored `content` string is HTML
 // (contains any tag from the allowlist) vs. plain text. Used to auto-pick
 // the initial editing mode when opening an existing note.

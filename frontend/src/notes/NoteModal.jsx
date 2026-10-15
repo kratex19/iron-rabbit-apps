@@ -21,7 +21,7 @@ import BackgroundPicker, { getBackgroundStyle } from "../components/BackgroundPi
 import Attachments from "../components/Attachments";
 import FeaturedImageBanner from "./FeaturedImageBanner";
 import { brightnessToText, brightnessToBg } from "./BrightnessSliders";
-import { sanitizeHtml, looksLikeHtml, normalizeWrapBoxSpacing } from "../utils/htmlSanitize";
+import { sanitizeHtml, looksLikeHtml, markWrapSeparators } from "../utils/htmlSanitize";
 
 // Edit Text local HTML detector. Extends the shared `looksLikeHtml`
 // (which only recognises p/h1/h2/h3/strong/b/em/i/u/s/a/br/strike/del/
@@ -215,7 +215,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     const el = htmlEditableRef.current;
     if (!el) return;
     if (document.activeElement === el) return;
-    const clean = normalizeWrapBoxSpacing(sanitizeHtml(content || ""));
+    const clean = markWrapSeparators(sanitizeHtml(content || ""));
     if (lastAppliedHtmlRef.current === clean && el.innerHTML === clean) return;
     el.innerHTML = clean;
     lastAppliedHtmlRef.current = clean;
@@ -417,7 +417,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     // run it through DOMPurify one more time on save so anything the
     // user pasted that slipped past the render step is neutralised
     // before it hits storage.
-    const safeContent = isHtmlContent(srcContent) ? normalizeWrapBoxSpacing(sanitizeHtml(srcContent)) : srcContent;
+    const safeContent = isHtmlContent(srcContent) ? markWrapSeparators(sanitizeHtml(srcContent)) : srcContent;
     // DIAGNOSTIC: snapshot the content pipeline AT save time so we can
     // tell whether a reverted-content report is a state problem, a
     // sanitizer transform, or a storage/round-trip issue.
