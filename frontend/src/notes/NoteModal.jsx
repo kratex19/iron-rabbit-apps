@@ -97,6 +97,45 @@ function irSaveDiagPreview(s) {
   };
 }
 
+// TEMPORARY caret diagnostic buffer (remove after diagnosis). Bounded.
+const IR_CARET_DIAG_KEY = "ir_caret_diag";
+const IR_CARET_DIAG_MAX = 400;
+let irCaretDiagBuf = null;
+let irCaretDiagFlushTimer = null;
+function irCaretDiagLoad() {
+  if (irCaretDiagBuf) return irCaretDiagBuf;
+  try {
+    const arr = JSON.parse(localStorage.getItem(IR_CARET_DIAG_KEY) || "[]");
+    irCaretDiagBuf = Array.isArray(arr) ? arr : [];
+  } catch { irCaretDiagBuf = []; }
+  return irCaretDiagBuf;
+}
+function irCaretDiagFlush() {
+  try { localStorage.setItem(IR_CARET_DIAG_KEY, JSON.stringify(irCaretDiagLoad())); } catch { /* non-fatal */ }
+}
+function irCaretDiagPush(entry) {
+  const buf = irCaretDiagLoad();
+  buf.push(entry);
+  while (buf.length > IR_CARET_DIAG_MAX) buf.shift();
+  if (!irCaretDiagFlushTimer) {
+    irCaretDiagFlushTimer = setTimeout(() => { irCaretDiagFlushTimer = null; irCaretDiagFlush(); }, 1000);
+  }
+}
+async function irCaretDiagCopy() {
+  irCaretDiagFlush();
+  const text = JSON.stringify({ ua: navigator.userAgent, entries: irCaretDiagLoad() });
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch { return false; }
+}
+
+
 export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline, onOpenCalculator, isDark, categories, existingPaths = [], templates, allTags = [], uiBrightness, onBrightnessChange, focusOverrideBrightness = null, pinnedSubcategoryKeys = null }) {
   const { t } = useTranslation();
   const [title, setTitle] = useState("");
@@ -220,6 +259,96 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
     el.innerHTML = clean;
     lastAppliedHtmlRef.current = clean;
   }, [content, isHtml]);
+
+  // TEMPORARY caret diagnostic (remove after diagnosis). Passive: native
+  // listeners only, never touches selection/DOM, never preventDefault.
+  useEffect(() => {
+    const el = htmlEditableRef.current;
+    if (!isOpen || !isHtml || !el) return undefined;
+    const t0 = performance.now();
+    let lastMut = -1e9, lastSelKey = "";
+    const timers = [];
+    const ms = () => Math.round(performance.now() - t0);
+    const push = (e) => irCaretDiagPush({ t: ms(), ...e });
+    const describeSel = () => {
+      const sel = window.getSelection && window.getSelection();
+      if (!sel || sel.rangeCount === 0) return { sel: "none" };
+      const r = sel.getRangeAt(0);
+      if (!el.contains(r.startContainer)) return { sel: "outside" };
+      let off = -1, ctx = "";
+      try {
+        const pre = document.createRange();
+        pre.selectNodeContents(el);
+        pre.setEnd(r.startContainer, r.startOffset);
+        off = pre.toString().length;
+        const n = r.startContainer;
+        if (n.nodeType === 3) {
+          const d = n.data;
+          ctx = d.slice(Math.max(0, r.startOffset - 4), r.startOffset) + "|" + d.slice(r.startOffset, r.startOffset + 4);
+        }
+      } catch { /* ignore */ }
+      const n = r.startContainer;
+      const blk = n.nodeType === 1 ? n : n.parentElement;
+      return {
+        off, collapsed: sel.isCollapsed, type: sel.type,
+        node: n.nodeType === 3 ? `#text(${n.data.length})@${r.startOffset}` : `${n.nodeName}@${r.startOffset}`,
+        in: blk ? `${blk.nodeName}.${(blk.className || "").toString().slice(0, 30)}` : "",
+        ctx, sinceMut: Math.round(performance.now() - lastMut),
+      };
+    };
+    const followUp = (tag) => {
+      [0, 50, 300, 1000].forEach((d) => timers.push(setTimeout(() => push({ ev: `${tag}+${d}`, ...describeSel() }), d)));
+    };
+    const onPointerDown = (e) => push({ ev: "pointerdown", ptr: e.pointerType, ...describeSel() });
+    const onPointerUp = (e) => { push({ ev: "pointerup", ptr: e.pointerType }); followUp("tap"); };
+    const onContextMenu = () => { push({ ev: "contextmenu(press-hold)" }); followUp("hold"); };
+    const onComp = (e) => push({ ev: e.type, len: (e.data || "").length, ...describeSel() });
+    const onBefore = (e) => push({ ev: "beforeinput", it: e.inputType, len: (e.data || "").length, ...describeSel() });
+    const onInput = (e) => push({ ev: "input", it: e.inputType, ...describeSel() });
+    const onSelChange = () => {
+      const s = describeSel();
+      if (s.sel === "outside" || s.sel === "none") return;
+      const key = `${s.off}|${s.node}`;
+      if (key === lastSelKey) return;
+      lastSelKey = key;
+      push({ ev: "selectionchange", ...s });
+    };
+    const mo = new MutationObserver((recs) => {
+      lastMut = performance.now();
+      const kinds = {};
+      recs.forEach((r) => { kinds[r.type] = (kinds[r.type] || 0) + 1; });
+      const removed = recs.reduce((a, r) => a + r.removedNodes.length, 0);
+      const added = recs.reduce((a, r) => a + r.addedNodes.length, 0);
+      push({ ev: "mutation", kinds, added, removed });
+    });
+    mo.observe(el, { childList: true, characterData: true, subtree: true });
+    const opts = { passive: true };
+    el.addEventListener("pointerdown", onPointerDown, opts);
+    el.addEventListener("pointerup", onPointerUp, opts);
+    el.addEventListener("contextmenu", onContextMenu, opts);
+    el.addEventListener("compositionstart", onComp, opts);
+    el.addEventListener("compositionupdate", onComp, opts);
+    el.addEventListener("compositionend", onComp, opts);
+    el.addEventListener("beforeinput", onBefore, opts);
+    el.addEventListener("input", onInput, opts);
+    document.addEventListener("selectionchange", onSelChange, opts);
+    push({ ev: "logger-attached" });
+    return () => {
+      mo.disconnect();
+      timers.forEach(clearTimeout);
+      el.removeEventListener("pointerdown", onPointerDown, opts);
+      el.removeEventListener("pointerup", onPointerUp, opts);
+      el.removeEventListener("contextmenu", onContextMenu, opts);
+      el.removeEventListener("compositionstart", onComp, opts);
+      el.removeEventListener("compositionupdate", onComp, opts);
+      el.removeEventListener("compositionend", onComp, opts);
+      el.removeEventListener("beforeinput", onBefore, opts);
+      el.removeEventListener("input", onInput, opts);
+      document.removeEventListener("selectionchange", onSelChange, opts);
+      irCaretDiagFlush();
+    };
+  }, [isOpen, isHtml]);
+
 
   const handleHtmlInput = () => {
     const el = htmlEditableRef.current;
@@ -720,6 +849,22 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     }}
                     data-testid="note-content-input"
                   />
+                )}
+                {isHtml && (
+                  <div className="mt-1 flex gap-2 text-[11px]" data-testid="caret-diag-controls">
+                    <button
+                      type="button"
+                      data-testid="caret-diag-copy"
+                      className="px-2 py-0.5 rounded border border-amber-500/60 text-amber-500"
+                      onClick={async () => { const ok = await irCaretDiagCopy(); toast[ok ? "success" : "error"](ok ? `Caret log copied (${irCaretDiagLoad().length} entries)` : "Copy failed"); }}
+                    >Copy caret log</button>
+                    <button
+                      type="button"
+                      data-testid="caret-diag-clear"
+                      className="px-2 py-0.5 rounded border border-amber-500/60 text-amber-500"
+                      onClick={() => { irCaretDiagLoad().length = 0; irCaretDiagFlush(); toast.success("Caret log cleared"); }}
+                    >Clear log</button>
+                  </div>
                 )}
               </div>
             </div>
