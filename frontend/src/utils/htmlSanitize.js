@@ -229,7 +229,10 @@ export function markWrapSeparatorsDom(root) {
     if (slice.some((n) => !isBlankNode(n) && !isEmptyPara(n))) return;
     const empties = slice.filter(isEmptyPara);
     if (empties.length) {
-      empties[near === "end" ? empties.length - 1 : 0].classList.add(WRAP_SEP);
+      const chosen = empties[near === "end" ? empties.length - 1 : 0];
+      chosen.classList.add(WRAP_SEP);
+      // Element-less leftover (e.g. after a multi-line Wrap) has 0 height and no hint.
+      if (!chosen.firstElementChild) chosen.replaceChildren(doc.createElement("br"));
       return;
     }
     const anchor = near === "end" ? nodes[e] : nodes[s - 1];
