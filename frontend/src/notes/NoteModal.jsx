@@ -647,7 +647,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     suppressContentEditableWarning
                     aria-multiline
                     aria-label="Note content"
-                    spellCheck={false}
+                    spellCheck
                     onInput={handleHtmlInput}
                     onBlur={handleHtmlInput}
                     onPaste={handleHtmlPaste}

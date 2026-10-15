@@ -9,8 +9,8 @@
 //     new SW file had been published. With HTML now always fetched
 //     network-first (and runtime-cached as a fallback for offline),
 //     every deploy propagates to users on their next page load.
-const CACHE_NAME = 'iron-rabbit-v244';
-const RUNTIME = 'iron-rabbit-runtime-v131';
+const CACHE_NAME = 'iron-rabbit-v245';
+const RUNTIME = 'iron-rabbit-runtime-v132';
 
 // ---- Runtime-cache bound ----
 // The RUNTIME cache backs offline HTML, header-preset images, hashed
