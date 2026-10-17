@@ -352,3 +352,9 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - Toolbar max size now fits usable rect (keyboard-aware) minus 8px margins; overflow scrolls. Tablet Edit Text uses viewport top. Phones keep dialog edges (now with 8px margin).
 - Snap waits until toolbar is visible on touch devices (keyboard up) + 250ms settle re-snap.
 - Limitation: phone landscape with keyboard (~90px usable) — vertical toolbar box fits but its handle/rotate column spills; use horizontal there.
+
+## 2026-10-17 (d) — Expanded Text toolbar always dark see-through (v255 / v142, PREVIEW ONLY)
+- History: toolbar light theme = bg-white/70 since creation (f5ecd9d3, 26 Sep); Expanded Text mounted it with app isDark since 453e3bbc (1 Oct). Dark look in light theme never existed before — new design decision.
+- FloatingRichTextToolbar.jsx: optional `forceDarkGlass` prop → `darkChrome` used only for strip glass, controls column, menu/rotate icons, dividers. Pop-up dialogs still follow isDark.
+- FullScreenNote.jsx passes `forceDarkGlass`. Edit Text / Expanded Canvas unchanged (verified light theme still light glass).
+- Desktop Edit Text horizontal overflow item: ON HOLD awaiting user's console numbers (suspect pinch-zoom / window wider than screen).

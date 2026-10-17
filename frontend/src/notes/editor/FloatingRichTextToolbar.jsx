@@ -1855,7 +1855,7 @@ const measureToolbar = (orientation) => {
   return { w: r.width, h: r.height };
 };
 
-export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }) {
+export default function FloatingRichTextToolbar({ isDark = true, isOpen = true, forceDarkGlass = false }) {
   const [pos, setPos] = useState(null);            // { x, y } in viewport coords
   const [fit, setFit] = useState(null);            // { w, h } max toolbar size in px
   const [orientation, setOrientation] = useState("horizontal");
@@ -3663,12 +3663,14 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
 
   // ------ Styling ------
   const isH = orientation === "horizontal";
-  const glass = isDark
+  // Toolbar chrome only (not pop-up dialogs); Expanded Text forces the dark see-through look.
+  const darkChrome = isDark || forceDarkGlass;
+  const glass = darkChrome
     ? "bg-black/55 backdrop-blur-md border-white/10"
     : "bg-white/70 backdrop-blur-md border-gray-300/70";
   const accentBorder = "ring-1 ring-orange-500/60";
   const iconColor = "text-orange-400";
-  const stubColor = isDark ? "text-slate-500/70" : "text-slate-400/80";
+  const stubColor = darkChrome ? "text-slate-500/70" : "text-slate-400/80";
 
   // Fix C — map a tool-id → the key on `active` state that governs its
   // highlight. Any id missing from this map is a non-highlightable tool
@@ -3736,7 +3738,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             OUTSIDE the scrollable tool strip so it never scrolls away. */}
         <div
           data-testid="floating-rte-controls"
-          className={`shrink-0 flex ${isH ? "flex-row" : "flex-col"} items-stretch ${isH ? "rounded-l-2xl border-r" : "rounded-t-2xl border-b"} ${isDark ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
+          className={`shrink-0 flex ${isH ? "flex-row" : "flex-col"} items-stretch ${isH ? "rounded-l-2xl border-r" : "rounded-t-2xl border-b"} ${darkChrome ? "border-white/10 bg-white/5" : "border-gray-300 bg-white/40"}`}
         >
           {/* Drag handle (☰) — the ONLY area used to reposition the toolbar. */}
           <button
@@ -3748,10 +3750,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             className={`shrink-0 flex items-center justify-center w-10 h-11`}
             style={{ touchAction: "none", cursor: "grab" }}
           >
-            <Menu size={18} className={isDark ? "text-slate-300" : "text-slate-700"} />
+            <Menu size={18} className={darkChrome ? "text-slate-300" : "text-slate-700"} />
           </button>
           {/* Divider between handle and orientation control */}
-          <div className={`${isH ? "w-px h-6 self-center" : "h-px w-6 self-center"} ${isDark ? "bg-white/10" : "bg-gray-300"}`} />
+          <div className={`${isH ? "w-px h-6 self-center" : "h-px w-6 self-center"} ${darkChrome ? "bg-white/10" : "bg-gray-300"}`} />
           {/* Orientation control — two-arrow icon indicating the target
               orientation. Horizontal shows ↕ (tap to go vertical),
               vertical shows ↔ (tap to go horizontal). NEVER a refresh
@@ -3775,8 +3777,8 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             className={`shrink-0 flex items-center justify-center w-10 h-11 hover:bg-white/10 active:scale-95 transition`}
           >
             {isH
-              ? <ArrowUpDown    size={16} className={isDark ? "text-slate-300" : "text-slate-700"} />
-              : <ArrowLeftRight size={16} className={isDark ? "text-slate-300" : "text-slate-700"} />}
+              ? <ArrowUpDown    size={16} className={darkChrome ? "text-slate-300" : "text-slate-700"} />
+              : <ArrowLeftRight size={16} className={darkChrome ? "text-slate-300" : "text-slate-700"} />}
           </button>
         </div>
 
@@ -3869,7 +3871,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
                 );
               })}
               {gi < groups.length - 1 && (
-                <div className={`${isH ? "w-px h-6 mx-1" : "h-px w-6 my-1"} ${isDark ? "bg-white/10" : "bg-gray-300"}`} />
+                <div className={`${isH ? "w-px h-6 mx-1" : "h-px w-6 my-1"} ${darkChrome ? "bg-white/10" : "bg-gray-300"}`} />
               )}
             </div>
           ))}

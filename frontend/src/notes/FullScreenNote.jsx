@@ -605,7 +605,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           reused unchanged. It portals to document.body and discovers the
           FullScreenNote editor targets (`fullscreen-content-input*`) via
           its internal testid whitelist. */}
-      <FloatingRichTextToolbar isOpen={isOpen} isDark={isDark} />
+      <FloatingRichTextToolbar isOpen={isOpen} isDark={isDark} forceDarkGlass />
     </div>
   );
 }
