@@ -346,3 +346,9 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - Edit Text wheel/trackpad scroll handler on scroller (only when note-modal-dialog open and fullscreen-note absent) — Radix scroll lock was blocking it.
 - Phones (<600px short side) logic unchanged. Simulated checks passed; physical devices pending.
 - Open: vertical toolbar taller than visible area on touch devices with keyboard up (tablet + phone), pre-existing.
+
+## 2026-10-17 (c) — Universal toolbar snap + viewport fit (v254 / v141, PREVIEW ONLY, NOT deployed; live = v247)
+- FloatingRichTextToolbar.jsx: snap on open / orientation change — horizontal → LEFT edge (8px), vertical → TOP edge (8px); dragged position kept until next snap event, clamped on resize/rotation/keyboard.
+- Toolbar max size now fits usable rect (keyboard-aware) minus 8px margins; overflow scrolls. Tablet Edit Text uses viewport top. Phones keep dialog edges (now with 8px margin).
+- Snap waits until toolbar is visible on touch devices (keyboard up) + 250ms settle re-snap.
+- Limitation: phone landscape with keyboard (~90px usable) — vertical toolbar box fits but its handle/rotate column spills; use horizontal there.

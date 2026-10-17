@@ -1857,6 +1857,7 @@ const measureToolbar = (orientation) => {
 
 export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }) {
   const [pos, setPos] = useState(null);            // { x, y } in viewport coords
+  const [fit, setFit] = useState(null);            // { w, h } max toolbar size in px
   const [orientation, setOrientation] = useState("horizontal");
   const [pickerOpen, setPickerOpen] = useState(null); // null | "forms" | "hierarchy"
   // Aa (Text Appearance) dropdown. Floating overlay, portaled to body.
@@ -2621,9 +2622,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // Edit Note on desktop/tablet: allow full screen width (phones keep dialog edges).
       const isPhone = isPhoneViewport(isMobile);
       if (!isPhone && host.matches('[data-testid="note-modal-dialog"]')) {
-        left = 0; right = window.innerWidth;
+        left = 0; right = window.innerWidth; top = 0;
         // Desktop: the toolbar can be taller than the dialog, so use the full viewport height.
-        if (!isMobile) { top = 0; bottom = window.innerHeight; }
+        if (!isMobile) bottom = window.innerHeight;
       }
     }
     // Intersect with the visible viewport so the keyboard reduces the
@@ -2637,6 +2638,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
   }, [isMobile]);
 
   const mobileToolbarShown = isMobile && editorFocused && keyboardUp;
+  // Snap events: opening the toolbar or changing its orientation.
+  const snapRef = useRef(true);
+  useEffect(() => { snapRef.current = true; }, [isOpen, orientation]);
   useEffect(() => {
     if (!isOpen) return;
     const place = () => {
@@ -2646,47 +2650,42 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       // line, which is what produced the "wig out" oscillation.
       if (dragStateRef.current.dragging) return;
       const rect = getUsableRect();
+      const m = EDGE_MARGIN;
+      const isH = orientation === "horizontal";
+      // Fit the toolbar inside the usable viewport (keyboard-aware); overflow scrolls.
+      const fitW = Math.max(60, Math.round(rect.right - rect.left - 2 * m));
+      const fitH = Math.max(60, Math.round(rect.bottom - rect.top - 2 * m));
+      setFit(f => (f && f.w === fitW && f.h === fitH ? f : { w: fitW, h: fitH }));
+      const size = measureToolbar(orientation);
+      const w = size ? Math.min(size.w, fitW) : (isH ? Math.min(fitW, 520) : VERTICAL_WIDTH);
+      const h = size ? Math.min(size.h, fitH) : (isH ? HORIZONTAL_HEIGHT : Math.min(240, fitH));
       const gap = isMobile ? 4 : 12; // "a few pixels" above the keyboard
-      const height = orientation === "horizontal" ? HORIZONTAL_HEIGHT : 240;
-      const width = orientation === "horizontal" ? Math.min(rect.right - rect.left - 24, 520) : VERTICAL_WIDTH;
-      const centeredX = Math.max(rect.left + 8, Math.round(rect.left + (rect.right - rect.left - width) / 2));
-      const y = Math.round(rect.bottom - height - gap);
+      const barY = Math.round(rect.bottom - HORIZONTAL_HEIGHT - gap);
+      const minX = rect.left + m, maxX = Math.max(minX, rect.right - m - w);
+      const minY = rect.top + m, maxY = Math.max(minY, rect.bottom - m - h);
+      const cx = (v) => Math.max(minX, Math.min(maxX, v));
+      const cy = (v) => Math.max(minY, Math.min(maxY, v));
+      const snap = snapRef.current;
+      // On touch devices the toolbar is hidden until the keyboard is up; snap once it shows.
+      if (!isMobile || mobileToolbarShown) snapRef.current = false;
       setPos(prev => {
-        if (!prev) return { x: centeredX, y: Math.max(rect.top, y) };
-        // Mobile: always snap Y to just-above-keyboard so the toolbar
-        // visually travels with the keyboard. Keep X where the user
-        // dragged, but re-clamp it against the current usable rect
-        // (dialog resize, orientation change, keyboard resize).
-        if (isPhoneViewport(isMobile)) {
-          const maxX = Math.max(rect.left, rect.right - width);
-          return {
-            x: Math.max(rect.left, Math.min(maxX, prev.x)),
-            y: Math.max(rect.top, y),
-          };
+        // Snap: horizontal → LEFT edge, vertical → TOP edge.
+        if (!prev || snap) {
+          if (isH) return { x: minX, y: cy(barY) };
+          return { x: prev ? cx(prev.x) : cx(Math.round(rect.left + (rect.right - rect.left - w) / 2)), y: minY };
         }
-        const m = EDGE_MARGIN;
-        const size = measureToolbar(orientation);
-        const w = size ? size.w : width;
-        if (isMobile) {
-          // Tablet: Y follows the keyboard; X is kept fully on-screen.
-          const maxX = Math.max(rect.left + m, rect.right - m - w);
-          return {
-            x: Math.max(rect.left + m, Math.min(maxX, prev.x)),
-            y: Math.max(rect.top, y),
-          };
-        }
-        // Desktop: keep the dragged position; move only as far as needed to stay fully on-screen.
-        const h = size ? size.h : height;
-        const vv = window.visualViewport;
-        const vb = vv ? (vv.offsetTop || 0) + vv.height : window.innerHeight;
-        const x = Math.max(m, Math.min(Math.max(m, window.innerWidth - m - w), prev.x));
-        const yy = Math.max(m, Math.min(Math.max(m, vb - m - h), prev.y));
-        return x === prev.x && yy === prev.y ? prev : { x, y: yy };
+        // Mobile horizontal: Y keeps travelling with the keyboard.
+        const next = { x: cx(prev.x), y: isMobile && isH ? cy(barY) : cy(prev.y) };
+        return next.x === prev.x && next.y === prev.y ? prev : next;
       });
     };
+    const snapThisRun = snapRef.current;
     place();
-    // Re-check once the toolbar has rendered so its real size is known.
-    const settle = setTimeout(place, 80);
+    // Re-check once the toolbar has rendered (real size known, dialog animation settled).
+    const settle = setTimeout(() => {
+      if (snapThisRun && (!isMobile || mobileToolbarShown)) snapRef.current = true;
+      place();
+    }, 250);
     window.visualViewport?.addEventListener("resize", place);
     window.visualViewport?.addEventListener("scroll", place);
     window.addEventListener("orientationchange", place);
@@ -2738,7 +2737,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // Clamp the ENTIRE toolbar bounding box inside the usable rect.
         // If the toolbar is wider/taller than the rect (unusual, tiny
         // dialogs), pin to the top-left corner rather than producing NaN.
-        const m = isPhoneViewport(isMobile) ? 0 : EDGE_MARGIN;
+        const m = EDGE_MARGIN;
         const maxX = Math.max(rect.left + m, rect.right - m - w);
         const maxY = Math.max(rect.top + m, rect.bottom - m - h);
         const nextX = Math.max(rect.left + m, Math.min(maxX, cx - dragStateRef.current.offX));
@@ -2762,7 +2761,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     handleEl.addEventListener("pointermove", move);
     handleEl.addEventListener("pointerup", end);
     handleEl.addEventListener("pointercancel", end);
-  }, [pos, getUsableRect, isMobile]);
+  }, [pos, getUsableRect]);
 
   // ------ Tool actions — REAL rich text, no Markdown fallback ------
   const stub = (name) => () => toast.info(`${name} — coming in a follow-up`, { duration: 1800 });
@@ -3708,8 +3707,8 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // stacking is deterministic if a future ancestor introduces a new
     // stacking context.
     zIndex: 2147483000,
-    maxWidth: isH ? "calc(100vw - 24px)" : undefined,
-    maxHeight: isH ? undefined : "calc(100vh - 24px)",
+    maxWidth: isH ? (fit ? `${fit.w}px` : "calc(100vw - 24px)") : undefined,
+    maxHeight: isH ? undefined : (fit ? `${fit.h}px` : "calc(100vh - 24px)"),
     // touchAction on the container is deliberately `auto` — the three
     // interaction zones each declare their own touch-action:
     //   • drag handle → `none`      (drag captures the pointer)
