@@ -340,3 +340,9 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - Simulated checks passed (desktop, tablet portrait/landscape, phone portrait/landscape, resize, rotation); Expanded Text regression unchanged. No physical-device testing.
 - Removed temporary caret logger (v247/v134). Caret/spell-check investigation paused (awaiting Emergent Support); read-only DevTools console script proposed, not run.
 - Known open: vertical toolbar taller than viewport; phone horizontal toolbar can't move sideways (pre-existing).
+
+## 2026-10-17 (b) — Toolbar boundary + Edit Text wheel scroll (v252 / v139, preview only, NOT deployed; live = v247)
+- FloatingRichTextToolbar.jsx only: 8px edge margin (desktop/tablet), resize/orientation re-clamp uses real measured toolbar size, settle re-check after render, desktop Edit Note uses full viewport height for drag bounds.
+- Edit Text wheel/trackpad scroll handler on scroller (only when note-modal-dialog open and fullscreen-note absent) — Radix scroll lock was blocking it.
+- Phones (<600px short side) logic unchanged. Simulated checks passed; physical devices pending.
+- Open: vertical toolbar taller than visible area on touch devices with keyboard up (tablet + phone), pre-existing.

@@ -1845,6 +1845,15 @@ function dissolveInlineCaretMarker(editor, target, sel) {
 // whether the toolbar overshoots into the keyboard area.
 const HORIZONTAL_HEIGHT = 50;
 const VERTICAL_WIDTH = 50;
+const EDGE_MARGIN = 8;
+const isPhoneViewport = (isMobile) => isMobile && Math.min(window.innerWidth, window.innerHeight) < 600;
+// Live toolbar size, only if the DOM already reflects `orientation` (else null).
+const measureToolbar = (orientation) => {
+  const r = document.querySelector('[data-testid="floating-rte-toolbar"]')?.getBoundingClientRect();
+  if (!r || !r.width || !r.height) return null;
+  if ((orientation === "horizontal") !== (r.width >= r.height)) return null;
+  return { w: r.width, h: r.height };
+};
 
 export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }) {
   const [pos, setPos] = useState(null);            // { x, y } in viewport coords
@@ -2557,11 +2566,27 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     // touchmove MUST be non-passive so preventDefault works. React's
     // synthetic touchmove is passive on some builds, hence native
     // addEventListener directly on the DOM node.
+    // Wheel/trackpad: the Edit Note dialog's scroll lock blocks native wheel
+    // scrolling of this portalled strip, so drive it manually there only.
+    const onWheel = (e) => {
+      if (!document.querySelector('[data-testid="note-modal-dialog"]')) return;
+      if (document.querySelector('[data-testid="fullscreen-note"]')) return;
+      const k = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? (isH ? el.clientWidth : el.clientHeight) : 1;
+      const d = (isH
+        ? (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY)
+        : (Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX)) * k;
+      if (!d) return;
+      if (isH) el.scrollLeft += d; else el.scrollTop += d;
+      if (e.cancelable) e.preventDefault();
+    };
+
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove",  onTouchMove,  { passive: false });
     el.addEventListener("touchend",   onTouchEnd,   { passive: true });
     el.addEventListener("touchcancel",onTouchEnd,   { passive: true });
+    el.addEventListener("wheel",      onWheel,      { passive: false });
     return () => {
+      el.removeEventListener("wheel",      onWheel);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove",  onTouchMove);
       el.removeEventListener("touchend",   onTouchEnd);
@@ -2594,8 +2619,12 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
       const r = host.getBoundingClientRect();
       left = r.left; right = r.right; top = r.top; bottom = r.bottom;
       // Edit Note on desktop/tablet: allow full screen width (phones keep dialog edges).
-      const isPhone = isMobile && Math.min(window.innerWidth, window.innerHeight) < 600;
-      if (!isPhone && host.matches('[data-testid="note-modal-dialog"]')) { left = 0; right = window.innerWidth; }
+      const isPhone = isPhoneViewport(isMobile);
+      if (!isPhone && host.matches('[data-testid="note-modal-dialog"]')) {
+        left = 0; right = window.innerWidth;
+        // Desktop: the toolbar can be taller than the dialog, so use the full viewport height.
+        if (!isMobile) { top = 0; bottom = window.innerHeight; }
+      }
     }
     // Intersect with the visible viewport so the keyboard reduces the
     // bottom boundary and the toolbar can never be dragged under it.
@@ -2607,6 +2636,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     return { left, right, top, bottom };
   }, [isMobile]);
 
+  const mobileToolbarShown = isMobile && editorFocused && keyboardUp;
   useEffect(() => {
     if (!isOpen) return;
     const place = () => {
@@ -2627,29 +2657,46 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // visually travels with the keyboard. Keep X where the user
         // dragged, but re-clamp it against the current usable rect
         // (dialog resize, orientation change, keyboard resize).
-        if (isMobile) {
+        if (isPhoneViewport(isMobile)) {
           const maxX = Math.max(rect.left, rect.right - width);
           return {
             x: Math.max(rect.left, Math.min(maxX, prev.x)),
             y: Math.max(rect.top, y),
           };
         }
-        // Desktop: preserve user-dragged position; only pull the handle back on-screen after a resize.
-        const x = Math.max(0, Math.min(window.innerWidth - VERTICAL_WIDTH, prev.x));
-        const yy = Math.max(0, Math.min(window.innerHeight - HORIZONTAL_HEIGHT, prev.y));
+        const m = EDGE_MARGIN;
+        const size = measureToolbar(orientation);
+        const w = size ? size.w : width;
+        if (isMobile) {
+          // Tablet: Y follows the keyboard; X is kept fully on-screen.
+          const maxX = Math.max(rect.left + m, rect.right - m - w);
+          return {
+            x: Math.max(rect.left + m, Math.min(maxX, prev.x)),
+            y: Math.max(rect.top, y),
+          };
+        }
+        // Desktop: keep the dragged position; move only as far as needed to stay fully on-screen.
+        const h = size ? size.h : height;
+        const vv = window.visualViewport;
+        const vb = vv ? (vv.offsetTop || 0) + vv.height : window.innerHeight;
+        const x = Math.max(m, Math.min(Math.max(m, window.innerWidth - m - w), prev.x));
+        const yy = Math.max(m, Math.min(Math.max(m, vb - m - h), prev.y));
         return x === prev.x && yy === prev.y ? prev : { x, y: yy };
       });
     };
     place();
+    // Re-check once the toolbar has rendered so its real size is known.
+    const settle = setTimeout(place, 80);
     window.visualViewport?.addEventListener("resize", place);
     window.visualViewport?.addEventListener("scroll", place);
     window.addEventListener("orientationchange", place);
     return () => {
+      clearTimeout(settle);
       window.visualViewport?.removeEventListener("resize", place);
       window.visualViewport?.removeEventListener("scroll", place);
       window.removeEventListener("orientationchange", place);
     };
-  }, [isOpen, orientation, isMobile, getUsableRect]);
+  }, [isOpen, orientation, isMobile, getUsableRect, mobileToolbarShown]);
 
   // ------ Drag by grip only ------
   // Uses pointer capture on the handle itself, so pointermove/pointerup
@@ -2691,10 +2738,11 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
         // Clamp the ENTIRE toolbar bounding box inside the usable rect.
         // If the toolbar is wider/taller than the rect (unusual, tiny
         // dialogs), pin to the top-left corner rather than producing NaN.
-        const maxX = Math.max(rect.left, rect.right - w);
-        const maxY = Math.max(rect.top, rect.bottom - h);
-        const nextX = Math.max(rect.left, Math.min(maxX, cx - dragStateRef.current.offX));
-        const nextY = Math.max(rect.top,  Math.min(maxY, cy - dragStateRef.current.offY));
+        const m = isPhoneViewport(isMobile) ? 0 : EDGE_MARGIN;
+        const maxX = Math.max(rect.left + m, rect.right - m - w);
+        const maxY = Math.max(rect.top + m, rect.bottom - m - h);
+        const nextX = Math.max(rect.left + m, Math.min(maxX, cx - dragStateRef.current.offX));
+        const nextY = Math.max(rect.top + m,  Math.min(maxY, cy - dragStateRef.current.offY));
         setPos({ x: nextX, y: nextY });
       });
     };
@@ -2714,7 +2762,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     handleEl.addEventListener("pointermove", move);
     handleEl.addEventListener("pointerup", end);
     handleEl.addEventListener("pointercancel", end);
-  }, [pos, getUsableRect]);
+  }, [pos, getUsableRect, isMobile]);
 
   // ------ Tool actions — REAL rich text, no Markdown fallback ------
   const stub = (name) => () => toast.info(`${name} — coming in a follow-up`, { duration: 1800 });
