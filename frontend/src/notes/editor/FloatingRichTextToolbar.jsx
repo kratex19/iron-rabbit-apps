@@ -2593,6 +2593,9 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     if (host) {
       const r = host.getBoundingClientRect();
       left = r.left; right = r.right; top = r.top; bottom = r.bottom;
+      // Edit Note on desktop/tablet: allow full screen width (phones keep dialog edges).
+      const isPhone = isMobile && Math.min(window.innerWidth, window.innerHeight) < 600;
+      if (!isPhone && host.matches('[data-testid="note-modal-dialog"]')) { left = 0; right = window.innerWidth; }
     }
     // Intersect with the visible viewport so the keyboard reduces the
     // bottom boundary and the toolbar can never be dragged under it.
@@ -2602,7 +2605,7 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
     if (right - left < 40) { left = 0; right = window.innerWidth; }
     if (bottom - top < 40) { top = 0; bottom = window.innerHeight; }
     return { left, right, top, bottom };
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -2631,8 +2634,10 @@ export default function FloatingRichTextToolbar({ isDark = true, isOpen = true }
             y: Math.max(rect.top, y),
           };
         }
-        // Desktop: preserve user-dragged position (existing behaviour).
-        return prev;
+        // Desktop: preserve user-dragged position; only pull the handle back on-screen after a resize.
+        const x = Math.max(0, Math.min(window.innerWidth - VERTICAL_WIDTH, prev.x));
+        const yy = Math.max(0, Math.min(window.innerHeight - HORIZONTAL_HEIGHT, prev.y));
+        return x === prev.x && yy === prev.y ? prev : { x, y: yy };
       });
     };
     place();

@@ -333,3 +333,10 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - c4c05b02 Phase 2a synthetic IME handlers NOT reintroduced.
 - SW cache bumped v240 / runtime v127.
 - Status: AWAITING USER ANDROID VERIFICATION (new + existing notes).
+
+## 2026-10-17 — Edit Text toolbar drag fix (v249 / v136, preview only, not deployed)
+- getUsableRect(): Edit Note dialog on desktop/tablet now uses full screen width (phones <600px short side keep dialog edges).
+- place() desktop branch: keeps dragged position; only pulls drag handle back on-screen after a window resize.
+- Simulated checks passed (desktop, tablet portrait/landscape, phone portrait/landscape, resize, rotation); Expanded Text regression unchanged. No physical-device testing.
+- Removed temporary caret logger (v247/v134). Caret/spell-check investigation paused (awaiting Emergent Support); read-only DevTools console script proposed, not run.
+- Known open: vertical toolbar taller than viewport; phone horizontal toolbar can't move sideways (pre-existing).
