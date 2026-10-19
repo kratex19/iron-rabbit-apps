@@ -135,8 +135,11 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
   }, [note?.id]);
 
   // When note changes (new note opened, or synced from parent after edit), reset local state
+  // Editor mounts only once local content belongs to the opened note (stale/blank first-open fix).
+  const [loadedId, setLoadedId] = useState(null);
   useEffect(() => {
-    if (!note) return;
+    if (!note) { setLoadedId(null); return; }
+    setLoadedId(note.id);
     if (note.id !== noteIdRef.current || !dirty) {
       setTitle(note.title || "");
       setContent(note.content || "");
@@ -454,7 +457,8 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               paddingBottom: "calc(max(env(keyboard-inset-height, 0px), var(--kb-inset, 0px)) + 6rem)",
             }}
           >
-            <ExpandedTextEditor
+            {loadedId === note.id && <ExpandedTextEditor
+              key={note.id}
               value={content}
               onChange={(next) => { setContent(next); setDirty(true); }}
               mode={mode}
@@ -462,7 +466,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
               textareaRef={contentTextareaRef}
               isDark={isDark}
               placeholder="Start writing…"
-            />
+            />}
           </div>
           {Array.isArray(note.chores) && (
             <ChoresPanel

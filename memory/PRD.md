@@ -358,3 +358,9 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - FloatingRichTextToolbar.jsx: optional `forceDarkGlass` prop → `darkChrome` used only for strip glass, controls column, menu/rotate icons, dividers. Pop-up dialogs still follow isDark.
 - FullScreenNote.jsx passes `forceDarkGlass`. Edit Text / Expanded Canvas unchanged (verified light theme still light glass).
 - Desktop Edit Text horizontal overflow item: ON HOLD awaiting user's console numbers (suspect pinch-zoom / window wider than screen).
+
+## 2026-10-19 — Expanded Text first-open stale/blank fix (v256 / v143, PREVIEW ONLY; live = v247)
+- Root cause: FullScreenNote stays mounted; local `content` updated in an effect AFTER ExpandedTextEditor mounts; text-mode buffer copies value once on mount → blank (cold) or previous note's text (switch). Typing would autosave wrong content (data-loss risk).
+- Fix (FullScreenNote.jsx only): `loadedId` state set in note-reset effect (null on close); ExpandedTextEditor rendered only when loadedId === note.id, keyed by note.id.
+- Simulated tests passed: cold first open, note switching, formatted note, typing autosaves to correct note, reload persistence, Edit Text change → Expanded shows latest.
+- Mode buttons (T / T✦ / </>) investigated read-only: report delivered, no changes. Risks: T mode mid-text edit of HTML note drops all formatting; T✦ converts plain note to HTML on entry; </> shows raw stored HTML (leftover ir-caret-target markers are stored content, not created by the mode).
