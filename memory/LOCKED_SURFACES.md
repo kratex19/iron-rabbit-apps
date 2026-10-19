@@ -64,9 +64,10 @@ perfectly:
 - Slider markup, double-tap reset behaviour, and reset button
 
 ### 2. `/app/frontend/src/notes/FullScreenNote.jsx`
-- The **backdrop overlay** `<div data-testid="fullscreen-backdrop">` and its
-  `style={{ background: brightnessToBg(...) }}` — this is what makes the BG
-  slider actually change opacity.
+- (UNLOCKED + CHANGED 2026-10-19, pw 2020, approved by Gary) The **backdrop overlay**
+  `<div data-testid="fullscreen-backdrop">` is now clear + blur only (page shows as the
+  home BG slider sets it). The per-note BG value `brightnessToBg(paintBrightness.bg)`
+  now paints the **card container** background (0 = solid black, 1 = clear).
 - The **card container** style block — deliberately does NOT paint its own
   black layer (that was the bug we just fixed).
 - The **textarea colour-forcing** `useLayoutEffect` that sets `color` and

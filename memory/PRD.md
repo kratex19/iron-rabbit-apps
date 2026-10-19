@@ -364,3 +364,7 @@ See `/app/memory/CHANGELOG.md` for the full timeline.
 - Fix (FullScreenNote.jsx only): `loadedId` state set in note-reset effect (null on close); ExpandedTextEditor rendered only when loadedId === note.id, keyed by note.id.
 - Simulated tests passed: cold first open, note switching, formatted note, typing autosaves to correct note, reload persistence, Edit Text change → Expanded shows latest.
 - Mode buttons (T / T✦ / </>) investigated read-only: report delivered, no changes. Risks: T mode mid-text edit of HTML note drops all formatting; T✦ converts plain note to HTML on entry; </> shows raw stored HTML (leftover ir-caret-target markers are stored content, not created by the mode).
+
+## 2026-10-19 (b) — Expanded Text BG slider retargeted to note card (v257 / v144, PREVIEW ONLY)
+- FullScreenNote.jsx: removed BG alpha from `fullscreen-backdrop` (now clear + blur); card style gets `background: brightnessToBg(paintBrightness.bg)`. Same calc/direction/saved value.
+- Home BG slider (settings.ui_brightness → <main>) untouched; verified main bg constant while note slider moves, and home slider still changes main.

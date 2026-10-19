@@ -267,9 +267,10 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
           transparent (page shows through). The card itself no longer
           paints its own black layer — otherwise the two stacks would
           double-darken and the slider would appear to "do nothing". */}
+      {/* Backdrop: clear + blur only (page shows as the home BG slider sets it).
+          Per-note BG slider now paints the card below (unlocked 2026-10-19, pw 2020). */}
       <div
         className="absolute inset-0 backdrop-blur-sm"
-        style={{ background: brightnessToBg(paintBrightness?.bg ?? 0.3) }}
         onClick={handleClose}
         data-testid="fullscreen-backdrop"
       />
@@ -277,6 +278,7 @@ export default function FullScreenNote({ note, isOpen, onClose, onSaveInline, on
         className={`relative w-full max-w-4xl h-[90vh] rounded-2xl overflow-hidden flex flex-col ${isDark ? 'backdrop-blur-2xl' : ''} border ${colorConfig.class}`}
         style={{
           borderWidth: '2px',
+          background: brightnessToBg(paintBrightness?.bg ?? 0.3),
           ...(isDark
             ? {}
             : { borderColor: colorConfig.border || colorConfig.accent }),
