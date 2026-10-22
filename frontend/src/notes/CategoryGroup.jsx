@@ -32,6 +32,7 @@ export default function CategoryGroup({
   onDeleteCategory = null, onDeleteSubcategory = null,
   onJumpToPath = null,
   highlightCategoryPath = null,
+  highlightNoteId = null,
   onClearHighlight = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -196,6 +197,7 @@ export default function CategoryGroup({
                   onDeleteSubcategory={onDeleteSubcategory}
                   onJumpToPath={onJumpToPath}
                   highlightCategoryPath={highlightCategoryPath}
+                  highlightNoteId={highlightNoteId}
                   onClearHighlight={onClearHighlight}
                 />
               ))}
@@ -222,6 +224,8 @@ export default function CategoryGroup({
                         selected={isSelected ? isSelected(note.id) : false}
                         onToggleSelect={onToggleSelect}
                         onSwipeSelect={onSwipeSelect}
+                        highlightNoteId={highlightNoteId}
+                        onClearHighlight={onClearHighlight}
                       />
                     </div>
                   )}
@@ -262,6 +266,8 @@ export default function CategoryGroup({
                         selected={isSelected ? isSelected(note.id) : false}
                         onToggleSelect={onToggleSelect}
                         onSwipeSelect={onSwipeSelect}
+                        highlightNoteId={highlightNoteId}
+                        onClearHighlight={onClearHighlight}
                       />
                     </div>
                   )}

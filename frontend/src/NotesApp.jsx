@@ -303,6 +303,12 @@ export default function NotesApp() {
       return next;
     });
   };
+  
+  // HIERARCHY ACCORDION REDESIGN: Clear highlight function
+  const clearHighlight = () => {
+    setHighlightNoteId(null);
+    setHighlightCategoryPath(null);
+  };
 
   const [pinnedSubOpenState, setPinnedSubOpenState] = useState({});
 
@@ -3008,6 +3014,9 @@ export default function NotesApp() {
                               onDeleteCategory={openDeleteCategoryConfirm}
                               onDeleteSubcategory={openDeleteSubcategoryConfirm}
                               onJumpToPath={handleJumpToPath}
+                              highlightCategoryPath={highlightCategoryPath}
+                              highlightNoteId={highlightNoteId}
+                              onClearHighlight={clearHighlight}
                             />
                           </div>
                         )}
@@ -3044,6 +3053,9 @@ export default function NotesApp() {
                           onDeleteCategory={openDeleteCategoryConfirm}
                           onDeleteSubcategory={openDeleteSubcategoryConfirm}
                           onJumpToPath={handleJumpToPath}
+                          highlightCategoryPath={highlightCategoryPath}
+                          highlightNoteId={highlightNoteId}
+                          onClearHighlight={clearHighlight}
                         />
                       </div>
                     )}

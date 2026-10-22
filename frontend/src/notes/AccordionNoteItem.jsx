@@ -31,10 +31,15 @@ import { sanitizeHtml, looksLikeHtml } from "../utils/htmlSanitize";
 export default function AccordionNoteItem({
   note, onEdit, onDelete, onShare, onFullScreen, onTogglePin, isDark, dragHandleProps, isDragging,
   selectMode = false, selected = false, onToggleSelect, onSwipeSelect,
+  highlightNoteId = null,
+  onClearHighlight = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [swipeDx, setSwipeDx] = useState(0); // live pixel offset during a swipe
   const touchRef = React.useRef(null);       // { startX, startY, startT }
+  
+  // HIERARCHY ACCORDION REDESIGN: Check if this note should be highlighted
+  const isHighlighted = highlightNoteId === note.id;
 
   const colorConfig = NOTE_COLORS.find(c => c.name === note.color) || NOTE_COLORS[0];
   const hasAlarm = note.alarm?.enabled && note.alarm?.datetime;
@@ -84,13 +89,18 @@ export default function AccordionNoteItem({
 
   return (
     <div
-      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 relative ${isDragging ? 'opacity-50' : ''} ${selected ? 'ring-2 ring-indigo-400' : ''}`}
+      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 relative ${isDragging ? 'opacity-50' : ''} ${selected ? 'ring-2 ring-indigo-400' : ''} ${isHighlighted ? 'ir-highlight-new' : ''}`}
       style={getNoteColorStyle(colorConfig, isDark) || undefined}
       data-testid={`accordion-note-${note.id}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
+      onClick={() => {
+        if (isHighlighted && onClearHighlight) {
+          onClearHighlight();
+        }
+      }}
     >
       {/* Left-rail hint that appears while the user is swiping right */}
       {swipeActive && (

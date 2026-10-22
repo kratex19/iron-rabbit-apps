@@ -52,6 +52,7 @@ export default function NestedSubGroup(props) {
     onDeleteSubcategory = null,
     onJumpToPath = null,
     highlightCategoryPath = null,
+    highlightNoteId = null,
     onClearHighlight = null,
   } = props;
   const Self = NestedSubGroup;
@@ -237,6 +238,7 @@ export default function NestedSubGroup(props) {
                   onDeleteSubcategory={onDeleteSubcategory}
                   onJumpToPath={onJumpToPath}
                   highlightCategoryPath={highlightCategoryPath}
+                  highlightNoteId={highlightNoteId}
                   onClearHighlight={onClearHighlight}
                 />
               ))}
@@ -274,6 +276,8 @@ export default function NestedSubGroup(props) {
                             selected={isSelected ? isSelected(note.id) : false}
                             onToggleSelect={onToggleSelect}
                             onSwipeSelect={onSwipeSelect}
+                            highlightNoteId={highlightNoteId}
+                            onClearHighlight={onClearHighlight}
                           />
                         </div>
                       </div>
