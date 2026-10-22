@@ -46,7 +46,7 @@ For most users, this is sufficient. Google Drive is the **upgrade path** for use
 - **Authorized JavaScript origins:**
   - `https://ironrabbitapps.com` (production)
   - `http://localhost:3000` (local dev, optional)
-  - `https://your-preview-url.preview.emergentagent.com` (Emergent preview)
+  - `https://ironrabbit-edit.preview.emergentagent.com` (Emergent preview)
 - **Authorized redirect URIs:**
   - `https://ironrabbitapps.com/auth/drive/callback`
   - Same three variants for localhost/preview if you want to test outside prod

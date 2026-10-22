@@ -184,13 +184,17 @@ html.ir-dragging body {
    stacked containers. Content within the main uses fluid horizontal
    padding (--ir-container-pad-x) to keep readable line lengths on
    large screens. Grows to fill remaining vertical space so short
-   pages still cover the viewport. */
+   pages still cover the viewport.
+   
+   HIERARCHY PANEL WIDTH: Reduced horizontal padding from var(--ir-container-pad-x)
+   to smaller fixed values to make List View substantially wider (nearly full-screen
+   width with only small margins on either side). */
 .ir-app-main {
     flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
     margin-inline: 0;
-    padding-inline: var(--ir-container-pad-x);
+    padding-inline: clamp(0.5rem, 1vw, 1rem);
     padding-block-start: var(--ir-container-pad-y);
     padding-block-end: calc(env(safe-area-inset-bottom, 0px) + var(--ir-space-6));
     /* Slight breathing gap between direct children (search bar, filter

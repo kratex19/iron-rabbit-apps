@@ -107,6 +107,16 @@ export default function NotesApp() {
   // Home only shows notes whose category_path starts with this prefix.
   // Fired from long-press on the blue tree icon in category rows.
   const [activePathFilter, setActivePathFilter] = useState(null);
+  
+  // Hierarchy Accordion Redesign — path restoration and highlight tracking
+  // When returning from Edit Text, restore which accordions were open and scroll position
+  const [hierarchyOpenPaths, setHierarchyOpenPaths] = useState(new Set());
+  const [hierarchyScrollPosition, setHierarchyScrollPosition] = useState(0);
+  const hierarchyScrollRef = useRef(null);
+  
+  // Track newly created items for animated border highlight
+  const [highlightNoteId, setHighlightNoteId] = useState(null);
+  const [highlightCategoryPath, setHighlightCategoryPath] = useState(null);
 
   // Modals
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -243,6 +253,30 @@ export default function NotesApp() {
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.theme_preference, settings?.theme_chooser_seen, !!settings]);
+
+  // HIERARCHY ACCORDION REDESIGN: Restore scroll position when returning from Edit Text
+  useEffect(() => {
+    if (!noteModalOpen && hierarchyScrollRef.current && hierarchyScrollPosition > 0) {
+      // Delay slightly to ensure DOM has updated
+      requestAnimationFrame(() => {
+        if (hierarchyScrollRef.current) {
+          hierarchyScrollRef.current.scrollTop = hierarchyScrollPosition;
+        }
+      });
+    }
+  }, [noteModalOpen, hierarchyScrollPosition]);
+  
+  // HIERARCHY ACCORDION REDESIGN: Clear highlight when item is selected or panel closes
+  useEffect(() => {
+    if (highlightNoteId || highlightCategoryPath) {
+      // Clear highlights after 8 seconds or when user interacts
+      const timer = setTimeout(() => {
+        setHighlightNoteId(null);
+        setHighlightCategoryPath(null);
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightNoteId, highlightCategoryPath]);
 
   const handleThemeChooserPick = async (choice) => {
     setThemeChooserOpen(false);
@@ -967,6 +1001,19 @@ export default function NotesApp() {
           last_viewed: now,
         };
         await StorageService.saveNote(newNote);
+        
+        // HIERARCHY ACCORDION REDESIGN: Trigger animated border highlight for newly created note
+        setHighlightNoteId(newNote.id);
+        if (Array.isArray(newNote.category_path) && newNote.category_path.length > 0) {
+          setHighlightCategoryPath(newNote.category_path);
+          // Ensure the parent accordion opens to reveal the new note
+          const pathKey = newNote.category_path.join('|');
+          setHierarchyOpenPaths(prev => new Set([...prev, pathKey]));
+        } else if (newNote.category) {
+          setHighlightCategoryPath([newNote.category]);
+          setHierarchyOpenPaths(prev => new Set([...prev, newNote.category]));
+        }
+        
         if (enriched.alarm?.auto_detected) {
           toast.success(`Created — reminder set for ${new Date(enriched.alarm.datetime).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`, { duration: 5000 });
         } else {
@@ -2409,6 +2456,12 @@ export default function NotesApp() {
         return;
       }
     }
+    
+    // HIERARCHY ACCORDION REDESIGN: Save current scroll position before opening Edit Text
+    if (hierarchyScrollRef.current) {
+      setHierarchyScrollPosition(hierarchyScrollRef.current.scrollTop || 0);
+    }
+    
     setEditingNote(note); setNoteModalOpen(true);
   };
   const openFullScreen           = (note) => {
@@ -3173,6 +3226,7 @@ export default function NotesApp() {
           data-testid="home-brightness-underlay"
         />
         <main
+          ref={hierarchyScrollRef}
           className="relative ir-app-main ir-brightness-scope"
           style={{
             background: brightnessToBg(effectiveBrightness?.bg ?? 0.3),

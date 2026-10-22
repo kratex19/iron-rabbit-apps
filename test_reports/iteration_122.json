@@ -1,5 +1,5 @@
 {
-  "summary": "Empirical Playwright verification (desktop 1280x900, https://color-task-timer.preview.emergentagent.com) of the new 'Edit Canvas View' toggle in NoteModal (NoteModal.jsx L46-51, L417-470). Opened the 'T2' accordion → accordion-edit-{id} → modal 'Edit Note' header visible → verified the toggle data-testid='note-canvas-view-toggle'. All critical scenarios PASS.",
+  "summary": "Empirical Playwright verification (desktop 1280x900, https://ironrabbit-edit.preview.emergentagent.com) of the new 'Edit Canvas View' toggle in NoteModal (NoteModal.jsx L46-51, L417-470). Opened the 'T2' accordion → accordion-edit-{id} → modal 'Edit Note' header visible → verified the toggle data-testid='note-canvas-view-toggle'. All critical scenarios PASS.",
   "verdict": "PASS",
   "scenarios": {
     "modal_opens_with_edit_note_header": {"pass": true, "header": "Edit Note"},

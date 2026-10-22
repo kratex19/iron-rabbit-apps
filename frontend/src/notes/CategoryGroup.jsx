@@ -31,8 +31,13 @@ export default function CategoryGroup({
   pinnedSubKeys = null, onTogglePinSub = null,
   onDeleteCategory = null, onDeleteSubcategory = null,
   onJumpToPath = null,
+  highlightCategoryPath = null,
+  onClearHighlight = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // HIERARCHY ACCORDION REDESIGN: Check if this category should be highlighted
+  const isHighlighted = highlightCategoryPath && highlightCategoryPath.length >= 1 && highlightCategoryPath[0] === category;
   const colorConfig = useMemo(() => {
     const counts = {};
     children.forEach(n => { counts[n.color] = (counts[n.color] || 0) + 1; });
@@ -69,9 +74,14 @@ export default function CategoryGroup({
 
   return (
     <div
-      className={`category-group ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 transition-shadow ${isDragging ? "shadow-2xl ring-2 ring-indigo-400/50 scale-[1.02]" : ""}`}
+      className={`category-group ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 transition-shadow ${isDragging ? "shadow-2xl ring-2 ring-indigo-400/50 scale-[1.02]" : ""} ${isHighlighted ? "ir-highlight-new" : ""}`}
       style={getNoteColorStyle(colorConfig, isDark) || undefined}
       data-testid={`category-group-${category}`}
+      onClick={() => {
+        if (isHighlighted && onClearHighlight) {
+          onClearHighlight();
+        }
+      }}
     >
       <div className="w-full flex items-center gap-2 p-3 text-left">
         {dragHandleProps && (
@@ -185,6 +195,8 @@ export default function CategoryGroup({
                   onTogglePinSub={onTogglePinSub}
                   onDeleteSubcategory={onDeleteSubcategory}
                   onJumpToPath={onJumpToPath}
+                  highlightCategoryPath={highlightCategoryPath}
+                  onClearHighlight={onClearHighlight}
                 />
               ))}
               {directTopLevelNotes.map((note, idx) => (

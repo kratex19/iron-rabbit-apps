@@ -22,7 +22,7 @@ Single source of truth for every environment variable used by the backend and sc
 
 | Variable | Purpose | Example | Required |
 |---|---|---|---|
-| `REACT_APP_BACKEND_URL` | Public HTTPS base URL the React app calls (`${URL}/api/...`). | `https://iron-rabbit.preview.emergentagent.com` | ✅ |
+| `REACT_APP_BACKEND_URL` | Public HTTPS base URL the React app calls (`${URL}/api/...`). | `https://ironrabbit-edit.preview.emergentagent.com` | ✅ |
 
 **Used in:** `frontend/src/**/*.jsx` (all `fetch` / `axios` calls).
 

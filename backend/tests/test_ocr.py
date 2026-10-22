@@ -7,7 +7,7 @@ import pytest
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://color-task-timer.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://ironrabbit-edit.preview.emergentagent.com").rstrip("/")
 OCR_URL = f"{BASE_URL}/api/ocr"
 
 

@@ -39,7 +39,7 @@ PWAs cache aggressively. Sometimes the installed PWA continues running the shell
 ### 5. Are they looking at the right URL?
 
 - **Production** = `https://app.ironrabbitapps.com` (what real users see)
-- **Preview** = `https://color-task-timer.preview.emergentagent.com` (dev/test environment)
+- **Preview** = `https://ironrabbit-edit.preview.emergentagent.com` (dev/test environment)
 - **Emergent chat's embedded preview iframe** = a browser iframe pointing at Preview; it caches aggressively and often shows stale content. **Never trust it for verification.** Always open the raw Preview URL in a real browser tab.
 
 ---

@@ -51,6 +51,8 @@ export default function NestedSubGroup(props) {
     pinnedSubKeys = null, onTogglePinSub = null,
     onDeleteSubcategory = null,
     onJumpToPath = null,
+    highlightCategoryPath = null,
+    onClearHighlight = null,
   } = props;
   const Self = NestedSubGroup;
 
@@ -73,6 +75,11 @@ export default function NestedSubGroup(props) {
   const fullPathKey = useMemo(() => subcatPathKey(fullPath), [fullPath]);
   const isPinnedSub = !!(pinnedSubKeys && pinnedSubKeys.has(fullPathKey));
   const droppableId = useMemo(() => encodeNestedDroppableId(fullPath), [fullPath]);
+  
+  // HIERARCHY ACCORDION REDESIGN: Check if this subcategory should be highlighted
+  const isHighlighted = highlightCategoryPath && 
+    highlightCategoryPath.length >= fullPath.length &&
+    fullPath.every((segment, idx) => highlightCategoryPath[idx] === segment);
 
   const directNotes = useMemo(
     () => bucketNotes.filter((n) => getPath(n).length === depth + 1),
@@ -103,10 +110,15 @@ export default function NestedSubGroup(props) {
 
   return (
     <div
-      className={`relative rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5 ${inReverseBand ? "ml-4 mr-0" : "ml-0 mr-4"}`}
+      className={`relative rounded-md border overflow-hidden bg-transparent ${shellBorder} mb-1.5 ${inReverseBand ? "ml-4 mr-0" : "ml-0 mr-4"} ${isHighlighted ? "ir-highlight-new" : ""}`}
       data-testid={`nested-subgroup-${depth}-${label}`}
       data-hierarchy-level={hierarchyLevel}
       data-serpentine-band={inReverseBand ? "reverse" : "forward"}
+      onClick={() => {
+        if (isHighlighted && onClearHighlight) {
+          onClearHighlight();
+        }
+      }}
     >
       <div
         role="button"
@@ -224,6 +236,8 @@ export default function NestedSubGroup(props) {
                   onTogglePinSub={onTogglePinSub}
                   onDeleteSubcategory={onDeleteSubcategory}
                   onJumpToPath={onJumpToPath}
+                  highlightCategoryPath={highlightCategoryPath}
+                  onClearHighlight={onClearHighlight}
                 />
               ))}
               {directNotes.map((note, idx) => (

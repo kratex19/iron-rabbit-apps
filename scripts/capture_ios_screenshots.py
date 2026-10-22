@@ -27,7 +27,7 @@ from playwright.async_api import async_playwright
 
 BASE_URL = os.environ.get(
     "SCREENSHOT_BASE_URL",
-    "https://color-task-timer.preview.emergentagent.com",
+    "https://ironrabbit-edit.preview.emergentagent.com",
 )
 OUT_ROOT = Path("/app/frontend/public/screenshots/ios")
 

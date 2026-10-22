@@ -32,6 +32,6 @@
   "seed_data_creation": "Seeded 2 notes (id=test-note-1 'Alpha', id=test-note-2 'Beta') in category 'TestA' via direct IndexedDB write into IronRabbit->notes store before each scenario group. Notes deleted/reset between scenarios via indexedDB.clear.",
   "retest_needed": false,
   "main_agent_can_self_test": true,
-  "context_for_next_testing_agent": "Preview URL: https://color-task-timer.preview.emergentagent.com. localforage DB name is 'IronRabbit' (not 'iron-rabbit-db' as the request mentioned) with object stores: notes, settings, templates, files, metadata. Object stores use OUT-OF-LINE keys so IndexedDB store.put(value) requires a second key arg: store.put(note, note.id). data-testid=\"settings-btn\" was added in this iteration. All Smart Batch Copy/Move flows verified end-to-end at 390x800 viewport.",
+  "context_for_next_testing_agent": "Preview URL: https://ironrabbit-edit.preview.emergentagent.com. localforage DB name is 'IronRabbit' (not 'iron-rabbit-db' as the request mentioned) with object stores: notes, settings, templates, files, metadata. Object stores use OUT-OF-LINE keys so IndexedDB store.put(value) requires a second key arg: store.put(note, note.id). data-testid=\"settings-btn\" was added in this iteration. All Smart Batch Copy/Move flows verified end-to-end at 390x800 viewport.",
   "rca of the issue": "N/A — all scenarios passed. Settings-modal scroll fix (max-h-[90vh] overflow-y-auto) is effective; Smart Batch Mode (Move vs Copy) with CopySuffixDialog is fully functional including Undo for both paths."
 }

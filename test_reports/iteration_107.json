@@ -4,7 +4,7 @@
   "reproduction_recipe": {
     "browser_context": "Fresh browser context (Playwright browser.new_context() ≈ Chrome Incognito) — no SW cache, no IDB, no localStorage.",
     "network_condition": "/api/notes** stubbed to return [] (simulates first-time user with no server data OR slow/offline network before hydration).",
-    "url": "https://color-task-timer.preview.emergentagent.com/",
+    "url": "https://ironrabbit-edit.preview.emergentagent.com/",
     "trigger": "Any navigation that leaves processedNotes.length === 0 while the boot splash is still visible (splash hides ~1400ms after DOMContentLoaded, fades over 380ms + 500ms unmount).",
     "not_reproducible_when": "Backend seed contains notes (current preview has 7 restored notes) OR IDB/localForage already contains prior notes — in that case processedNotes hydrates non-empty before the splash fades and only the splash rabbit is ever visible."
   },
