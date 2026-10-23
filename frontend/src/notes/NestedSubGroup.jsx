@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Bell, ChevronDown, CornerDownRight, GripVertical, Pin, Trash2 } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
@@ -54,10 +54,10 @@ export default function NestedSubGroup(props) {
     highlightCategoryPath = null,
     highlightNoteId = null,
     onClearHighlight = null,
+    onToggleOpen = null,
+    hierarchyOpenPaths = null,
   } = props;
   const Self = NestedSubGroup;
-
-  const [isOpen, setIsOpen] = useState(false);
 
   const fullPath = useMemo(() => [...ancestorPath, label], [ancestorPath, label]);
   const fullPathKey = useMemo(() => subcatPathKey(fullPath), [fullPath]);
@@ -68,6 +68,9 @@ export default function NestedSubGroup(props) {
   const isHighlighted = highlightCategoryPath && 
     highlightCategoryPath.length >= fullPath.length &&
     fullPath.every((segment, idx) => highlightCategoryPath[idx] === segment);
+  
+  // HIERARCHY ACCORDION REDESIGN: Controlled accordion state
+  const isOpen = hierarchyOpenPaths ? hierarchyOpenPaths.has(fullPathKey) : false;
 
   const directNotes = useMemo(
     () => bucketNotes.filter((n) => getPath(n).length === depth + 1),
@@ -110,11 +113,11 @@ export default function NestedSubGroup(props) {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => onToggleOpen && onToggleOpen(fullPathKey)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            setIsOpen((v) => !v);
+            onToggleOpen && onToggleOpen(fullPathKey);
           }
         }}
         aria-expanded={isOpen}
@@ -226,6 +229,8 @@ export default function NestedSubGroup(props) {
                   highlightCategoryPath={highlightCategoryPath}
                   highlightNoteId={highlightNoteId}
                   onClearHighlight={onClearHighlight}
+                  onToggleOpen={onToggleOpen}
+                  hierarchyOpenPaths={hierarchyOpenPaths}
                 />
               ))}
               {directNotes.map((note, idx) => (

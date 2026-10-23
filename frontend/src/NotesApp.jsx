@@ -309,6 +309,19 @@ export default function NotesApp() {
     setHighlightNoteId(null);
     setHighlightCategoryPath(null);
   };
+  
+  // HIERARCHY ACCORDION REDESIGN: Toggle accordion state (controlled from parent)
+  const handleToggleAccordion = useCallback((pathKey) => {
+    setHierarchyOpenPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(pathKey)) {
+        next.delete(pathKey);
+      } else {
+        next.add(pathKey);
+      }
+      return next;
+    });
+  }, []);
 
   const [pinnedSubOpenState, setPinnedSubOpenState] = useState({});
 
@@ -1012,9 +1025,19 @@ export default function NotesApp() {
         setHighlightNoteId(newNote.id);
         if (Array.isArray(newNote.category_path) && newNote.category_path.length > 0) {
           setHighlightCategoryPath(newNote.category_path);
-          // Ensure the parent accordion opens to reveal the new note
-          const pathKey = newNote.category_path.join('|');
-          setHierarchyOpenPaths(prev => new Set([...prev, pathKey]));
+          // Open ALL ancestors to reveal the new note
+          const path = newNote.category_path;
+          setHierarchyOpenPaths(prev => {
+            const next = new Set(prev);
+            // Add main category
+            next.add(path[0]);
+            // Add each subcategory path progressively
+            for (let i = 1; i <= path.length; i++) {
+              const ancestorKey = path.slice(0, i).join('|');
+              next.add(ancestorKey);
+            }
+            return next;
+          });
         } else if (newNote.category) {
           setHighlightCategoryPath([newNote.category]);
           setHierarchyOpenPaths(prev => new Set([...prev, newNote.category]));
@@ -3017,6 +3040,9 @@ export default function NotesApp() {
                               highlightCategoryPath={highlightCategoryPath}
                               highlightNoteId={highlightNoteId}
                               onClearHighlight={clearHighlight}
+                              isOpen={hierarchyOpenPaths.has(cat)}
+                              onToggleOpen={handleToggleAccordion}
+                              hierarchyOpenPaths={hierarchyOpenPaths}
                             />
                           </div>
                         )}
@@ -3056,6 +3082,9 @@ export default function NotesApp() {
                           highlightCategoryPath={highlightCategoryPath}
                           highlightNoteId={highlightNoteId}
                           onClearHighlight={clearHighlight}
+                          isOpen={hierarchyOpenPaths.has(cat)}
+                          onToggleOpen={handleToggleAccordion}
+                          hierarchyOpenPaths={hierarchyOpenPaths}
                         />
                       </div>
                     )}

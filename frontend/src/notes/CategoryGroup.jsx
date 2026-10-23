@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Bell, ChevronDown, GripVertical, Sparkles, Pin, Trash2 } from "lucide-react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,10 @@ export default function CategoryGroup({
   highlightCategoryPath = null,
   highlightNoteId = null,
   onClearHighlight = null,
+  isOpen = false,
+  onToggleOpen = null,
+  hierarchyOpenPaths = null,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  
   // HIERARCHY ACCORDION REDESIGN: Check if this category should be highlighted
   const isHighlighted = highlightCategoryPath && highlightCategoryPath.length >= 1 && highlightCategoryPath[0] === category;
   const colorConfig = useMemo(() => {
@@ -98,11 +99,11 @@ export default function CategoryGroup({
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setIsOpen(v => !v)}
+          onClick={() => onToggleOpen && onToggleOpen(category)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              setIsOpen(v => !v);
+              onToggleOpen && onToggleOpen(category);
             }
           }}
           aria-expanded={isOpen}
@@ -199,6 +200,8 @@ export default function CategoryGroup({
                   highlightCategoryPath={highlightCategoryPath}
                   highlightNoteId={highlightNoteId}
                   onClearHighlight={onClearHighlight}
+                  onToggleOpen={onToggleOpen}
+                  hierarchyOpenPaths={hierarchyOpenPaths}
                 />
               ))}
               {directTopLevelNotes.map((note, idx) => (
