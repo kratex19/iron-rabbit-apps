@@ -89,7 +89,7 @@ export default function AccordionNoteItem({
 
   return (
     <div
-      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-2 relative ${isDragging ? 'opacity-50' : ''} ${selected ? 'ring-2 ring-indigo-400' : ''} ${isHighlighted ? 'ir-highlight-new' : ''}`}
+      className={`accordion-note ${colorConfig.class} ${isDark ? '' : 'light'} rounded-lg border overflow-hidden mb-1.5 relative ${isDragging ? 'opacity-50' : ''} ${selected ? 'ring-2 ring-indigo-400' : ''} ${isHighlighted ? 'ir-highlight-new' : ''}`}
       style={getNoteColorStyle(colorConfig, isDark) || undefined}
       data-testid={`accordion-note-${note.id}`}
       onTouchStart={handleTouchStart}
