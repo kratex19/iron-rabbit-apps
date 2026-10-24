@@ -32,6 +32,7 @@ export default function CategoryPathAccordion({
   categories = {},
   existingPaths = [],
   isDark,
+  noteTitle = "",
 }) {
   const [open, setOpen] = useState(false);
   const scrollRef = useRef(null);
@@ -83,7 +84,13 @@ export default function CategoryPathAccordion({
   const addSegment = () => {
     const last = segments[segments.length - 1];
     if (segments.length > 0 && !String(last || "").trim()) return;
-    onChange([...segments, ""]);
+    
+    // AUTO-POPULATE MAIN CATEGORY: If adding first segment and note has title, use it
+    const newSegment = (segments.length === 0 && noteTitle && noteTitle.trim()) 
+      ? noteTitle.trim() 
+      : "";
+    
+    onChange([...segments, newSegment]);
     // Focus the freshly-added input once the popover has rendered it,
     // and scroll it into view so the "Add sub-level" button reveals the
     // input the user is expected to type into.
@@ -271,7 +278,7 @@ export default function CategoryPathAccordion({
                     isDark ? "text-blue-300/80" : "text-blue-600/80"
                   }`}
                 >
-                  L{depth + 1}
+                  {depth === 0 ? "M" : `L${depth}`}
                 </span>
                 <textarea
                   ref={(el) => { inputRefs.current[depth] = el; }}
@@ -315,6 +322,29 @@ export default function CategoryPathAccordion({
                   }`}
                   data-testid={`category-path-input-${depth}`}
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Green + icon: add child level beneath this row
+                    onChange([...segments, ""]);
+                    requestAnimationFrame(() => {
+                      const el = inputRefs.current[segments.length];
+                      if (el) {
+                        try { el.focus(); } catch { /* noop */ }
+                        try { el.scrollIntoView({ block: "nearest" }); } catch { /* noop */ }
+                      }
+                    });
+                  }}
+                  className={`p-1 rounded transition-colors shrink-0 ${
+                    isDark
+                      ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                      : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                  }`}
+                  aria-label={`Add sub-level under ${seg || `level ${depth + 1}`}`}
+                  data-testid={`category-path-add-child-${depth}`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
                 <button
                   type="button"
                   onClick={() => removeSegment(depth)}
@@ -361,7 +391,7 @@ export default function CategoryPathAccordion({
           }`}
         >
           <CornerDownRight className="w-3 h-3 shrink-0" />
-          Press Enter on a level to append a deeper sub-level.
+          Tap the green + to add sub-levels, or press Enter.
         </div>
       </PopoverContent>
     </Popover>

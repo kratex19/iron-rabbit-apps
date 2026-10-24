@@ -737,6 +737,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                 categories={categories}
                 existingPaths={existingPaths}
                 isDark={isDark}
+                noteTitle={title}
               />
             </div>
 
