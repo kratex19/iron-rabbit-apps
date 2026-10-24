@@ -787,6 +787,136 @@ export const StorageService = {
 // It follows the same interface as StorageService so it can be swapped in.
 // 
 // export const CloudSyncService = {
+  // ========================================
+  // Category Tree Methods
+  // ========================================
+  // The category_tree represents the global hierarchy of categories
+  // independent of individual notes. Notes use category_path to indicate
+  // their location within this tree.
+  
+  /**
+   * Get the global category tree from settings
+   * @returns {Promise<Object>} Category tree object
+   */
+  async getCategoryTree() {
+    const settings = await this.getSettings();
+    return settings?.category_tree || {};
+  },
+
+  /**
+   * Save the global category tree to settings
+   * @param {Object} tree - Category tree object
+   */
+  async saveCategoryTree(tree) {
+    await this.saveSettings({ category_tree: tree });
+  },
+
+  /**
+   * Add a category to the tree at the specified parent path
+   * @param {Array<string>|null} parentPath - Path to parent (null for root)
+   * @param {string} categoryName - Name of new category
+   * @returns {Promise<Object>} Updated tree
+   */
+  async addCategoryToTree(parentPath, categoryName) {
+    const tree = await this.getCategoryTree();
+    
+    // Navigate to parent location
+    let current = tree;
+    if (parentPath && parentPath.length > 0) {
+      for (const segment of parentPath) {
+        if (!current[segment]) {
+          // Parent doesn't exist, create it
+          current[segment] = {
+            id: `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: segment,
+            children: {}
+          };
+        }
+        current = current[segment].children;
+      }
+    }
+    
+    // Add new category if it doesn't exist
+    if (!current[categoryName]) {
+      current[categoryName] = {
+        id: `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: categoryName,
+        children: {}
+      };
+    }
+    
+    await this.saveCategoryTree(tree);
+    return tree;
+  },
+
+  /**
+   * Remove a category from the tree
+   * @param {Array<string>} categoryPath - Full path to category to remove
+   * @returns {Promise<Object>} Updated tree
+   */
+  async removeCategoryFromTree(categoryPath) {
+    if (!categoryPath || categoryPath.length === 0) return;
+    
+    const tree = await this.getCategoryTree();
+    
+    // Navigate to parent
+    let current = tree;
+    const parents = [];
+    for (let i = 0; i < categoryPath.length - 1; i++) {
+      const segment = categoryPath[i];
+      if (!current[segment]) return tree; // Path doesn't exist
+      parents.push({ obj: current, key: segment });
+      current = current[segment].children;
+    }
+    
+    // Remove the target category
+    const targetName = categoryPath[categoryPath.length - 1];
+    delete current[targetName];
+    
+    await this.saveCategoryTree(tree);
+    return tree;
+  },
+
+  /**
+   * Migrate existing note category_path values into global tree
+   * Called once on first load after upgrade
+   * @returns {Promise<void>}
+   */
+  async migrateCategoryTree() {
+    const settings = await this.getSettings();
+    if (settings?.category_tree) return; // Already migrated
+    
+    console.log('[StorageService] Migrating category tree from existing notes...');
+    
+    const notes = await this.getAllNotes();
+    const tree = {};
+    let pathCount = 0;
+    
+    // Extract all unique paths from notes
+    notes.forEach(note => {
+      if (!note.category_path || note.category_path.length === 0) return;
+      
+      let current = tree;
+      note.category_path.forEach((segment, depth) => {
+        const trimmed = String(segment || "").trim();
+        if (!trimmed) return;
+        
+        if (!current[trimmed]) {
+          current[trimmed] = {
+            id: `cat-migrated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: trimmed,
+            children: {}
+          };
+          pathCount++;
+        }
+        current = current[trimmed].children;
+      });
+    });
+    
+    await this.saveCategoryTree(tree);
+    console.log(`[StorageService] Migrated ${pathCount} categories from ${notes.length} notes`);
+  },
+
 //   ...StorageService,  // Extends offline behavior
 //   syncToCloud: async () => { /* Premium feature */ },
 //   syncFromCloud: async () => { /* Premium feature */ },

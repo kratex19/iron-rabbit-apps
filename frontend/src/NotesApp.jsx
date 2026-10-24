@@ -645,6 +645,9 @@ export default function NotesApp() {
         toast.success(`Restored ${migration.notes} notes from server`, { duration: 5000 });
       }
 
+      // CATEGORY TREE: One-time migration to global tree structure
+      await StorageService.migrateCategoryTree();
+
       const [notesData, settingsData, templatesData] = await Promise.all([
         StorageService.getAllNotes(),
         StorageService.getSettings(),
