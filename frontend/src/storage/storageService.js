@@ -780,13 +780,7 @@ export const StorageService = {
     await this.saveSettings({ pantry_items: next });
     return next.find(p => p.id === id);
   },
-};
 
-// ==================== FUTURE: CLOUD SYNC INTERFACE ====================
-// This is a stub for future premium cloud sync features.
-// It follows the same interface as StorageService so it can be swapped in.
-// 
-// export const CloudSyncService = {
   // ========================================
   // Category Tree Methods
   // ========================================
@@ -915,12 +909,7 @@ export const StorageService = {
     
     await this.saveCategoryTree(tree);
     console.log(`[StorageService] Migrated ${pathCount} categories from ${notes.length} notes`);
-  },
-
-//   ...StorageService,  // Extends offline behavior
-//   syncToCloud: async () => { /* Premium feature */ },
-//   syncFromCloud: async () => { /* Premium feature */ },
-//   isCloudEnabled: () => false,  // Toggled by user upgrade
-// };
+  }
+};
 
 export default StorageService;
