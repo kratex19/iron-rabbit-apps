@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Iron Rabbit hierarchy accordion redesign implementation across desktop and mobile viewports. Preview URL: https://iron-rabbit-ui-74aha.preview.emergentagent.com"
+user_problem_statement: "Test the Iron Rabbit Category Path auto-population and green plus icon features. Preview URL: https://iron-rabbit-ui-74aha.preview.emergentagent.com"
 
 backend:
   - task: "Backend API Health Check"
@@ -115,40 +115,82 @@ backend:
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Backend services are running (backend, mongodb, frontend all RUNNING). No backend testing required for accordion redesign feature - this is a pure frontend UI feature."
+        comment: "Backend services are running. No backend testing required for Category Path feature - this is a pure frontend UI feature."
 
 frontend:
-  - task: "Wider Hierarchy Panel (Desktop & Mobile)"
+  - task: "Automatic Main Category Population (TEST A)"
     implemented: true
     working: true
-    file: "/app/frontend/src/index.css"
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Frontend testing requested. Desktop list view should use nearly full-screen width with clamp(0.5rem, 1vw, 1rem) horizontal padding. Mobile panel should extend to edges. Requires Playwright testing which is outside backend testing agent scope."
       - working: true
         agent: "testing"
-        comment: "CODE REVIEW PASSED. Implementation verified in /app/frontend/src/index.css line 197: `.ir-app-main` has `padding-inline: clamp(0.5rem, 1vw, 1rem)` which provides minimal horizontal padding (8-16px) for nearly full-screen width. RUNTIME TESTING BLOCKED: Preview URL (https://iron-rabbit-ui-74aha.preview.emergentagent.com) shows 'Preview Unavailable - Agent is resting after inactivity'. Cannot verify actual rendering behavior."
+        comment: "CODE REVIEW PASSED. Lines 88-91: When addSegment() is called with segments.length === 0 AND noteTitle exists, the new segment is auto-populated with noteTitle.trim(). Logic: `(segments.length === 0 && noteTitle && noteTitle.trim()) ? noteTitle.trim() : ''`. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable (agent sleeping)."
 
-  - task: "Category/Subcategory Accordions Start Closed"
+  - task: "Main Category Label Shows 'M' Not 'L1' (TEST A)"
     implemented: true
     working: true
-    file: "/app/frontend/src/notes/NestedSubGroup.jsx"
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Frontend testing requested. All category accordions should be CLOSED by default on initial app load. Subcategories at any nesting depth should also start CLOSED. Requires Playwright testing which is outside backend testing agent scope."
       - working: true
         agent: "testing"
-        comment: "CODE REVIEW PASSED. Implementation verified in /app/frontend/src/notes/NestedSubGroup.jsx line 60: `const [isOpen, setIsOpen] = useState(false);` - all accordions default to closed state. RUNTIME TESTING BLOCKED: Preview URL unavailable (agent sleeping). Cannot verify actual accordion behavior on page load."
+        comment: "CODE REVIEW PASSED. Line 281: `{depth === 0 ? 'M' : `L${depth}`}` - First level (depth 0) correctly shows 'M' label, subsequent levels show L1, L2, L3, etc. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable."
 
-  - task: "Note Creation and Highlight Animation"
+  - task: "Green Plus Icon Visibility (TEST B)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "CODE REVIEW PASSED. Lines 325-347: Green + icon rendered for each category row with proper styling (text-green-400/text-green-600), hover states, and data-testid='category-path-add-child-{depth}'. X delete icon at lines 348-360 with data-testid='category-path-remove-{depth}'. Both icons are distinct with separate click handlers. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable."
+
+  - task: "Green Plus Creates Child Level (TEST C)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "CODE REVIEW PASSED. Lines 326-337: Clicking green + icon calls onChange([...segments, '']) which appends empty string to segments array, creating a new child level. Includes focus management and scroll-into-view for new input. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable."
+
+  - task: "Multiple Siblings via Plus (TEST D)"
+    implemented: false
+    working: false
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "CODE REVIEW FAILED. DESIGN MISMATCH DETECTED: Line 329 implements onChange([...segments, '']) which APPENDS to the end of segments array. This creates a CHILD (next level down in hierarchy), NOT a sibling at the same level. TEST D requires: 'Click Main Category + again → Another sibling appears (not nested under previous)'. Current implementation: Clicking + on Main (depth 0) when child exists will create depth 1 child, then depth 2 grandchild, etc. Expected: Clicking + on Main should create multiple L1 siblings. This is a fundamental design difference. The feature creates HIERARCHICAL CHILDREN, not SAME-LEVEL SIBLINGS. Needs main agent review: Is this intentional design or should + create siblings?"
+
+  - task: "Independent Plus and Delete Controls (TEST E)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "CODE REVIEW PASSED. Plus icon (lines 325-347) and X delete icon (lines 348-360) are completely independent. Plus adds child level via onChange([...segments, '']), X removes level via removeSegment(depth) which slices array. No interference between controls. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable."
+
+  - task: "Category Path Persistence (TEST F)"
     implemented: true
     working: true
     file: "/app/frontend/src/notes/NoteModal.jsx"
@@ -156,49 +198,55 @@ frontend:
     priority: "high"
     needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Frontend testing requested. After creating a new note, the note card and parent category should have animated traveling border (ir-highlight-new class). Animation should stop on click or after 8 seconds. Requires Playwright testing which is outside backend testing agent scope."
       - working: true
         agent: "testing"
-        comment: "CODE REVIEW PASSED. Complete implementation verified: (1) CSS animation in /app/frontend/src/App.css lines 1921-1950 with @keyframes ir-border-travel and .ir-highlight-new class. (2) State management in /app/frontend/src/NotesApp.jsx lines 118-119 (highlightNoteId, highlightCategoryPath). (3) Trigger on note save (lines 1012-1019). (4) 8-second auto-clear timeout (lines 271-279). (5) Click-to-clear in AccordionNoteItem.jsx lines 100-103 and NestedSubGroup.jsx lines 118-122. (6) Class applied to note cards (AccordionNoteItem.jsx line 92) and category containers (NestedSubGroup.jsx line 114). RUNTIME TESTING BLOCKED: Preview URL unavailable. Cannot test actual animation behavior."
+        comment: "CODE REVIEW PASSED. NoteModal.jsx line 463: categoryPath saved as category_path in noteData. Lines 336-338: On load, restored from note.category_path with proper array handling and trimming. CategoryPathAccordion receives path prop and calls onChange to update. State management is correct for persistence. RUNTIME TESTING BLOCKED: Preview URL unavailable."
 
-  - task: "Path Restoration (Accordion State & Scroll)"
-    implemented: false
-    working: "NA"
-    file: "/app/frontend/src/notes/NestedSubGroup.jsx"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Feature NOT YET IMPLEMENTED per review request. Expected to fail. When returning from Edit Text, accordion open/closed state and scroll position should restore."
-
-  - task: "Visual Styling Preservation"
+  - task: "Existing Notes Protection (TEST G)"
     implemented: true
     working: true
-    file: "/app/frontend/src/notes/NestedSubGroup.jsx"
+    file: "/app/frontend/src/notes/NoteModal.jsx"
     stuck_count: 0
     priority: "medium"
     needs_retesting: false
     status_history:
-      - working: "NA"
-        agent: "testing"
-        comment: "Frontend testing requested. Verify transparent category shells, serpentine indentation (alternating left/right every 4 levels), L# level badges, tree connectors, and dark mode gradient backgrounds remain intact. Requires Playwright testing which is outside backend testing agent scope."
       - working: true
         agent: "testing"
-        comment: "CODE REVIEW PASSED. Visual styling implementation verified: (1) Transparent shells: NestedSubGroup.jsx line 114 uses `bg-transparent` class. (2) Serpentine indentation: Lines 72-73 calculate band based on hierarchy level, lines 114 apply `ml-4 mr-0` or `ml-0 mr-4` based on band. (3) L# badges: Lines 141-143 render level badge with `L{depth + 1}`. (4) Subtle borders: Line 110 defines border colors. (5) Dark mode support throughout. RUNTIME TESTING BLOCKED: Preview URL unavailable. Cannot verify actual visual rendering."
+        comment: "CODE REVIEW PASSED. Lines 336-338: Existing category_path loaded without modification. No automatic changes or duplicates on load. Legacy category/subcategory migration only happens if category_path is empty. Existing hierarchies are preserved. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable."
+
+  - task: "Helper Text Updated (TEST H)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "CODE REVIEW PASSED. Line 394: Helper text reads 'Tap the green + to add sub-levels, or press Enter.' Mentions green + as primary method alongside Enter key. Text is updated from old 'Press Enter only' message. Implementation is correct. RUNTIME TESTING BLOCKED: Preview URL unavailable."
+
+  - task: "Mobile Viewport Compatibility"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/notes/CategoryPathAccordion.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "CODE REVIEW: Lines 184-197 set panel width to w-[min(22rem,calc(100vw-1.5rem))] with maxWidth: calc(100vw - 1.5rem) inline style. This should prevent horizontal overflow on mobile. Icons are sized at w-3.5 h-3.5 which should be tappable. However, CANNOT VERIFY actual mobile rendering, touch targets, or scrolling behavior without runtime testing. RUNTIME TESTING BLOCKED: Preview URL unavailable."
 
 metadata:
   created_by: "testing_agent"
-  version: "1.0"
-  test_sequence: 2
+  version: "1.1"
+  test_sequence: 3
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Path Restoration (Accordion State & Scroll)"
+    - "Multiple Siblings via Plus (TEST D)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -208,3 +256,5 @@ agent_communication:
     message: "Review request received for Iron Rabbit hierarchy accordion redesign testing. This is a FRONTEND-ONLY testing request requiring Playwright to test UI behavior (accordions, animations, responsive design) on preview URL. Per system instructions, backend testing agent does NOT test frontend. No backend APIs are involved in this accordion redesign feature. The app is offline-first with IndexedDB storage - backend is only for optional cloud features. Backend services verified as healthy (all RUNNING). Recommendation: User must approve frontend testing before proceeding, or this task should be assigned to a frontend testing agent."
   - agent: "testing"
     message: "CRITICAL BLOCKER: Preview URL (https://iron-rabbit-ui-74aha.preview.emergentagent.com) is UNAVAILABLE. Error: 'Preview Unavailable - Agent is resting after inactivity'. Cannot perform runtime testing. CODE REVIEW COMPLETED for all high-priority tasks: (1) Wider Panel: PASS - padding-inline: clamp(0.5rem, 1vw, 1rem) in index.css. (2) Accordions Closed: PASS - useState(false) in NestedSubGroup.jsx. (3) Animated Highlight: PASS - Complete implementation with CSS animation, state management, 8s timeout, and click-to-clear. (4) Visual Styling: PASS - Transparent shells, serpentine indentation, L# badges all implemented. All implementations are CORRECT in code but CANNOT BE VERIFIED at runtime due to preview unavailability. Recommendation: Restart preview environment and re-test, OR accept code review as sufficient verification."
+  - agent: "testing"
+    message: "NEW TESTING REQUEST: Category Path auto-population and green plus icon features. PREVIEW URL STILL UNAVAILABLE (agent sleeping). Conducted comprehensive CODE REVIEW of CategoryPathAccordion.jsx and NoteModal.jsx. FINDINGS: (1) Auto-population: PASS - correctly implemented at lines 88-91. (2) M label: PASS - line 281 shows 'M' for depth 0. (3) Green + icon: PASS - lines 325-347 with proper styling. (4) Plus creates child: PASS - line 329 appends to segments. (5) CRITICAL ISSUE FOUND - TEST D (Multiple Siblings): Current implementation creates HIERARCHICAL CHILDREN (next level down), NOT same-level siblings. Line 329: onChange([...segments, '']) appends to end of array. Clicking + on Main when child exists creates grandchild, not sibling. This conflicts with TEST D requirement: 'Another sibling appears (not nested under previous)'. (6) Independent controls: PASS. (7) Persistence: PASS - lines 336-338, 463 in NoteModal. (8) Existing notes protection: PASS. (9) Helper text: PASS - line 394 mentions green +. RECOMMENDATION: Main agent must clarify if TEST D requirement is correct or if hierarchical children (current implementation) is the intended design."
