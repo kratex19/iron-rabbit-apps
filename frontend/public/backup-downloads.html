@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iron Rabbit - October 24 Backup Downloads</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .download-item {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .download-item h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #0066cc;
+        }
+        .download-item p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        .download-button {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        .download-button:hover {
+            background: #0052a3;
+        }
+        .info {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Iron Rabbit - October 24 Backup</h1>
+        <p class="subtitle">Accordion Phase 1, 2A, 2B + Stability Fixes</p>
+
+        <div class="download-item">
+            <h2>📦 Git Bundle (Complete Repository Backup)</h2>
+            <p><strong>Size:</strong> 51 KB</p>
+            <p><strong>Contains:</strong> All October 24 accordion work and commit history</p>
+            <p><strong>MD5:</strong> <span class="code">aaf702e00637fa495f7a6cf8ca0e4f61</span></p>
+            <a href="./downloads/iron-rabbit-oct24-accordion-backup.bundle" 
+               download="iron-rabbit-oct24-accordion-backup.bundle" 
+               class="download-button">Download Git Bundle</a>
+        </div>
+
+        <div class="download-item">
+            <h2>📄 Project State Documentation</h2>
+            <p><strong>Size:</strong> 31 KB</p>
+            <p><strong>Contains:</strong> Complete project state, findings, and recovery instructions</p>
+            <p><strong>MD5:</strong> <span class="code">6546482b6a0b995a61015ca613db41de</span></p>
+            <a href="./downloads/PROJECT_STATE_OCT24.md" 
+               download="PROJECT_STATE_OCT24.md" 
+               class="download-button">Download Project State</a>
+        </div>
+
+        <div class="info">
+            <strong>📱 To download on Android:</strong>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+                <li>Tap each download button above</li>
+                <li>Files will save to your Downloads folder</li>
+                <li>Transfer to computer to push to GitHub</li>
+            </ol>
+            
+            <strong>💻 To restore from bundle:</strong>
+            <pre style="background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px;">git clone iron-rabbit-oct24-accordion-backup.bundle temp-repo
+cd temp-repo
+git remote add origin https://github.com/kratex19/iron-rabbit-apps.git
+git push origin HEAD:backup/oct24-accordion-work</pre>
+        </div>
+
+        <p style="margin-top: 30px; color: #999; font-size: 13px; text-align: center;">
+            Generated: October 25, 2026 22:30 UTC<br>
+            Local HEAD: 6ab8b7cd654f66a6463f865711954844beac575d
+        </p>
+    </div>
+</body>
+</html>
