@@ -836,7 +836,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
             <div className={`border-t pt-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <label className={`text-xs mb-1.5 flex items-center gap-1.5 ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>
                 <Hash className="w-3.5 h-3.5" /> Tags
-                <span className={`text-[10px] ${isDark ? 'text-slate-600' : 'text-gray-400'}`}>· press Enter or comma to add</span>
+                <span className={`text-[10px] ${isDark ? 'text-slate-400' : 'text-gray-600'}`}>· press Enter or comma to add</span>
               </label>
               <div
                 className={`min-h-9 rounded-md border flex flex-wrap gap-1.5 items-center px-2 py-1.5 ${
@@ -1022,7 +1022,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
                     </div>
                   )}
                 </div>
-              )}
+              )}p
             </div>
 
             <div className="flex gap-2 pt-2">
