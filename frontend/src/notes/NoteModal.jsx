@@ -743,7 +743,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
 
             <div>
               <label className={`text-xs mb-1.5 block ${isDark ? 'text-slate-400' : 'text-gray-500'}`}>{t("note.color")}</label>
-              <div className="flex flex-wrap gap-3" data-testid="note-color-picker">
+              <div className="flex flex-wrap gap-3.5" data-testid="note-color-picker">
                 {NOTE_COLORS.map((c) => (
                   <button
                     key={c.name}
