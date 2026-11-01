@@ -1,0 +1,20 @@
+{
+  "summary": "Retest confirmed the BackgroundPicker 'Image' tab curated gallery bug is FIXED. Opened a note editor, launched the Tile background modal, switched to Image tab, clicked the first curated image (bg-curated-image-0). The selection was applied without crash, success toast 'Background image applied' appeared, the preview area updated to the selected image, and the image got the selected ring styling. No console/page errors (ReferenceError gone).",
+  "tested_scope": ["frontend", "integration"],
+  "passed": [
+    "App loads at REACT_APP_BACKEND_URL",
+    "Note editor modal opens via accordion-edit-{id}",
+    "editor-open-bg-picker opens Tile background modal",
+    "bg-tab-image switches to Image tab and renders Curated backgrounds grid",
+    "bg-curated-image-0 click applies image without ReferenceError/crash",
+    "Toast 'Background image applied' is shown",
+    "Selected image gets indigo ring styling (border-indigo-500 ring-2)",
+    "Preview area updates with chosen image",
+    "Modal remains intact after selection"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "skipped", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}
