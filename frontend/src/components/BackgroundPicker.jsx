@@ -10,6 +10,20 @@ const MAX_IMAGE_BYTES = 800_000; // ~800KB — keep IndexedDB happy
 const RECENTS_STORAGE_KEY = "iron_rabbit_bg_recents_v1";
 const MAX_RECENTS = 8;
 
+// Curated background images from Unsplash
+const CURATED_IMAGES = [
+  "https://images.unsplash.com/photo-1557683316-973673baf926", // gradient abstract
+  "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d", // blue abstract
+  "https://images.unsplash.com/photo-1579546929518-9e396f3cc809", // gradient wave
+  "https://images.unsplash.com/photo-1557682250-33bd709cbe85", // light abstract
+  "https://images.unsplash.com/photo-1557682224-5b8590cd9ec5", // pink gradient
+  "https://images.unsplash.com/photo-1550684376-efcbd6e3f031", // purple abstract
+  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe", // green gradient
+  "https://images.unsplash.com/photo-1553356084-58ef4a67b2a7", // orange abstract
+  "https://images.unsplash.com/photo-1558618666-fcd25c85cd64", // teal gradient
+  "https://images.unsplash.com/photo-1559827260-dc66d52bef19", // yellow abstract
+].map(url => `${url}?w=400&q=80&fit=crop`);
+
 // Load recents from localStorage (session-cosmetic — recents don't need to
 // sync across devices). Pinned items live in IndexedDB (see hydratePins) so
 // Backup/Restore captures them.
@@ -482,28 +496,62 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
             </div>
           )}
           {tab === "image" && (
-            <div className="flex flex-col items-center justify-center gap-3 py-6">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleUpload}
-                className="hidden"
-                data-testid="bg-image-input"
-              />
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-indigo-500 hover:bg-indigo-600 text-white"
-                data-testid="bg-image-upload"
-              >
-                <Upload className="w-4 h-4 mr-2" /> Upload image
-              </Button>
-              <p className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`}>
-                Auto-resized to keep storage light. JPG/PNG/WebP, up to ~5MB.
-              </p>
-              {value?.type === "image" && (
-                <img src={value.value} alt="current" className="max-h-24 rounded border border-white/10" />
-              )}
+            <div className="flex flex-col gap-4 py-3">
+              {/* Upload Section */}
+              <div className="flex flex-col items-center gap-2 pb-2 border-b border-white/10">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUpload}
+                  className="hidden"
+                  data-testid="bg-image-input"
+                />
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white"
+                  data-testid="bg-image-upload"
+                >
+                  <Upload className="w-4 h-4 mr-2" /> Upload your image
+                </Button>
+                <p className={`text-xs ${isDark ? "text-slate-500" : "text-gray-400"}`}>
+                  Auto-resized to keep storage light. JPG/PNG/WebP, up to ~5MB.
+                </p>
+                {value?.type === "image" && (
+                  <img src={value.value} alt="current" className="max-h-24 rounded border border-white/10" />
+                )}
+              </div>
+
+              {/* Curated Images Gallery */}
+              <div>
+                <p className={`text-xs mb-2 ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+                  Curated backgrounds
+                </p>
+                <div className="grid grid-cols-4 gap-2 max-h-[240px] overflow-y-auto">
+                  {CURATED_IMAGES.map((imgUrl, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        onChange({ type: "image", value: imgUrl });
+                        toast.success("Background image applied");
+                      }}
+                      className={`relative aspect-square rounded border-2 overflow-hidden hover:scale-105 transition-transform ${
+                        value?.type === "image" && value.value === imgUrl
+                          ? "border-indigo-500 ring-2 ring-indigo-500/50"
+                          : "border-white/10 hover:border-white/30"
+                      }`}
+                      data-testid={`bg-curated-image-${idx}`}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={`Curated background ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
