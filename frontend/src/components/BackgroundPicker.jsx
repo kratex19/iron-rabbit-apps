@@ -532,7 +532,7 @@ export default function BackgroundPicker({ isOpen, onClose, value, onSelect, isD
                     <button
                       key={idx}
                       onClick={() => {
-                        onChange({ type: "image", value: imgUrl });
+                        onSelect({ type: "image", value: imgUrl });
                         toast.success("Background image applied");
                       }}
                       className={`relative aspect-square rounded border-2 overflow-hidden hover:scale-105 transition-transform ${

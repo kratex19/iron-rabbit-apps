@@ -1,0 +1,34 @@
+{
+  "summary": "Tested BackgroundPicker Image tab in Edit Note > Tile Accent (Choose background). Curated gallery is visible with 10 images in a 4-column grid and Upload button is present. However, clicking a curated image CRASHES the app with 'ReferenceError: onChange is not defined' — the handler at BackgroundPicker.jsx line 535 calls onChange() but the component prop is onSelect. Selection flow is broken.",
+  "tested_scope": ["frontend", "integration"],
+  "passed": [
+    "App loads at preview URL",
+    "Edit Note modal opens via accordion edit button",
+    "Choose background opens Tile background dialog with Color/Gradient/Image tabs",
+    "Image tab renders Upload button + 'Curated backgrounds' section heading",
+    "10 curated images render in a 4-column grid with data-testid bg-curated-image-0..9",
+    "Images load from Unsplash (visible thumbnails)"
+  ],
+  "failed": [
+    {
+      "area": "BackgroundPicker Image tab - curated image click",
+      "issue": "Clicking a curated image throws ReferenceError: onChange is not defined. The onClick handler calls onChange({type:'image', value:imgUrl}) but the component prop is named onSelect (see other handlers in file). Red 'Uncaught runtime errors' overlay appears, selection does not apply.",
+      "evidence": "Playwright click on [data-testid=bg-curated-image-0] triggered error overlay: 'onChange is not defined ReferenceError: onChange is not defined at onClick (bundle.js:284424:19)'. File reference: /app/frontend/src/components/BackgroundPicker.jsx line 535.",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Curated image count vs user request",
+      "issue": "User reported missing gallery of 205 images; implementation only adds 10 curated images. Main agent should confirm with user whether this matches expectation.",
+      "evidence": "CURATED_IMAGES array in BackgroundPicker.jsx lines 14-25 contains 10 URLs.",
+      "priority": "MEDIUM"
+    }
+  ],
+  "action_items": [
+    "Fix /app/frontend/src/components/BackgroundPicker.jsx line 535: replace onChange({type:'image', value:imgUrl}) with onSelect({type:'image', value:imgUrl}) (same pattern used by color/gradient handlers in this file).",
+    "Confirm with user whether 10 curated images is acceptable or if the original 205-image gallery needs to be restored.",
+    "After fix, retest: click bg-curated-image-0 should apply background, show success toast, and not crash."
+  ],
+  "success_rate": {"backend": "N/A (not tested per request)", "frontend": "60%"},
+  "retest_needed": true,
+  "full_testing_deferred": true
+}
