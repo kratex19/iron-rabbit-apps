@@ -100,14 +100,13 @@ export default function CategoryPathAccordion({
 
   // Add child level (SC) beneath current depth
   const addChildLevel = async (depth) => {
-    const parentPath = segments.slice(0, depth + 1);
+    // Create new path: parent segments up to and including clicked row + empty child
+    const newPath = segments.slice(0, depth + 1).concat([""]);
+    onChange(newPath);
     
-    // Auto-populate if adding beneath M and field is empty
-    onChange([...segments, ""]);
-    
-    // Focus new input
+    // Focus new input (which is now at index depth + 1)
     requestAnimationFrame(() => {
-      const el = inputRefs.current[segments.length];
+      const el = inputRefs.current[depth + 1];
       if (el) {
         try { el.focus(); } catch { /* noop */ }
         try { el.scrollIntoView({ block: "nearest" }); } catch { /* noop */ }

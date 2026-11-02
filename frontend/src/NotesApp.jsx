@@ -2861,7 +2861,17 @@ export default function NotesApp() {
                                   isPinnedTop
                                   onTogglePinTop={() => handleTogglePinTop(cat)}
                                   onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
-                                  hierarchyPath={[cat]}
+                                  hierarchyPath={(() => {
+                                    // Find the deepest category_path in this group to show complete hierarchy
+                                    let deepest = [cat];
+                                    for (const note of items) {
+                                      const path = Array.isArray(note.category_path) ? note.category_path : [];
+                                      if (path.length > deepest.length) {
+                                        deepest = path;
+                                      }
+                                    }
+                                    return deepest;
+                                  })()}
                                   onJumpToPath={handleJumpToPath}
                                 />
                                 <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
@@ -2905,7 +2915,17 @@ export default function NotesApp() {
                             isPinnedTop={false}
                             onTogglePinTop={() => handleTogglePinTop(cat)}
                             onDeleteCategory={() => openDeleteCategoryConfirm(cat)}
-                            hierarchyPath={[cat]}
+                            hierarchyPath={(() => {
+                              // Find the deepest category_path in this group to show complete hierarchy
+                              let deepest = [cat];
+                              for (const note of items) {
+                                const path = Array.isArray(note.category_path) ? note.category_path : [];
+                                if (path.length > deepest.length) {
+                                  deepest = path;
+                                }
+                              }
+                              return deepest;
+                            })()}
                             onJumpToPath={handleJumpToPath}
                           />
                           <AccordionBody open={open} openDuration={GRID_ACCORDION_OPEN_MS} closeDuration={GRID_ACCORDION_CLOSE_MS}>
