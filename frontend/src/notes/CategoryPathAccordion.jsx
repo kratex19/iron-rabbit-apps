@@ -102,6 +102,7 @@ export default function CategoryPathAccordion({
   const addChildLevel = async (depth) => {
     // Create new path: parent segments up to and including clicked row + empty child
     const newPath = segments.slice(0, depth + 1).concat([""]);
+    console.log(`🔍 addChildLevel called: depth=${depth}, segments=${JSON.stringify(segments)}, newPath=${JSON.stringify(newPath)}`);
     onChange(newPath);
     
     // Focus new input (which is now at index depth + 1)
