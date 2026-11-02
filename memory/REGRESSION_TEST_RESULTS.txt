@@ -1,0 +1,203 @@
+================================================================================
+GREEN PLUS INSERTION LOGIC - REGRESSION TESTS
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 1: Insert at M (no existing children)
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["Work"]
+Green plus clicked at depth: 0 (Work)
+Expected result: ["Work",""]
+
+Current Logic Result:  ["Work",""]
+Proposed Logic Result: ["Work",""]
+
+Current Logic:  ✅ PASS
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 1
+  Expected length: 2 (+1 for new child)
+  Current result length:  2 ✅
+  Proposed result length: 2 ✅
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 2: Insert at M (with existing L1)
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["Work","Projects"]
+Green plus clicked at depth: 0 (Work)
+Expected result: ["Work","","Projects"]
+
+Current Logic Result:  ["Work",""]
+Proposed Logic Result: ["Work","","Projects"]
+
+Current Logic:  ❌ FAIL
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 2
+  Expected length: 3 (+1 for new child)
+  Current result length:  2 ❌ WRONG
+  Proposed result length: 3 ✅
+
+Preservation Check (elements after depth 0):
+  Must preserve: ["Projects"]
+  Current preserves:  ❌ NO - DATA LOST
+  Proposed preserves: ✅ YES
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 3: Insert at M (with deep hierarchy)
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["Home","Kitchen","Recipes","Desserts"]
+Green plus clicked at depth: 0 (Home)
+Expected result: ["Home","","Kitchen","Recipes","Desserts"]
+
+Current Logic Result:  ["Home",""]
+Proposed Logic Result: ["Home","","Kitchen","Recipes","Desserts"]
+
+Current Logic:  ❌ FAIL
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 4
+  Expected length: 5 (+1 for new child)
+  Current result length:  2 ❌ WRONG
+  Proposed result length: 5 ✅
+
+Preservation Check (elements after depth 0):
+  Must preserve: ["Kitchen","Recipes","Desserts"]
+  Current preserves:  ❌ NO - DATA LOST
+  Proposed preserves: ✅ YES
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 4: Insert at L1 (with L2 and L3 children)
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["Home","Kitchen","Recipes","Desserts"]
+Green plus clicked at depth: 1 (Kitchen)
+Expected result: ["Home","Kitchen","","Recipes","Desserts"]
+
+Current Logic Result:  ["Home","Kitchen",""]
+Proposed Logic Result: ["Home","Kitchen","","Recipes","Desserts"]
+
+Current Logic:  ❌ FAIL
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 4
+  Expected length: 5 (+1 for new child)
+  Current result length:  3 ❌ WRONG
+  Proposed result length: 5 ✅
+
+Preservation Check (elements after depth 1):
+  Must preserve: ["Recipes","Desserts"]
+  Current preserves:  ❌ NO - DATA LOST
+  Proposed preserves: ✅ YES
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 5: Insert at L2 (with L3 child)
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["Home","Kitchen","Recipes","Desserts"]
+Green plus clicked at depth: 2 (Recipes)
+Expected result: ["Home","Kitchen","Recipes","","Desserts"]
+
+Current Logic Result:  ["Home","Kitchen","Recipes",""]
+Proposed Logic Result: ["Home","Kitchen","Recipes","","Desserts"]
+
+Current Logic:  ❌ FAIL
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 4
+  Expected length: 5 (+1 for new child)
+  Current result length:  4 ❌ WRONG
+  Proposed result length: 5 ✅
+
+Preservation Check (elements after depth 2):
+  Must preserve: ["Desserts"]
+  Current preserves:  ❌ NO - DATA LOST
+  Proposed preserves: ✅ YES
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 6: Insert at deepest level L3 (no children)
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["Home","Kitchen","Recipes","Desserts"]
+Green plus clicked at depth: 3 (Desserts)
+Expected result: ["Home","Kitchen","Recipes","Desserts",""]
+
+Current Logic Result:  ["Home","Kitchen","Recipes","Desserts",""]
+Proposed Logic Result: ["Home","Kitchen","Recipes","Desserts",""]
+
+Current Logic:  ✅ PASS
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 4
+  Expected length: 5 (+1 for new child)
+  Current result length:  5 ✅
+  Proposed result length: 5 ✅
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 7: Insert at L3 in 6-level hierarchy
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["A","B","C","D","E","F"]
+Green plus clicked at depth: 3 (D)
+Expected result: ["A","B","C","D","","E","F"]
+
+Current Logic Result:  ["A","B","C","D",""]
+Proposed Logic Result: ["A","B","C","D","","E","F"]
+
+Current Logic:  ❌ FAIL
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 6
+  Expected length: 7 (+1 for new child)
+  Current result length:  5 ❌ WRONG
+  Proposed result length: 7 ✅
+
+Preservation Check (elements after depth 3):
+  Must preserve: ["E","F"]
+  Current preserves:  ❌ NO - DATA LOST
+  Proposed preserves: ✅ YES
+
+────────────────────────────────────────────────────────────────────────────────
+TEST: Test 8: Insert at L1 in 6-level hierarchy
+────────────────────────────────────────────────────────────────────────────────
+Input segments: ["A","B","C","D","E","F"]
+Green plus clicked at depth: 1 (B)
+Expected result: ["A","B","","C","D","E","F"]
+
+Current Logic Result:  ["A","B",""]
+Proposed Logic Result: ["A","B","","C","D","E","F"]
+
+Current Logic:  ❌ FAIL
+Proposed Logic: ✅ PASS
+
+Data Preservation Check:
+  Original length: 6
+  Expected length: 7 (+1 for new child)
+  Current result length:  3 ❌ WRONG
+  Proposed result length: 7 ✅
+
+Preservation Check (elements after depth 1):
+  Must preserve: ["C","D","E","F"]
+  Current preserves:  ❌ NO - DATA LOST
+  Proposed preserves: ✅ YES
+
+================================================================================
+TEST SUMMARY
+================================================================================
+
+Current Logic:  2/8 tests passed ❌
+Proposed Logic: 8/8 tests passed ✅
+
+================================================================================
+CONCLUSION
+================================================================================
+❌ Current logic FAILS 6 tests
+   Reason: Deletes existing children beyond insertion point
+✅ Proposed logic PASSES all 8 tests
+   Result: Preserves all existing children while inserting new child
+
+================================================================================
+
