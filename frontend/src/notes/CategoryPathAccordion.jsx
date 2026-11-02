@@ -32,6 +32,14 @@ export default function CategoryPathAccordion({
   
   const segments = Array.isArray(path) ? path : [];
   const mainCategory = segments[0] || null;
+  
+  // DIAGNOSTIC: Log whenever segments change
+  useEffect(() => {
+    console.log(`📊 CategoryPathAccordion RE-RENDERED`);
+    console.log(`   path prop:`, JSON.stringify(path));
+    console.log(`   segments:`, JSON.stringify(segments));
+    console.log(`   segments.length:`, segments.length);
+  }, [path, segments]);
 
   // Load category tree from storage when popover opens
   useEffect(() => {
@@ -100,17 +108,30 @@ export default function CategoryPathAccordion({
 
   // Add child level (SC) beneath current depth
   const addChildLevel = async (depth) => {
+    console.log(`🟢 GREEN-PLUS CLICKED: depth=${depth}`);
+    console.log(`   Current segments:`, JSON.stringify(segments));
+    console.log(`   Current path prop:`, JSON.stringify(path));
+    
     // Create new path: parent segments up to and including clicked row + empty child
     const newPath = segments.slice(0, depth + 1).concat([""]);
-    console.log(`🔍 addChildLevel called: depth=${depth}, segments=${JSON.stringify(segments)}, newPath=${JSON.stringify(newPath)}`);
+    console.log(`   Computed newPath:`, JSON.stringify(newPath));
+    console.log(`   Calling onChange with newPath...`);
+    
     onChange(newPath);
+    
+    console.log(`   onChange called. Waiting for re-render...`);
     
     // Focus new input (which is now at index depth + 1)
     requestAnimationFrame(() => {
+      console.log(`   RAF: Attempting to focus input at index ${depth + 1}`);
       const el = inputRefs.current[depth + 1];
       if (el) {
+        console.log(`   RAF: Input element found, focusing...`);
         try { el.focus(); } catch { /* noop */ }
         try { el.scrollIntoView({ block: "nearest" }); } catch { /* noop */ }
+      } else {
+        console.log(`   RAF: ⚠️ Input element NOT found at index ${depth + 1}`);
+        console.log(`   RAF: inputRefs.current length =`, inputRefs.current.length);
       }
     });
   };

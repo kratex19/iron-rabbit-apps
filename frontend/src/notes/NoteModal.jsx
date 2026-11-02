@@ -728,11 +728,15 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
               <CategoryPathAccordion
                 path={categoryPath}
                 onChange={(next) => {
+                  console.log(`🔵 NoteModal onChange RECEIVED:`, JSON.stringify(next));
+                  console.log(`   Previous categoryPath:`, JSON.stringify(categoryPath));
                   setCategoryPath(next);
+                  console.log(`   setCategoryPath called with:`, JSON.stringify(next));
                   // Keep legacy top-two in sync for downstream consumers
                   // that still read `category` / `subcategory` directly.
                   setCategory(next[0] || "");
                   setSubcategory(next[1] || "");
+                  console.log(`   NoteModal state updates complete`);
                 }}
                 categories={categories}
                 existingPaths={existingPaths}
