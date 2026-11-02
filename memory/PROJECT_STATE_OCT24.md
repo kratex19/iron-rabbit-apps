@@ -37,7 +37,7 @@
 - **Connection Status:** ❌ **NOT CONNECTED** (no git remote configured locally)
 
 ### 1.3 Application URLs
-- **Preview:** `https://ironrabbit-edit.preview.emergentagent.com`
+- **Preview:** `https://category-tree-6--79voefnh.preview.emergentagent.com`
 - **Local Development:** `http://localhost:3000` (frontend), `http://localhost:8001` (backend)
 
 ---

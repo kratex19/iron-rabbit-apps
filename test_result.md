@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Category Path Visual Restoration feature - verify flat left-aligned row layout with M/L1/L2/L3 indicators and NO progressive indenting. Preview URL: https://ironrabbit-edit.preview.emergentagent.com"
+user_problem_statement: "Test the Category Path Visual Restoration feature - verify flat left-aligned row layout with M/L1/L2/L3 indicators and NO progressive indenting. Preview URL: https://category-tree-6--79voefnh.preview.emergentagent.com"
 
 backend:
   - task: "Backend API Health Check"
@@ -205,4 +205,4 @@ test_plan:
 
 agent_communication:
   - agent: "testing"
-    message: "CATEGORY PATH VISUAL RESTORATION TESTING COMPLETE. Successfully tested all 6 scenarios on https://ironrabbit-edit.preview.emergentagent.com. CRITICAL REQUIREMENT VERIFIED: All category rows (M, L1, L2, L3, L4, L5) aligned at SAME left position with NO progressive indenting. Hierarchy shown via M/L1/L2/L3 indicators only. All features working correctly: panel rendering, M creation, deep nesting (6 levels tested), remove level, Enter key, visual design. Implementation matches requirements exactly."
+    message: "CATEGORY PATH VISUAL RESTORATION TESTING COMPLETE. Successfully tested all 6 scenarios on https://category-tree-6--79voefnh.preview.emergentagent.com. CRITICAL REQUIREMENT VERIFIED: All category rows (M, L1, L2, L3, L4, L5) aligned at SAME left position with NO progressive indenting. Hierarchy shown via M/L1/L2/L3 indicators only. All features working correctly: panel rendering, M creation, deep nesting (6 levels tested), remove level, Enter key, visual design. Implementation matches requirements exactly."
