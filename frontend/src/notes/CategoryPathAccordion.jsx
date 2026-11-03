@@ -112,9 +112,10 @@ export default function CategoryPathAccordion({
     console.log(`   Current segments:`, JSON.stringify(segments));
     console.log(`   Current path prop:`, JSON.stringify(path));
     
-    // Create new path: parent segments up to and including clicked row + empty child
-    const newPath = segments.slice(0, depth + 1).concat([""]);
-    console.log(`   Computed newPath:`, JSON.stringify(newPath));
+    // Create new path: INSERT empty child, PRESERVE all existing descendants
+    const newPath = [...segments.slice(0, depth + 1), "", ...segments.slice(depth + 1)];
+    console.log(`   Computed newPath (INSERTION LOGIC):`, JSON.stringify(newPath));
+    console.log(`   Preserved descendants:`, JSON.stringify(segments.slice(depth + 1)));
     console.log(`   Calling onChange with newPath...`);
     
     onChange(newPath);
