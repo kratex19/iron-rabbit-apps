@@ -336,9 +336,18 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       const initialPath = Array.isArray(note.category_path) && note.category_path.length > 0
         ? note.category_path
         : [note.category, note.subcategory].filter((s) => s && String(s).trim());
+      
+      console.log(`🔵 LOADING NOTE: "${note.title || 'Untitled'}"`);
+      console.log(`   note.category_path:`, JSON.stringify(note.category_path));
+      console.log(`   note.category:`, note.category);
+      console.log(`   note.subcategory:`, note.subcategory);
+      console.log(`   initialPath:`, JSON.stringify(initialPath));
+      
       // Pin state — for nested paths (>= 2), pin means "this subcategory
       // is in Green rail"; for flat paths, pin means "this note is in Blue rail".
       const cleanInitPath = initialPath.map((s) => String(s || "").trim()).filter(Boolean);
+      console.log(`   cleanInitPath (for pin check):`, JSON.stringify(cleanInitPath));
+      
       if (cleanInitPath.length >= 2 && pinnedSubcategoryKeys) {
         const key = cleanInitPath.join("\u241E");
         setPinned(pinnedSubcategoryKeys.has(key));
@@ -353,6 +362,7 @@ export default function NoteModal({ isOpen, onClose, note, onSave, onSaveInline,
       setChecklist(Array.isArray(note.checklist) ? note.checklist : []);
       setCategory(note.category || ""); setSubcategory(note.subcategory || "");
       setCategoryPath(initialPath);
+      console.log(`   ✅ setCategoryPath called with:`, JSON.stringify(initialPath));
       if (note.alarm) {
         setAlarm(note.alarm);
         if (note.alarm.datetime) {
