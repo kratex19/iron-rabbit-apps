@@ -2636,4 +2636,986 @@ Before implementing any changes, need approval on:
 
 ---
 
+## SECTION L: HIERARCHY CREATION CLARIFICATION (USER PROVIDED)
+
+**Date**: November 4, 2026  
+**Status**: ARCHITECTURAL REQUIREMENTS RECEIVED — DOCUMENTATION ONLY  
+**Implementation**: NOT AUTHORIZED
+
+---
+
+### L.1 GREEN PLUS OPERATION — CORRECTED UNDERSTANDING
+
+**Previous Understanding**: Green plus creates a **CHILD** beneath selected row
+
+**CORRECTED Understanding**: Green plus creates a **SIBLING SC** at same depth
+
+---
+
+#### **Correct Green Plus Behavior**
+
+**When green plus is clicked on an M or SC**:
+
+1. **Immediately collapse** the selected accordion
+2. **Insert new SC** immediately beneath the selected row
+3. **At the SAME hierarchy depth** as the selected row (not as a child)
+4. **Require immediate naming** — must not remain unnamed
+5. **Play existing animation** (current category-creation animation, exactly as-is)
+6. **Preserve all descendants** — do NOT move descendants into new SC
+
+---
+
+#### **Example: Green Plus on Kitchen**
+
+**Before**:
+```
+Home (M)
+├─ Kitchen (SC) [EXPANDED]
+│  ├─ Utensils
+│  │  └─ Cutlery
+│  ├─ Appliances
+│  └─ Recipes
+└─ Garage (SC)
+```
+
+**User Action**: Click green plus beside "Kitchen"
+
+**After**:
+```
+Home (M)
+├─ Kitchen (SC) [COLLAPSED]  ← Accordion closes
+├─ [New SC - name required]   ← Inserted at SAME depth as Kitchen
+└─ Garage (SC)
+```
+
+**Kitchen's descendants preserved**:
+```
+Kitchen (SC) [COLLAPSED]
+├─ Utensils
+│  └─ Cutlery
+├─ Appliances
+└─ Recipes
+```
+
+**NOT moved to new SC** ✅
+
+---
+
+#### **Architectural Implications**
+
+**Current System** (CategoryPathAccordion.jsx):
+```javascript
+// Line 116 — CURRENT BEHAVIOR
+const newPath = [...segments.slice(0, depth + 1), "", ...segments.slice(depth + 1)];
+// ↑ This creates a CHILD at depth+1
+```
+
+**Required Behavior**:
+- Green plus should create a **sibling** at the same depth
+- This is a **GLOBAL TREE operation**, not a note-path operation
+- Affects the category tree structure, not individual note paths
+
+**Key Difference**:
+- **Current**: Operates on single note's path array (inserts child)
+- **Required**: Operates on global category tree (inserts sibling)
+
+---
+
+### L.2 ADD NEW LEVEL — FLOATING BOB PANEL
+
+**Purpose**: Create **CHILDREN** of selected M or SC
+
+**NOT the same as green plus** — completely separate feature
+
+---
+
+#### **Floating Bob Characteristics**
+
+**Visual Design**:
+- Floating full-page-width accordion/card
+- Associated with the selected M or SC
+- Appears over main UI (modal or overlay)
+
+**Functionality**:
+- Display immediate child levels of selected category
+- Allow creating new children at next depth level
+- Support recursive hierarchy (children can have children)
+- Preserve deeper descendants within branches
+
+**Example**:
+```
+Selected: Kitchen (SC)
+
+┌─────────────────────────────────────────────────────┐
+│ Add New Level — Kitchen                             │
+├─────────────────────────────────────────────────────┤
+│ Immediate Children:                                 │
+│   • Utensils                                        │
+│   • Appliances                                      │
+│   • Recipes                                         │
+│                                                     │
+│ [+ Add New Child Level]                            │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+#### **Interaction Flow**
+
+**Step 1**: User clicks **differently colored plus** on "Kitchen"
+
+**Step 2**: Floating Bob opens, showing Kitchen's immediate children
+
+**Step 3**: User can:
+- View existing children (Utensils, Appliances, Recipes)
+- Click [+ Add New Child Level] to create new child
+- Each child has its own differently colored plus for deeper levels
+
+**Step 4**: Creating new child:
+- Requires immediate naming
+- Becomes fully functional SC
+- Gets its own Add New Level capability
+
+---
+
+### L.3 TWO SEPARATE CONTROLS REQUIRED
+
+#### **Control 1: Green Plus (Existing)**
+
+**Purpose**: Create sibling SC at same depth
+
+**Visual**: 🟢 Green plus icon (current color)
+
+**Location**: Beside each M and SC row
+
+**Action**:
+1. Collapse selected accordion
+2. Insert new sibling SC immediately beneath
+3. Require name
+4. Play animation
+5. Preserve descendants
+
+---
+
+#### **Control 2: Differently Colored Plus (NEW)**
+
+**Purpose**: Open Add New Level floating Bob
+
+**Visual**: ⚠️ **COLOR TO BE DETERMINED** — different from green
+
+**Location**: ⚠️ **PLACEMENT TO BE DETERMINED** — separate from green plus
+
+**Action**:
+1. Open floating Bob panel
+2. Show selected category's immediate children
+3. Allow creating new children
+4. Support recursive nesting
+
+**Design Decision Required**:
+- Exact icon color (blue? purple? orange?)
+- Exact placement (left of green plus? right? separate row?)
+- Icon style (plus? arrow-down? expand icon?)
+
+---
+
+### L.4 NEW SC MUST BE FULLY FUNCTIONAL
+
+**Requirement**: Once named, new SC = same capabilities as existing SC
+
+**Capabilities**:
+- ✅ Can have own children, grandchildren, unlimited nesting
+- ✅ Has its own green plus (create sibling)
+- ✅ Has its own differently colored plus (Add New Level)
+- ✅ Can be expanded/collapsed
+- ✅ Can contain notes
+- ✅ Same styling and behavior
+
+**NOT a limited or special category type**
+
+---
+
+### L.5 ANIMATION PRESERVATION
+
+**Requirement**: Preserve exact existing category-creation animation
+
+**Current Animation**: Lottie animation that plays on category creation
+
+**Location**: Used in NoteModal and category editing flows
+
+**Status**: ✅ APPROVED — Works correctly
+
+**Instruction**: 
+- ✅ Reuse current animation exactly
+- ❌ Do NOT replace, redesign, simplify, or remove
+- ✅ Apply to both green plus AND Add New Level operations
+
+---
+
+### L.6 ARCHITECTURAL COMPARISON
+
+#### **Current Green Plus (CategoryPathAccordion)**
+
+**Scope**: Single note
+
+**Operation**: Modifies note's `category_path` array
+
+**Effect**: Inserts empty string at `depth + 1` (child position)
+
+**Storage**: Updates one note, adds category to tree
+
+**UI**: Re-renders note editor accordion
+
+**Data Flow**:
+```
+User clicks green plus
+  ↓
+addChildLevel(depth)
+  ↓
+newPath = [...segments.slice(0, depth+1), "", ...segments.slice(depth+1)]
+  ↓
+onChange(newPath)
+  ↓
+Note's category_path updated
+  ↓
+saveCategoryToTree called on blur
+```
+
+---
+
+#### **Required Green Plus Behavior**
+
+**Scope**: Global category tree
+
+**Operation**: Adds sibling node to tree structure
+
+**Effect**: Inserts new category at same depth as selected
+
+**Storage**: Updates global category tree only
+
+**UI**: Re-renders category list view (main page, not note editor)
+
+**Data Flow**:
+```
+User clicks green plus on "Kitchen" in main UI
+  ↓
+createSiblingCategory(selectedCategoryPath)
+  ↓
+Navigate to parent in tree
+  ↓
+Insert new category node at same level
+  ↓
+Generate unique ID
+  ↓
+Collapse selected accordion
+  ↓
+Show name input for new category
+  ↓
+Play animation
+  ↓
+Save tree
+  ↓
+Re-render category list
+```
+
+---
+
+#### **Add New Level (Floating Bob)**
+
+**Scope**: Selected category node
+
+**Operation**: Opens modal/overlay showing children
+
+**Effect**: Creates child at `depth + 1`
+
+**Storage**: Updates global category tree
+
+**UI**: Floating panel over main UI
+
+**Data Flow**:
+```
+User clicks differently colored plus on "Kitchen"
+  ↓
+openFloatingBob(selectedCategoryPath)
+  ↓
+Load children from tree
+  ↓
+Display in floating panel
+  ↓
+User clicks [+ Add New Child Level]
+  ↓
+addChildToCategory(selectedCategoryPath, newChildName)
+  ↓
+Navigate to selected category in tree
+  ↓
+Add to children object
+  ↓
+Generate unique ID
+  ↓
+Play animation
+  ↓
+Save tree
+  ↓
+Update floating Bob display
+```
+
+---
+
+### L.7 CURRENT SYSTEM GAPS
+
+#### **Gap 1: Green Plus Location**
+
+**Current**: Only in CategoryPathAccordion (note editor)
+
+**Required**: Also in main category list view (NotesApp, CategoryGroup)
+
+**Implication**: Need to add green plus buttons to category headers in main UI
+
+---
+
+#### **Gap 2: Global Tree Operations**
+
+**Current**: Most operations work on individual note paths
+
+**Required**: Direct manipulation of global category tree structure
+
+**Implication**: Need new StorageService methods:
+- `addSiblingCategory(parentPath, siblingOfPath, newName)`
+- `addChildCategory(parentPath, newName)`
+
+---
+
+#### **Gap 3: Floating Bob Component**
+
+**Current**: Does not exist
+
+**Required**: New modal/overlay component
+
+**Implication**: Need to create:
+- `FloatingBob.jsx` or `AddNewLevelPanel.jsx`
+- State management for which category's Bob is open
+- UI for displaying children and adding new ones
+
+---
+
+#### **Gap 4: Two Plus Controls in Main UI**
+
+**Current**: No plus controls in main category list
+
+**Required**: Two separate plus controls per category
+
+**Implication**: Update CategoryGroup and NestedSubGroup headers
+
+---
+
+#### **Gap 5: Collapse on Create**
+
+**Current**: Accordion stays open after creation
+
+**Required**: Selected accordion collapses when green plus clicked
+
+**Implication**: Need to update `hierarchyOpenPaths` state when creating sibling
+
+---
+
+### L.8 PROPOSED IMPLEMENTATION APPROACH
+
+**⚠️ DOCUMENTATION ONLY — NOT AUTHORIZED FOR IMPLEMENTATION**
+
+---
+
+#### **Phase 1: Global Tree Operations**
+
+**Files to Modify**:
+- `/app/frontend/src/storage/storageService.js`
+
+**New Methods**:
+```javascript
+// Pseudocode — NOT ACTUAL IMPLEMENTATION
+
+async addSiblingCategory(parentPath, siblingName, newSiblingName) {
+  // Navigate to parent in tree
+  // Find sibling's position
+  // Insert new sibling in children object
+  // Generate ID
+  // Save tree
+  // Return updated tree
+}
+
+async addChildCategory(categoryPath, newChildName) {
+  // Navigate to category in tree
+  // Add to category's children object
+  // Generate ID
+  // Save tree
+  // Return updated tree
+}
+```
+
+---
+
+#### **Phase 2: Main UI Plus Controls**
+
+**Files to Modify**:
+- `/app/frontend/src/notes/CategoryGroup.jsx`
+- `/app/frontend/src/notes/NestedSubGroup.jsx`
+
+**Changes**:
+- Add green plus button to category header
+- Add differently colored plus button to category header
+- Wire green plus to `createSibling` handler
+- Wire colored plus to `openFloatingBob` handler
+- Implement collapse on green plus click
+
+---
+
+#### **Phase 3: Floating Bob Component**
+
+**New File**:
+- `/app/frontend/src/components/FloatingBob.jsx`
+
+**Features**:
+- Modal/overlay that appears over main UI
+- Displays selected category name
+- Lists immediate children
+- [+ Add New Child Level] button
+- Input field for naming new child
+- Recursive support (children have their own colored plus)
+- Animation on create
+- Close button
+
+---
+
+#### **Phase 4: State Management**
+
+**Files to Modify**:
+- `/app/frontend/src/NotesApp.jsx`
+
+**New State**:
+```javascript
+// Pseudocode
+const [floatingBobOpen, setFloatingBobOpen] = useState(null);
+// null = closed
+// { categoryPath: ["Home", "Kitchen"] } = open for Kitchen
+```
+
+---
+
+#### **Phase 5: Animation Integration**
+
+**Files to Check**:
+- Existing animation location (NoteModal)
+
+**Task**:
+- Extract animation to reusable component if needed
+- Apply to both green plus and Add New Level
+
+---
+
+### L.9 USER INTERFACE MOCKUP (TEXT)
+
+#### **Main Category List View**
+
+```
+┌────────────────────────────────────────────────────┐
+│ 📱 Iron Rabbit                                     │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│ 🔵 M Home (5 notes) 🟢 🟣                         │
+│   [Expanded]                                       │
+│   ├─ Direct notes at Home level...                │
+│   │                                                │
+│   🔵 SC Kitchen (3 notes) 🟢 🟣                    │
+│     [Collapsed]                                    │
+│   │                                                │
+│   🔵 SC Garage (2 notes) 🟢 🟣                     │
+│     [Collapsed]                                    │
+│                                                    │
+│ 🔵 M Work (8 notes) 🟢 🟣                         │
+│   [Collapsed]                                      │
+│                                                    │
+└────────────────────────────────────────────────────┘
+
+Legend:
+🔵 = Category icon (existing)
+🟢 = Green plus (create sibling)
+🟣 = Differently colored plus (Add New Level)
+```
+
+**⚠️ Note**: Icon colors and exact placement to be determined before implementation
+
+---
+
+#### **After Clicking Green Plus on Kitchen**
+
+```
+┌────────────────────────────────────────────────────┐
+│ 📱 Iron Rabbit                                     │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│ 🔵 M Home (5 notes) 🟢 🟣                         │
+│   [Expanded]                                       │
+│   ├─ Direct notes at Home level...                │
+│   │                                                │
+│   🔵 SC Kitchen (3 notes) 🟢 🟣                    │
+│     [COLLAPSED] ← Accordion closed                 │
+│   │                                                │
+│   📝 [Enter new subcategory name...] ✅           │
+│      ↑ NEW SIBLING at same depth                  │
+│      ↑ Animation playing                          │
+│   │                                                │
+│   🔵 SC Garage (2 notes) 🟢 🟣                     │
+│     [Collapsed]                                    │
+│                                                    │
+└────────────────────────────────────────────────────┘
+```
+
+---
+
+#### **After Clicking Differently Colored Plus on Kitchen**
+
+```
+┌────────────────────────────────────────────────────┐
+│ 📱 Iron Rabbit                                     │
+├────────────────────────────────────────────────────┤
+│                 ┌──────────────────────────┐       │
+│                 │ Add New Level — Kitchen  │       │
+│                 ├──────────────────────────┤       │
+│                 │ Immediate Children:      │       │
+│                 │                          │       │
+│                 │ 🔵 Utensils (2) 🟢 🟣    │       │
+│                 │ 🔵 Appliances (1) 🟢 🟣  │       │
+│                 │ 🔵 Recipes (0) 🟢 🟣     │       │
+│                 │                          │       │
+│                 │ [+ Add New Child Level]  │       │
+│                 │                          │       │
+│                 │            [Close]       │       │
+│                 └──────────────────────────┘       │
+│                                                    │
+│ Background dimmed...                               │
+│                                                    │
+└────────────────────────────────────────────────────┘
+
+Floating Bob overlays main UI
+```
+
+---
+
+### L.10 EXAMPLE: COMPLETE HIERARCHY FLOW
+
+#### **Starting State**
+
+```
+Category Tree:
+{
+  "Home": {
+    "id": "cat-001",
+    "name": "Home",
+    "children": {
+      "Kitchen": {
+        "id": "cat-002",
+        "name": "Kitchen",
+        "children": {
+          "Utensils": { "id": "cat-003", "name": "Utensils", "children": {} }
+        }
+      },
+      "Garage": {
+        "id": "cat-004",
+        "name": "Garage",
+        "children": {}
+      }
+    }
+  }
+}
+```
+
+**Rendered**:
+```
+Home (M)
+├─ Kitchen (SC)
+│  └─ Utensils
+└─ Garage (SC)
+```
+
+---
+
+#### **Action 1: Green Plus on Kitchen**
+
+**User**: Clicks green plus beside "Kitchen"
+
+**System**:
+1. Collapse Kitchen accordion
+2. Insert new sibling after Kitchen: `["Home", "[NEW]"]`
+3. Require name input
+4. Play animation
+
+**Result**:
+```
+Category Tree (after naming "Pantry"):
+{
+  "Home": {
+    "children": {
+      "Kitchen": { ... },
+      "Pantry": {               ← NEW SIBLING
+        "id": "cat-005",
+        "name": "Pantry",
+        "children": {}
+      },
+      "Garage": { ... }
+    }
+  }
+}
+```
+
+**Rendered**:
+```
+Home (M)
+├─ Kitchen (SC) [COLLAPSED]
+│  └─ Utensils (still there, just hidden in collapsed accordion)
+├─ Pantry (SC) [NEW] 🟢 🟣  ← Has both plus controls
+└─ Garage (SC)
+```
+
+**Pantry Capabilities**: ✅ Fully functional, can have children
+
+---
+
+#### **Action 2: Differently Colored Plus on Pantry**
+
+**User**: Clicks differently colored plus on newly created "Pantry"
+
+**System**:
+1. Open floating Bob for Pantry
+2. Show Pantry has no children yet
+3. Display [+ Add New Child Level] button
+
+**Floating Bob**:
+```
+┌──────────────────────────────┐
+│ Add New Level — Pantry       │
+├──────────────────────────────┤
+│ Immediate Children:          │
+│ (none yet)                   │
+│                              │
+│ [+ Add New Child Level]      │
+└──────────────────────────────┘
+```
+
+**User**: Clicks [+ Add New Child Level], enters "Canned Goods"
+
+**Result**:
+```
+Category Tree:
+{
+  "Home": {
+    "children": {
+      "Kitchen": { ... },
+      "Pantry": {
+        "id": "cat-005",
+        "name": "Pantry",
+        "children": {
+          "Canned Goods": {     ← NEW CHILD
+            "id": "cat-006",
+            "name": "Canned Goods",
+            "children": {}
+          }
+        }
+      },
+      "Garage": { ... }
+    }
+  }
+}
+```
+
+**Rendered**:
+```
+Home (M)
+├─ Kitchen (SC)
+├─ Pantry (SC)
+│  └─ Canned Goods  ← New child of Pantry
+└─ Garage (SC)
+```
+
+---
+
+### L.11 DESIGN DECISIONS REQUIRED BEFORE IMPLEMENTATION
+
+#### **1. Differently Colored Plus Appearance**
+
+**Options**:
+- a) Blue plus icon
+- b) Purple plus icon
+- c) Orange plus icon
+- d) Different icon entirely (arrow-down, expand, etc.)
+
+**Recommendation**: User to decide
+
+---
+
+#### **2. Plus Control Placement**
+
+**Options**:
+- a) Side by side: `[🔵 Kitchen (3) 🟢 🟣]`
+- b) Green left, colored right edge: `[🟢 🔵 Kitchen (3) ... 🟣]`
+- c) Separate row beneath category name
+- d) Hover-only (appears on mouse over)
+
+**Recommendation**: User to decide
+
+---
+
+#### **3. Floating Bob Visual Style**
+
+**Options**:
+- a) Full-page modal with backdrop
+- b) Slide-in panel from right
+- c) Dropdown beneath selected category
+- d) Popover card
+
+**Recommendation**: Full-page modal (matches "floating, full-page-width" description)
+
+---
+
+#### **4. Animation Timing**
+
+**Question**: Play animation on:
+- Green plus create sibling? (Yes, specified)
+- Add New Level create child? (Yes, specified)
+- Both? (Likely yes)
+
+**Recommendation**: Both operations
+
+---
+
+#### **5. Floating Bob Children Display**
+
+**Question**: Show full recursive tree or just immediate children?
+
+**Answer from requirements**: "Display immediate child levels"
+
+**Clarification needed**: Can children's differently colored plus open nested Bobs?
+
+**Recommendation**: Yes, recursive (each child has colored plus for deeper levels)
+
+---
+
+### L.12 FILES REQUIRING CREATION/MODIFICATION
+
+**⚠️ DOCUMENTATION ONLY — IMPLEMENTATION NOT AUTHORIZED**
+
+---
+
+#### **New Files**
+
+1. `/app/frontend/src/components/FloatingBob.jsx` (~300 lines)
+   - Floating panel component
+   - Children list display
+   - Add New Child Level functionality
+   - Animation integration
+
+2. `/app/frontend/src/helpers/categoryTreeHelpers.js` (~100 lines)
+   - `addSiblingCategory(parentPath, siblingName, newName)`
+   - `addChildCategory(categoryPath, newName)`
+   - `findCategoryInTree(tree, categoryPath)`
+   - `getCategoryChildren(tree, categoryPath)`
+
+---
+
+#### **Modified Files**
+
+1. `/app/frontend/src/storage/storageService.js` (~50 lines added)
+   - Add sibling category method
+   - Add child category method
+   - Enhanced tree navigation helpers
+
+2. `/app/frontend/src/NotesApp.jsx` (~30 lines changed)
+   - Add `floatingBobOpen` state
+   - Add handlers for opening/closing Floating Bob
+   - Pass handlers to CategoryGroup components
+
+3. `/app/frontend/src/notes/CategoryGroup.jsx` (~40 lines changed)
+   - Add green plus button to header
+   - Add differently colored plus button to header
+   - Wire createSibling handler
+   - Wire openFloatingBob handler
+   - Collapse accordion on green plus
+
+4. `/app/frontend/src/notes/NestedSubGroup.jsx` (~40 lines changed)
+   - Same changes as CategoryGroup
+   - Consistent behavior at all depths
+
+---
+
+#### **Unchanged Files (Protected)**
+
+- `/app/frontend/src/notes/CategoryPathAccordion.jsx` (note editor — keep as-is)
+- `/app/frontend/src/notes/NoteModal.jsx` (modal — keep as-is)
+- All animation files (reuse exactly)
+- All 205 gallery images (frozen)
+
+---
+
+### L.13 TESTING PLAN UPDATES
+
+**Add to existing six-level tests**:
+
+---
+
+#### **Test 7: Green Plus Sibling Creation**
+
+**Steps**:
+1. Navigate to category list view
+2. Expand Home → Kitchen
+3. Click green plus beside Kitchen
+4. Verify Kitchen collapses
+5. Verify new sibling SC appears beneath Kitchen
+6. Enter name "Pantry"
+7. Verify animation plays
+8. Verify Pantry has both plus controls
+9. Expand Kitchen
+10. Verify Utensils, Appliances still there
+
+**Expected**: ✅ Sibling created, descendants preserved
+
+---
+
+#### **Test 8: Add New Level Floating Bob**
+
+**Steps**:
+1. Click differently colored plus on Kitchen
+2. Verify Floating Bob opens
+3. Verify shows Kitchen's immediate children (Utensils, Appliances, Recipes)
+4. Click [+ Add New Child Level]
+5. Enter "Cookware"
+6. Verify animation plays
+7. Verify Cookware appears in Floating Bob
+8. Close Floating Bob
+9. Expand Kitchen
+10. Verify Cookware now appears as Kitchen's child
+
+**Expected**: ✅ Child created via Floating Bob
+
+---
+
+#### **Test 9: Newly Created SC Functionality**
+
+**Steps**:
+1. Create new SC "Pantry" via green plus
+2. Click differently colored plus on Pantry
+3. Verify Floating Bob opens for Pantry
+4. Add child "Canned Goods"
+5. Close Floating Bob
+6. Click green plus on Pantry
+7. Verify new sibling "Supplies" created beneath Pantry
+8. Verify Canned Goods still under Pantry
+
+**Expected**: ✅ New SC fully functional
+
+---
+
+#### **Test 10: Deep Recursion via Floating Bob**
+
+**Steps**:
+1. Open Floating Bob for Kitchen
+2. Click differently colored plus on Utensils (in Bob)
+3. Verify nested Floating Bob opens for Utensils
+4. Add child to Utensils
+5. Verify correct nesting
+
+**Expected**: ✅ Recursive Floating Bob support
+
+---
+
+### L.14 RISKS AND CONSIDERATIONS
+
+#### **Risk 1: Two Similar Controls**
+
+**Concern**: Users confuse green plus and colored plus
+
+**Mitigation**:
+- Clear visual distinction (different colors)
+- Different placement
+- Tooltips on hover
+- User education/onboarding
+
+---
+
+#### **Risk 2: Floating Bob Z-Index**
+
+**Concern**: Bob appears behind other UI elements
+
+**Mitigation**:
+- High z-index value
+- Portal rendering
+- Proper stacking context
+
+---
+
+#### **Risk 3: Collapse on Create**
+
+**Concern**: User loses context when accordion collapses
+
+**Mitigation**:
+- Clear animation
+- Scroll to new SC
+- Visual indication of where it was created
+
+---
+
+#### **Risk 4: Global Tree Operations**
+
+**Concern**: Tree operations affect all users/sessions (if multi-user)
+
+**Mitigation**:
+- Offline-first architecture (single user per device)
+- Sync conflicts handled by storage layer
+
+---
+
+#### **Risk 5: Animation Reuse**
+
+**Concern**: Current animation might be tightly coupled to note editor
+
+**Mitigation**:
+- Extract to standalone component
+- Pass context (note editor vs main UI)
+- Test in both locations
+
+---
+
+### L.15 ARCHITECTURAL APPROVAL REQUIRED
+
+**Before implementation, need approval on**:
+
+1. ✅ Confirm green plus creates **sibling** (not child) — CLARIFIED
+2. ✅ Confirm Add New Level is **separate feature** via Floating Bob — CLARIFIED
+3. ❓ Differently colored plus: **exact color** and **placement**
+4. ❓ Floating Bob: **exact visual style** (modal, slide-in, popover, etc.)
+5. ❓ Recursive Floating Bob: Can children's colored plus open nested Bobs?
+6. ❓ Animation: Confirm play on both green plus **and** Add New Level
+7. ❓ Plus controls in main UI: Confirm placement alongside category names
+8. ❓ Tooltip text for each plus control
+
+---
+
+### L.16 SUMMARY OF CHANGES FROM PREVIOUS UNDERSTANDING
+
+| Aspect | Previous Understanding | Corrected Understanding |
+|--------|----------------------|------------------------|
+| **Green Plus** | Creates child at depth+1 | Creates sibling at same depth |
+| **Scope** | Note editor only | Note editor + main category list |
+| **Operation** | Modifies note path | Modifies global tree |
+| **Add Children** | Via green plus | Via separate Floating Bob |
+| **Controls** | One (green plus) | Two (green plus + colored plus) |
+| **Accordion** | Stays open | Collapses on create |
+| **Descendants** | Preserved in path | Preserved in tree structure |
+
+---
+
+## 🛑 DOCUMENTATION COMPLETE — AWAITING DESIGN DECISIONS
+
+**Status**: ✅ REQUIREMENTS DOCUMENTED  
+**Implementation**: ❌ NOT AUTHORIZED  
+**Next Step**: USER APPROVAL on design decisions (L.11) before implementation
+
+---
+
 **END OF INVESTIGATION REPORT**
