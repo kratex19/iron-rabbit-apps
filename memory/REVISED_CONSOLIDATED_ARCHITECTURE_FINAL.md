@@ -1,8 +1,8 @@
 # IRON RABBIT — REVISED CONSOLIDATED ARCHITECTURE (FINAL)
 
 **Date**: November 4, 2026  
-**Version**: 2.0 — User Corrections Incorporated  
-**Status**: 🎯 FINAL ARCHITECTURE FOR REVIEW  
+**Version**: 3.2 — Uniqueness, Sub-Level Branches, and Numbering Clarifications  
+**Status**: 🎯 CLARIFICATIONS INCORPORATED — AWAITING APPROVAL ON PROPOSALS  
 **Authorization**: ❌ NO IMPLEMENTATION UNTIL EXPLICIT APPROVAL
 
 ---
@@ -653,6 +653,841 @@ When rename happens (via existing UI):
 2. Category name updated in tree
 3. All notes' display paths regenerated from tree
 4. Notes' `category_node_id` unchanged (still linked correctly)
+
+
+---
+
+### 1.3.1 Compact Identifier Uniqueness (CRITICAL CLARIFICATION)
+
+**Issue**: Compact identifiers can repeat across different parents
+
+**Example from Section 1.3**:
+```
+Kitchen (M)
+├─ SC1: Pantry
+│  ├─ Sc1: Canned     ← Compact: M-Sc1
+│  │  └─ Sc1: Soups   ← Compact: M-Sc1 (same as Canned!)
+│  └─ Sc2: Dry Goods
+└─ SC2: Storage
+   └─ Sc1: Tools      ← Compact: M-Sc1 (same as Canned!)
+```
+
+**CRITICAL**: Compact identifiers `M-Sc1` appears THREE times with different meanings.
+
+---
+
+#### Permanent IDs are Source of Truth
+
+**Every category has a unique permanent ID**:
+
+```javascript
+{
+  id: "cat-canned-goods-uuid-001",  // UNIQUE PERMANENT ID
+  name: "Canned",
+  identifier: "M-Sc1",  // Display reference (NOT unique)
+  full_identifier: "M-SC1-Sc1"
+}
+
+{
+  id: "cat-soups-uuid-002",  // DIFFERENT UNIQUE ID
+  name: "Soups",
+  identifier: "M-Sc1",  // Same display reference (OK)
+  full_identifier: "M-SC1-Sc1-Sc1"
+}
+
+{
+  id: "cat-tools-uuid-003",  // DIFFERENT UNIQUE ID
+  name: "Tools",
+  identifier: "M-Sc1",  // Same display reference (OK)
+  full_identifier: "M-SC2-Sc1"
+}
+```
+
+**Rules**:
+1. ✅ `id` field is UNIQUE across entire system
+2. ✅ `id` never changes (stable across renames, moves)
+3. ✅ `parent_id` establishes hierarchy (source of truth)
+4. ⚠️ `identifier` (compact) can repeat (display only)
+5. ✅ `full_identifier` shows complete path (more unique, but still not ID)
+
+---
+
+#### Compact Identifiers Are Display References Only
+
+**Purpose**: Brevity in UI labels, breadcrumbs, compact addressing
+
+**NOT for**:
+- ❌ Locating categories in database
+- ❌ Retrieving category data
+- ❌ Moving categories
+- ❌ Renaming categories
+- ❌ Associating notes with categories
+- ❌ Any operation requiring unique identification
+
+**Only for**:
+- ✅ Display in UI
+- ✅ Breadcrumb trails
+- ✅ Quick visual reference
+- ✅ Human-readable labels
+
+---
+
+#### Notes Use Permanent IDs
+
+**Note Structure**:
+```javascript
+{
+  id: "note-123",
+  title: "Sourdough Recipe",
+  
+  // PRIMARY LINK (permanent ID)
+  category_node_id: "cat-soups-uuid-002",  // Links to Soups
+  
+  // DISPLAY PATH (generated from ID traversal)
+  category_path: ["Kitchen", "Pantry", "Canned", "Soups"],
+  
+  // NOT STORED: compact identifier
+  // Generated on-demand for display only
+}
+```
+
+**Critical**: `category_node_id` uses permanent ID, NEVER compact identifier.
+
+---
+
+#### UI Distinguishes Identical Compact Identifiers
+
+**Problem**: Three categories with `M-Sc1` identifier in different branches
+
+**Solution 1: Full Path Context** (Recommended)
+
+Display full path alongside compact identifier:
+
+```
+UI Display:
+┌─────────────────────────────────────┐
+│ M-Sc1: Canned                       │
+│ Path: Kitchen → Pantry → Canned     │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ M-Sc1: Soups                        │
+│ Path: Kitchen → Pantry → Canned →   │
+│       Soups                          │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ M-Sc1: Tools                        │
+│ Path: Kitchen → Storage → Tools     │
+└─────────────────────────────────────┘
+```
+
+---
+
+**Solution 2: Hierarchical Context** (Breadcrumb)
+
+Show parent context in breadcrumb:
+
+```
+Kitchen > Pantry > M-Sc1: Canned
+Kitchen > Pantry > Canned > M-Sc1: Soups
+Kitchen > Storage > M-Sc1: Tools
+```
+
+---
+
+**Solution 3: Expand on Hover** (Interactive)
+
+```
+Compact view:
+  M-Sc1: Canned
+
+Hover/expand:
+  M-SC1-Sc1: Canned
+  (Kitchen → Pantry → Canned)
+```
+
+---
+
+**Solution 4: Always Show Full Identifier** (Verbose but Unambiguous)
+
+```
+M-SC1-Sc1: Canned
+M-SC1-Sc1-Sc1: Soups
+M-SC2-Sc1: Tools
+```
+
+**Trade-off**: No ambiguity, but loses compactness
+
+---
+
+#### Internal Operations Use IDs
+
+**Locate Category**:
+```javascript
+// CORRECT: Use permanent ID
+const category = await getCategoryById("cat-soups-uuid-002");
+
+// WRONG: Use compact identifier (ambiguous)
+const category = await getCategoryByIdentifier("M-Sc1");  // Which one??
+```
+
+**Move Category**:
+```javascript
+// CORRECT: Use IDs
+await moveCategory(
+
+
+---
+
+### 1.3.2 Categories Created Beneath Ordinary Sub-Levels (PROPOSED)
+
+**Issue**: Version 3.1 defines M, SC, Sc, and l, but does not adequately specify what happens when a category branch is created beneath an ordinary sub-level.
+
+**Example Scenario**:
+```
+Kitchen (M)
+├─ l1: Utensils
+│  ├─ l2: Cooking Utensils
+│  │  ├─ l3: Wooden Spoons
+│  │  │  └─ [USER CLICKS GREEN PLUS HERE]
+│  │  │     → Creates new category branch
+```
+
+---
+
+#### PROPOSED: Branch-Level Category Designation
+
+**Proposal**: Use existing "Branch beneath L{n}" pattern from Section 1.3
+
+**Type Designation**: When Main Category created beneath sub-level:
+- Type: `M` (Main Category branch)
+- Identifier prefix: `l{n}` (shows which level it's beneath)
+- Counter: `M{m}` (Main branch counter, scoped to that level)
+
+**Format**: `l{n} M{m}`
+
+---
+
+#### Example: Category Beneath l3
+
+**Hierarchy**:
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         └─ l3 M1: Premium Collection ← NEW BRANCH
+```
+
+**Data Structure**:
+```javascript
+{
+  id: "cat-premium-uuid-001",
+  name: "Premium Collection",
+  type: "M",  // This is a Main Category (within sub-level context)
+  
+  // IDENTIFIERS
+  identifier: "l3 M1",  // Compact
+  full_identifier: "l3 M1",  // Same (no omitted intermediates)
+  
+  // PARENT RELATIONSHIP
+  parent_id: "cat-kitchen-uuid",  // Parent is Kitchen (M)
+  parent_type: "M",
+  parent_level: "l3",  // Attached beneath l3
+  parent_level_name: "Wooden Spoons",
+  
+  // This branch can have its own hierarchy
+  category_branches: { ... },
+  sub_levels: { ... }
+}
+```
+
+**Key Points**:
+- ✅ Type is "M" (Main Category, but in branch context)
+- ✅ Identifier shows which level it's beneath: `l3 M1`
+- ✅ Counter `M1` is scoped to l3 (first Main branch beneath l3)
+- ✅ Can have its own subcategories and sub-levels
+
+---
+
+#### Subcategories Beneath Branch
+
+**When Subcategory created beneath `l3 M1`**:
+
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         └─ l3 M1: Premium Collection
+            └─ SC1: Artisan Spoons ← Subcategory beneath l3 M1
+```
+
+**Data Structure**:
+```javascript
+{
+  id: "cat-artisan-uuid-002",
+  name: "Artisan Spoons",
+  type: "SC",  // Subcategory directly beneath Main
+  
+  // IDENTIFIERS
+  identifier: "l3 M1-SC1",  // Compact
+  full_identifier: "l3 M1-SC1",  // Full
+  
+  // PARENT
+  parent_id: "cat-premium-uuid-001",  // Parent is l3 M1
+  parent_type: "M"
+}
+```
+
+**Pattern**: `l3 M1-SC1` (shows branch location and subcategory)
+
+---
+
+#### Nested Subcategories Beneath Branch
+
+**Further nesting**:
+
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         └─ l3 M1: Premium Collection
+            └─ SC1: Artisan Spoons
+               └─ Sc1: Handcrafted ← Nested subcategory
+```
+
+**Data Structure**:
+```javascript
+{
+  id: "cat-handcrafted-uuid-003",
+  name: "Handcrafted",
+  type: "Sc",  // Nested subcategory
+  
+  // IDENTIFIERS
+  identifier: "l3 M1-Sc1",  // Compact
+  full_identifier: "l3 M1-SC1-Sc1",  // Full
+  
+  // PARENT
+  parent_id: "cat-artisan-uuid-002",  // Parent is SC1
+  parent_type: "SC"
+}
+```
+
+---
+
+#### Complete Identifier Format Table (UPDATED)
+
+| Structure | Type | Compact | Full | Parent |
+|-----------|------|---------|------|--------|
+| Main Category | M | M | M | (root) |
+| Sub beneath Main | SC | M-SC{n} | M-SC{n} | M |
+| Nested sub | Sc | M-Sc{n} | M-SC{x}-Sc{n} | SC or Sc |
+| Ordinary sub-level | l | l{n} | l{n} | Any |
+| **Branch at level** | **M** | **l{n} M{m}** | **l{n} M{m}** | **M** |
+| **Sub beneath branch** | **SC** | **l{n} M{m}-SC{k}** | **l{n} M{m}-SC{k}** | **M (branch)** |
+| **Nested sub in branch** | **Sc** | **l{n} M{m}-Sc{k}** | **l{n} M{m}-SC{x}-Sc{k}** | **SC or Sc** |
+
+---
+
+#### Counter Scoping for Branch-Level Categories
+
+**M Counter** (beneath same level):
+- l3 can have: `l3 M1`, `l3 M2`, `l3 M3`
+- l4 can have: `l4 M1`, `l4 M2` (independent from l3)
+- Each level has independent Main branch counter
+
+**SC Counter** (beneath same branch):
+- l3 M1 can have: `l3 M1-SC1`, `l3 M1-SC2`, `l3 M1-SC3`
+- l3 M2 can have: `l3 M2-SC1`, `l3 M2-SC2` (independent)
+- Each Main branch has independent SC counter
+
+**Sc Counter** (beneath same parent):
+- l3 M1-SC1 can have: `l3 M1-Sc1`, `l3 M1-Sc2`
+- l3 M1-SC2 can have: `l3 M1-Sc1` (independent)
+- Per-parent scoping applies
+
+---
+
+#### Distinguishing Sub-Levels from Category Branches
+
+**Visual Distinction in UI**:
+
+```
+Kitchen (M) [🟢]
+├─ l1: Utensils [🟢] [🔵]  ← Sub-level (both buttons)
+│  ├─ Note: "Spatula set"
+│  └─ l1 M1: Professional Set [🟢]  ← Branch (green only)
+│     └─ SC1: Chef's Collection [🟢]
+│
+├─ l2: Appliances [🟢] [🔵]  ← Sub-level
+   └─ Note: "Blender manual"
+```
+
+**Distinguishing Features**:
+
+| Type | Identifier | Green Plus | Blue Plus | Purpose |
+|------|-----------|------------|-----------|---------|
+| Ordinary sub-level | `l{n}` | ✅ | ✅ | Holds notes, can have deeper sub-levels |
+| Category branch | `l{n} M{m}` | ✅ | ❌ | Independent hierarchy, holds subcategories |
+| Branch subcategory | `l{n} M{m}-SC{k}` | ✅ | ❌ | Part of branch hierarchy |
+
+**Key Distinction**:
+- Sub-levels (`l1`, `l2`) = Linear note organization, blue plus available
+- Branches (`l3 M1`) = Category trees, no blue plus (notes in sub-categories or their sub-levels)
+
+---
+
+#### Original Hierarchy Preservation
+
+**When branch created beneath l3**:
+
+**Before**:
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         ├─ l4: Premium
+         └─ l5: Budget
+```
+
+**User Action**: Click green plus on l3 → Create "Artisan Collection"
+
+**After**:
+
+
+---
+
+### 1.3.3 Level Numbering Clarification: l4,078 (AWAITING CLARIFICATION)
+
+**Issue**: The compact identifier example `M-Sc45-l4,078` is ambiguous
+
+**Example from Section 1.3**:
+- Compact: `M-Sc45-l4,078`
+- Full: `M-SC12-Sc8-Sc45-l4,078`
+
+**Questions**:
+1. What does `l4,078` mean?
+2. Is the comma a thousands separator?
+3. What is being numbered?
+
+---
+
+#### Interpretation 1: Sub-Level 4,078 (Thousands Separator)
+
+**Meaning**: Ordinary sub-level number 4,078
+
+**Hierarchy**:
+```
+Main Category (M)
+├─ l1: Level 1
+├─ l2: Level 2
+├─ l3: Level 3
+├─ l4: Level 4
+...
+├─ l4,077: Level 4,077
+└─ l4,078: Level 4,078  ← Extremely deep
+```
+
+**Implications**:
+- This represents an extraordinarily deep linear hierarchy
+- 4,078 sequential sub-levels in one branch
+- Comma is standard thousands separator
+- Counter is continuous (l1, l2, l3... l4078)
+
+**Display**:
+- Compact: `M-Sc45-l4,078`
+- Full: `M-SC12-Sc8-Sc45-l4,078`
+- Both show "l4,078" with comma
+
+**Scoping**: Level counter continuous within parent
+
+---
+
+#### Interpretation 2: Sub-Level 4, Item/Note 078
+
+**Meaning**: Sub-level 4, with item number 078
+
+**Hierarchy**:
+```
+Main Category (M)
+└─ Subcategory 45 (Sc45)
+   └─ Sub-level 4 (l4)
+      ├─ Note 001
+      ├─ Note 002
+      ...
+      └─ Note 078  ← 78th note at this level
+```
+
+**Identifier Components**:
+- `l4` = Sub-level 4
+- `,078` = Note/item counter (78th item)
+- Comma separates level from item
+
+**Implications**:
+- Level numbering is modest (l4 = level 4)
+- Item counter tracks notes at that level
+- Comma is separator, not thousands
+
+**Display**:
+- Compact: `M-Sc45-l4,078` (shows level and item)
+- Could also be: `M-Sc45-l4` (just level, omit item)
+
+**Scoping**: Item counter per sub-level
+
+---
+
+#### Interpretation 3: Hierarchical Compound Identifier
+
+**Meaning**: Multi-part identifier with sub-components
+
+**Structure**: `l[major].[minor]` or `l[level],[sublevel]`
+
+**Example**: `l4,078` could mean:
+- Level 4, position 078 within level 4
+- Level 4, variation 078
+- Level group 4, item 078
+
+**Display**:
+- Compact: `M-Sc45-l4,078`
+- Could expand to more detail if needed
+
+---
+
+#### Recommended Approach: Request User Clarification
+
+**Questions for User**:
+
+**Q1**: Does `l4,078` mean:
+- **A**: Sub-level number 4,078 (comma is thousands separator)?
+- **B**: Sub-level 4, item/note number 078 (comma separates components)?
+- **C**: Something else?
+
+**Q2**: If Interpretation A (level 4,078):
+- Is this realistic for Iron Rabbit's use case?
+- Should system support thousands of sequential sub-levels?
+- How should extremely deep hierarchies be displayed?
+
+**Q3**: If Interpretation B (level 4, item 078):
+- Is the item counter necessary in identifiers?
+- Should it be optional (show only when needed)?
+- How are items numbered and scoped?
+
+**Q4**: Display formatting:
+- Should comma always appear in identifier?
+- Is comma only for thousands (4,078) or always separator (4,078)?
+- How to prevent confusion with multiple hierarchy components?
+
+---
+
+#### Proposed Rule (Pending Approval)
+
+**PROPOSED**: Use Interpretation A (Thousands Separator)
+
+**Rule**: 
+- `l{n}` where {n} can be any positive integer
+- Comma used as thousands separator for readability
+- Examples: `l1`, `l42`, `l1,000`, `l4,078`
+
+**Rationale**:
+- Simpler: One counter per parent
+- Consistent: Same pattern as M{n}, SC{n}, Sc{n}
+- Standard: Comma as thousands separator is universal
+- Flexible: Supports any depth (though extreme depth unusual)
+
+**Display Rules**:
+- Always use comma for thousands: `l4,078` (not `l4078`)
+- Omit comma below 1,000: `l42` (not `l042`)
+- Consistent in compact and full identifiers
+
+**Scoping**:
+- Level counter scoped to parent category
+- Each parent has independent l1, l2, l3... sequence
+
+**Example**:
+```
+Kitchen (M)
+├─ l1: Utensils
+├─ l2: Appliances
+...
+├─ l4,077: Item 4077
+└─ l4,078: Item 4078
+
+Garden (M)
+├─ l1: Tools  ← Independent counter
+└─ l2: Plants
+```
+
+---
+
+#### Alternative Proposal (If Interpretation B)
+
+**If user confirms item counter needed**:
+
+**Format**: `l{level}#{item}`
+
+**Examples**:
+- `l4#078` = Level 4, item 78
+- `M-Sc45-l4#078` = Full identifier with item
+
+**Rationale**:
+- `#` clearly separates level from item
+- Avoids comma confusion
+- Optional item counter (can show just `l4`)
+
+---
+
+#### Validation Implications
+
+**If Interpretation A (thousands separator)**:
+
+```javascript
+function formatLevelIdentifier(levelNumber) {
+  // Add commas for thousands
+  return `l${levelNumber.toLocaleString()}`;
+  // l4078 → "l4,078"
+  // l1000000 → "l1,000,000"
+}
+```
+
+**If Interpretation B (item counter)**:
+
+```javascript
+function formatLevelWithItem(level, itemNumber) {
+  if (itemNumber) {
+    return `l${level}#${itemNumber.toString().padStart(3, '0')}`;
+    // l4, item 78 → "l4#078"
+  }
+  return `l${level}`;  // Just level
+}
+```
+
+---
+
+#### Display Consistency
+
+**Regardless of interpretation, maintain consistency**:
+
+**Compact identifier**:
+- Same format everywhere in UI
+- Same separator character
+- Same padding/formatting
+
+**Full identifier**:
+- Matches compact format
+- Shows complete path
+- Uses same numbering convention
+
+**Examples** (assuming Interpretation A):
+```
+Compact: M-Sc45-l4,078
+Full: M-SC12-Sc8-Sc45-l4,078
+Both use: "l4,078" with comma
+```
+
+---
+
+#### STATUS: AWAITING USER CLARIFICATION
+
+**This numbering interpretation is PENDING USER INPUT.**
+
+**Required from User**:
+1. Confirm meaning of `l4,078`
+2. Approve thousands separator interpretation OR
+3. Provide alternative interpretation
+4. Confirm display formatting rules
+
+**Once clarified**: Update all examples and validation rules to match.
+
+---
+
+
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons [🔽 Now has accordion]
+         ├─ l4: Premium  ← UNCHANGED (still sub-level)
+         ├─ l5: Budget   ← UNCHANGED (still sub-level)
+         └─ l3 M1: Artisan Collection [NEW BRANCH]
+```
+
+**Critical**:
+- ✅ l3 keeps name "Wooden Spoons" and "l3" designation
+- ✅ l4 and l5 remain ordinary sub-levels (unchanged)
+- ✅ l3 M1 is new independent branch
+- ✅ l3 becomes accordion head to show both sub-levels and branch
+- ❌ l4 does NOT become l5, l5 does NOT become l6
+
+---
+
+#### Validation Rules for Branch-Level Categories
+
+```javascript
+function validateBranchLevelCategory(category) {
+  // 1. Verify parent is Main Category
+  const parent = await getCategoryById(category.parent_id);
+  if (parent.type !== "M") {
+    throw new Error("Branch must be created beneath Main Category");
+  }
+  
+  // 2. Verify parent_level specified
+  if (!category.parent_level || !category.parent_level.startsWith("l")) {
+    throw new Error("Branch must specify which level it's beneath");
+  }
+  
+  // 3. Generate identifier with level prefix
+  category.identifier = `${category.parent_level} M${counter}`;
+  
+  // 4. Type is "M" (Main branch)
+  category.type = "M";
+  
+  // 5. Can have own subcategories
+  category.category_branches = {};
+  category.sub_levels = {};
+}
+```
+
+---
+
+#### Migration Implications for Branch-Level Categories
+
+**During Migration**:
+1. Detect categories attached to sub-levels via `parent_level` field
+2. Assign type "M" (Main branch)
+3. Generate identifier: `l{n} M{counter}`
+4. Preserve complete parent-child chain
+5. Ensure sub-level itself remains ordinary sub-level
+
+**Example**:
+```javascript
+function migrateBranchLevelCategory(category) {
+  if (category.parent_level && category.parent_level.startsWith("l")) {
+    // This is a branch beneath a sub-level
+    category.type = "M";  // Main branch
+    
+    const levelNumber = category.parent_level;
+    const counter = getBranchCounterAtLevel(category.parent_id, levelNumber);
+    
+    category.identifier = `${levelNumber} M${counter}`;
+    category.full_identifier = `${levelNumber} M${counter}`;
+  }
+}
+```
+
+---
+
+#### Summary: Category Branch Beneath Sub-Level
+
+**Designation**: `l{n} M{m}` where:
+- `l{n}` = Sub-level number (which level it's beneath)
+- `M{m}` = Main branch counter (scoped to that level)
+
+**Type**: "M" (Main Category in branch context)
+
+**Subcategories Beneath Branch**:
+- First level: `l{n} M{m}-SC{k}` (type "SC")
+- Nested: `l{n} M{m}-Sc{k}` (type "Sc")
+
+**Counter Scoping**:
+- M counter: Per sub-level (l3 M1, l3 M2, l4 M1)
+- SC counter: Per Main branch (l3 M1-SC1, l3 M2-SC1)
+- Sc counter: Per parent subcategory
+
+**Distinction**:
+- Sub-levels: Have blue plus, hold notes
+- Branches: No blue plus, hold subcategories
+
+**Preservation**:
+- Original sub-levels unchanged (l4 stays l4, not renumbered)
+- Sub-level becomes accordion when branch added
+- Complete hierarchy maintained
+
+---
+
+#### STATUS: PROPOSED — AWAITING USER APPROVAL
+
+**This naming convention for categories beneath sub-levels is PROPOSED.**
+
+**Awaiting Confirmation**:
+1. ✅ Approve `l{n} M{m}` designation?
+2. ✅ Approve type "M" for branches?
+3. ✅ Approve counter scoping per level?
+4. ✅ Approve subcategory pattern `l{n} M{m}-SC{k}`?
+5. ✅ Approve distinction from ordinary sub-levels?
+
+**If approved**: This becomes the established convention.  
+**If changes needed**: Provide revised designation before implementation.
+
+---
+
+
+  categoryId: "cat-soups-uuid-002",
+  newParentId: "cat-storage-uuid-004"
+);
+
+// WRONG: Use compact identifiers
+await moveCategory("M-Sc1", "M-SC2");  // Ambiguous!
+```
+
+**Associate Note**:
+```javascript
+// CORRECT: Use permanent ID
+note.category_node_id = "cat-soups-uuid-002";
+
+// WRONG: Use compact identifier
+note.category_identifier = "M-Sc1";  // Which category??
+```
+
+---
+
+#### Validation Rules
+
+**On Category Creation**:
+```javascript
+function validateCategory(category) {
+  // 1. Verify unique ID
+  if (!category.id || await categoryIdExists(category.id)) {
+    throw new Error("Category ID must be unique");
+  }
+  
+  // 2. Compact identifier can repeat (OK)
+  category.identifier = generateCompactIdentifier(category);
+  // No uniqueness check on identifier
+  
+  // 3. Full identifier more unique but still not guaranteed
+  category.full_identifier = generateFullIdentifier(category);
+  
+  // 4. Parent ID must exist
+  if (category.parent_id && !await categoryExists(category.parent_id)) {
+    throw new Error("Parent category does not exist");
+  }
+}
+```
+
+---
+
+#### Summary: Three-Tier Identification System
+
+| Tier | Field | Purpose | Unique? | Usage |
+|------|-------|---------|---------|-------|
+| **1** | `id` | Permanent unique identifier | ✅ YES | All operations, database queries, relationships |
+| **2** | `full_identifier` | Complete hierarchy path | ⚠️ Usually | Debugging, admin, complete context |
+| **3** | `identifier` | Compact display reference | ❌ NO | UI labels, breadcrumbs, quick reference |
+
+**Rules**:
+1. Always use `id` for any operation requiring unique identification
+2. Display `identifier` (compact) in UI with sufficient context
+3. Use `full_identifier` when more context needed
+4. Never use `identifier` alone to locate, retrieve, or modify categories
+5. `parent_id` chain is source of truth for hierarchy
+
+---
+
+
 
 **User Experience** (unchanged):
 - Same click/tap to edit
