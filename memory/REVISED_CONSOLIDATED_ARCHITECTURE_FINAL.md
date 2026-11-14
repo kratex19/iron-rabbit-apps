@@ -104,7 +104,7 @@ The following architectural decisions have been approved through Version 3.2 and
 | SC | Subcategory beneath Main | M (or B) | Capital C |
 | Sc | Subcategory beneath Subcategory | SC or Sc | Lowercase c |
 | l | Ordinary sub-level | Any | Lowercase l |
-| B | Branch beneath sub-level | M | Capital B |
+| B | Branch beneath sub-level | l | Capital B |
 
 **Never**: Convert SC ↔ Sc, normalize capitalization, or treat as equivalent.
 
@@ -1111,7 +1111,13 @@ async function verifyRollback(backup, preservationArchive) {
 | SC | Sub beneath Main | M or B | `M-SC1` |
 | Sc | Sub beneath Sub | SC or Sc | `M-Sc1` (compact) |
 | l | Ordinary level | Any | `l4,078` |
-| B | Branch at level | M | `l3-B1` |
+| B | Branch at level | l | `l3-B1` |
+
+**Branch with Subcategories Examples**:
+- `l3-B1` = Branch 1 created beneath ordinary sub-level 3
+- `l3-B1-SC1` = First Subcategory beneath that branch (capital C, parent is B)
+- `l3-B1-SC1-Sc1` = Nested Subcategory (lowercase c, parent is SC)
+- `l3-B1-SC1-Sc1-Sc2` = Another nested Subcategory (lowercase c, parent is Sc)
 
 ### 5.2 Capitalization Rules (LOCKED)
 
@@ -1387,7 +1393,14 @@ Settings → Advanced → System
 - Search still works
 - Filters still work
 - Gallery still works
-- All 205 gallery images load
+- All 205 gallery images load*
+
+**Gallery Images Preservation**:
+* 205 gallery images = Existing Iron Rabbit gallery assets (photos, artwork, media)
+* **CRITICAL**: These assets must be preserved exactly as-is during all future development
+* ❌ DO NOT remove, replace, omit, or alter gallery images without separate explicit approval
+* ✅ All migration, rollback, and implementation phases must preserve gallery functionality
+* ✅ Test that all 205 images remain accessible after any data structure changes
 
 **Phase 5: Performance Tests**
 - Rendering time < 100ms for 500 notes
@@ -1516,7 +1529,7 @@ Settings → Advanced → System
 - 6 existing files to modify
 - 5 new files to create
 - All styling/animation files preserved (no changes)
-- All 205 gallery images preserved
+- All 205 gallery images preserved (existing Iron Rabbit gallery assets — see Section 8.4 for preservation requirements)
 
 ---
 
