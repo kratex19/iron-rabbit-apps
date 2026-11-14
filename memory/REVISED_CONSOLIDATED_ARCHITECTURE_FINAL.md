@@ -243,6 +243,86 @@ L3 is plain text, not accordion.
 
 **Detection Logic**:
 ```javascript
+
+### 1.3 Category Renaming (DECIDED)
+
+**Rule**: Preserve existing approved editing behavior
+
+**No New Interface**: Do NOT introduce:
+- ❌ New modal for renaming
+- ❌ New right-click menu
+- ❌ Redesigned editing flow
+- ❌ Different interaction patterns
+
+**Use Existing**: Leverage current renaming mechanism
+- ✅ If categories currently renamed via inline edit → keep inline edit
+- ✅ If categories currently renamed via existing modal → keep existing modal
+- ✅ Whatever interaction pattern exists today → preserve it exactly
+
+**Enhanced Backend Only**:
+When rename happens (via existing UI):
+1. Category ID remains unchanged (stability)
+2. Category name updated in tree
+3. All notes' display paths regenerated from tree
+4. Notes' `category_node_id` unchanged (still linked correctly)
+
+**User Experience** (unchanged):
+- Same click/tap to edit
+- Same input field appearance
+- Same save confirmation
+- Same keyboard shortcuts
+- Same validation messages
+
+**Backend Cascade** (new, invisible to user):
+```javascript
+async function renameCategory(categoryId, newName) {
+  // Update tree
+  const category = findCategoryById(tree, categoryId);
+  category.name = newName;
+  await saveCategoryTree(tree);
+  
+  // Notes' category_node_id unchanged (still points to same ID)
+  // Display paths auto-update on next render (generated from tree)
+  
+  // No user-facing changes to rename interaction
+}
+```
+
+**Result**: Renaming looks and feels identical to current system, but now works correctly with stable IDs.
+
+---
+
+### 1.4 Animations (DECIDED)
+
+**Rule**: Preserve existing approved animations exactly
+
+**Green Plus Animation**:
+- Use existing animation that plays on category/note creation
+- Same timing, same easing, same visual effect
+- No redesign, no new animation
+
+**Blue Plus Animation**:
+- Use same animation as green plus
+- Consistency across both actions
+
+**Branch Creation**:
+- Play existing animation when branch created
+- Same as current category creation animation
+
+**Note Creation via Blue Plus**:
+- Play existing animation when note created
+- Same as current note creation animation
+
+**Accordion Expand/Collapse**:
+- Preserve existing accordion animation
+- Same timing and easing values
+- No changes to accordion behavior
+
+**No New Animation Design**: All animations already approved. Simply reuse existing animations for new features.
+
+---
+
+
 // Check if sub-level needs accordion UI
 function hasChildBranches(categoryNode, level) {
   return categoryNode.level_branches?.[level] !== undefined &&
@@ -254,25 +334,49 @@ function hasChildBranches(categoryNode, level) {
 
 ---
 
-### 1.6 Styling (DECIDED)
+### 1.6 Styling (DECIDED - DETAILED)
 
 **Green Plus**:
-- Color: Existing approved green (#10b981 or current theme green)
-- Icon: Plus icon (current style)
-- Animation: Existing approved animation
+- Icon: Plus symbol (existing design)
+- Color: Existing approved green from theme
+- Size: Match existing plus icons in app
+- Style: Inherit from existing button styling conventions
+- Hover: Existing hover behavior
+- Animation: Existing approved animation on click
 
 **Blue Plus**:
-- Color: Existing approved blue (current theme blue)
-- Icon: Plus icon (same style as green, different color)
-- Animation: Same as green plus
+- Icon: Plus symbol (SAME DESIGN as green plus)
+- Color: Existing approved blue from theme
+- Size: Match green plus exactly
+- Style: Inherit from existing button styling conventions
+- Hover: Same hover behavior as green plus
+- Animation: Existing approved animation on click (same as green)
 
-**Preserve**: All existing animations, transitions, and styling. No CSS changes.
+**Positioning**:
+```
+Kitchen (M) [🟢 green plus]
+├─ L1: Utensils [🟢 green plus] [🔵 blue plus]
+└─ L2: Appliances [🟢 green plus] [🔵 blue plus]
+```
+
+**Visual Consistency**:
+- Both buttons use identical size, padding, borders
+- Only difference is color (green vs. blue)
+- Maintain visual rhythm with existing UI
+- Use existing spacing/margin values
+
+**Tooltips**:
+- Green plus: "Add category" or existing category-creation tooltip
+- Blue plus: "Add note" or existing note-creation tooltip
+- Style: Match existing tooltip design
+
+**Preserve**: All existing styling conventions, colors, animations, transitions. No CSS redesign.
 
 ---
 
-### 1.7 Category Deletion (DECIDED)
+### 1.7 Category Deletion (DECIDED - ENHANCED)
 
-**Rule**: Never silently cascade-delete notes or descendants
+**Rule**: Block deletion of branches containing notes or descendants until contents relocated
 
 **Behavior**:
 
@@ -281,37 +385,66 @@ function hasChildBranches(categoryNode, level) {
 // Kitchen M-SC1: Pantry has 5 notes
 // User clicks delete on Pantry
 
-// MUST show warning:
-"Pantry contains 5 notes. 
- Options:
- [ ] Move notes to parent category (Kitchen)
- [ ] Move notes to Uncategorized
- [ ] Cancel deletion
+// MUST BLOCK with error:
+"Cannot delete Pantry
  
- [Cancel] [Delete and Move Notes]"
+ This category contains 5 notes.
+ 
+ You must move or delete these notes first:
+ • Sourdough starter
+ • Bread recipes
+ • Baking supplies
+ • Kitchen inventory
+ • Pantry organization
+ 
+ [Cancel] [Move Notes...] [Go to Category]"
 ```
+
+**User must explicitly**:
+1. Move notes to another category, OR
+2. Delete notes individually, OR
+3. Move notes to Uncategorized
+
+**Then deletion allowed**.
+
+---
 
 **Scenario B**: Delete category with child branches
 ```javascript
 // Kitchen M-SC1: Pantry has child SC1-Sc1: Canned
 // User clicks delete on Pantry
 
-// MUST show warning:
-"Pantry contains subcategories:
- - Canned
+// MUST BLOCK with error:
+"Cannot delete Pantry
  
- Delete Pantry will also remove these subcategories.
- This action cannot be undone.
+ This category contains subcategories:
+ • Canned
  
- [Cancel] [Delete Category and Subcategories]"
+ You must move or delete these subcategories first.
+ 
+ [Cancel] [Go to Category]"
 ```
 
-**Scenario C**: Delete category with both notes AND branches
+**User must explicitly**:
+1. Delete child categories (which triggers their own checks), OR
+2. Move child categories to another location
+
+**Then deletion allowed**.
+
+---
+
+**Scenario C**: Delete empty category
 ```javascript
-// Show both warnings above, combined
+// Kitchen M-SC1: Storage is empty (no notes, no children)
+// User clicks delete
+
+// IMMEDIATE deletion (no warning needed)
+toast.success("Storage deleted");
 ```
 
-**Implementation**: Always require explicit user choice, never silent cascade.
+**Implementation**: Only empty categories can be deleted instantly. All others blocked until emptied.
+
+**Critical**: Never silently cascade-delete notes or descendants. Always require explicit user action.
 
 ---
 
@@ -344,31 +477,128 @@ Notes:
 
 ---
 
-### 1.9 Migration Preservation (DECIDED)
+### 1.9 Migration Preservation (DECIDED - COMPREHENSIVE)
 
-**Must preserve during migration**:
-- ✅ All existing notes (zero data loss)
-- ✅ All existing category_path arrays
-- ✅ All existing category names
-- ✅ All existing parent-child relationships
-- ✅ All existing note content, metadata, attachments
-- ✅ Legacy fields (category, subcategory)
+**Must preserve during migration** (ZERO DATA LOSS):
+
+1. **All Notes**:
+   - ✅ Every note title
+   - ✅ Every note content (full HTML/text)
+   - ✅ All note metadata (created_at, updated_at, color, icon, etc.)
+   - ✅ All note attachments and file references
+   - ✅ All note tags
+   - ✅ All note alarms, recurring events, checklists
+   - ✅ All note pinned status
+   - ✅ All note order values
+
+2. **All Category Data**:
+   - ✅ All existing category_path arrays (unchanged)
+   - ✅ All existing category names (unchanged)
+   - ✅ All existing parent-child relationships
+   - ✅ Legacy fields (category, subcategory)
+
+3. **All Tree Structure**:
+   - ✅ Existing category tree hierarchy
+   - ✅ All nested relationships
+   - ✅ All category metadata
+
+4. **All Settings**:
+   - ✅ User preferences
+   - ✅ Theme settings
+   - ✅ All configuration values
 
 **Migration adds** (non-destructive):
-- ✅ category_node_id to each note
-- ✅ Enhanced category tree structure
-- ✅ Category IDs
+- ✅ category_node_id to each note (NEW FIELD)
+- ✅ Enhanced category tree structure (ADDS FIELDS)
+- ✅ Category IDs (NEW FIELD)
 
 **Migration does NOT**:
-- ❌ Delete any fields
+- ❌ Delete any fields from notes
 - ❌ Modify note content
 - ❌ Change category names
 - ❌ Remove categories
-- ❌ Alter note order
+- ❌ Alter note display order
+- ❌ Change any user settings
+- ❌ Delete attachments
+- ❌ Modify gallery images
 
----
+**Verification After Migration**:
+```javascript
+// Verify note count unchanged
+const beforeCount = backupCounts.notes;
+const afterCount = (await getAllNotes()).length;
+if (beforeCount !== afterCount) {
+  throw new Error('Note count mismatch - migration failed');
+}
 
-## SECTION 2: DECISIONS MATRIX
+// Verify every note preserved
+for (const originalNote of backup.notes) {
+  const migratedNote = await getNote(originalNote.id);
+  
+  // Verify all original fields present
+  if (migratedNote.title !== originalNote.title) {
+    throw new Error(`Note ${originalNote.id} title changed`);
+  }
+  if (migratedNote.content !== originalNote.content) {
+    throw new Error(`Note ${originalNote.id} content changed`);
+  }
+  // ... verify all fields unchanged
+  
+  // Verify new field added
+  if (!migratedNote.category_node_id && originalNote.category_path.length > 0) {
+    throw new Error(`Note ${originalNote.id} missing category_node_id`);
+  }
+}
+```
+
+**If Verification Fails**: Automatic rollback to backup, no partial migration.
+
+### 1.2 Empty Category Display (DECIDED)
+
+**Rule**: Display all categories and subcategories, even when they contain no notes
+
+**Behavior**:
+
+**Empty Main Category**:
+```
+Kitchen (M) [🟢]
+├─ (No notes yet)
+└─ (No sub-levels yet)
+```
+- Category visible and accessible
+- Blue plus button available on sub-levels if any exist
+- Can create branches with green plus
+- Can create first note via sub-level
+
+**Empty Subcategory Branch**:
+```
+Kitchen (M)
+└─ M-SC1: Pantry [🟢]
+   └─ (No sub-levels yet)
+```
+- Branch visible even with no contents
+- Green plus can add sub-branches
+- Organizational structure preserved
+
+**Empty Sub-Level**:
+```
+Kitchen (M)
+├─ L1: Utensils [🟢] [🔵]
+│  └─ (No notes yet)
+└─ L2: Appliances [🟢] [🔵]
+   └─ (No notes yet)
+```
+- Sub-level visible
+- Blue plus can create first note
+- Green plus can add branch beneath it
+
+**Rationale**:
+- Users can see complete organizational structure
+- "Create note here" works even before notes exist
+- Categories aren't hidden just because they're empty
+- Organizational planning possible before content creation
+
+**Implementation**: Tree-based rendering shows all categories from tree structure, not just categories that notes reference.
 
 ### 2.1 DECIDED (No Further Input Needed)
 
@@ -376,33 +606,37 @@ Notes:
 |----------|--------|-------|
 | Green plus placement | ✅ DECIDED | M, SC, all sub-levels |
 | Blue plus placement | ✅ DECIDED | Sub-levels only (not category headers) |
+| Blue plus icon | ✅ DECIDED | Blue plus symbol, matching green plus design |
+| Empty categories | ✅ DECIDED | Display all, even with no notes |
+| Category renaming | ✅ DECIDED | Preserve existing editing behavior |
+| Animations | ✅ DECIDED | Preserve existing approved animations |
 | Single source of truth | ✅ DECIDED | category_node_id (no note_ids arrays) |
 | Identifier conventions | ✅ DECIDED | L4 M1, M-SC1, SC-Sc1 |
 | Branch counters | ✅ DECIDED | Per-parent |
 | Sub-level accordion | ✅ DECIDED | Only when branch created |
-| Green button color | ✅ DECIDED | Existing approved green |
-| Blue button color | ✅ DECIDED | Existing approved blue |
-| Animations | ✅ DECIDED | Preserve existing |
-| Category deletion | ✅ DECIDED | Never cascade silently |
+| Migration timing | ✅ DECIDED | User-triggered wizard (not automatic) |
+| Rollback window | ✅ DECIDED | 7 days minimum + downloadable backup forever |
+| Conflict resolution | ✅ DECIDED | Flag for review, never auto-resolve |
+| Branch deletion | ✅ DECIDED | Block until contents relocated |
 | Search scope | ✅ DECIDED | Include everything |
 | Migration preservation | ✅ DECIDED | Preserve all existing data |
 
 ---
 
-### 2.2 STILL NEEDS CLARIFICATION
+### 2.2 ALL QUESTIONS DECIDED
 
-| Question | Options | Recommendation |
-|----------|---------|----------------|
-| **Q1: Blue plus icon style** | Same plus icon as green (just different color)? Or different icon (e.g., note icon with plus)? | Same plus icon, different color (simplicity) |
-| **Q2: Empty category display** | Show empty categories in UI? Or hide until first note added? | Show (allows "create note here" before notes exist) |
-| **Q3: Category rename UI** | Inline edit? Modal? Right-click menu? | Inline edit (consistency with note editing) |
-| **Q4: Branch creation animation** | Same animation as note save? Different animation? | Same (consistency) |
-| **Q5: Migration timing** | Automatic on app load? Manual trigger? Background process? | Manual trigger with progress (user control) |
-| **Q6: Rollback window** | How long after migration can user rollback? 24 hours? 7 days? Forever? | 7 days (balance safety vs. storage) |
-| **Q7: Conflict resolution** | If note's category_path doesn't match tree structure, which wins? | Tree wins, update note path (tree is authority) |
-| **Q8: Branch deletion cascade** | Delete branch with sub-branches: warn and block? Or allow with confirmation? | Warn and allow with explicit confirmation |
+| Question | Decision | Details |
+|----------|----------|---------|
+| **Q1: Blue plus icon** | ✅ DECIDED | Blue plus symbol matching existing green plus design. Preserve existing styling conventions. |
+| **Q2: Empty categories** | ✅ DECIDED | Display all categories and subcategories, even with no notes. Empty organizational structures remain visible. |
+| **Q3: Renaming** | ✅ DECIDED | Preserve existing approved editing behavior. No new editing interface or redesign. |
+| **Q4: Animation** | ✅ DECIDED | Preserve existing approved animations exactly. No new animation design. |
+| **Q5: Migration timing** | ✅ DECIDED | Explicit user-triggered migration wizard. No silent automatic migration at startup. |
+| **Q6: Rollback window** | ✅ DECIDED | Seven days minimum with independently downloadable backup retained beyond that period. |
+| **Q7: Conflict resolution** | ✅ DECIDED | Never silently overwrite, guess, or auto-create categories. Flag conflicts for review. |
+| **Q8: Deletion behavior** | ✅ DECIDED | Block deletion of branches with notes/descendants until contents relocated. Never cascade-delete. |
 
-**User input needed on Q1-Q8 before implementation begins.**
+**All architectural decisions finalized.**
 
 ---
 
@@ -455,7 +689,297 @@ Notes:
 
 ---
 
-### 3.2 Migration Algorithm
+### 3.2 Migration Algorithm (ENHANCED WITH SAFEGUARDS)
+
+**CRITICAL SAFEGUARDS**: Before migration commits changes, comprehensive validation must pass.
+
+---
+
+#### Pre-Commit Validation Checklist
+
+**Before any data modification**:
+
+```javascript
+async function validateBeforeMigration() {
+  const validation = {
+    passed: true,
+    errors: [],
+    warnings: [],
+    counts: {},
+    conflicts: []
+  };
+  
+  // 1. Verify all existing notes accounted for
+  const allNotes = await getAllNotes();
+  validation.counts.totalNotes = allNotes.length;
+  validation.counts.notesWithPaths = allNotes.filter(n => 
+    n.category_path && n.category_path.length > 0
+  ).length;
+  validation.counts.uncategorized = allNotes.length - validation.counts.notesWithPaths;
+  
+  if (validation.counts.totalNotes === 0) {
+    validation.errors.push('No notes found - database may be empty or corrupted');
+    validation.passed = false;
+  }
+  
+  // 2. Verify all existing categories and sub-levels
+  const tree = await getCategoryTree();
+  const categoryNames = new Set();
+  const traverseForNames = (node) => {
+    if (node.name) categoryNames.add(node.name);
+    if (node.children) {
+      Object.values(node.children).forEach(traverseForNames);
+    }
+  };
+  Object.values(tree).forEach(traverseForNames);
+  validation.counts.existingCategories = categoryNames.size;
+  
+  // 3. Verify parent-child relationships in existing tree
+  const orphanedNodes = [];
+  const checkParentChild = (node, parent = null) => {
+    if (parent && !node.parent_id) {
+      orphanedNodes.push({ name: node.name, expectedParent: parent.name });
+    }
+    if (node.children) {
+      Object.values(node.children).forEach(child => 
+        checkParentChild(child, node)
+      );
+    }
+  };
+  Object.values(tree).forEach(node => checkParentChild(node));
+  
+  if (orphanedNodes.length > 0) {
+    validation.warnings.push({
+      type: 'orphaned_nodes',
+      count: orphanedNodes.length,
+      details: orphanedNodes
+    });
+  }
+  
+  // 4. Detect ambiguous paths and duplicate names
+  const pathMap = new Map(); // path_string -> [note_ids]
+  const duplicateNames = new Map(); // name -> count
+  
+  for (const note of allNotes) {
+    if (!note.category_path || note.category_path.length === 0) continue;
+    
+    const pathKey = note.category_path.join('\u241E');
+    if (!pathMap.has(pathKey)) pathMap.set(pathKey, []);
+    pathMap.get(pathKey).push(note.id);
+    
+    // Check for duplicate category names in different contexts
+    for (const segment of note.category_path) {
+      duplicateNames.set(segment, (duplicateNames.get(segment) || 0) + 1);
+    }
+  }
+  
+  // Flag paths that don't exist in tree
+  const ambiguousPaths = [];
+  for (const [pathKey, noteIds] of pathMap) {
+    const path = pathKey.split('\u241E');
+    let current = tree;
+    let exists = true;
+    
+    for (const segment of path) {
+      if (!current[segment]) {
+        exists = false;
+        break;
+      }
+      current = current[segment].children || {};
+    }
+    
+    if (!exists) {
+      ambiguousPaths.push({
+        path: path,
+        noteCount: noteIds.length,
+        noteIds: noteIds,
+        reason: 'path_not_in_tree'
+      });
+    }
+  }
+  
+  if (ambiguousPaths.length > 0) {
+    validation.conflicts.push({
+      type: 'ambiguous_paths',
+      count: ambiguousPaths.length,
+      details: ambiguousPaths,
+      resolution_required: true
+    });
+    validation.errors.push(
+      `Found ${ambiguousPaths.length} note paths that don't exist in category tree. ` +
+      `Migration cannot proceed without resolving these conflicts.`
+    );
+    validation.passed = false;
+  }
+  
+  // 5. Preserve all original category paths (verification)
+  const originalPaths = allNotes.map(n => ({
+    noteId: n.id,
+    originalPath: n.category_path ? [...n.category_path] : []
+  }));
+  validation.originalPaths = originalPaths;
+  
+  // 6. Verify backup integrity
+  const backup = await createBackup();
+  const backupValid = await validateBackup(backup);
+  
+  if (!backupValid) {
+    validation.errors.push('Backup integrity check failed. Cannot proceed safely.');
+    validation.passed = false;
+  } else {
+    validation.counts.backupSize = JSON.stringify(backup).length;
+    validation.backupId = backup.id;
+  }
+  
+  // 7. Detect duplicate category names in different branches
+  const nameContexts = new Map(); // name -> [full_paths]
+  for (const note of allNotes) {
+    if (!note.category_path) continue;
+    for (let i = 0; i < note.category_path.length; i++) {
+      const name = note.category_path[i];
+      const fullPath = note.category_path.slice(0, i + 1).join(' → ');
+      
+      if (!nameContexts.has(name)) nameContexts.set(name, new Set());
+      nameContexts.get(name).add(fullPath);
+    }
+  }
+  
+  const duplicateContexts = [];
+  for (const [name, contexts] of nameContexts) {
+    if (contexts.size > 1) {
+      duplicateContexts.push({
+        name: name,
+        contexts: Array.from(contexts)
+      });
+    }
+  }
+  
+  if (duplicateContexts.length > 0) {
+    validation.warnings.push({
+      type: 'duplicate_names_different_contexts',
+      count: duplicateContexts.length,
+      details: duplicateContexts,
+      note: 'These categories have the same name in different locations. Each will get a unique ID.'
+    });
+  }
+  
+  return validation;
+}
+```
+
+---
+
+#### Pre-Commit Validation UI
+
+**If validation passes**:
+```
+╔═══════════════════════════════════════════╗
+║  PRE-MIGRATION VALIDATION ✓               ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  ✓ 543 notes accounted for                ║
+║  ✓ 47 categories verified                 ║
+║  ✓ Parent-child relationships intact      ║
+║  ✓ No ambiguous paths detected            ║
+║  ✓ Backup created and verified            ║
+║                                           ║
+║  ⚠ 3 warnings (non-critical):             ║
+║    • 5 duplicate category names in        ║
+║      different branches (normal)          ║
+║                                           ║
+║  Ready to proceed.                        ║
+║                                           ║
+║  [View Detailed Report]                   ║
+║                                           ║
+║          [Cancel]  [Start Migration]      ║
+╚═══════════════════════════════════════════╝
+```
+
+**If validation fails**:
+```
+╔═══════════════════════════════════════════╗
+║  ⚠️ PRE-MIGRATION VALIDATION FAILED        ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  ❌ Critical issues detected:              ║
+║                                           ║
+║  • 12 notes have paths not in tree        ║
+║                                           ║
+║  Examples:                                ║
+║  - Note "Recipe ideas" has path:          ║
+║    Home → OldCategory → Deleted           ║
+║                                           ║
+║  - Note "Todo list" has path:             ║
+║    Work → NonExistent                     ║
+║                                           ║
+║  MIGRATION STOPPED                        ║
+║  Your data has NOT been modified.         ║
+║                                           ║
+║  REQUIRED ACTION:                         ║
+║  Review and fix these conflicts before    ║
+║  migration can proceed.                   ║
+║                                           ║
+║  [View Full Conflict Report]              ║
+║  [Download Diagnostic Log]                ║
+║                                           ║
+║               [Close]                     ║
+╚═══════════════════════════════════════════╝
+```
+
+**Critical**: If validation fails, migration **MUST NOT PROCEED**. Original data remains untouched.
+
+---
+
+#### Conflict Resolution Flow
+
+**When ambiguous paths detected**:
+
+1. **Manual Review Interface**:
+```
+╔═══════════════════════════════════════════╗
+║  RESOLVE PATH CONFLICTS                   ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Conflict 1 of 12:                        ║
+║                                           ║
+║  Note: "Recipe ideas"                     ║
+║  Current path: Home → OldCategory         ║
+║                                           ║
+║  Problem: "OldCategory" doesn't exist     ║
+║           in current tree                 ║
+║                                           ║
+║  RESOLUTION OPTIONS:                      ║
+║                                           ║
+║  ( ) Create "OldCategory" in tree         ║
+║      Path: Home → OldCategory             ║
+║                                           ║
+║  ( ) Move note to existing category:      ║
+║      [Dropdown: Kitchen, Garden, Work...] ║
+║                                           ║
+║  ( ) Move to Uncategorized                ║
+║                                           ║
+║  ( ) Skip this note (review later)        ║
+║                                           ║
+║          [Previous]  [Next]  [Apply All]  ║
+╚═══════════════════════════════════════════╝
+```
+
+2. **Batch Resolution**:
+```
+"Apply same resolution to all 12 conflicts?"
+
+[ ] Create all missing categories
+[ ] Move all to: [Dropdown]
+[ ] Move all to Uncategorized
+
+[Cancel] [Apply to All]
+```
+
+3. **Resolution Required**: User MUST resolve conflicts before migration can proceed.
+
+**Never**: Auto-resolve, guess, or silently create categories without explicit user choice.
+
+---
 
 **Phase 1: Build Enhanced Category Tree**
 
@@ -654,8 +1178,28 @@ async function validateMigration() {
 
 ---
 
-### 3.3 Migration Progress UI
+### 3.3 Migration Progress UI (ENHANCED)
 
+**Phase 0: Pre-Migration Validation** (NEW)
+```
+╔═══════════════════════════════════════════╗
+║  VALIDATING DATA...                       ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Checking data integrity...               ║
+║  ████████████████████████████ 100%       ║
+║                                           ║
+║  ✓ 543 notes verified                     ║
+║  ✓ 47 categories verified                 ║
+║  ✓ Backup created                         ║
+║  ✓ No conflicts detected                  ║
+║                                           ║
+║  Validation complete!                     ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+```
+
+**Phase 1: Building Category Tree**
 ```
 ╔═══════════════════════════════════════════╗
 ║  UPGRADING IRON RABBIT...                 ║
@@ -668,9 +1212,48 @@ async function validateMigration() {
 ║                                           ║
 ║  Please wait...                           ║
 ║                                           ║
+║  [Pause Migration]                        ║
+║                                           ║
 ╚═══════════════════════════════════════════╝
 ```
 
+**Phase 2: Linking Notes**
+```
+╔═══════════════════════════════════════════╗
+║  UPGRADING IRON RABBIT...                 ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Step 2/3: Linking notes to categories    ║
+║  ███████████████░░░░░░░░░ 68%            ║
+║                                           ║
+║  Linked: 372 / 543 notes                  ║
+║                                           ║
+║  Please wait...                           ║
+║                                           ║
+║  [Pause Migration]                        ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+```
+
+**Phase 3: Final Validation**
+```
+╔═══════════════════════════════════════════╗
+║  UPGRADING IRON RABBIT...                 ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Step 3/3: Validating migration           ║
+║  ████████████████████████████ 100%       ║
+║                                           ║
+║  ✓ All notes linked correctly             ║
+║  ✓ No orphaned data                       ║
+║  ✓ Integrity verified                     ║
+║                                           ║
+║  Finalizing...                            ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+```
+
+**Completion: Success**
 ```
 ╔═══════════════════════════════════════════╗
 ║  UPGRADE COMPLETE ✓                       ║
@@ -678,16 +1261,98 @@ async function validateMigration() {
 ║                                           ║
 ║  ✓ 543 notes linked to categories         ║
 ║  ✓ 47 categories enhanced                 ║
-║  ✓ 0 errors                               ║
+║  ✓ 0 errors, 3 warnings                   ║
+║                                           ║
+║  MIGRATION REPORT:                        ║
+║                                           ║
+║  • All existing data preserved            ║
+║  • All parent-child relationships intact  ║
+║  • 5 duplicate names in different         ║
+║    branches (assigned unique IDs)         ║
 ║                                           ║
 ║  Your data is ready!                      ║
 ║                                           ║
-║  [View Migration Log]                     ║
+║  [View Full Migration Report]             ║
+║  [Download Report as PDF]                 ║
 ║                                           ║
 ║  Rollback available for 7 days            ║
 ║  [Download Backup for Safekeeping]        ║
 ║                                           ║
 ║               [Continue]                  ║
+╚═══════════════════════════════════════════╝
+```
+
+**Completion: With Warnings**
+```
+╔═══════════════════════════════════════════╗
+║  UPGRADE COMPLETE (with warnings)         ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  ✓ 541 notes linked successfully          ║
+║  ⚠ 2 notes require review                 ║
+║                                           ║
+║  WARNINGS:                                ║
+║                                           ║
+║  • 2 notes had ambiguous paths:           ║
+║    - "Old recipe" (assigned to Kitchen)   ║
+║    - "Todo" (left uncategorized)          ║
+║                                           ║
+║  These notes are accessible but may need  ║
+║  manual category assignment.              ║
+║                                           ║
+║  [View Warning Details]                   ║
+║  [Go to Affected Notes]                   ║
+║                                           ║
+║  Rollback available for 7 days            ║
+║                                           ║
+║          [Continue]  [Rollback]           ║
+╚═══════════════════════════════════════════╝
+```
+
+**Interruption & Resumption**
+```
+╔═══════════════════════════════════════════╗
+║  MIGRATION PAUSED                         ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Progress: 68% complete                   ║
+║  (372 of 543 notes processed)             ║
+║                                           ║
+║  You can safely close this window.        ║
+║                                           ║
+║  Resume migration when ready:             ║
+║  Settings → Resume Upgrade                ║
+║                                           ║
+║  Your data has NOT been modified yet.     ║
+║  Changes will be committed when           ║
+║  migration completes.                     ║
+║                                           ║
+║  [Resume Now]  [Cancel Migration]         ║
+╚═══════════════════════════════════════════╝
+```
+
+**On Next App Load (If Paused)**:
+```
+╔═══════════════════════════════════════════╗
+║  INCOMPLETE MIGRATION DETECTED            ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  An upgrade was started but not finished. ║
+║                                           ║
+║  Progress: 68% complete                   ║
+║  Last updated: Nov 4, 2026 4:23 PM       ║
+║                                           ║
+║  OPTIONS:                                 ║
+║                                           ║
+║  1. [Resume Upgrade]                      ║
+║     Continue from where it left off       ║
+║                                           ║
+║  2. [Cancel Upgrade]                      ║
+║     Discard progress, keep current system ║
+║                                           ║
+║  Your data is safe either way.            ║
+║                                           ║
+║               [Choose Option]             ║
 ╚═══════════════════════════════════════════╝
 ```
 
@@ -770,21 +1435,64 @@ async function validateMigration() {
 
 ## SECTION 4: DETAILED ROLLBACK STRATEGY
 
-### 4.1 Rollback Window
+### 4.1 Rollback Window (ENHANCED)
 
-**Duration**: 7 days from migration completion
+**Duration**: 7 days minimum from migration completion
 
 **Backup Storage**:
-- Primary: IndexedDB (separate store: `migration_backups`)
-- Secondary: localStorage (for small datasets)
-- External: User-downloaded JSON file
+- **Primary**: IndexedDB (separate store: `migration_backups`)
+  - Retained for 7 days minimum
+  - Auto-prompt after 7 days: Keep, Archive, or Delete
+  
+- **Independent Downloadable Backup**: User can download JSON backup anytime
+  - Retained forever (user's responsibility)
+  - Can be re-imported manually at any time
+  - Provides long-term safety net beyond 7-day window
 
-**After 7 days**:
-- Show prompt: "Migration backup is 7 days old. Archive or delete?"
-- Options:
-  - [Keep Backup] (stores indefinitely)
-  - [Download and Delete] (free space)
-  - [Delete Backup] (cannot rollback after this)
+**After 7 Days**:
+```
+╔═══════════════════════════════════════════╗
+║  MIGRATION BACKUP NOTICE                  ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Your migration backup is 7 days old.     ║
+║                                           ║
+║  Backup from: Nov 4, 2026 3:42 PM        ║
+║  Size: 2.3 MB                             ║
+║                                           ║
+║  OPTIONS:                                 ║
+║                                           ║
+║  1. [Keep Backup Indefinitely]            ║
+║     Continue taking up storage space      ║
+║                                           ║
+║  2. [Download and Delete]                 ║
+║     Save externally, free up space        ║
+║                                           ║
+║  3. [Delete Backup]                       ║
+║     Cannot automatic rollback after this  ║
+║                                           ║
+║  Recommended: Download before deleting    ║
+║                                           ║
+║               [Choose Option]             ║
+╚═══════════════════════════════════════════╝
+```
+
+**Independent Backup Retention**:
+- User can download backup as JSON file anytime during or after migration
+- File stored on user's device/cloud storage
+- Can be manually re-imported to restore Iron Rabbit
+- Provides rollback capability beyond automated 7-day window
+- User controls retention period (not system-enforced)
+
+**Manual Restore from Downloaded Backup**:
+```
+Settings → Advanced → Import Data
+→ [Select Backup File]
+→ [Preview Data]
+→ [Restore from Backup]
+```
+
+This ensures users can rollback months or years later if they saved the backup file.
 
 ---
 
@@ -1647,3 +2355,89 @@ See Section 2.2 for Q1-Q8 requiring user input.
 ---
 
 **END OF REVISED SPECIFICATION**
+
+---
+
+## 🎯 FINAL ARCHITECTURAL SPECIFICATION — COMPLETE
+
+### All Decisions Finalized
+
+**16 Core Decisions**: ✅ ALL DECIDED
+- Plus button placement, icons, styling
+- Empty category display
+- Category renaming (preserve existing)
+- Animations (preserve existing)
+- Single source of truth (category_node_id)
+- Identifier conventions (L4 M1, M-SC1, SC-Sc1)
+- Branch counters (per-parent)
+- Sub-level accordions (transform when needed)
+- Migration timing (user-triggered wizard)
+- Rollback (7 days + downloadable forever)
+- Conflict resolution (flag for review)
+- Branch deletion (block until emptied)
+- Search scope (everything)
+- Data preservation (comprehensive)
+
+**8 Open Questions**: ✅ ALL ANSWERED
+1. Blue plus icon → Blue plus symbol, matching green
+2. Empty categories → Display all, always visible
+3. Renaming → Preserve existing editing behavior
+4. Animation → Preserve existing animations
+5. Migration → User-triggered wizard
+6. Rollback → 7 days minimum + downloadable backup
+7. Conflicts → Flag for review, never auto-resolve
+8. Deletion → Block until contents relocated
+
+**Additional Safeguards**: ✅ COMPREHENSIVE
+- Pre-commit validation (8-point checklist)
+- Conflict detection and resolution UI
+- Migration report generation
+- Interruption and safe resumption
+- Critical failure = stop without modifying data
+- All existing data preservation verified
+
+---
+
+### Authorization Status
+
+**✅ AUTHORIZED**:
+- Complete architectural specification
+- Finalize documentation
+- Answer all design questions
+
+**❌ NOT AUTHORIZED**:
+- Writing code
+- Modifying CSS
+- Running migration
+- Publishing changes
+- Modifying live application
+
+---
+
+### Next Steps
+
+**For Implementation Authorization**:
+User must provide explicit written statement:
+"I authorize implementation of Phase 1 (Migration Infrastructure) as specified in REVISED_CONSOLIDATED_ARCHITECTURE_FINAL.md version 3.0"
+
+**Required Before Phase 1**:
+- ✅ All decisions finalized (COMPLETE)
+- ✅ Migration strategy approved (COMPLETE)
+- ✅ Rollback strategy approved (COMPLETE)
+- ✅ Safeguards documented (COMPLETE)
+- ❓ User provides implementation authorization (PENDING)
+
+---
+
+### Document Version
+
+**Version**: 3.0 FINAL  
+**Date**: November 4, 2026  
+**Status**: All decisions incorporated, ready for implementation authorization  
+**Supersedes**: All previous architecture documents
+
+---
+
+**This is the authoritative specification for Iron Rabbit's Two-Way Association and Recursive Category Branches architecture.**
+
+**END OF SPECIFICATION**
