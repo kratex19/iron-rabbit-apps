@@ -1,8 +1,8 @@
 # IRON RABBIT — REVISED CONSOLIDATED ARCHITECTURE (FINAL)
 
 **Date**: November 4, 2026  
-**Version**: 3.2 — Uniqueness, Sub-Level Branches, and Numbering Clarifications  
-**Status**: 🎯 CLARIFICATIONS INCORPORATED — AWAITING APPROVAL ON PROPOSALS  
+**Version**: 3.2 FINAL — All Naming Decisions Approved  
+**Status**: 🎯 COMPLETE SPECIFICATION — READY FOR IMPLEMENTATION AUTHORIZATION  
 **Authorization**: ❌ NO IMPLEMENTATION UNTIL EXPLICIT APPROVAL
 
 ---
@@ -840,7 +840,345 @@ await moveCategory(
 
 ---
 
-### 1.3.2 Categories Created Beneath Ordinary Sub-Levels (PROPOSED)
+### 1.3.2 Categories Created Beneath Ordinary Sub-Levels (APPROVED)
+
+**Issue**: Version 3.1 defines M, SC, Sc, and l, but does not adequately specify what happens when a category branch is created beneath an ordinary sub-level.
+
+**Example Scenario**:
+```
+Kitchen (M)
+├─ l1: Utensils
+│  ├─ l2: Cooking Utensils
+│  │  ├─ l3: Wooden Spoons
+│  │  │  └─ [USER CLICKS GREEN PLUS HERE]
+│  │  │     → Creates new category branch
+```
+
+---
+
+#### APPROVED: Branch Designation "B"
+
+**Decision**: Use `B` to designate category branches beneath ordinary sub-levels
+
+**Type Designation**: When branch created beneath sub-level:
+- Type: `B` (Branch)
+- Identifier format: `l{n}-B{m}`
+- Counter: `B{m}` (Branch counter, scoped to that level)
+
+**Format**: `l{n}-B{m}`
+
+**Key**: 
+- `M` remains reserved for Main Category only
+- `B` designates branches beneath ordinary sub-levels
+- Hyphen connects level to branch counter
+
+---
+
+#### Example: Branch Beneath l3
+
+**Hierarchy**:
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         └─ l3-B1: Premium Collection ← NEW BRANCH
+```
+
+**Data Structure**:
+```javascript
+{
+  id: "cat-premium-uuid-001",
+  name: "Premium Collection",
+  type: "B",  // Branch beneath ordinary sub-level
+  
+  // IDENTIFIERS
+  identifier: "l3-B1",  // Compact
+  full_identifier: "l3-B1",  // Same (no omitted intermediates)
+  
+  // PARENT RELATIONSHIP
+  parent_id: "cat-kitchen-uuid",  // Parent is Kitchen (M)
+  parent_type: "M",
+  parent_level: "l3",  // Attached beneath l3
+  parent_level_name: "Wooden Spoons",
+  
+  // This branch can have its own hierarchy
+  category_branches: { ... },
+  sub_levels: { ... }
+}
+```
+
+**Key Points**:
+- ✅ Type is "B" (Branch)
+- ✅ Identifier shows which level it's beneath: `l3-B1`
+- ✅ Counter `B1` is scoped to l3 (first branch beneath l3)
+- ✅ Can have its own subcategories and sub-levels
+- ✅ M reserved for Main Category only
+
+---
+
+#### Subcategories Beneath Branch
+
+**When Subcategory created beneath `l3-B1`**:
+
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         └─ l3-B1: Premium Collection
+            └─ SC1: Artisan Spoons ← Subcategory beneath l3-B1
+```
+
+**Data Structure**:
+```javascript
+{
+  id: "cat-artisan-uuid-002",
+  name: "Artisan Spoons",
+  type: "SC",  // Subcategory directly beneath Branch
+  
+  // IDENTIFIERS
+  identifier: "l3-B1-SC1",  // Compact
+  full_identifier: "l3-B1-SC1",  // Full
+  
+  // PARENT
+  parent_id: "cat-premium-uuid-001",  // Parent is l3-B1
+  parent_type: "B"
+}
+```
+
+**Pattern**: `l3-B1-SC1` (shows branch location and subcategory)
+
+---
+
+#### Nested Subcategories Beneath Branch
+
+**Further nesting**:
+
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         └─ l3-B1: Premium Collection
+            └─ SC1: Artisan Spoons
+               └─ Sc1: Handcrafted ← Nested subcategory
+```
+
+**Data Structure**:
+```javascript
+{
+  id: "cat-handcrafted-uuid-003",
+  name: "Handcrafted",
+  type: "Sc",  // Nested subcategory
+  
+  // IDENTIFIERS
+  identifier: "l3-B1-Sc1",  // Compact
+  full_identifier: "l3-B1-SC1-Sc1",  // Full
+  
+  // PARENT
+  parent_id: "cat-artisan-uuid-002",  // Parent is SC1
+  parent_type: "SC"
+}
+```
+
+---
+
+#### Complete Identifier Format Table (UPDATED)
+
+| Structure | Type | Compact | Full | Parent |
+|-----------|------|---------|------|--------|
+| Main Category | M | M | M | (root) |
+| Sub beneath Main | SC | M-SC{n} | M-SC{n} | M |
+| Nested sub | Sc | M-Sc{n} | M-SC{x}-Sc{n} | SC or Sc |
+| Ordinary sub-level | l | l{n} | l{n} | Any |
+| **Branch at level** | **B** | **l{n}-B{m}** | **l{n}-B{m}** | **M** |
+| **Sub beneath branch** | **SC** | **l{n}-B{m}-SC{k}** | **l{n}-B{m}-SC{k}** | **B (branch)** |
+| **Nested sub in branch** | **Sc** | **l{n}-B{m}-Sc{k}** | **l{n}-B{m}-SC{x}-Sc{k}** | **SC or Sc** |
+
+---
+
+#### Counter Scoping for Branch-Level Categories
+
+**B Counter** (beneath same level):
+- l3 can have: `l3-B1`, `l3-B2`, `l3-B3`
+- l4 can have: `l4-B1`, `l4-B2` (independent from l3)
+- Each level has independent Branch counter
+
+**SC Counter** (beneath same branch):
+- l3-B1 can have: `l3-B1-SC1`, `l3-B1-SC2`, `l3-B1-SC3`
+- l3-B2 can have: `l3-B2-SC1`, `l3-B2-SC2` (independent)
+- Each Branch has independent SC counter
+
+**Sc Counter** (beneath same parent):
+- l3-B1-SC1 can have: `l3-B1-Sc1`, `l3-B1-Sc2`
+- l3-B1-SC2 can have: `l3-B1-Sc1` (independent)
+- Per-parent scoping applies
+
+---
+
+#### Distinguishing Sub-Levels from Category Branches
+
+**Visual Distinction in UI**:
+
+```
+Kitchen (M) [🟢]
+├─ l1: Utensils [🟢] [🔵]  ← Sub-level (both buttons)
+│  ├─ Note: "Spatula set"
+│  └─ l1-B1: Professional Set [🟢]  ← Branch (green only)
+│     └─ SC1: Chef's Collection [🟢]
+│
+├─ l2: Appliances [🟢] [🔵]  ← Sub-level
+   └─ Note: "Blender manual"
+```
+
+**Distinguishing Features**:
+
+| Type | Identifier | Green Plus | Blue Plus | Purpose |
+|------|-----------|------------|-----------|---------|
+| Ordinary sub-level | `l{n}` | ✅ | ✅ | Holds notes, can have deeper sub-levels |
+| Category branch | `l{n}-B{m}` | ✅ | ❌ | Independent hierarchy, holds subcategories |
+| Branch subcategory | `l{n}-B{m}-SC{k}` | ✅ | ❌ | Part of branch hierarchy |
+
+**Key Distinction**:
+- Sub-levels (`l1`, `l2`) = Linear note organization, blue plus available
+- Branches (`l3-B1`) = Category trees, no blue plus (notes in sub-categories or their sub-levels)
+
+---
+
+#### Original Hierarchy Preservation
+
+**When branch created beneath l3**:
+
+**Before**:
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons
+         ├─ l4: Premium
+         └─ l5: Budget
+```
+
+**User Action**: Click green plus on l3 → Create "Artisan Collection"
+
+**After**:
+```
+Kitchen (M)
+├─ l1: Utensils
+   ├─ l2: Cooking Utensils
+      ├─ l3: Wooden Spoons [🔽 Now has accordion]
+         ├─ l4: Premium  ← UNCHANGED (still sub-level)
+         ├─ l5: Budget   ← UNCHANGED (still sub-level)
+         └─ l3-B1: Artisan Collection [NEW BRANCH]
+```
+
+**Critical**:
+- ✅ l3 keeps name "Wooden Spoons" and "l3" designation
+- ✅ l4 and l5 remain ordinary sub-levels (unchanged)
+- ✅ l3-B1 is new independent branch
+- ✅ l3 becomes accordion head to show both sub-levels and branch
+- ❌ l4 does NOT become l5, l5 does NOT become l6
+
+---
+
+#### Validation Rules for Branch-Level Categories
+
+```javascript
+function validateBranchLevelCategory(category) {
+  // 1. Verify parent is Main Category
+  const parent = await getCategoryById(category.parent_id);
+  if (parent.type !== "M") {
+    throw new Error("Branch must be created beneath Main Category");
+  }
+  
+  // 2. Verify parent_level specified
+  if (!category.parent_level || !category.parent_level.startsWith("l")) {
+    throw new Error("Branch must specify which level it's beneath");
+  }
+  
+  // 3. Generate identifier with level prefix
+  const counter = getBranchCounterAtLevel(parent.id, category.parent_level);
+  category.identifier = `${category.parent_level}-B${counter}`;
+  
+  // 4. Type is "B" (Branch)
+  category.type = "B";
+  
+  // 5. Can have own subcategories
+  category.category_branches = {};
+  category.sub_levels = {};
+}
+```
+
+---
+
+#### Migration Implications for Branch-Level Categories
+
+**During Migration**:
+1. Detect categories attached to sub-levels via `parent_level` field
+2. Assign type "B" (Branch)
+3. Generate identifier: `l{n}-B{counter}`
+4. Preserve complete parent-child chain
+5. Ensure sub-level itself remains ordinary sub-level
+
+**Example**:
+```javascript
+function migrateBranchLevelCategory(category) {
+  if (category.parent_level && category.parent_level.startsWith("l")) {
+    // This is a branch beneath a sub-level
+    category.type = "B";  // Branch
+    
+    const levelNumber = category.parent_level;
+    const counter = getBranchCounterAtLevel(category.parent_id, levelNumber);
+    
+    category.identifier = `${levelNumber}-B${counter}`;
+    category.full_identifier = `${levelNumber}-B${counter}`;
+  }
+}
+```
+
+---
+
+#### Summary: Category Branch Beneath Sub-Level
+
+**Designation**: `l{n}-B{m}` where:
+- `l{n}` = Sub-level number (which level it's beneath)
+- `B{m}` = Branch counter (scoped to that level)
+
+**Type**: "B" (Branch beneath ordinary sub-level)
+
+**Subcategories Beneath Branch**:
+- First level: `l{n}-B{m}-SC{k}` (type "SC")
+- Nested: `l{n}-B{m}-Sc{k}` (type "Sc")
+
+**Counter Scoping**:
+- B counter: Per sub-level (l3-B1, l3-B2, l4-B1)
+- SC counter: Per Branch (l3-B1-SC1, l3-B2-SC1)
+- Sc counter: Per parent subcategory
+
+**Distinction**:
+- Sub-levels: Have blue plus, hold notes
+- Branches: No blue plus, hold subcategories
+
+**Preservation**:
+- Original sub-levels unchanged (l4 stays l4, not renumbered)
+- Sub-level becomes accordion when branch added
+- Complete hierarchy maintained
+
+---
+
+#### STATUS: APPROVED
+
+**This naming convention is APPROVED and FINAL.**
+
+**Confirmed**:
+1. ✅ B designation for branches beneath sub-levels
+2. ✅ Type "B" for branches
+3. ✅ Counter scoping per level
+4. ✅ Subcategory pattern `l{n}-B{m}-SC{k}`
+5. ✅ M reserved for Main Category only
+
+---
 
 **Issue**: Version 3.1 defines M, SC, Sc, and l, but does not adequately specify what happens when a category branch is created beneath an ordinary sub-level.
 
@@ -957,6 +1295,505 @@ Kitchen (M)
          └─ l3 M1: Premium Collection
             └─ SC1: Artisan Spoons
                └─ Sc1: Handcrafted ← Nested subcategory
+
+
+---
+
+### 1.3.4 Complete Validation Examples (APPROVED)
+
+**This section provides complete end-to-end examples demonstrating all naming conventions.**
+
+---
+
+#### Example 1: Complete Hierarchy — Main to Nested Subcategory
+
+**Full Hierarchy**:
+```
+Kitchen (M)
+└─ l3: Recipes
+   └─ l3-B1: Artisan Collection
+      └─ SC1: Breads
+         └─ Sc1: Sourdough
+```
+
+**Identifiers at Each Level**:
+
+**Kitchen (M)**:
+```javascript
+{
+  id: "cat-kitchen-uuid-001",
+  name: "Kitchen",
+  type: "M",
+  identifier: "M",
+  full_identifier: "M",
+  parent_id: null
+}
+```
+
+**Recipes (l3)**:
+```javascript
+{
+  id: "cat-recipes-uuid-002",
+  name: "Recipes",
+  type: "l",  // Ordinary sub-level
+  identifier: "l3",
+  full_identifier: "l3",
+  parent_id: "cat-kitchen-uuid-001",
+  parent_type: "M",
+  level_number: 3
+}
+```
+
+**Artisan Collection (l3-B1)**:
+```javascript
+{
+  id: "cat-artisan-uuid-003",
+  name: "Artisan Collection",
+  type: "B",  // Branch beneath sub-level
+  identifier: "l3-B1",
+  full_identifier: "l3-B1",
+  parent_id: "cat-kitchen-uuid-001",  // Parent is Kitchen
+  parent_type: "M",
+  parent_level: "l3",  // Attached beneath l3
+  parent_level_name: "Recipes"
+}
+```
+
+**Breads (l3-B1-SC1)**:
+```javascript
+{
+  id: "cat-breads-uuid-004",
+  name: "Breads",
+  type: "SC",  // Subcategory directly beneath Branch
+  identifier: "l3-B1-SC1",
+  full_identifier: "l3-B1-SC1",
+  parent_id: "cat-artisan-uuid-003",  // Parent is l3-B1
+  parent_type: "B"
+}
+```
+
+**Sourdough (l3-B1-SC1-Sc1)**:
+```javascript
+{
+  id: "cat-sourdough-uuid-005",
+  name: "Sourdough",
+  type: "Sc",  // Nested subcategory
+  identifier: "l3-B1-Sc1",  // Compact
+  full_identifier: "l3-B1-SC1-Sc1",  // Full
+  parent_id: "cat-breads-uuid-004",  // Parent is SC1
+  parent_type: "SC"
+}
+```
+
+**Complete Identifiers**:
+- Kitchen: `M`
+- Recipes: `l3`
+- Artisan Collection: `l3-B1`
+- Breads: `l3-B1-SC1`
+- Sourdough Compact: `l3-B1-Sc1`
+- Sourdough Full: `l3-B1-SC1-Sc1`
+
+---
+
+#### Example 2: Deep Sub-Level Numbering
+
+**Full Hierarchy**:
+```
+Main Category (M)
+└─ Subcategory 45 (Sc45)
+   └─ l4,078: Deep Item
+```
+
+**Identifiers**:
+
+**Main Category**:
+```javascript
+{
+  id: "cat-main-uuid-001",
+  name: "Archive",
+  type: "M",
+  identifier: "M",
+  full_identifier: "M"
+}
+```
+
+**Sc45** (one of many nested subcategories):
+```javascript
+{
+  id: "cat-sc45-uuid-002",
+  name: "Historical Documents",
+  type: "Sc",
+  identifier: "M-Sc45",  // Compact
+  full_identifier: "M-SC12-Sc8-Sc45",  // Full shows intermediates
+  parent_id: "cat-sc8-uuid",
+  parent_type: "Sc"
+}
+```
+
+**l4,078** (extremely deep sub-level):
+```javascript
+{
+  id: "cat-level4078-uuid-003",
+  name: "Document 4078",
+  type: "l",
+  identifier: "l4,078",  // Comma as thousands separator
+  full_identifier: "l4,078",
+  parent_id: "cat-sc45-uuid-002",
+  parent_type: "Sc",
+  level_number: 4078
+}
+```
+
+**Complete Identifier**:
+- Compact: `M-Sc45-l4,078`
+- Full: `M-SC12-Sc8-Sc45-l4,078`
+
+**Interpretation**:
+- M = Main Category (Archive)
+- Sc45 = 45th nested subcategory (Historical Documents)
+- l4,078 = Ordinary sub-level number 4,078 (Document 4078)
+
+**Key Point**: Comma in `l4,078` is thousands separator, NOT component divider
+
+---
+
+#### Example 3: Multiple Branches at Same Level
+
+**Full Hierarchy**:
+```
+Kitchen (M)
+├─ l3: Recipes
+   ├─ l3-B1: Artisan Collection
+   │  └─ SC1: Breads
+   ├─ l3-B2: Quick Meals
+   │  └─ SC1: 15-Minute Recipes
+   └─ l3-B3: International
+      └─ SC1: Italian
+```
+
+**Branch Identifiers** (all beneath l3):
+```javascript
+// First branch
+{
+  id: "cat-artisan-uuid-001",
+  identifier: "l3-B1",
+  type: "B",
+  parent_level: "l3"
+}
+
+// Second branch (independent counter)
+{
+  id: "cat-quick-uuid-002",
+  identifier: "l3-B2",
+  type: "B",
+  parent_level: "l3"
+}
+
+// Third branch (independent counter)
+{
+  id: "cat-international-uuid-003",
+  identifier: "l3-B3",
+  type: "B",
+  parent_level: "l3"
+}
+```
+
+**Subcategories** (each branch has independent SC1):
+```javascript
+// SC1 beneath l3-B1
+{
+  id: "cat-breads-uuid-004",
+  identifier: "l3-B1-SC1",
+  parent_id: "cat-artisan-uuid-001"
+}
+
+// SC1 beneath l3-B2 (different parent, same counter)
+{
+  id: "cat-15min-uuid-005",
+  identifier: "l3-B2-SC1",
+  parent_id: "cat-quick-uuid-002"
+}
+
+// SC1 beneath l3-B3 (different parent, same counter)
+{
+  id: "cat-italian-uuid-006",
+  identifier: "l3-B3-SC1",
+  parent_id: "cat-international-uuid-003"
+}
+```
+
+**Key Point**: Counter scoping allows multiple `SC1` when parents different
+
+---
+
+#### Example 4: Complete Type Designation Matrix
+
+| Hierarchy | Type | Compact ID | Full ID |
+|-----------|------|-----------|---------|
+| Kitchen | M | M | M |
+| ↳ Pantry | SC | M-SC1 | M-SC1 |
+|   ↳ Canned | Sc | M-Sc1 | M-SC1-Sc1 |
+|     ↳ Soups | Sc | M-Sc1 | M-SC1-Sc1-Sc1 |
+| ↳ l1: Utensils | l | l1 | l1 |
+|   ↳ l2: Cooking | l | l2 | l2 |
+|     ↳ l3: Wooden | l | l3 | l3 |
+|       ↳ Artisan (branch) | B | l3-B1 | l3-B1 |
+|         ↳ Handcrafted | SC | l3-B1-SC1 | l3-B1-SC1 |
+|           ↳ Custom | Sc | l3-B1-Sc1 | l3-B1-SC1-Sc1 |
+
+**Type Codes**:
+- M = Main Category
+- SC = Subcategory directly beneath Main (or Branch)
+- Sc = Subcategory beneath another Subcategory
+- l = Ordinary sub-level
+- B = Branch beneath ordinary sub-level
+
+---
+
+#### Example 5: Permanent IDs vs Display Identifiers
+
+**Scenario**: Three categories with same compact identifier
+
+```
+Kitchen (M)
+├─ SC1: Pantry
+│  └─ Sc1: Canned
+│     └─ Sc1: Soups
+```
+
+**All have compact identifier `M-Sc1`, but different permanent IDs**:
+
+```javascript
+// Canned
+{
+  id: "cat-canned-uuid-001",  // UNIQUE
+  identifier: "M-Sc1",  // Display (not unique)
+  full_identifier: "M-SC1-Sc1"
+}
+
+// Soups
+{
+  id: "cat-soups-uuid-002",  // DIFFERENT UNIQUE ID
+  identifier: "M-Sc1",  // Same display (OK)
+  full_identifier: "M-SC1-Sc1-Sc1"
+}
+```
+
+**Note Association**:
+```javascript
+{
+  id: "note-123",
+  title: "Tomato Soup Recipe",
+  category_node_id: "cat-soups-uuid-002",  // Uses permanent ID
+  // NOT: category_identifier: "M-Sc1"  // Would be ambiguous
+}
+```
+
+**UI Display**:
+```
+M-Sc1: Canned
+Path: Kitchen → Pantry → Canned
+
+M-Sc1: Soups
+Path: Kitchen → Pantry → Canned → Soups
+```
+
+**Key Point**: Permanent IDs are source of truth, compact identifiers for display only
+
+---
+
+#### Example 6: Counter Scoping Demonstration
+
+**Hierarchy**:
+```
+Kitchen (M)
+├─ SC1: Pantry
+│  └─ Sc1: Canned
+│     └─ Sc1: Soups  ← Sc1 scoped to Canned
+├─ SC2: Storage
+│  └─ Sc1: Tools  ← Different Sc1, scoped to Storage
+└─ l3: Recipes
+   ├─ l3-B1: Artisan
+   │  └─ SC1: Breads  ← SC1 scoped to l3-B1
+   └─ l3-B2: Quick
+      └─ SC1: Salads  ← Different SC1, scoped to l3-B2
+```
+
+**Counters**:
+- SC counter: Per Main (or Branch)
+  - Kitchen: SC1, SC2
+  - l3-B1: SC1
+  - l3-B2: SC1 (independent)
+  
+- Sc counter: Per parent Subcategory
+  - SC1 (Pantry): Sc1 (Canned)
+  - Canned: Sc1 (Soups, scoped to Canned)
+  - SC2 (Storage): Sc1 (Tools, independent)
+  
+- B counter: Per sub-level
+  - l3: B1, B2
+
+**All independently scoped to immediate parents**
+
+---
+
+#### Example 7: Green Plus and Blue Plus Behavior
+
+**Before Green Plus**:
+```
+Kitchen (M) [🟢]
+└─ l3: Recipes [🟢] [🔵]
+   └─ Note: "Family recipes"
+```
+
+**User Action**: Click green plus on l3
+
+**After Green Plus**:
+```
+Kitchen (M) [🟢]
+└─ l3: Recipes [🟢] [🔵] [🔽 Now accordion]
+   ├─ Note: "Family recipes"  ← Still there
+   └─ l3-B1: Artisan Collection [🟢]  ← NEW (no blue plus)
+```
+
+**Key Points**:
+- ✅ Green plus created branch `l3-B1`
+- ✅ l3 keeps original name and designation
+- ✅ l3 becomes accordion (shows note + branch)
+- ✅ Existing note preserved
+- ✅ Branch has green plus only (no blue plus)
+- ✅ l3 still has blue plus (for more notes)
+
+---
+
+#### Example 8: Migration Type Assignment
+
+**Migration Logic**:
+```javascript
+function assignCategoryType(category) {
+  // No parent = Main Category
+  if (!category.parent_id) {
+    return "M";
+  }
+  
+  const parent = getCategoryById(category.parent_id);
+  
+  // Parent is Main → First-level Subcategory
+  if (parent.type === "M") {
+    // Check if beneath sub-level
+    if (category.parent_level && category.parent_level.startsWith("l")) {
+      return "B";  // Branch beneath sub-level
+    }
+    return "SC";  // Subcategory beneath Main
+  }
+  
+  // Parent is Branch → Subcategory beneath Branch
+  if (parent.type === "B") {
+    return "SC";
+  }
+  
+  // Parent is SC or Sc → Nested Subcategory
+  if (parent.type === "SC" || parent.type === "Sc") {
+    return "Sc";
+  }
+  
+  throw new Error(`Unknown parent type: ${parent.type}`);
+}
+```
+
+**Examples**:
+```javascript
+// Kitchen → Pantry
+assignType({parent_id: "cat-kitchen", parent_type: "M"})
+// → "SC" (subcategory beneath Main)
+
+// Pantry → Canned
+assignType({parent_id: "cat-pantry", parent_type: "SC"})
+// → "Sc" (nested subcategory)
+
+// Kitchen (l3) → Artisan
+assignType({parent_id: "cat-kitchen", parent_type: "M", parent_level: "l3"})
+// → "B" (branch beneath sub-level)
+
+// l3-B1 → Breads
+assignType({parent_id: "cat-artisan", parent_type: "B"})
+// → "SC" (subcategory beneath Branch)
+```
+
+---
+
+#### Example 9: Validation Complete Flow
+
+**Create New Branch Beneath Sub-Level**:
+```javascript
+async function createBranchBeneathLevel(levelId, branchName) {
+  // 1. Validate level exists and is type "l"
+  const level = await getCategoryById(levelId);
+  if (!level || level.type !== "l") {
+    throw new Error("Parent must be ordinary sub-level");
+  }
+  
+  // 2. Get Main Category parent
+  const mainCategory = await getCategoryById(level.parent_id);
+  if (!mainCategory || mainCategory.type !== "M") {
+    throw new Error("Level must belong to Main Category");
+  }
+  
+  // 3. Generate branch counter
+  const counter = await getNextBranchCounter(mainCategory.id, level.identifier);
+  
+  // 4. Create branch
+  const branch = {
+    id: generateUuid(),
+    name: branchName,
+    type: "B",
+    identifier: `${level.identifier}-B${counter}`,
+    full_identifier: `${level.identifier}-B${counter}`,
+    parent_id: mainCategory.id,
+    parent_type: "M",
+    parent_level: level.identifier,
+    parent_level_name: level.name
+  };
+  
+  // 5. Save
+  await saveCategory(branch);
+  
+  return branch;
+}
+```
+
+**Result**:
+```javascript
+{
+  id: "cat-uuid-new",
+  name: "Artisan Collection",
+  type: "B",
+  identifier: "l3-B1",
+  full_identifier: "l3-B1",
+  parent_id: "cat-kitchen-uuid",
+  parent_type: "M",
+  parent_level: "l3",
+  parent_level_name: "Recipes"
+}
+```
+
+---
+
+#### Summary: All Conventions Demonstrated
+
+**Type Designations**: M, SC, Sc, l, B  
+**Identifiers**: Compact and full for each type  
+**Counters**: Per-parent scoping  
+**Permanent IDs**: Source of truth  
+**Level Numbering**: Comma as thousands separator  
+**Branch Creation**: Green plus behavior  
+**Validation**: Type assignment logic  
+
+**All conventions APPROVED and ready for implementation.**
+
+---
+
+
 ```
 
 **Data Structure**:
@@ -1061,7 +1898,293 @@ Kitchen (M)
 
 ---
 
-### 1.3.3 Level Numbering Clarification: l4,078 (AWAITING CLARIFICATION)
+### 1.3.3 Level Numbering: l4,078 (APPROVED)
+
+**Decision**: The notation `l4,078` means ordinary sub-level number 4,078
+
+**Example from Section 1.3**:
+- Compact: `M-Sc45-l4,078`
+- Full: `M-SC12-Sc8-Sc45-l4,078`
+
+---
+
+#### APPROVED Interpretation: Continuous Sub-Level Numbering
+
+**Meaning**: Ordinary sub-level number 4,078 in continuous sequence
+
+**Hierarchy Example**:
+```
+Main Category (M)
+├─ l1: Level 1
+├─ l2: Level 2
+├─ l3: Level 3
+├─ l4: Level 4
+...
+├─ l4,077: Level 4,077
+└─ l4,078: Level 4,078
+```
+
+**Key Rules**:
+- ✅ l{n} where {n} = any positive integer
+- ✅ Comma used ONLY as thousands separator
+- ✅ Comma does NOT divide identifier into separate components
+- ✅ Counter is continuous within parent
+- ❌ NOT "level 4, item 078"
+- ❌ NOT compound identifier with sub-parts
+
+---
+
+#### Formatting Rules
+
+**With Comma** (thousands separator):
+```
+l1,000
+l4,078
+l10,000
+l100,000
+```
+
+**Without Comma** (below 1,000):
+```
+l1
+l42
+l999
+```
+
+**Display Consistency**:
+- Always use comma for thousands: `l4,078` (not `l4078`)
+- Omit comma below 1,000: `l42` (not `l042`)
+- Consistent in compact and full identifiers
+- Same format everywhere in UI
+
+---
+
+#### Complete Examples
+
+**Compact Identifier**:
+```
+M-Sc45-l4,078
+```
+
+**Interpretation**:
+- M = Main Category
+- Sc45 = 45th nested subcategory
+- l4,078 = Ordinary sub-level number 4,078
+
+**Full Identifier**:
+```
+M-SC12-Sc8-Sc45-l4,078
+```
+
+**Interpretation**:
+- M = Main
+- SC12 = 12th subcategory beneath Main
+- Sc8 = 8th nested sub beneath SC12
+- Sc45 = 45th nested sub beneath Sc8
+- l4,078 = Ordinary sub-level 4,078
+
+**Both use**: "l4,078" with comma as thousands separator
+
+---
+
+#### Scoping
+
+**Level Counter Scoped to Parent**:
+```
+Kitchen (M)
+├─ l1: Utensils
+├─ l2: Appliances
+...
+├─ l4,077: Item 4077
+└─ l4,078: Item 4078
+
+Garden (M)
+├─ l1: Tools  ← Independent counter
+└─ l2: Plants
+```
+
+**Each parent has independent l1, l2, l3... sequence**
+
+---
+
+#### Validation and Formatting
+
+**Format Function**:
+```javascript
+function formatLevelIdentifier(levelNumber) {
+  // Add commas for thousands
+  return `l${levelNumber.toLocaleString()}`;
+  // Examples:
+  // 42 → "l42"
+  // 1000 → "l1,000"
+  // 4078 → "l4,078"
+  // 1000000 → "l1,000,000"
+}
+```
+
+**Parse Function**:
+```javascript
+function parseLevelIdentifier(identifier) {
+  // Remove 'l' prefix and parse number
+  const numberString = identifier.substring(1).replace(/,/g, '');
+  return parseInt(numberString, 10);
+  // Examples:
+  // "l42" → 42
+  // "l1,000" → 1000
+  // "l4,078" → 4078
+}
+```
+
+**Validation**:
+```javascript
+function validateLevelIdentifier(identifier) {
+  // Must start with 'l'
+  if (!identifier.startsWith('l')) {
+    throw new Error("Level identifier must start with 'l'");
+  }
+  
+  // Must have valid number after 'l'
+  const number = parseLevelIdentifier(identifier);
+  if (isNaN(number) || number < 1) {
+    throw new Error("Level number must be positive integer");
+  }
+  
+  // Verify formatting (comma placement)
+  const formatted = formatLevelIdentifier(number);
+  if (formatted !== identifier) {
+    throw new Error(`Level identifier should be formatted as ${formatted}`);
+  }
+  
+  return true;
+}
+```
+
+---
+
+#### Examples in Context
+
+**Example 1: Moderate Depth**
+```
+Kitchen (M)
+├─ l1: Utensils
+├─ l2: Appliances
+└─ l42: Miscellaneous
+```
+
+Identifier: `M-l42` or `l42`
+
+---
+
+**Example 2: Crossing 1,000 Threshold**
+```
+Main Category (M)
+├─ l999: Item 999
+├─ l1,000: Item 1000  ← Comma appears
+└─ l1,001: Item 1001
+```
+
+Identifiers:
+- `l999` (no comma)
+- `l1,000` (comma starts)
+- `l1,001` (comma continues)
+
+---
+
+**Example 3: Deep Hierarchy**
+```
+Main Category (M)
+└─ Subcategory 45 (Sc45)
+   └─ l4,078: Deep Level
+```
+
+Compact: `M-Sc45-l4,078`
+Full: `M-SC12-Sc8-Sc45-l4,078`
+
+Both show: `l4,078` (comma as thousands separator)
+
+---
+
+**Example 4: Branch with Deep Sub-Level**
+```
+Kitchen (M)
+├─ l3: Recipes
+   └─ l3-B1: Artisan Collection
+      └─ l1,234: Specialty Items
+```
+
+Identifier: `l3-B1-l1,234`
+
+---
+
+#### Display in UI
+
+**Breadcrumb**:
+```
+Kitchen > Sc45 > l4,078
+```
+
+**Full Path**:
+```
+Kitchen (M) → SC12 → Sc8 → Sc45 → l4,078
+```
+
+**Compact Reference**:
+```
+M-Sc45-l4,078
+```
+
+**All display l4,078 consistently** with comma
+
+---
+
+#### Migration Implications
+
+**On Migration**:
+1. Parse existing level numbers
+2. Format with comma for thousands
+3. Validate formatting
+4. Store formatted identifier
+
+**Example**:
+```javascript
+function migrateLevelIdentifier(oldLevel) {
+  // Parse number (may be stored as "l4078" without comma)
+  const number = parseLevelIdentifier(oldLevel);
+  
+  // Reformat with comma
+  const newLevel = formatLevelIdentifier(number);
+  // "l4078" → "l4,078"
+  
+  return newLevel;
+}
+```
+
+---
+
+#### Summary
+
+**Approved Rule**: `l4,078` = ordinary sub-level number 4,078
+
+**Key Points**:
+- ✅ Comma is thousands separator only
+- ✅ Continuous numbering sequence
+- ✅ Counter scoped to parent
+- ✅ Consistent formatting throughout
+- ❌ NOT compound identifier
+- ❌ NOT "level 4, item 078"
+
+**Formatting**:
+- Below 1,000: `l42`
+- At/above 1,000: `l1,000`, `l4,078`
+- Always consistent in compact and full identifiers
+
+---
+
+#### STATUS: APPROVED
+
+**This interpretation is APPROVED and FINAL.**
+
+---
 
 **Issue**: The compact identifier example `M-Sc45-l4,078` is ambiguous
 
