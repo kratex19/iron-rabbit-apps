@@ -1,4789 +1,1621 @@
 # IRON RABBIT — REVISED CONSOLIDATED ARCHITECTURE (FINAL)
 
-**Date**: November 4, 2026  
-**Version**: 3.2 FINAL — All Naming Decisions Approved  
+**Date**: December 2025  
+**Version**: 3.3 FINAL — Legacy Fields & Rollback Strategy Approved  
 **Status**: 🎯 COMPLETE SPECIFICATION — READY FOR IMPLEMENTATION AUTHORIZATION  
 **Authorization**: ❌ NO IMPLEMENTATION UNTIL EXPLICIT APPROVAL
 
 ---
 
+## 📋 VERSION HISTORY
+
+- **Version 3.0**: Initial consolidated specification
+- **Version 3.1**: Capitalization rules clarified (SC vs Sc)
+- **Version 3.2**: Level numbering clarified (l4,078), Branch designation (B) approved
+- **Version 3.3**: Legacy field strategy approved, Rollback preservation enhanced, Migration trigger finalized, Testing strategy confirmed
+
+---
+
 ## 🎯 EXECUTIVE SUMMARY
 
-### Architectural Direction: ACCEPTED with Corrections
+### Architectural Direction: APPROVED
 
 This document integrates:
 1. ✅ Recursive Category Branches specification
 2. ✅ Two-Way Category-Note Association specification
-3. ✅ User corrections and clarifications
+3. ✅ Legacy field retention strategy (4-phase hybrid approach)
+4. ✅ Enhanced rollback with data preservation (3-option strategy)
+5. ✅ Migration trigger design (prominent banner + Settings)
+6. ✅ Testing strategy (synthetic data first)
 
 ### Implementation Status: NOT AUTHORIZED
 
 - ❌ No code changes
 - ❌ No CSS modifications
+- ❌ No data migrations
 - ❌ No live publishing
 - ✅ Architecture design only
 
 ---
 
-## SECTION 1: CORRECTED SPECIFICATIONS
+## 🔒 SECTION 1: LOCKED ARCHITECTURAL DECISIONS
 
-### 1.1 Plus Button Placement (CORRECTED)
+### These Decisions Are FINAL and Not Subject to Revision
 
-#### Green Plus: Create Category/Branch
-
-**Appears on**:
-- ✅ Every Main Category (M)
-- ✅ Every Subcategory (SC, Sc, sc, etc.)
-- ✅ Every ordinary sub-level (L1, L2, L3, L4, L5, etc.)
-
-**Does NOT appear on**:
-- Notes (notes don't create categories)
-
-**Action**: Creates category branch or subcategory beneath selected item
-
-**Example UI**:
-```
-Kitchen (M) [🟢]
-├─ L1: Utensils [🟢]
-├─ L2: Appliances [🟢]
-├─ L3: Recipes [🟢]
-│  ├─ L4: Desserts [🟢]
-│  └─ L3 M1: Baking [🟢]
-│     ├─ L1: Breads [🟢]
-│     └─ L2: Cakes [🟢]
-└─ M-SC1: Pantry [🟢]
-   ├─ L1: Canned [🟢]
-   └─ SC1-Sc1: Dry Goods [🟢]
-```
-
-Every row (M, SC, L-level) gets green plus.
+The following architectural decisions have been approved through Version 3.2 and are preserved in Version 3.3. These are **established requirements**, not open questions.
 
 ---
 
-#### Blue Plus: Create Note
+### 1.1 Identifier Uniqueness
 
-**Appears on**:
-- ✅ Every ordinary sub-level (L1, L2, L3, L4, L5, etc.)
-- ✅ Includes sub-levels inside category branches
-- ❌ Does NOT appear on Main Category headers (M)
-- ❌ Does NOT appear on Subcategory headers (SC, Sc, sc)
+**LOCKED**: Compact identifiers (e.g., `M-Sc1`) may repeat across different branches.
 
-**Action**: Creates note in that sub-level location
+**Rationale**: Permanent internal IDs (`cat-uuid-001`) uniquely identify categories. Compact identifiers are display references only, shown with sufficient context (breadcrumbs, full paths) to distinguish duplicates.
+
+**Implementation Requirement**: All operations (move, delete, rename, query) MUST use permanent IDs, never compact identifiers.
+
+---
+
+### 1.2 Hierarchy Depth
+
+**LOCKED**: Hierarchy nesting must be unlimited architecturally.
+
+**Rationale**: System must support any depth. No artificial limits imposed.
+
+**Clarification**: `l4,078` means ordinary sub-level **number** 4,078 (comma is thousands separator), not 4,078 levels of nesting depth.
+
+---
+
+### 1.3 Empty Category Visibility
+
+**LOCKED**: Empty categories must always remain visible.
+
+**Rationale**: Users see complete organizational structure. "Create note here" works before notes exist. Categories aren't hidden just because they're empty.
+
+---
+
+### 1.4 Migration Timing
+
+**LOCKED**: Migration must be explicitly initiated by the user.
+
+**Rule**: Never silently run at first application load. Never automatic. User decides when to migrate.
+
+**Version 3.3 Enhancement**: Migration accessible via prominent non-blocking banner AND permanent Settings entry (see Section 6.1).
+
+---
+
+### 1.5 Button Definitions
+
+**LOCKED**: 
+- **Green Plus**: Creates category branches (appears on M, SC, Sc, l)
+- **Blue Plus**: Creates notes (appears ONLY on ordinary sub-levels, NOT on category headers)
 
 **Rationale**: Notes belong IN sub-levels, not directly in category headers.
 
-**Example UI**:
-```
-Kitchen (M) [🟢]  ← No blue (category header)
-├─ L1: Utensils [🟢] [🔵]  ← Both buttons
-├─ L2: Appliances [🟢] [🔵]
-├─ L3: Recipes [🟢] [🔵]
-│  ├─ L4: Desserts [🟢] [🔵]
-│  └─ L3 M1: Baking [🟢]  ← No blue (category header)
-│     ├─ L1: Breads [🟢] [🔵]  ← Both buttons
-│     └─ L2: Cakes [🟢] [🔵]
-└─ M-SC1: Pantry [🟢]  ← No blue (category header)
-   ├─ L1: Canned [🟢] [🔵]
-   └─ SC1-Sc1: Dry Goods [🟢]  ← No blue (category header)
-```
+---
 
-**Pattern**:
-- Category headers (M, SC, Sc): Green only
-- Sub-levels (L1-L∞): Green + Blue
+### 1.6 Type Code Definitions
+
+**LOCKED**: M, SC, Sc, l, and B retain their approved meanings and exact capitalization.
+
+| Symbol | Meaning | Parent Type | Capitalization Rule |
+|--------|---------|-------------|---------------------|
+| M | Main Category | (root) | Always capital |
+| SC | Subcategory beneath Main | M (or B) | Capital C |
+| Sc | Subcategory beneath Subcategory | SC or Sc | Lowercase c |
+| l | Ordinary sub-level | Any | Lowercase l |
+| B | Branch beneath sub-level | M | Capital B |
+
+**Never**: Convert SC ↔ Sc, normalize capitalization, or treat as equivalent.
 
 ---
 
-### 1.2 Single Source of Truth (CORRECTED)
+### 1.7 Primary Note-Category Association
 
-#### Primary Relationship: category_node_id
+**LOCKED**: `category_node_id` is the ONLY stored relationship between notes and categories.
 
-**Note Structure**:
+**Rule**: 
+- Notes discovered by querying `WHERE category_node_id = X`
+- NO `note_ids` arrays in categories (avoids sync issues)
+- Legacy fields preserved but NOT used as source of truth (see Section 2)
+
+**Source of Truth Hierarchy**:
+1. **Primary**: `category_node_id` (permanent ID)
+2. **Structure**: Category `parent_id` chains (complete hierarchy)
+3. **Display**: Generated on-demand from tree traversal
+4. **Legacy**: Frozen snapshot from migration (read-only, see Section 2)
+
+---
+
+### 1.8 Styling & Animations
+
+**LOCKED**: Preserve all existing approved styling conventions, colors, and animations.
+
+- Green Plus: Existing approved green from theme
+- Blue Plus: Existing approved blue from theme, same size/style as green
+- Animations: Reuse existing animations for new features
+- No CSS redesign
+
+---
+
+### 1.9 Additional Locked Decisions
+
+**From Version 3.2** (See original sections for details):
+- ✅ Branch counters: Per-parent scoping
+- ✅ Sub-level accordion transformation: Only when branch created
+- ✅ Category deletion: Block until contents relocated
+- ✅ Search scope: Include everything (categories, branches, notes)
+- ✅ Migration preservation: All existing data preserved (ZERO DATA LOSS)
+- ✅ Rollback window: 7 days minimum + downloadable backup forever
+- ✅ Conflict resolution: Flag for review, never auto-resolve
+
+**These decisions are closed and will not be reopened.**
+
+---
+
+## 📦 SECTION 2: LEGACY FIELD STRATEGY (VERSION 3.3)
+
+### APPROVED: HYBRID FOUR-PHASE APPROACH WITH SAFEGUARDS
+
+---
+
+### 2.1 Legacy Fields Definition
+
+The existing note fields are:
+- `category` (string)
+- `subcategory` (string)
+- `category_path` (array of strings)
+
+**Current Purpose**: Compatibility with pre-migration code and display.
+
+**Future Status**: Read-only snapshots, eventually eligible for removal.
+
+---
+
+### 2.2 Phase 1 — Migration (Immediate)
+
+**Actions**:
+1. ✅ Retain all three legacy fields during migration
+2. ✅ Populate with existing category information
+3. ✅ Mark as **frozen snapshots** of original category information
+4. ❌ DO NOT delete or overwrite them
+
+**Field Status After Migration**:
 ```javascript
 {
   id: "note-123",
   title: "Sourdough Recipe",
   
   // PRIMARY RELATIONSHIP (Single source of truth)
-  category_node_id: "cat-baking-l1-breads",
+  category_node_id: "cat-baking-l1-breads",  // ACTIVE, ALWAYS CURRENT
   
-  // DISPLAY PATH (Derived from category_node_id, not stored)
-  // Generated on-demand by traversing tree from category_node_id
-  
-  // LEGACY FIELDS (For compatibility only)
-  category: "Kitchen",  // Keep for old code
-  subcategory: "Recipes",  // Keep for old code
-  category_path: ["Kitchen", "Recipes", "Baking", "Breads"]  // Keep for display
+  // LEGACY FIELDS (Frozen snapshot from migration)
+  category: "Kitchen",                        // READ-ONLY, FROZEN
+  subcategory: "Recipes",                     // READ-ONLY, FROZEN
+  category_path: ["Kitchen", "Recipes",      // READ-ONLY, FROZEN
+                  "Baking", "Breads"]
 }
 ```
 
-**Key Points**:
-- ✅ `category_node_id` is ONLY stored relationship
-- ✅ `category_path` kept for display/compatibility but NOT source of truth
-- ❌ NO duplicate `note_ids` arrays in categories (avoids sync issues)
-- ✅ Notes discovered by querying: `WHERE category_node_id = X`
-
-**Why this approach**:
-- Single point of update (change note's category = change category_node_id only)
-- No synchronization bugs (no dual-write to maintain)
-- Legacy fields preserved for backward compatibility
-- Display path generated on-demand from tree traversal
-
----
-
-#### Category Structure (Enhanced with Capitalization Rules)
-
+**Migration Algorithm**:
 ```javascript
-{
-  "Pantry": {
-    id: "cat-pantry",
-    name: "Pantry",
-    type: "SC",  // Capital C = directly beneath Main
-    
-    // IDENTIFIERS
-    identifier: "M-SC1",  // Compact identifier
-    full_identifier: "M-SC1",  // Same as compact (no intermediate levels)
-    
-    // PARENT RELATIONSHIP
-    parent_id: "cat-kitchen",
-    parent_type: "M",  // Parent is Main Category
-    
-    // ANCESTRY (complete chain, reconstructable)
-    ancestry_ids: ["cat-kitchen", "cat-pantry"],
-    
-    // NO note_ids ARRAY (notes found by querying category_node_id)
-    
-    // SUB-LEVEL TRACKING
-    sub_levels: {
-      "l1": ["Canned", "Dry Goods"],  // Lowercase 'l'
-      "l2": ["Spices"]
-    },
-    
-    // RECURSIVE BRANCHES
-    category_branches: {
-      "Sc1": {  // Lowercase 'c' = beneath another Subcategory
-        id: "cat-canned",
-        name: "Canned Goods",
-        type: "Sc",
-        identifier: "M-Sc1",  // Compact
-        full_identifier: "M-SC1-Sc1",  // Full shows SC1 parent
-        parent_id: "cat-pantry",
-        parent_type: "SC"
-      }
-    },
-    level_branches: {
-      "l1": { "M1": { ... } }
-    }
-  }
-}
-```
-
-**Nested Subcategory Example**:
-```javascript
-{
-  "Canned Goods": {
-    id: "cat-canned",
-    name: "Canned Goods",
-    type: "Sc",  // Lowercase 'c' = parent is another Subcategory
-    
-    // IDENTIFIERS
-    identifier: "M-Sc1",  // Compact (omits intermediate SC1)
-    full_identifier: "M-SC1-Sc1",  // Full path shows SC1
-    
-    // PARENT
-    parent_id: "cat-pantry",  // Parent is SC1 (Pantry)
-    parent_type: "SC",
-    
-    // ANCESTRY
-    ancestry_ids: ["cat-kitchen", "cat-pantry", "cat-canned"],
-    
-    // Further nesting possible
-    category_branches: {
-      "Sc1": {  // Still "Sc" (parent is Sc)
-        id: "cat-soups",
-        name: "Soups",
-        type: "Sc",
-        identifier: "M-Sc1",  // Compact (counter scoped to parent)
-        full_identifier: "M-SC1-Sc1-Sc1",  // Full shows complete path
-        parent_id: "cat-canned",
-        parent_type: "Sc"
-      }
-    }
-  }
-}
-```
-
-**Key Fields**:
-- `type`: "M", "SC" (capital), "Sc" (lowercase), or "l" (lowercase)
-- `identifier`: Compact reference (can omit intermediates)
-- `full_identifier`: Complete hierarchy path
-- `parent_id`: Source of truth for immediate parent
-- `parent_type`: Validates correct type usage
-- `ancestry_ids`: Complete chain (reconstructable from parent_id)
-
-**Key Change**: Removed `note_ids` array from categories. Notes discovered by:
-
-```javascript
-// Get all notes in "Baking" category
-const notes = await getAllNotes().filter(n => n.category_node_id === "cat-baking");
-```
-
-**Benefits**:
-- No synchronization required
-- Single update point
-- No stale arrays
-- Simpler logic
-
----
-
-### 1.3 Identifier Conventions (REVISED - CAPITALIZATION RULES)
-
-**CRITICAL**: Capitalization is structurally significant and must be preserved exactly.
-
----
-
-#### Capitalization Defines Hierarchy Type
-
-**Uppercase vs. Lowercase Distinguishes Relationships**:
-
-| Identifier | Meaning | Parent Type |
-|-----------|---------|-------------|
-| **M** | Main Category | (root level) |
-| **SC** | Subcategory DIRECTLY beneath Main Category | Main Category |
-| **Sc** | Subcategory beneath ANOTHER Subcategory | Subcategory (SC or Sc) |
-| **l** | Ordinary sub-level | Any category |
-
-**Key Distinction**:
-- `SC` (capital C) = First-level subcategory (parent is Main Category)
-- `Sc` (lowercase c) = Nested subcategory (parent is another Subcategory)
-- These are **structurally different** and MUST NOT be normalized or converted
-
----
-
-#### Example A: M-SC45-l4
-
-**Full Hierarchy**:
-```
-Main Category (M)
-└─ Subcategory 45 (SC45) ← DIRECTLY beneath Main
-   └─ Sub-level 4 (l4)
-```
-
-**Identifier**: `M-SC45-l4`
-
-**Interpretation**:
-- `M` = Main Category
-- `SC45` = 45th subcategory directly beneath this Main Category
-- `l4` = Ordinary sub-level 4
-
-**Parent Relationship**: SC45's immediate parent is M
-
----
-
-#### Example B: M-Sc45-l4
-
-**Full Hierarchy** (actual data structure):
-```
-Main Category (M)
-└─ Subcategory 1 (SC1) ← DIRECTLY beneath Main
-   └─ Subcategory 45 (Sc45) ← Beneath SC1 (another Subcategory)
-      └─ Sub-level 4 (l4)
-```
-
-**Compact Identifier**: `M-Sc45-l4`
-
-**Interpretation**:
-- `M` = Main Category (shown)
-- `Sc45` = 45th nested subcategory somewhere in this Main's tree
-- `l4` = Ordinary sub-level 4
-
-**Important**: The compact identifier **omits** SC1 for brevity, but the **actual data structure** must maintain the complete chain: M → SC1 → Sc45 → l4
-
-**Parent Relationship**: Sc45's immediate parent is another Subcategory (SC1 in this case)
-
----
-
-#### Distinction: SC vs. Sc
-
-**SC (capital C)**:
-```javascript
-{
-  id: "cat-sc1",
-  name: "Pantry",
-  type: "SC",
-  identifier: "M-SC1",
-  parent_id: "cat-main-kitchen",  // Parent is Main Category
-  parent_type: "M"
-}
-```
-
-**Sc (lowercase c)**:
-```javascript
-{
-  id: "cat-sc45",
-  name: "Canned Goods",
-  type: "Sc",
-  identifier: "M-Sc45",  // Compact (omits intermediate SC)
-  full_identifier: "M-SC1-Sc45",  // Complete path
-  parent_id: "cat-sc1",  // Parent is SC1 (another Subcategory)
-  parent_type: "SC"
-}
-```
-
-**Never**:
-- ❌ Convert `SC` to `Sc` or vice versa
-- ❌ Normalize capitalization
-- ❌ Treat them as equivalent
-- ❌ Discard the distinction
-
----
-
-#### Complete Identifier Format Table
-
-| Structure | Type Code | Compact Identifier | Full Identifier | Parent Type |
-|-----------|-----------|-------------------|----------------|-------------|
-| Main Category | M | M | M | (root) |
-| Sub directly beneath Main | SC | M-SC{n} | M-SC{n} | M |
-| Sub beneath another Sub | Sc | M-Sc{n} | M-SC{x}-Sc{n} | SC or Sc |
-| Sub beneath nested Sub | Sc | M-Sc{n} | M-SC{x}-Sc{y}-Sc{n} | Sc |
-| Branch beneath L{n} | M | L{n} M{m} | L{n} M{m} | Sub-level |
-| Sub beneath L{n} branch | SC | L{n} M{m}-SC{k} | L{n} M{m}-SC{k} | M (branch) |
-| Ordinary sub-level | l | l{n} | l{n} | Any |
-
-**Examples with Full Hierarchy**:
-
-**Example 1: Two-Level Subcategories**
-```
-Main: Kitchen (M)
-├─ Pantry (SC1) ← First level sub
-   └─ Canned (Sc1) ← Nested sub
-```
-
-Identifiers:
-- Kitchen: `M`
-- Pantry: `M-SC1` (compact = full, parent is M)
-- Canned: `M-Sc1` (compact) or `M-SC1-Sc1` (full, parent is SC1)
-
-**Example 2: Three-Level Subcategories**
-```
-Main: Kitchen (M)
-├─ Pantry (SC1)
-   ├─ Canned (Sc1)
-      └─ Soups (Sc2)
-```
-
-Identifiers:
-- Kitchen: `M`
-- Pantry: `M-SC1`
-- Canned: `M-Sc1` (compact) or `M-SC1-Sc1` (full)
-- Soups: `M-Sc2` (compact) or `M-SC1-Sc1-Sc2` (full)
-
-**Example 3: Branch Beneath Sub-Level**
-```
-Main: Kitchen (M)
-├─ l3: Recipes (ordinary sub-level)
-   └─ l3 M1: Baking (branch beneath l3)
-      └─ SC1: Breads (sub beneath branch)
-         └─ Sc1: Sourdough (nested sub)
-```
-
-Identifiers:
-- Kitchen: `M`
-- Recipes: `l3`
-- Baking: `l3 M1`
-- Breads: `l3 M1-SC1`
-- Sourdough: `l3 M1-Sc1` (compact) or `l3 M1-SC1-Sc1` (full)
-
----
-
-#### Counter Scoping Rules
-
-**Per-Parent Counters** (already decided):
-
-**SC Counter** (capital C):
-- Scoped to each Main Category
-- Kitchen has: M-SC1, M-SC2, M-SC3
-- Garden has: M-SC1, M-SC2 (independent counter)
-
-**Sc Counter** (lowercase c):
-- Scoped to each parent Subcategory
-- SC1 has: Sc1, Sc2, Sc3
-- SC2 has: Sc1, Sc2 (independent counter)
-- Sc1 can have its own: Sc1, Sc2 (nested)
-
-**Example**:
-```
-Kitchen (M)
-├─ SC1: Pantry
-│  ├─ Sc1: Canned ← First Sc beneath SC1
-│  │  └─ Sc1: Soups ← First Sc beneath Sc1 (different parent)
-│  └─ Sc2: Dry ← Second Sc beneath SC1
-└─ SC2: Storage
-   └─ Sc1: Tools ← First Sc beneath SC2 (independent counter)
-```
-
-Compact identifiers:
-- Pantry: M-SC1
-- Canned: M-Sc1 (45th would be M-Sc45)
-- Soups: M-Sc1 (within Canned's scope)
-- Dry: M-Sc2
-- Storage: M-SC2
-- Tools: M-Sc1 (within Storage's scope)
-
----
-
-#### Compact vs. Full Identifiers
-
-**Compact Identifier** (for display/reference):
-- `M-Sc45-l4,078`
-- Omits intermediate categories for brevity
-- Quick reference/addressing
-- **NOT** the sole source of truth
-
-**Full Identifier** (internal, for complete path):
-- `M-SC12-Sc8-Sc45-l4,078`
-- Shows every intermediate category
-- Complete parent-child chain
-- Stored in data structure
-
-**Data Structure Requirements**:
-
-```javascript
-{
-  id: "cat-sc45",
-  name: "Specific Item",
-  type: "Sc",
+async function migrateNote(note) {
+  // 1. Determine category_node_id from category_path
+  const categoryId = resolveCategoryId(note.category_path);
   
-  // Compact identifier (for reference)
-  identifier: "M-Sc45-l4",
+  // 2. ADD new field (primary relationship)
+  note.category_node_id = categoryId;
   
-  // Full identifier (complete path)
-  full_identifier: "M-SC12-Sc8-Sc45-l4",
+  // 3. PRESERVE legacy fields (do not modify)
+  // note.category remains unchanged
+  // note.subcategory remains unchanged
+  // note.category_path remains unchanged
   
-  // Actual parent-child chain (source of truth)
-  parent_id: "cat-sc8",  // Immediate parent
-  parent_type: "Sc",
+  // 4. Mark migration timestamp
+  note.migration_timestamp = new Date().toISOString();
   
-  // Complete ancestry (reconstructable from parent_id chain)
-  ancestry_ids: ["cat-main", "cat-sc12", "cat-sc8", "cat-sc45"]
+  await saveNote(note);
 }
 ```
 
-**Critical Rules**:
-1. ✅ Compact identifier used for display and quick reference
-2. ✅ Full identifier shows complete hierarchy
-3. ✅ `parent_id` chain is source of truth for relationships
-4. ❌ Never use compact identifier as sole data structure
-5. ❌ Never bypass intermediate nodes in actual data
-6. ✅ Complete hierarchy always recoverable from `parent_id` traversal
-
 ---
 
-#### Validation Rules
+### 2.3 Phase 2 — Compatibility Period (12 Months Minimum)
 
-**On Category Creation**:
+**Duration**: At least 12 months from migration completion.
+
+**Field Behavior**:
+- ✅ Legacy fields remain in database (frozen snapshot)
+- ✅ New application functionality MUST use:
+  - `category_node_id` for all category operations
+  - Permanent category IDs for all queries
+  - Complete category parent-child structure for hierarchy
+- ❌ Legacy fields MUST NOT become a competing source of truth
+- ❌ New code MUST NOT update legacy fields on category changes
+
+**Example: Note Move Operation**:
 ```javascript
-function validateIdentifier(category) {
-  // 1. Check capitalization preserved
-  if (category.type === "SC" && category.parent_type !== "M") {
-    throw new Error("SC must have Main Category as parent");
+// ✅ CORRECT: Update only category_node_id
+async function moveNote(noteId, newCategoryId) {
+  const note = await getNote(noteId);
+  
+  // Update primary relationship
+  note.category_node_id = newCategoryId;
+  
+  // Legacy fields NOT updated (remain frozen)
+  // note.category_path still shows original location
+  
+  await saveNote(note);
+}
+
+// ❌ WRONG: Attempting to synchronize legacy fields
+async function moveNoteWrong(noteId, newCategoryId) {
+  const note = await getNote(noteId);
+  
+  note.category_node_id = newCategoryId;
+  
+  // DO NOT DO THIS:
+  const newPath = getCategoryPath(newCategoryId);
+  note.category = newPath[0];
+  note.subcategory = newPath[1];
+  note.category_path = newPath;  // ❌ Creates competing source of truth
+}
+```
+
+**Display Current Category**:
+```javascript
+// Always generate display path from category_node_id
+function getNoteCategoryDisplay(note) {
+  if (note.category_node_id) {
+    // Traverse tree from primary relationship
+    return getCategoryPath(note.category_node_id);
   }
   
-  if (category.type === "Sc" && !["SC", "Sc"].includes(category.parent_type)) {
-    throw new Error("Sc must have Subcategory as parent");
-  }
-  
-  // 2. Verify parent_id exists and matches parent_type
-  const parent = await getCategoryById(category.parent_id);
-  if (!parent || parent.type !== category.parent_type) {
-    throw new Error("Parent type mismatch");
-  }
-  
-  // 3. Generate both compact and full identifiers
-  category.identifier = generateCompactIdentifier(category);
-  category.full_identifier = generateFullIdentifier(category);
-  
-  // 4. Verify full hierarchy chain intact
-  const ancestry = await getAncestry(category.parent_id);
-  if (!ancestry || ancestry.length === 0) {
-    throw new Error("Broken ancestry chain");
-  }
+  // Fallback for uncategorized notes
+  return [];
+}
+
+// ❌ WRONG: Using frozen legacy fields for display
+function getNoteCategoryDisplayWrong(note) {
+  return note.category_path;  // Shows outdated frozen snapshot!
 }
 ```
 
-**On Identifier Display**:
+**Rationale**: Legacy fields serve as archival snapshots of pre-migration category assignments. They are NOT maintained after migration. New code must use the tree-based system exclusively.
+
+---
+
+### 2.4 Phase 3 — Deprecation Review (After 6-12 Months)
+
+**Actions**:
+1. ✅ Document any remaining dependencies on legacy fields
+2. ✅ Investigate whether any existing feature still reads these fields
+3. ✅ Document consequences of retaining frozen snapshots
+4. ✅ Verify all application functionality uses `category_node_id`
+5. ❌ DO NOT allow active functionality to rely on outdated legacy snapshots
+
+**Deprecation Warning UI** (after 6+ months):
+```
+╔═══════════════════════════════════════════╗
+║  📋 LEGACY CATEGORY FIELDS                ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Your notes contain legacy category       ║
+║  fields that may be removed in future.    ║
+║                                           ║
+║  Legacy fields: category, subcategory,    ║
+║                 category_path             ║
+║                                           ║
+║  Status: Frozen snapshots from migration  ║
+║  Not used by current functionality        ║
+║                                           ║
+║  ACTION: Download full backup             ║
+║  [Download Backup Now]                    ║
+║                                           ║
+║               [Dismiss]                   ║
+╚═══════════════════════════════════════════╝
+```
+
+**Code Audit Checklist**:
+- [ ] Search all code for `note.category`
+- [ ] Search all code for `note.subcategory`
+- [ ] Search all code for `note.category_path`
+- [ ] Verify each usage is display-only or can be replaced
+- [ ] Confirm no functionality depends on frozen snapshots
+
+---
+
+### 2.5 Phase 4 — Possible Future Removal (After 12+ Months)
+
+**IMPORTANT**: Twelve months does NOT mean automatic deletion.
+
+**Eligibility**: After at least 12 months, fields MAY become eligible for a separate removal review.
+
+**Removal Requirements** (ALL must be met):
+1. ✅ Explicit user approval for field removal
+2. ✅ Verified independent downloadable backup created
+3. ✅ Successful validation of all note-category associations
+4. ✅ Confirmation that no active functionality depends on legacy fields
+5. ✅ Documented recovery strategy if removal causes issues
+6. ✅ Pre-removal validation passes (see below)
+
+**NO FIELD REMOVAL IS AUTHORIZED BY THIS SPECIFICATION**.
+
+Future removal requires separate user authorization.
+
+---
+
+### 2.6 Pre-Removal Validation (If Ever Proposed)
+
+**Validation Script**:
 ```javascript
-// Use compact identifier for UI
-function displayCategory(category) {
-  return category.identifier;  // "M-Sc45-l4"
-}
-
-// Use full identifier for debugging/admin
-function displayFullPath(category) {
-  return category.full_identifier;  // "M-SC12-Sc8-Sc45-l4"
-}
-
-// Reconstruct complete hierarchy from data
-function getCompletePath(category) {
-  const path = [];
-  let current = category;
-  while (current) {
-    path.unshift(current);
-    current = await getCategoryById(current.parent_id);
-  }
-  return path;  // [M, SC12, Sc8, Sc45, l4]
-}
-```
-
----
-
-#### Migration Implications
-
-**During Migration**:
-1. Analyze each category's immediate parent
-2. Assign type based on parent:
-   - Parent is Main → type = "SC"
-   - Parent is SC or Sc → type = "Sc"
-3. Generate compact identifier
-4. Generate full identifier
-5. Preserve complete `parent_id` chain
-6. Verify ancestry reconstructable
-
-**Example Migration Logic**:
-```javascript
-function assignCategoryType(category) {
-  if (!category.parent_id) {
-    return "M";  // Root level
-  }
-  
-  const parent = getCategoryById(category.parent_id);
-  
-  if (parent.type === "M") {
-    return "SC";  // Directly beneath Main
-  }
-  
-  if (parent.type === "SC" || parent.type === "Sc") {
-    return "Sc";  // Beneath another Subcategory
-  }
-  
-  throw new Error(`Unknown parent type: ${parent.type}`);
-}
-```
-
----
-
-#### Summary of Capitalization Rules
-
-| Symbol | Meaning | Parent Must Be | Example |
-|--------|---------|---------------|---------|
-| M | Main Category | (none - root) | Kitchen |
-| SC | Subcategory | M (Main) | M-SC1: Pantry |
-| Sc | Nested Subcategory | SC or Sc | M-Sc1: Canned |
-| l | Ordinary sub-level | Any category | l4 |
-
-**Mandatory**:
-- Preserve exact capitalization in all identifiers
-- Never normalize or convert SC ↔ Sc
-- Distinguish them in all code, validation, and display
-- Use parent_type to verify correctness
-- Maintain complete hierarchy in data regardless of compact identifier
-
----
-
-### 1.4 Branch Counters (DECIDED)
-
-**Per-parent counters** (NOT global)
-
-**Example**:
-```
-Kitchen (M)
-├─ M-SC1: Pantry
-├─ M-SC2: Storage
-└─ M-SC3: Garage
-
-Garden (M)
-├─ M-SC1: Tools  ← Counter resets per parent
-└─ M-SC2: Plants
-```
-
-Each parent has independent counter sequence.
-
----
-
-### 1.5 Sub-Level Accordion Transformation (DECIDED)
-
-**Timing**: Only when category branch created beneath sub-level
-
-**Before** (L3 has no branches):
-```
-├─ L3: Recipes
-   ├─ L4: Desserts
-   └─ L5: Mains
-```
-L3 is plain text, not accordion.
-
-**After** (User creates L3 M1):
-```
-├─ L3: Recipes 🔽  ← NOW becomes accordion
-   ├─ L4: Desserts
-   ├─ L5: Mains
-   └─ L3 M1: Baking  ← Branch triggers transformation
-```
-
-**Detection Logic**:
-```javascript
-
-### 1.3 Category Renaming (DECIDED)
-
-**Rule**: Preserve existing approved editing behavior
-
-**No New Interface**: Do NOT introduce:
-- ❌ New modal for renaming
-- ❌ New right-click menu
-- ❌ Redesigned editing flow
-- ❌ Different interaction patterns
-
-**Use Existing**: Leverage current renaming mechanism
-- ✅ If categories currently renamed via inline edit → keep inline edit
-- ✅ If categories currently renamed via existing modal → keep existing modal
-- ✅ Whatever interaction pattern exists today → preserve it exactly
-
-**Enhanced Backend Only**:
-When rename happens (via existing UI):
-1. Category ID remains unchanged (stability)
-2. Category name updated in tree
-3. All notes' display paths regenerated from tree
-4. Notes' `category_node_id` unchanged (still linked correctly)
-
-
----
-
-### 1.3.1 Compact Identifier Uniqueness (CRITICAL CLARIFICATION)
-
-**Issue**: Compact identifiers can repeat across different parents
-
-**Example from Section 1.3**:
-```
-Kitchen (M)
-├─ SC1: Pantry
-│  ├─ Sc1: Canned     ← Compact: M-Sc1
-│  │  └─ Sc1: Soups   ← Compact: M-Sc1 (same as Canned!)
-│  └─ Sc2: Dry Goods
-└─ SC2: Storage
-   └─ Sc1: Tools      ← Compact: M-Sc1 (same as Canned!)
-```
-
-**CRITICAL**: Compact identifiers `M-Sc1` appears THREE times with different meanings.
-
----
-
-#### Permanent IDs are Source of Truth
-
-**Every category has a unique permanent ID**:
-
-```javascript
-{
-  id: "cat-canned-goods-uuid-001",  // UNIQUE PERMANENT ID
-  name: "Canned",
-  identifier: "M-Sc1",  // Display reference (NOT unique)
-  full_identifier: "M-SC1-Sc1"
-}
-
-{
-  id: "cat-soups-uuid-002",  // DIFFERENT UNIQUE ID
-  name: "Soups",
-  identifier: "M-Sc1",  // Same display reference (OK)
-  full_identifier: "M-SC1-Sc1-Sc1"
-}
-
-{
-  id: "cat-tools-uuid-003",  // DIFFERENT UNIQUE ID
-  name: "Tools",
-  identifier: "M-Sc1",  // Same display reference (OK)
-  full_identifier: "M-SC2-Sc1"
-}
-```
-
-**Rules**:
-1. ✅ `id` field is UNIQUE across entire system
-2. ✅ `id` never changes (stable across renames, moves)
-3. ✅ `parent_id` establishes hierarchy (source of truth)
-4. ⚠️ `identifier` (compact) can repeat (display only)
-5. ✅ `full_identifier` shows complete path (more unique, but still not ID)
-
----
-
-#### Compact Identifiers Are Display References Only
-
-**Purpose**: Brevity in UI labels, breadcrumbs, compact addressing
-
-**NOT for**:
-- ❌ Locating categories in database
-- ❌ Retrieving category data
-- ❌ Moving categories
-- ❌ Renaming categories
-- ❌ Associating notes with categories
-- ❌ Any operation requiring unique identification
-
-**Only for**:
-- ✅ Display in UI
-- ✅ Breadcrumb trails
-- ✅ Quick visual reference
-- ✅ Human-readable labels
-
----
-
-#### Notes Use Permanent IDs
-
-**Note Structure**:
-```javascript
-{
-  id: "note-123",
-  title: "Sourdough Recipe",
-  
-  // PRIMARY LINK (permanent ID)
-  category_node_id: "cat-soups-uuid-002",  // Links to Soups
-  
-  // DISPLAY PATH (generated from ID traversal)
-  category_path: ["Kitchen", "Pantry", "Canned", "Soups"],
-  
-  // NOT STORED: compact identifier
-  // Generated on-demand for display only
-}
-```
-
-**Critical**: `category_node_id` uses permanent ID, NEVER compact identifier.
-
----
-
-#### UI Distinguishes Identical Compact Identifiers
-
-**Problem**: Three categories with `M-Sc1` identifier in different branches
-
-**Solution 1: Full Path Context** (Recommended)
-
-Display full path alongside compact identifier:
-
-```
-UI Display:
-┌─────────────────────────────────────┐
-│ M-Sc1: Canned                       │
-│ Path: Kitchen → Pantry → Canned     │
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│ M-Sc1: Soups                        │
-│ Path: Kitchen → Pantry → Canned →   │
-│       Soups                          │
-└─────────────────────────────────────┘
-
-┌─────────────────────────────────────┐
-│ M-Sc1: Tools                        │
-│ Path: Kitchen → Storage → Tools     │
-└─────────────────────────────────────┘
-```
-
----
-
-**Solution 2: Hierarchical Context** (Breadcrumb)
-
-Show parent context in breadcrumb:
-
-```
-Kitchen > Pantry > M-Sc1: Canned
-Kitchen > Pantry > Canned > M-Sc1: Soups
-Kitchen > Storage > M-Sc1: Tools
-```
-
----
-
-**Solution 3: Expand on Hover** (Interactive)
-
-```
-Compact view:
-  M-Sc1: Canned
-
-Hover/expand:
-  M-SC1-Sc1: Canned
-  (Kitchen → Pantry → Canned)
-```
-
----
-
-**Solution 4: Always Show Full Identifier** (Verbose but Unambiguous)
-
-```
-M-SC1-Sc1: Canned
-M-SC1-Sc1-Sc1: Soups
-M-SC2-Sc1: Tools
-```
-
-**Trade-off**: No ambiguity, but loses compactness
-
----
-
-#### Internal Operations Use IDs
-
-**Locate Category**:
-```javascript
-// CORRECT: Use permanent ID
-const category = await getCategoryById("cat-soups-uuid-002");
-
-// WRONG: Use compact identifier (ambiguous)
-const category = await getCategoryByIdentifier("M-Sc1");  // Which one??
-```
-
-**Move Category**:
-```javascript
-// CORRECT: Use IDs
-await moveCategory(
-
-
----
-
-### 1.3.2 Categories Created Beneath Ordinary Sub-Levels (APPROVED)
-
-**Issue**: Version 3.1 defines M, SC, Sc, and l, but does not adequately specify what happens when a category branch is created beneath an ordinary sub-level.
-
-**Example Scenario**:
-```
-Kitchen (M)
-├─ l1: Utensils
-│  ├─ l2: Cooking Utensils
-│  │  ├─ l3: Wooden Spoons
-│  │  │  └─ [USER CLICKS GREEN PLUS HERE]
-│  │  │     → Creates new category branch
-```
-
----
-
-#### APPROVED: Branch Designation "B"
-
-**Decision**: Use `B` to designate category branches beneath ordinary sub-levels
-
-**Type Designation**: When branch created beneath sub-level:
-- Type: `B` (Branch)
-- Identifier format: `l{n}-B{m}`
-- Counter: `B{m}` (Branch counter, scoped to that level)
-
-**Format**: `l{n}-B{m}`
-
-**Key**: 
-- `M` remains reserved for Main Category only
-- `B` designates branches beneath ordinary sub-levels
-- Hyphen connects level to branch counter
-
----
-
-#### Example: Branch Beneath l3
-
-**Hierarchy**:
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         └─ l3-B1: Premium Collection ← NEW BRANCH
-```
-
-**Data Structure**:
-```javascript
-{
-  id: "cat-premium-uuid-001",
-  name: "Premium Collection",
-  type: "B",  // Branch beneath ordinary sub-level
-  
-  // IDENTIFIERS
-  identifier: "l3-B1",  // Compact
-  full_identifier: "l3-B1",  // Same (no omitted intermediates)
-  
-  // PARENT RELATIONSHIP
-  parent_id: "cat-kitchen-uuid",  // Parent is Kitchen (M)
-  parent_type: "M",
-  parent_level: "l3",  // Attached beneath l3
-  parent_level_name: "Wooden Spoons",
-  
-  // This branch can have its own hierarchy
-  category_branches: { ... },
-  sub_levels: { ... }
-}
-```
-
-**Key Points**:
-- ✅ Type is "B" (Branch)
-- ✅ Identifier shows which level it's beneath: `l3-B1`
-- ✅ Counter `B1` is scoped to l3 (first branch beneath l3)
-- ✅ Can have its own subcategories and sub-levels
-- ✅ M reserved for Main Category only
-
----
-
-#### Subcategories Beneath Branch
-
-**When Subcategory created beneath `l3-B1`**:
-
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         └─ l3-B1: Premium Collection
-            └─ SC1: Artisan Spoons ← Subcategory beneath l3-B1
-```
-
-**Data Structure**:
-```javascript
-{
-  id: "cat-artisan-uuid-002",
-  name: "Artisan Spoons",
-  type: "SC",  // Subcategory directly beneath Branch
-  
-  // IDENTIFIERS
-  identifier: "l3-B1-SC1",  // Compact
-  full_identifier: "l3-B1-SC1",  // Full
-  
-  // PARENT
-  parent_id: "cat-premium-uuid-001",  // Parent is l3-B1
-  parent_type: "B"
-}
-```
-
-**Pattern**: `l3-B1-SC1` (shows branch location and subcategory)
-
----
-
-#### Nested Subcategories Beneath Branch
-
-**Further nesting**:
-
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         └─ l3-B1: Premium Collection
-            └─ SC1: Artisan Spoons
-               └─ Sc1: Handcrafted ← Nested subcategory
-```
-
-**Data Structure**:
-```javascript
-{
-  id: "cat-handcrafted-uuid-003",
-  name: "Handcrafted",
-  type: "Sc",  // Nested subcategory
-  
-  // IDENTIFIERS
-  identifier: "l3-B1-Sc1",  // Compact
-  full_identifier: "l3-B1-SC1-Sc1",  // Full
-  
-  // PARENT
-  parent_id: "cat-artisan-uuid-002",  // Parent is SC1
-  parent_type: "SC"
-}
-```
-
----
-
-#### Complete Identifier Format Table (UPDATED)
-
-| Structure | Type | Compact | Full | Parent |
-|-----------|------|---------|------|--------|
-| Main Category | M | M | M | (root) |
-| Sub beneath Main | SC | M-SC{n} | M-SC{n} | M |
-| Nested sub | Sc | M-Sc{n} | M-SC{x}-Sc{n} | SC or Sc |
-| Ordinary sub-level | l | l{n} | l{n} | Any |
-| **Branch at level** | **B** | **l{n}-B{m}** | **l{n}-B{m}** | **M** |
-| **Sub beneath branch** | **SC** | **l{n}-B{m}-SC{k}** | **l{n}-B{m}-SC{k}** | **B (branch)** |
-| **Nested sub in branch** | **Sc** | **l{n}-B{m}-Sc{k}** | **l{n}-B{m}-SC{x}-Sc{k}** | **SC or Sc** |
-
----
-
-#### Counter Scoping for Branch-Level Categories
-
-**B Counter** (beneath same level):
-- l3 can have: `l3-B1`, `l3-B2`, `l3-B3`
-- l4 can have: `l4-B1`, `l4-B2` (independent from l3)
-- Each level has independent Branch counter
-
-**SC Counter** (beneath same branch):
-- l3-B1 can have: `l3-B1-SC1`, `l3-B1-SC2`, `l3-B1-SC3`
-- l3-B2 can have: `l3-B2-SC1`, `l3-B2-SC2` (independent)
-- Each Branch has independent SC counter
-
-**Sc Counter** (beneath same parent):
-- l3-B1-SC1 can have: `l3-B1-Sc1`, `l3-B1-Sc2`
-- l3-B1-SC2 can have: `l3-B1-Sc1` (independent)
-- Per-parent scoping applies
-
----
-
-#### Distinguishing Sub-Levels from Category Branches
-
-**Visual Distinction in UI**:
-
-```
-Kitchen (M) [🟢]
-├─ l1: Utensils [🟢] [🔵]  ← Sub-level (both buttons)
-│  ├─ Note: "Spatula set"
-│  └─ l1-B1: Professional Set [🟢]  ← Branch (green only)
-│     └─ SC1: Chef's Collection [🟢]
-│
-├─ l2: Appliances [🟢] [🔵]  ← Sub-level
-   └─ Note: "Blender manual"
-```
-
-**Distinguishing Features**:
-
-| Type | Identifier | Green Plus | Blue Plus | Purpose |
-|------|-----------|------------|-----------|---------|
-| Ordinary sub-level | `l{n}` | ✅ | ✅ | Holds notes, can have deeper sub-levels |
-| Category branch | `l{n}-B{m}` | ✅ | ❌ | Independent hierarchy, holds subcategories |
-| Branch subcategory | `l{n}-B{m}-SC{k}` | ✅ | ❌ | Part of branch hierarchy |
-
-**Key Distinction**:
-- Sub-levels (`l1`, `l2`) = Linear note organization, blue plus available
-- Branches (`l3-B1`) = Category trees, no blue plus (notes in sub-categories or their sub-levels)
-
----
-
-#### Original Hierarchy Preservation
-
-**When branch created beneath l3**:
-
-**Before**:
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         ├─ l4: Premium
-         └─ l5: Budget
-```
-
-**User Action**: Click green plus on l3 → Create "Artisan Collection"
-
-**After**:
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons [🔽 Now has accordion]
-         ├─ l4: Premium  ← UNCHANGED (still sub-level)
-         ├─ l5: Budget   ← UNCHANGED (still sub-level)
-         └─ l3-B1: Artisan Collection [NEW BRANCH]
-```
-
-**Critical**:
-- ✅ l3 keeps name "Wooden Spoons" and "l3" designation
-- ✅ l4 and l5 remain ordinary sub-levels (unchanged)
-- ✅ l3-B1 is new independent branch
-- ✅ l3 becomes accordion head to show both sub-levels and branch
-- ❌ l4 does NOT become l5, l5 does NOT become l6
-
----
-
-#### Validation Rules for Branch-Level Categories
-
-```javascript
-function validateBranchLevelCategory(category) {
-  // 1. Verify parent is Main Category
-  const parent = await getCategoryById(category.parent_id);
-  if (parent.type !== "M") {
-    throw new Error("Branch must be created beneath Main Category");
-  }
-  
-  // 2. Verify parent_level specified
-  if (!category.parent_level || !category.parent_level.startsWith("l")) {
-    throw new Error("Branch must specify which level it's beneath");
-  }
-  
-  // 3. Generate identifier with level prefix
-  const counter = getBranchCounterAtLevel(parent.id, category.parent_level);
-  category.identifier = `${category.parent_level}-B${counter}`;
-  
-  // 4. Type is "B" (Branch)
-  category.type = "B";
-  
-  // 5. Can have own subcategories
-  category.category_branches = {};
-  category.sub_levels = {};
-}
-```
-
----
-
-#### Migration Implications for Branch-Level Categories
-
-**During Migration**:
-1. Detect categories attached to sub-levels via `parent_level` field
-2. Assign type "B" (Branch)
-3. Generate identifier: `l{n}-B{counter}`
-4. Preserve complete parent-child chain
-5. Ensure sub-level itself remains ordinary sub-level
-
-**Example**:
-```javascript
-function migrateBranchLevelCategory(category) {
-  if (category.parent_level && category.parent_level.startsWith("l")) {
-    // This is a branch beneath a sub-level
-    category.type = "B";  // Branch
-    
-    const levelNumber = category.parent_level;
-    const counter = getBranchCounterAtLevel(category.parent_id, levelNumber);
-    
-    category.identifier = `${levelNumber}-B${counter}`;
-    category.full_identifier = `${levelNumber}-B${counter}`;
-  }
-}
-```
-
----
-
-#### Summary: Category Branch Beneath Sub-Level
-
-**Designation**: `l{n}-B{m}` where:
-- `l{n}` = Sub-level number (which level it's beneath)
-- `B{m}` = Branch counter (scoped to that level)
-
-**Type**: "B" (Branch beneath ordinary sub-level)
-
-**Subcategories Beneath Branch**:
-- First level: `l{n}-B{m}-SC{k}` (type "SC")
-- Nested: `l{n}-B{m}-Sc{k}` (type "Sc")
-
-**Counter Scoping**:
-- B counter: Per sub-level (l3-B1, l3-B2, l4-B1)
-- SC counter: Per Branch (l3-B1-SC1, l3-B2-SC1)
-- Sc counter: Per parent subcategory
-
-**Distinction**:
-- Sub-levels: Have blue plus, hold notes
-- Branches: No blue plus, hold subcategories
-
-**Preservation**:
-- Original sub-levels unchanged (l4 stays l4, not renumbered)
-- Sub-level becomes accordion when branch added
-- Complete hierarchy maintained
-
----
-
-#### STATUS: APPROVED
-
-**This naming convention is APPROVED and FINAL.**
-
-**Confirmed**:
-1. ✅ B designation for branches beneath sub-levels
-2. ✅ Type "B" for branches
-3. ✅ Counter scoping per level
-4. ✅ Subcategory pattern `l{n}-B{m}-SC{k}`
-5. ✅ M reserved for Main Category only
-
----
-
-**Issue**: Version 3.1 defines M, SC, Sc, and l, but does not adequately specify what happens when a category branch is created beneath an ordinary sub-level.
-
-**Example Scenario**:
-```
-Kitchen (M)
-├─ l1: Utensils
-│  ├─ l2: Cooking Utensils
-│  │  ├─ l3: Wooden Spoons
-│  │  │  └─ [USER CLICKS GREEN PLUS HERE]
-│  │  │     → Creates new category branch
-```
-
----
-
-#### PROPOSED: Branch-Level Category Designation
-
-**Proposal**: Use existing "Branch beneath L{n}" pattern from Section 1.3
-
-**Type Designation**: When Main Category created beneath sub-level:
-- Type: `M` (Main Category branch)
-- Identifier prefix: `l{n}` (shows which level it's beneath)
-- Counter: `M{m}` (Main branch counter, scoped to that level)
-
-**Format**: `l{n} M{m}`
-
----
-
-#### Example: Category Beneath l3
-
-**Hierarchy**:
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         └─ l3 M1: Premium Collection ← NEW BRANCH
-```
-
-**Data Structure**:
-```javascript
-{
-  id: "cat-premium-uuid-001",
-  name: "Premium Collection",
-  type: "M",  // This is a Main Category (within sub-level context)
-  
-  // IDENTIFIERS
-  identifier: "l3 M1",  // Compact
-  full_identifier: "l3 M1",  // Same (no omitted intermediates)
-  
-  // PARENT RELATIONSHIP
-  parent_id: "cat-kitchen-uuid",  // Parent is Kitchen (M)
-  parent_type: "M",
-  parent_level: "l3",  // Attached beneath l3
-  parent_level_name: "Wooden Spoons",
-  
-  // This branch can have its own hierarchy
-  category_branches: { ... },
-  sub_levels: { ... }
-}
-```
-
-**Key Points**:
-- ✅ Type is "M" (Main Category, but in branch context)
-- ✅ Identifier shows which level it's beneath: `l3 M1`
-- ✅ Counter `M1` is scoped to l3 (first Main branch beneath l3)
-- ✅ Can have its own subcategories and sub-levels
-
----
-
-#### Subcategories Beneath Branch
-
-**When Subcategory created beneath `l3 M1`**:
-
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         └─ l3 M1: Premium Collection
-            └─ SC1: Artisan Spoons ← Subcategory beneath l3 M1
-```
-
-**Data Structure**:
-```javascript
-{
-  id: "cat-artisan-uuid-002",
-  name: "Artisan Spoons",
-  type: "SC",  // Subcategory directly beneath Main
-  
-  // IDENTIFIERS
-  identifier: "l3 M1-SC1",  // Compact
-  full_identifier: "l3 M1-SC1",  // Full
-  
-  // PARENT
-  parent_id: "cat-premium-uuid-001",  // Parent is l3 M1
-  parent_type: "M"
-}
-```
-
-**Pattern**: `l3 M1-SC1` (shows branch location and subcategory)
-
----
-
-#### Nested Subcategories Beneath Branch
-
-**Further nesting**:
-
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         └─ l3 M1: Premium Collection
-            └─ SC1: Artisan Spoons
-               └─ Sc1: Handcrafted ← Nested subcategory
-
-
----
-
-### 1.3.4 Complete Validation Examples (APPROVED)
-
-**This section provides complete end-to-end examples demonstrating all naming conventions.**
-
----
-
-#### Example 1: Complete Hierarchy — Main to Nested Subcategory
-
-**Full Hierarchy**:
-```
-Kitchen (M)
-└─ l3: Recipes
-   └─ l3-B1: Artisan Collection
-      └─ SC1: Breads
-         └─ Sc1: Sourdough
-```
-
-**Identifiers at Each Level**:
-
-**Kitchen (M)**:
-```javascript
-{
-  id: "cat-kitchen-uuid-001",
-  name: "Kitchen",
-  type: "M",
-  identifier: "M",
-  full_identifier: "M",
-  parent_id: null
-}
-```
-
-**Recipes (l3)**:
-```javascript
-{
-  id: "cat-recipes-uuid-002",
-  name: "Recipes",
-  type: "l",  // Ordinary sub-level
-  identifier: "l3",
-  full_identifier: "l3",
-  parent_id: "cat-kitchen-uuid-001",
-  parent_type: "M",
-  level_number: 3
-}
-```
-
-**Artisan Collection (l3-B1)**:
-```javascript
-{
-  id: "cat-artisan-uuid-003",
-  name: "Artisan Collection",
-  type: "B",  // Branch beneath sub-level
-  identifier: "l3-B1",
-  full_identifier: "l3-B1",
-  parent_id: "cat-kitchen-uuid-001",  // Parent is Kitchen
-  parent_type: "M",
-  parent_level: "l3",  // Attached beneath l3
-  parent_level_name: "Recipes"
-}
-```
-
-**Breads (l3-B1-SC1)**:
-```javascript
-{
-  id: "cat-breads-uuid-004",
-  name: "Breads",
-  type: "SC",  // Subcategory directly beneath Branch
-  identifier: "l3-B1-SC1",
-  full_identifier: "l3-B1-SC1",
-  parent_id: "cat-artisan-uuid-003",  // Parent is l3-B1
-  parent_type: "B"
-}
-```
-
-**Sourdough (l3-B1-SC1-Sc1)**:
-```javascript
-{
-  id: "cat-sourdough-uuid-005",
-  name: "Sourdough",
-  type: "Sc",  // Nested subcategory
-  identifier: "l3-B1-Sc1",  // Compact
-  full_identifier: "l3-B1-SC1-Sc1",  // Full
-  parent_id: "cat-breads-uuid-004",  // Parent is SC1
-  parent_type: "SC"
-}
-```
-
-**Complete Identifiers**:
-- Kitchen: `M`
-- Recipes: `l3`
-- Artisan Collection: `l3-B1`
-- Breads: `l3-B1-SC1`
-- Sourdough Compact: `l3-B1-Sc1`
-- Sourdough Full: `l3-B1-SC1-Sc1`
-
----
-
-#### Example 2: Deep Sub-Level Numbering
-
-**Full Hierarchy**:
-```
-Main Category (M)
-└─ Subcategory 45 (Sc45)
-   └─ l4,078: Deep Item
-```
-
-**Identifiers**:
-
-**Main Category**:
-```javascript
-{
-  id: "cat-main-uuid-001",
-  name: "Archive",
-  type: "M",
-  identifier: "M",
-  full_identifier: "M"
-}
-```
-
-**Sc45** (one of many nested subcategories):
-```javascript
-{
-  id: "cat-sc45-uuid-002",
-  name: "Historical Documents",
-  type: "Sc",
-  identifier: "M-Sc45",  // Compact
-  full_identifier: "M-SC12-Sc8-Sc45",  // Full shows intermediates
-  parent_id: "cat-sc8-uuid",
-  parent_type: "Sc"
-}
-```
-
-**l4,078** (extremely deep sub-level):
-```javascript
-{
-  id: "cat-level4078-uuid-003",
-  name: "Document 4078",
-  type: "l",
-  identifier: "l4,078",  // Comma as thousands separator
-  full_identifier: "l4,078",
-  parent_id: "cat-sc45-uuid-002",
-  parent_type: "Sc",
-  level_number: 4078
-}
-```
-
-**Complete Identifier**:
-- Compact: `M-Sc45-l4,078`
-- Full: `M-SC12-Sc8-Sc45-l4,078`
-
-**Interpretation**:
-- M = Main Category (Archive)
-- Sc45 = 45th nested subcategory (Historical Documents)
-- l4,078 = Ordinary sub-level number 4,078 (Document 4078)
-
-**Key Point**: Comma in `l4,078` is thousands separator, NOT component divider
-
----
-
-#### Example 3: Multiple Branches at Same Level
-
-**Full Hierarchy**:
-```
-Kitchen (M)
-├─ l3: Recipes
-   ├─ l3-B1: Artisan Collection
-   │  └─ SC1: Breads
-   ├─ l3-B2: Quick Meals
-   │  └─ SC1: 15-Minute Recipes
-   └─ l3-B3: International
-      └─ SC1: Italian
-```
-
-**Branch Identifiers** (all beneath l3):
-```javascript
-// First branch
-{
-  id: "cat-artisan-uuid-001",
-  identifier: "l3-B1",
-  type: "B",
-  parent_level: "l3"
-}
-
-// Second branch (independent counter)
-{
-  id: "cat-quick-uuid-002",
-  identifier: "l3-B2",
-  type: "B",
-  parent_level: "l3"
-}
-
-// Third branch (independent counter)
-{
-  id: "cat-international-uuid-003",
-  identifier: "l3-B3",
-  type: "B",
-  parent_level: "l3"
-}
-```
-
-**Subcategories** (each branch has independent SC1):
-```javascript
-// SC1 beneath l3-B1
-{
-  id: "cat-breads-uuid-004",
-  identifier: "l3-B1-SC1",
-  parent_id: "cat-artisan-uuid-001"
-}
-
-// SC1 beneath l3-B2 (different parent, same counter)
-{
-  id: "cat-15min-uuid-005",
-  identifier: "l3-B2-SC1",
-  parent_id: "cat-quick-uuid-002"
-}
-
-// SC1 beneath l3-B3 (different parent, same counter)
-{
-  id: "cat-italian-uuid-006",
-  identifier: "l3-B3-SC1",
-  parent_id: "cat-international-uuid-003"
-}
-```
-
-**Key Point**: Counter scoping allows multiple `SC1` when parents different
-
----
-
-#### Example 4: Complete Type Designation Matrix
-
-| Hierarchy | Type | Compact ID | Full ID |
-|-----------|------|-----------|---------|
-| Kitchen | M | M | M |
-| ↳ Pantry | SC | M-SC1 | M-SC1 |
-|   ↳ Canned | Sc | M-Sc1 | M-SC1-Sc1 |
-|     ↳ Soups | Sc | M-Sc1 | M-SC1-Sc1-Sc1 |
-| ↳ l1: Utensils | l | l1 | l1 |
-|   ↳ l2: Cooking | l | l2 | l2 |
-|     ↳ l3: Wooden | l | l3 | l3 |
-|       ↳ Artisan (branch) | B | l3-B1 | l3-B1 |
-|         ↳ Handcrafted | SC | l3-B1-SC1 | l3-B1-SC1 |
-|           ↳ Custom | Sc | l3-B1-Sc1 | l3-B1-SC1-Sc1 |
-
-**Type Codes**:
-- M = Main Category
-- SC = Subcategory directly beneath Main (or Branch)
-- Sc = Subcategory beneath another Subcategory
-- l = Ordinary sub-level
-- B = Branch beneath ordinary sub-level
-
----
-
-#### Example 5: Permanent IDs vs Display Identifiers
-
-**Scenario**: Three categories with same compact identifier
-
-```
-Kitchen (M)
-├─ SC1: Pantry
-│  └─ Sc1: Canned
-│     └─ Sc1: Soups
-```
-
-**All have compact identifier `M-Sc1`, but different permanent IDs**:
-
-```javascript
-// Canned
-{
-  id: "cat-canned-uuid-001",  // UNIQUE
-  identifier: "M-Sc1",  // Display (not unique)
-  full_identifier: "M-SC1-Sc1"
-}
-
-// Soups
-{
-  id: "cat-soups-uuid-002",  // DIFFERENT UNIQUE ID
-  identifier: "M-Sc1",  // Same display (OK)
-  full_identifier: "M-SC1-Sc1-Sc1"
-}
-```
-
-**Note Association**:
-```javascript
-{
-  id: "note-123",
-  title: "Tomato Soup Recipe",
-  category_node_id: "cat-soups-uuid-002",  // Uses permanent ID
-  // NOT: category_identifier: "M-Sc1"  // Would be ambiguous
-}
-```
-
-**UI Display**:
-```
-M-Sc1: Canned
-Path: Kitchen → Pantry → Canned
-
-M-Sc1: Soups
-Path: Kitchen → Pantry → Canned → Soups
-```
-
-**Key Point**: Permanent IDs are source of truth, compact identifiers for display only
-
----
-
-#### Example 6: Counter Scoping Demonstration
-
-**Hierarchy**:
-```
-Kitchen (M)
-├─ SC1: Pantry
-│  └─ Sc1: Canned
-│     └─ Sc1: Soups  ← Sc1 scoped to Canned
-├─ SC2: Storage
-│  └─ Sc1: Tools  ← Different Sc1, scoped to Storage
-└─ l3: Recipes
-   ├─ l3-B1: Artisan
-   │  └─ SC1: Breads  ← SC1 scoped to l3-B1
-   └─ l3-B2: Quick
-      └─ SC1: Salads  ← Different SC1, scoped to l3-B2
-```
-
-**Counters**:
-- SC counter: Per Main (or Branch)
-  - Kitchen: SC1, SC2
-  - l3-B1: SC1
-  - l3-B2: SC1 (independent)
-  
-- Sc counter: Per parent Subcategory
-  - SC1 (Pantry): Sc1 (Canned)
-  - Canned: Sc1 (Soups, scoped to Canned)
-  - SC2 (Storage): Sc1 (Tools, independent)
-  
-- B counter: Per sub-level
-  - l3: B1, B2
-
-**All independently scoped to immediate parents**
-
----
-
-#### Example 7: Green Plus and Blue Plus Behavior
-
-**Before Green Plus**:
-```
-Kitchen (M) [🟢]
-└─ l3: Recipes [🟢] [🔵]
-   └─ Note: "Family recipes"
-```
-
-**User Action**: Click green plus on l3
-
-**After Green Plus**:
-```
-Kitchen (M) [🟢]
-└─ l3: Recipes [🟢] [🔵] [🔽 Now accordion]
-   ├─ Note: "Family recipes"  ← Still there
-   └─ l3-B1: Artisan Collection [🟢]  ← NEW (no blue plus)
-```
-
-**Key Points**:
-- ✅ Green plus created branch `l3-B1`
-- ✅ l3 keeps original name and designation
-- ✅ l3 becomes accordion (shows note + branch)
-- ✅ Existing note preserved
-- ✅ Branch has green plus only (no blue plus)
-- ✅ l3 still has blue plus (for more notes)
-
----
-
-#### Example 8: Migration Type Assignment
-
-**Migration Logic**:
-```javascript
-function assignCategoryType(category) {
-  // No parent = Main Category
-  if (!category.parent_id) {
-    return "M";
-  }
-  
-  const parent = getCategoryById(category.parent_id);
-  
-  // Parent is Main → First-level Subcategory
-  if (parent.type === "M") {
-    // Check if beneath sub-level
-    if (category.parent_level && category.parent_level.startsWith("l")) {
-      return "B";  // Branch beneath sub-level
-    }
-    return "SC";  // Subcategory beneath Main
-  }
-  
-  // Parent is Branch → Subcategory beneath Branch
-  if (parent.type === "B") {
-    return "SC";
-  }
-  
-  // Parent is SC or Sc → Nested Subcategory
-  if (parent.type === "SC" || parent.type === "Sc") {
-    return "Sc";
-  }
-  
-  throw new Error(`Unknown parent type: ${parent.type}`);
-}
-```
-
-**Examples**:
-```javascript
-// Kitchen → Pantry
-assignType({parent_id: "cat-kitchen", parent_type: "M"})
-// → "SC" (subcategory beneath Main)
-
-// Pantry → Canned
-assignType({parent_id: "cat-pantry", parent_type: "SC"})
-// → "Sc" (nested subcategory)
-
-// Kitchen (l3) → Artisan
-assignType({parent_id: "cat-kitchen", parent_type: "M", parent_level: "l3"})
-// → "B" (branch beneath sub-level)
-
-// l3-B1 → Breads
-assignType({parent_id: "cat-artisan", parent_type: "B"})
-// → "SC" (subcategory beneath Branch)
-```
-
----
-
-#### Example 9: Validation Complete Flow
-
-**Create New Branch Beneath Sub-Level**:
-```javascript
-async function createBranchBeneathLevel(levelId, branchName) {
-  // 1. Validate level exists and is type "l"
-  const level = await getCategoryById(levelId);
-  if (!level || level.type !== "l") {
-    throw new Error("Parent must be ordinary sub-level");
-  }
-  
-  // 2. Get Main Category parent
-  const mainCategory = await getCategoryById(level.parent_id);
-  if (!mainCategory || mainCategory.type !== "M") {
-    throw new Error("Level must belong to Main Category");
-  }
-  
-  // 3. Generate branch counter
-  const counter = await getNextBranchCounter(mainCategory.id, level.identifier);
-  
-  // 4. Create branch
-  const branch = {
-    id: generateUuid(),
-    name: branchName,
-    type: "B",
-    identifier: `${level.identifier}-B${counter}`,
-    full_identifier: `${level.identifier}-B${counter}`,
-    parent_id: mainCategory.id,
-    parent_type: "M",
-    parent_level: level.identifier,
-    parent_level_name: level.name
-  };
-  
-  // 5. Save
-  await saveCategory(branch);
-  
-  return branch;
-}
-```
-
-**Result**:
-```javascript
-{
-  id: "cat-uuid-new",
-  name: "Artisan Collection",
-  type: "B",
-  identifier: "l3-B1",
-  full_identifier: "l3-B1",
-  parent_id: "cat-kitchen-uuid",
-  parent_type: "M",
-  parent_level: "l3",
-  parent_level_name: "Recipes"
-}
-```
-
----
-
-#### Summary: All Conventions Demonstrated
-
-**Type Designations**: M, SC, Sc, l, B  
-**Identifiers**: Compact and full for each type  
-**Counters**: Per-parent scoping  
-**Permanent IDs**: Source of truth  
-**Level Numbering**: Comma as thousands separator  
-**Branch Creation**: Green plus behavior  
-**Validation**: Type assignment logic  
-
-**All conventions APPROVED and ready for implementation.**
-
----
-
-
-```
-
-**Data Structure**:
-```javascript
-{
-  id: "cat-handcrafted-uuid-003",
-  name: "Handcrafted",
-  type: "Sc",  // Nested subcategory
-  
-  // IDENTIFIERS
-  identifier: "l3 M1-Sc1",  // Compact
-  full_identifier: "l3 M1-SC1-Sc1",  // Full
-  
-  // PARENT
-  parent_id: "cat-artisan-uuid-002",  // Parent is SC1
-  parent_type: "SC"
-}
-```
-
----
-
-#### Complete Identifier Format Table (UPDATED)
-
-| Structure | Type | Compact | Full | Parent |
-|-----------|------|---------|------|--------|
-| Main Category | M | M | M | (root) |
-| Sub beneath Main | SC | M-SC{n} | M-SC{n} | M |
-| Nested sub | Sc | M-Sc{n} | M-SC{x}-Sc{n} | SC or Sc |
-| Ordinary sub-level | l | l{n} | l{n} | Any |
-| **Branch at level** | **M** | **l{n} M{m}** | **l{n} M{m}** | **M** |
-| **Sub beneath branch** | **SC** | **l{n} M{m}-SC{k}** | **l{n} M{m}-SC{k}** | **M (branch)** |
-| **Nested sub in branch** | **Sc** | **l{n} M{m}-Sc{k}** | **l{n} M{m}-SC{x}-Sc{k}** | **SC or Sc** |
-
----
-
-#### Counter Scoping for Branch-Level Categories
-
-**M Counter** (beneath same level):
-- l3 can have: `l3 M1`, `l3 M2`, `l3 M3`
-- l4 can have: `l4 M1`, `l4 M2` (independent from l3)
-- Each level has independent Main branch counter
-
-**SC Counter** (beneath same branch):
-- l3 M1 can have: `l3 M1-SC1`, `l3 M1-SC2`, `l3 M1-SC3`
-- l3 M2 can have: `l3 M2-SC1`, `l3 M2-SC2` (independent)
-- Each Main branch has independent SC counter
-
-**Sc Counter** (beneath same parent):
-- l3 M1-SC1 can have: `l3 M1-Sc1`, `l3 M1-Sc2`
-- l3 M1-SC2 can have: `l3 M1-Sc1` (independent)
-- Per-parent scoping applies
-
----
-
-#### Distinguishing Sub-Levels from Category Branches
-
-**Visual Distinction in UI**:
-
-```
-Kitchen (M) [🟢]
-├─ l1: Utensils [🟢] [🔵]  ← Sub-level (both buttons)
-│  ├─ Note: "Spatula set"
-│  └─ l1 M1: Professional Set [🟢]  ← Branch (green only)
-│     └─ SC1: Chef's Collection [🟢]
-│
-├─ l2: Appliances [🟢] [🔵]  ← Sub-level
-   └─ Note: "Blender manual"
-```
-
-**Distinguishing Features**:
-
-| Type | Identifier | Green Plus | Blue Plus | Purpose |
-|------|-----------|------------|-----------|---------|
-| Ordinary sub-level | `l{n}` | ✅ | ✅ | Holds notes, can have deeper sub-levels |
-| Category branch | `l{n} M{m}` | ✅ | ❌ | Independent hierarchy, holds subcategories |
-| Branch subcategory | `l{n} M{m}-SC{k}` | ✅ | ❌ | Part of branch hierarchy |
-
-**Key Distinction**:
-- Sub-levels (`l1`, `l2`) = Linear note organization, blue plus available
-- Branches (`l3 M1`) = Category trees, no blue plus (notes in sub-categories or their sub-levels)
-
----
-
-#### Original Hierarchy Preservation
-
-**When branch created beneath l3**:
-
-**Before**:
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons
-         ├─ l4: Premium
-         └─ l5: Budget
-```
-
-**User Action**: Click green plus on l3 → Create "Artisan Collection"
-
-**After**:
-
-
----
-
-### 1.3.3 Level Numbering: l4,078 (APPROVED)
-
-**Decision**: The notation `l4,078` means ordinary sub-level number 4,078
-
-**Example from Section 1.3**:
-- Compact: `M-Sc45-l4,078`
-- Full: `M-SC12-Sc8-Sc45-l4,078`
-
----
-
-#### APPROVED Interpretation: Continuous Sub-Level Numbering
-
-**Meaning**: Ordinary sub-level number 4,078 in continuous sequence
-
-**Hierarchy Example**:
-```
-Main Category (M)
-├─ l1: Level 1
-├─ l2: Level 2
-├─ l3: Level 3
-├─ l4: Level 4
-...
-├─ l4,077: Level 4,077
-└─ l4,078: Level 4,078
-```
-
-**Key Rules**:
-- ✅ l{n} where {n} = any positive integer
-- ✅ Comma used ONLY as thousands separator
-- ✅ Comma does NOT divide identifier into separate components
-- ✅ Counter is continuous within parent
-- ❌ NOT "level 4, item 078"
-- ❌ NOT compound identifier with sub-parts
-
----
-
-#### Formatting Rules
-
-**With Comma** (thousands separator):
-```
-l1,000
-l4,078
-l10,000
-l100,000
-```
-
-**Without Comma** (below 1,000):
-```
-l1
-l42
-l999
-```
-
-**Display Consistency**:
-- Always use comma for thousands: `l4,078` (not `l4078`)
-- Omit comma below 1,000: `l42` (not `l042`)
-- Consistent in compact and full identifiers
-- Same format everywhere in UI
-
----
-
-#### Complete Examples
-
-**Compact Identifier**:
-```
-M-Sc45-l4,078
-```
-
-**Interpretation**:
-- M = Main Category
-- Sc45 = 45th nested subcategory
-- l4,078 = Ordinary sub-level number 4,078
-
-**Full Identifier**:
-```
-M-SC12-Sc8-Sc45-l4,078
-```
-
-**Interpretation**:
-- M = Main
-- SC12 = 12th subcategory beneath Main
-- Sc8 = 8th nested sub beneath SC12
-- Sc45 = 45th nested sub beneath Sc8
-- l4,078 = Ordinary sub-level 4,078
-
-**Both use**: "l4,078" with comma as thousands separator
-
----
-
-#### Scoping
-
-**Level Counter Scoped to Parent**:
-```
-Kitchen (M)
-├─ l1: Utensils
-├─ l2: Appliances
-...
-├─ l4,077: Item 4077
-└─ l4,078: Item 4078
-
-Garden (M)
-├─ l1: Tools  ← Independent counter
-└─ l2: Plants
-```
-
-**Each parent has independent l1, l2, l3... sequence**
-
----
-
-#### Validation and Formatting
-
-**Format Function**:
-```javascript
-function formatLevelIdentifier(levelNumber) {
-  // Add commas for thousands
-  return `l${levelNumber.toLocaleString()}`;
-  // Examples:
-  // 42 → "l42"
-  // 1000 → "l1,000"
-  // 4078 → "l4,078"
-  // 1000000 → "l1,000,000"
-}
-```
-
-**Parse Function**:
-```javascript
-function parseLevelIdentifier(identifier) {
-  // Remove 'l' prefix and parse number
-  const numberString = identifier.substring(1).replace(/,/g, '');
-  return parseInt(numberString, 10);
-  // Examples:
-  // "l42" → 42
-  // "l1,000" → 1000
-  // "l4,078" → 4078
-}
-```
-
-**Validation**:
-```javascript
-function validateLevelIdentifier(identifier) {
-  // Must start with 'l'
-  if (!identifier.startsWith('l')) {
-    throw new Error("Level identifier must start with 'l'");
-  }
-  
-  // Must have valid number after 'l'
-  const number = parseLevelIdentifier(identifier);
-  if (isNaN(number) || number < 1) {
-    throw new Error("Level number must be positive integer");
-  }
-  
-  // Verify formatting (comma placement)
-  const formatted = formatLevelIdentifier(number);
-  if (formatted !== identifier) {
-    throw new Error(`Level identifier should be formatted as ${formatted}`);
-  }
-  
-  return true;
-}
-```
-
----
-
-#### Examples in Context
-
-**Example 1: Moderate Depth**
-```
-Kitchen (M)
-├─ l1: Utensils
-├─ l2: Appliances
-└─ l42: Miscellaneous
-```
-
-Identifier: `M-l42` or `l42`
-
----
-
-**Example 2: Crossing 1,000 Threshold**
-```
-Main Category (M)
-├─ l999: Item 999
-├─ l1,000: Item 1000  ← Comma appears
-└─ l1,001: Item 1001
-```
-
-Identifiers:
-- `l999` (no comma)
-- `l1,000` (comma starts)
-- `l1,001` (comma continues)
-
----
-
-**Example 3: Deep Hierarchy**
-```
-Main Category (M)
-└─ Subcategory 45 (Sc45)
-   └─ l4,078: Deep Level
-```
-
-Compact: `M-Sc45-l4,078`
-Full: `M-SC12-Sc8-Sc45-l4,078`
-
-Both show: `l4,078` (comma as thousands separator)
-
----
-
-**Example 4: Branch with Deep Sub-Level**
-```
-Kitchen (M)
-├─ l3: Recipes
-   └─ l3-B1: Artisan Collection
-      └─ l1,234: Specialty Items
-```
-
-Identifier: `l3-B1-l1,234`
-
----
-
-#### Display in UI
-
-**Breadcrumb**:
-```
-Kitchen > Sc45 > l4,078
-```
-
-**Full Path**:
-```
-Kitchen (M) → SC12 → Sc8 → Sc45 → l4,078
-```
-
-**Compact Reference**:
-```
-M-Sc45-l4,078
-```
-
-**All display l4,078 consistently** with comma
-
----
-
-#### Migration Implications
-
-**On Migration**:
-1. Parse existing level numbers
-2. Format with comma for thousands
-3. Validate formatting
-4. Store formatted identifier
-
-**Example**:
-```javascript
-function migrateLevelIdentifier(oldLevel) {
-  // Parse number (may be stored as "l4078" without comma)
-  const number = parseLevelIdentifier(oldLevel);
-  
-  // Reformat with comma
-  const newLevel = formatLevelIdentifier(number);
-  // "l4078" → "l4,078"
-  
-  return newLevel;
-}
-```
-
----
-
-#### Summary
-
-**Approved Rule**: `l4,078` = ordinary sub-level number 4,078
-
-**Key Points**:
-- ✅ Comma is thousands separator only
-- ✅ Continuous numbering sequence
-- ✅ Counter scoped to parent
-- ✅ Consistent formatting throughout
-- ❌ NOT compound identifier
-- ❌ NOT "level 4, item 078"
-
-**Formatting**:
-- Below 1,000: `l42`
-- At/above 1,000: `l1,000`, `l4,078`
-- Always consistent in compact and full identifiers
-
----
-
-#### STATUS: APPROVED
-
-**This interpretation is APPROVED and FINAL.**
-
----
-
-**Issue**: The compact identifier example `M-Sc45-l4,078` is ambiguous
-
-**Example from Section 1.3**:
-- Compact: `M-Sc45-l4,078`
-- Full: `M-SC12-Sc8-Sc45-l4,078`
-
-**Questions**:
-1. What does `l4,078` mean?
-2. Is the comma a thousands separator?
-3. What is being numbered?
-
----
-
-#### Interpretation 1: Sub-Level 4,078 (Thousands Separator)
-
-**Meaning**: Ordinary sub-level number 4,078
-
-**Hierarchy**:
-```
-Main Category (M)
-├─ l1: Level 1
-├─ l2: Level 2
-├─ l3: Level 3
-├─ l4: Level 4
-...
-├─ l4,077: Level 4,077
-└─ l4,078: Level 4,078  ← Extremely deep
-```
-
-**Implications**:
-- This represents an extraordinarily deep linear hierarchy
-- 4,078 sequential sub-levels in one branch
-- Comma is standard thousands separator
-- Counter is continuous (l1, l2, l3... l4078)
-
-**Display**:
-- Compact: `M-Sc45-l4,078`
-- Full: `M-SC12-Sc8-Sc45-l4,078`
-- Both show "l4,078" with comma
-
-**Scoping**: Level counter continuous within parent
-
----
-
-#### Interpretation 2: Sub-Level 4, Item/Note 078
-
-**Meaning**: Sub-level 4, with item number 078
-
-**Hierarchy**:
-```
-Main Category (M)
-└─ Subcategory 45 (Sc45)
-   └─ Sub-level 4 (l4)
-      ├─ Note 001
-      ├─ Note 002
-      ...
-      └─ Note 078  ← 78th note at this level
-```
-
-**Identifier Components**:
-- `l4` = Sub-level 4
-- `,078` = Note/item counter (78th item)
-- Comma separates level from item
-
-**Implications**:
-- Level numbering is modest (l4 = level 4)
-- Item counter tracks notes at that level
-- Comma is separator, not thousands
-
-**Display**:
-- Compact: `M-Sc45-l4,078` (shows level and item)
-- Could also be: `M-Sc45-l4` (just level, omit item)
-
-**Scoping**: Item counter per sub-level
-
----
-
-#### Interpretation 3: Hierarchical Compound Identifier
-
-**Meaning**: Multi-part identifier with sub-components
-
-**Structure**: `l[major].[minor]` or `l[level],[sublevel]`
-
-**Example**: `l4,078` could mean:
-- Level 4, position 078 within level 4
-- Level 4, variation 078
-- Level group 4, item 078
-
-**Display**:
-- Compact: `M-Sc45-l4,078`
-- Could expand to more detail if needed
-
----
-
-#### Recommended Approach: Request User Clarification
-
-**Questions for User**:
-
-**Q1**: Does `l4,078` mean:
-- **A**: Sub-level number 4,078 (comma is thousands separator)?
-- **B**: Sub-level 4, item/note number 078 (comma separates components)?
-- **C**: Something else?
-
-**Q2**: If Interpretation A (level 4,078):
-- Is this realistic for Iron Rabbit's use case?
-- Should system support thousands of sequential sub-levels?
-- How should extremely deep hierarchies be displayed?
-
-**Q3**: If Interpretation B (level 4, item 078):
-- Is the item counter necessary in identifiers?
-- Should it be optional (show only when needed)?
-- How are items numbered and scoped?
-
-**Q4**: Display formatting:
-- Should comma always appear in identifier?
-- Is comma only for thousands (4,078) or always separator (4,078)?
-- How to prevent confusion with multiple hierarchy components?
-
----
-
-#### Proposed Rule (Pending Approval)
-
-**PROPOSED**: Use Interpretation A (Thousands Separator)
-
-**Rule**: 
-- `l{n}` where {n} can be any positive integer
-- Comma used as thousands separator for readability
-- Examples: `l1`, `l42`, `l1,000`, `l4,078`
-
-**Rationale**:
-- Simpler: One counter per parent
-- Consistent: Same pattern as M{n}, SC{n}, Sc{n}
-- Standard: Comma as thousands separator is universal
-- Flexible: Supports any depth (though extreme depth unusual)
-
-**Display Rules**:
-- Always use comma for thousands: `l4,078` (not `l4078`)
-- Omit comma below 1,000: `l42` (not `l042`)
-- Consistent in compact and full identifiers
-
-**Scoping**:
-- Level counter scoped to parent category
-- Each parent has independent l1, l2, l3... sequence
-
-**Example**:
-```
-Kitchen (M)
-├─ l1: Utensils
-├─ l2: Appliances
-...
-├─ l4,077: Item 4077
-└─ l4,078: Item 4078
-
-Garden (M)
-├─ l1: Tools  ← Independent counter
-└─ l2: Plants
-```
-
----
-
-#### Alternative Proposal (If Interpretation B)
-
-**If user confirms item counter needed**:
-
-**Format**: `l{level}#{item}`
-
-**Examples**:
-- `l4#078` = Level 4, item 78
-- `M-Sc45-l4#078` = Full identifier with item
-
-**Rationale**:
-- `#` clearly separates level from item
-- Avoids comma confusion
-- Optional item counter (can show just `l4`)
-
----
-
-#### Validation Implications
-
-**If Interpretation A (thousands separator)**:
-
-```javascript
-function formatLevelIdentifier(levelNumber) {
-  // Add commas for thousands
-  return `l${levelNumber.toLocaleString()}`;
-  // l4078 → "l4,078"
-  // l1000000 → "l1,000,000"
-}
-```
-
-**If Interpretation B (item counter)**:
-
-```javascript
-function formatLevelWithItem(level, itemNumber) {
-  if (itemNumber) {
-    return `l${level}#${itemNumber.toString().padStart(3, '0')}`;
-    // l4, item 78 → "l4#078"
-  }
-  return `l${level}`;  // Just level
-}
-```
-
----
-
-#### Display Consistency
-
-**Regardless of interpretation, maintain consistency**:
-
-**Compact identifier**:
-- Same format everywhere in UI
-- Same separator character
-- Same padding/formatting
-
-**Full identifier**:
-- Matches compact format
-- Shows complete path
-- Uses same numbering convention
-
-**Examples** (assuming Interpretation A):
-```
-Compact: M-Sc45-l4,078
-Full: M-SC12-Sc8-Sc45-l4,078
-Both use: "l4,078" with comma
-```
-
----
-
-#### STATUS: AWAITING USER CLARIFICATION
-
-**This numbering interpretation is PENDING USER INPUT.**
-
-**Required from User**:
-1. Confirm meaning of `l4,078`
-2. Approve thousands separator interpretation OR
-3. Provide alternative interpretation
-4. Confirm display formatting rules
-
-**Once clarified**: Update all examples and validation rules to match.
-
----
-
-
-```
-Kitchen (M)
-├─ l1: Utensils
-   ├─ l2: Cooking Utensils
-      ├─ l3: Wooden Spoons [🔽 Now has accordion]
-         ├─ l4: Premium  ← UNCHANGED (still sub-level)
-         ├─ l5: Budget   ← UNCHANGED (still sub-level)
-         └─ l3 M1: Artisan Collection [NEW BRANCH]
-```
-
-**Critical**:
-- ✅ l3 keeps name "Wooden Spoons" and "l3" designation
-- ✅ l4 and l5 remain ordinary sub-levels (unchanged)
-- ✅ l3 M1 is new independent branch
-- ✅ l3 becomes accordion head to show both sub-levels and branch
-- ❌ l4 does NOT become l5, l5 does NOT become l6
-
----
-
-#### Validation Rules for Branch-Level Categories
-
-```javascript
-function validateBranchLevelCategory(category) {
-  // 1. Verify parent is Main Category
-  const parent = await getCategoryById(category.parent_id);
-  if (parent.type !== "M") {
-    throw new Error("Branch must be created beneath Main Category");
-  }
-  
-  // 2. Verify parent_level specified
-  if (!category.parent_level || !category.parent_level.startsWith("l")) {
-    throw new Error("Branch must specify which level it's beneath");
-  }
-  
-  // 3. Generate identifier with level prefix
-  category.identifier = `${category.parent_level} M${counter}`;
-  
-  // 4. Type is "M" (Main branch)
-  category.type = "M";
-  
-  // 5. Can have own subcategories
-  category.category_branches = {};
-  category.sub_levels = {};
-}
-```
-
----
-
-#### Migration Implications for Branch-Level Categories
-
-**During Migration**:
-1. Detect categories attached to sub-levels via `parent_level` field
-2. Assign type "M" (Main branch)
-3. Generate identifier: `l{n} M{counter}`
-4. Preserve complete parent-child chain
-5. Ensure sub-level itself remains ordinary sub-level
-
-**Example**:
-```javascript
-function migrateBranchLevelCategory(category) {
-  if (category.parent_level && category.parent_level.startsWith("l")) {
-    // This is a branch beneath a sub-level
-    category.type = "M";  // Main branch
-    
-    const levelNumber = category.parent_level;
-    const counter = getBranchCounterAtLevel(category.parent_id, levelNumber);
-    
-    category.identifier = `${levelNumber} M${counter}`;
-    category.full_identifier = `${levelNumber} M${counter}`;
-  }
-}
-```
-
----
-
-#### Summary: Category Branch Beneath Sub-Level
-
-**Designation**: `l{n} M{m}` where:
-- `l{n}` = Sub-level number (which level it's beneath)
-- `M{m}` = Main branch counter (scoped to that level)
-
-**Type**: "M" (Main Category in branch context)
-
-**Subcategories Beneath Branch**:
-- First level: `l{n} M{m}-SC{k}` (type "SC")
-- Nested: `l{n} M{m}-Sc{k}` (type "Sc")
-
-**Counter Scoping**:
-- M counter: Per sub-level (l3 M1, l3 M2, l4 M1)
-- SC counter: Per Main branch (l3 M1-SC1, l3 M2-SC1)
-- Sc counter: Per parent subcategory
-
-**Distinction**:
-- Sub-levels: Have blue plus, hold notes
-- Branches: No blue plus, hold subcategories
-
-**Preservation**:
-- Original sub-levels unchanged (l4 stays l4, not renumbered)
-- Sub-level becomes accordion when branch added
-- Complete hierarchy maintained
-
----
-
-#### STATUS: PROPOSED — AWAITING USER APPROVAL
-
-**This naming convention for categories beneath sub-levels is PROPOSED.**
-
-**Awaiting Confirmation**:
-1. ✅ Approve `l{n} M{m}` designation?
-2. ✅ Approve type "M" for branches?
-3. ✅ Approve counter scoping per level?
-4. ✅ Approve subcategory pattern `l{n} M{m}-SC{k}`?
-5. ✅ Approve distinction from ordinary sub-levels?
-
-**If approved**: This becomes the established convention.  
-**If changes needed**: Provide revised designation before implementation.
-
----
-
-
-  categoryId: "cat-soups-uuid-002",
-  newParentId: "cat-storage-uuid-004"
-);
-
-// WRONG: Use compact identifiers
-await moveCategory("M-Sc1", "M-SC2");  // Ambiguous!
-```
-
-**Associate Note**:
-```javascript
-// CORRECT: Use permanent ID
-note.category_node_id = "cat-soups-uuid-002";
-
-// WRONG: Use compact identifier
-note.category_identifier = "M-Sc1";  // Which category??
-```
-
----
-
-#### Validation Rules
-
-**On Category Creation**:
-```javascript
-function validateCategory(category) {
-  // 1. Verify unique ID
-  if (!category.id || await categoryIdExists(category.id)) {
-    throw new Error("Category ID must be unique");
-  }
-  
-  // 2. Compact identifier can repeat (OK)
-  category.identifier = generateCompactIdentifier(category);
-  // No uniqueness check on identifier
-  
-  // 3. Full identifier more unique but still not guaranteed
-  category.full_identifier = generateFullIdentifier(category);
-  
-  // 4. Parent ID must exist
-  if (category.parent_id && !await categoryExists(category.parent_id)) {
-    throw new Error("Parent category does not exist");
-  }
-}
-```
-
----
-
-#### Summary: Three-Tier Identification System
-
-| Tier | Field | Purpose | Unique? | Usage |
-|------|-------|---------|---------|-------|
-| **1** | `id` | Permanent unique identifier | ✅ YES | All operations, database queries, relationships |
-| **2** | `full_identifier` | Complete hierarchy path | ⚠️ Usually | Debugging, admin, complete context |
-| **3** | `identifier` | Compact display reference | ❌ NO | UI labels, breadcrumbs, quick reference |
-
-**Rules**:
-1. Always use `id` for any operation requiring unique identification
-2. Display `identifier` (compact) in UI with sufficient context
-3. Use `full_identifier` when more context needed
-4. Never use `identifier` alone to locate, retrieve, or modify categories
-5. `parent_id` chain is source of truth for hierarchy
-
----
-
-
-
-**User Experience** (unchanged):
-- Same click/tap to edit
-- Same input field appearance
-- Same save confirmation
-- Same keyboard shortcuts
-- Same validation messages
-
-**Backend Cascade** (new, invisible to user):
-```javascript
-async function renameCategory(categoryId, newName) {
-  // Update tree
-  const category = findCategoryById(tree, categoryId);
-  category.name = newName;
-  await saveCategoryTree(tree);
-  
-  // Notes' category_node_id unchanged (still points to same ID)
-  // Display paths auto-update on next render (generated from tree)
-  
-  // No user-facing changes to rename interaction
-}
-```
-
-**Result**: Renaming looks and feels identical to current system, but now works correctly with stable IDs.
-
----
-
-### 1.4 Animations (DECIDED)
-
-**Rule**: Preserve existing approved animations exactly
-
-**Green Plus Animation**:
-- Use existing animation that plays on category/note creation
-- Same timing, same easing, same visual effect
-- No redesign, no new animation
-
-**Blue Plus Animation**:
-- Use same animation as green plus
-- Consistency across both actions
-
-**Branch Creation**:
-- Play existing animation when branch created
-- Same as current category creation animation
-
-**Note Creation via Blue Plus**:
-- Play existing animation when note created
-- Same as current note creation animation
-
-**Accordion Expand/Collapse**:
-- Preserve existing accordion animation
-- Same timing and easing values
-- No changes to accordion behavior
-
-**No New Animation Design**: All animations already approved. Simply reuse existing animations for new features.
-
----
-
-
-// Check if sub-level needs accordion UI
-function hasChildBranches(categoryNode, level) {
-  return categoryNode.level_branches?.[level] !== undefined &&
-         Object.keys(categoryNode.level_branches[level]).length > 0;
-}
-```
-
-**Implementation**: Dynamically add accordion wrapper when first branch created.
-
----
-
-### 1.6 Styling (DECIDED - DETAILED)
-
-**Green Plus**:
-- Icon: Plus symbol (existing design)
-- Color: Existing approved green from theme
-- Size: Match existing plus icons in app
-- Style: Inherit from existing button styling conventions
-- Hover: Existing hover behavior
-- Animation: Existing approved animation on click
-
-**Blue Plus**:
-- Icon: Plus symbol (SAME DESIGN as green plus)
-- Color: Existing approved blue from theme
-- Size: Match green plus exactly
-- Style: Inherit from existing button styling conventions
-- Hover: Same hover behavior as green plus
-- Animation: Existing approved animation on click (same as green)
-
-**Positioning**:
-```
-Kitchen (M) [🟢 green plus]
-├─ L1: Utensils [🟢 green plus] [🔵 blue plus]
-└─ L2: Appliances [🟢 green plus] [🔵 blue plus]
-```
-
-**Visual Consistency**:
-- Both buttons use identical size, padding, borders
-- Only difference is color (green vs. blue)
-- Maintain visual rhythm with existing UI
-- Use existing spacing/margin values
-
-**Tooltips**:
-- Green plus: "Add category" or existing category-creation tooltip
-- Blue plus: "Add note" or existing note-creation tooltip
-- Style: Match existing tooltip design
-
-**Preserve**: All existing styling conventions, colors, animations, transitions. No CSS redesign.
-
----
-
-### 1.7 Category Deletion (DECIDED - ENHANCED)
-
-**Rule**: Block deletion of branches containing notes or descendants until contents relocated
-
-**Behavior**:
-
-**Scenario A**: Delete category with notes
-```javascript
-// Kitchen M-SC1: Pantry has 5 notes
-// User clicks delete on Pantry
-
-// MUST BLOCK with error:
-"Cannot delete Pantry
- 
- This category contains 5 notes.
- 
- You must move or delete these notes first:
- • Sourdough starter
- • Bread recipes
- • Baking supplies
- • Kitchen inventory
- • Pantry organization
- 
- [Cancel] [Move Notes...] [Go to Category]"
-```
-
-**User must explicitly**:
-1. Move notes to another category, OR
-2. Delete notes individually, OR
-3. Move notes to Uncategorized
-
-**Then deletion allowed**.
-
----
-
-**Scenario B**: Delete category with child branches
-```javascript
-// Kitchen M-SC1: Pantry has child SC1-Sc1: Canned
-// User clicks delete on Pantry
-
-// MUST BLOCK with error:
-"Cannot delete Pantry
- 
- This category contains subcategories:
- • Canned
- 
- You must move or delete these subcategories first.
- 
- [Cancel] [Go to Category]"
-```
-
-**User must explicitly**:
-1. Delete child categories (which triggers their own checks), OR
-2. Move child categories to another location
-
-**Then deletion allowed**.
-
----
-
-**Scenario C**: Delete empty category
-```javascript
-// Kitchen M-SC1: Storage is empty (no notes, no children)
-// User clicks delete
-
-// IMMEDIATE deletion (no warning needed)
-toast.success("Storage deleted");
-```
-
-**Implementation**: Only empty categories can be deleted instantly. All others blocked until emptied.
-
-**Critical**: Never silently cascade-delete notes or descendants. Always require explicit user action.
-
----
-
-### 1.8 Search Scope (DECIDED)
-
-**Include**:
-- ✅ All category names (M, SC, Sc, sc)
-- ✅ All branch names
-- ✅ All sub-level names (L1, L2, etc.)
-- ✅ All note titles
-- ✅ All note content
-- ✅ All note tags
-
-**Display Results**:
-```
-Search: "bread"
-
-Categories & Branches:
-  🔵 Kitchen → L3 M1: Baking → L1: Breads
-
-Notes:
-  📝 Sourdough Starter
-      Location: Kitchen → Recipes → Baking → Breads
-  
-  📝 Breadcrumb Navigation
-      Location: Work → Projects → Documentation
-```
-
-**Show full path** for both categories and notes.
-
----
-
-### 1.9 Migration Preservation (DECIDED - COMPREHENSIVE)
-
-**Must preserve during migration** (ZERO DATA LOSS):
-
-1. **All Notes**:
-   - ✅ Every note title
-   - ✅ Every note content (full HTML/text)
-   - ✅ All note metadata (created_at, updated_at, color, icon, etc.)
-   - ✅ All note attachments and file references
-   - ✅ All note tags
-   - ✅ All note alarms, recurring events, checklists
-   - ✅ All note pinned status
-   - ✅ All note order values
-
-2. **All Category Data**:
-   - ✅ All existing category_path arrays (unchanged)
-   - ✅ All existing category names (unchanged)
-   - ✅ All existing parent-child relationships
-   - ✅ Legacy fields (category, subcategory)
-
-3. **All Tree Structure**:
-   - ✅ Existing category tree hierarchy
-   - ✅ All nested relationships
-   - ✅ All category metadata
-
-4. **All Settings**:
-   - ✅ User preferences
-   - ✅ Theme settings
-   - ✅ All configuration values
-
-**Migration adds** (non-destructive):
-- ✅ category_node_id to each note (NEW FIELD)
-- ✅ Enhanced category tree structure (ADDS FIELDS)
-- ✅ Category IDs (NEW FIELD)
-
-**Migration does NOT**:
-- ❌ Delete any fields from notes
-- ❌ Modify note content
-- ❌ Change category names
-- ❌ Remove categories
-- ❌ Alter note display order
-- ❌ Change any user settings
-- ❌ Delete attachments
-- ❌ Modify gallery images
-
-**Verification After Migration**:
-```javascript
-// Verify note count unchanged
-const beforeCount = backupCounts.notes;
-const afterCount = (await getAllNotes()).length;
-if (beforeCount !== afterCount) {
-  throw new Error('Note count mismatch - migration failed');
-}
-
-// Verify every note preserved
-for (const originalNote of backup.notes) {
-  const migratedNote = await getNote(originalNote.id);
-  
-  // Verify all original fields present
-  if (migratedNote.title !== originalNote.title) {
-    throw new Error(`Note ${originalNote.id} title changed`);
-  }
-  if (migratedNote.content !== originalNote.content) {
-    throw new Error(`Note ${originalNote.id} content changed`);
-  }
-  // ... verify all fields unchanged
-  
-  // Verify new field added
-  if (!migratedNote.category_node_id && originalNote.category_path.length > 0) {
-    throw new Error(`Note ${originalNote.id} missing category_node_id`);
-  }
-}
-```
-
-**If Verification Fails**: Automatic rollback to backup, no partial migration.
-
-### 1.2 Empty Category Display (DECIDED)
-
-**Rule**: Display all categories and subcategories, even when they contain no notes
-
-**Behavior**:
-
-**Empty Main Category**:
-```
-Kitchen (M) [🟢]
-├─ (No notes yet)
-└─ (No sub-levels yet)
-```
-- Category visible and accessible
-- Blue plus button available on sub-levels if any exist
-- Can create branches with green plus
-- Can create first note via sub-level
-
-**Empty Subcategory Branch**:
-```
-Kitchen (M)
-└─ M-SC1: Pantry [🟢]
-   └─ (No sub-levels yet)
-```
-- Branch visible even with no contents
-- Green plus can add sub-branches
-- Organizational structure preserved
-
-**Empty Sub-Level**:
-```
-Kitchen (M)
-├─ L1: Utensils [🟢] [🔵]
-│  └─ (No notes yet)
-└─ L2: Appliances [🟢] [🔵]
-   └─ (No notes yet)
-```
-- Sub-level visible
-- Blue plus can create first note
-- Green plus can add branch beneath it
-
-**Rationale**:
-- Users can see complete organizational structure
-- "Create note here" works even before notes exist
-- Categories aren't hidden just because they're empty
-- Organizational planning possible before content creation
-
-**Implementation**: Tree-based rendering shows all categories from tree structure, not just categories that notes reference.
-
-### 2.1 DECIDED (No Further Input Needed)
-
-| Decision | Status | Value |
-|----------|--------|-------|
-| Green plus placement | ✅ DECIDED | M, SC, all sub-levels |
-| Blue plus placement | ✅ DECIDED | Sub-levels only (not category headers) |
-| Blue plus icon | ✅ DECIDED | Blue plus symbol, matching green plus design |
-| Empty categories | ✅ DECIDED | Display all, even with no notes |
-| Category renaming | ✅ DECIDED | Preserve existing editing behavior |
-| Animations | ✅ DECIDED | Preserve existing approved animations |
-| Single source of truth | ✅ DECIDED | category_node_id (no note_ids arrays) |
-| Identifier conventions | ✅ DECIDED | L4 M1, M-SC1, SC-Sc1 |
-| Branch counters | ✅ DECIDED | Per-parent |
-| Sub-level accordion | ✅ DECIDED | Only when branch created |
-| Migration timing | ✅ DECIDED | User-triggered wizard (not automatic) |
-| Rollback window | ✅ DECIDED | 7 days minimum + downloadable backup forever |
-| Conflict resolution | ✅ DECIDED | Flag for review, never auto-resolve |
-| Branch deletion | ✅ DECIDED | Block until contents relocated |
-| Search scope | ✅ DECIDED | Include everything |
-| Migration preservation | ✅ DECIDED | Preserve all existing data |
-
----
-
-### 2.2 ALL QUESTIONS DECIDED
-
-| Question | Decision | Details |
-|----------|----------|---------|
-| **Q1: Blue plus icon** | ✅ DECIDED | Blue plus symbol matching existing green plus design. Preserve existing styling conventions. |
-| **Q2: Empty categories** | ✅ DECIDED | Display all categories and subcategories, even with no notes. Empty organizational structures remain visible. |
-| **Q3: Renaming** | ✅ DECIDED | Preserve existing approved editing behavior. No new editing interface or redesign. |
-| **Q4: Animation** | ✅ DECIDED | Preserve existing approved animations exactly. No new animation design. |
-| **Q5: Migration timing** | ✅ DECIDED | Explicit user-triggered migration wizard. No silent automatic migration at startup. |
-| **Q6: Rollback window** | ✅ DECIDED | Seven days minimum with independently downloadable backup retained beyond that period. |
-| **Q7: Conflict resolution** | ✅ DECIDED | Never silently overwrite, guess, or auto-create categories. Flag conflicts for review. |
-| **Q8: Deletion behavior** | ✅ DECIDED | Block deletion of branches with notes/descendants until contents relocated. Never cascade-delete. |
-
-**All architectural decisions finalized.**
-
----
-
-## SECTION 3: DETAILED MIGRATION STRATEGY
-
-### 3.1 Pre-Migration Checklist
-
-**Before migration begins**:
-
-1. ✅ **Full Backup**
-   - Export entire IndexedDB to JSON file
-   - Store backup in browser localStorage (separate key)
-   - Provide download link for user to save externally
-   - Timestamp: Include in backup metadata
-
-2. ✅ **Validation**
-   - Count total notes
-   - Count total unique categories
-   - Verify no corrupted note records
-   - Check IndexedDB integrity
-
-3. ✅ **User Notification**
-   ```
-   ╔═══════════════════════════════════════════╗
-   ║  IRON RABBIT ARCHITECTURE UPGRADE         ║
-   ╠═══════════════════════════════════════════╣
-   ║                                           ║
-   ║  This upgrade adds new category features: ║
-   ║  • Two-way note-category linking          ║
-   ║  • Recursive category branches            ║
-   ║  • Enhanced note organization             ║
-   ║                                           ║
-   ║  Your data will be preserved.             ║
-   ║                                           ║
-   ║  Time: ~2-5 minutes                       ║
-   ║  Notes: 543                               ║
-   ║  Categories: 47                           ║
-   ║                                           ║
-   ║  Backup created: Nov 4, 2026 3:42 PM     ║
-   ║  [Download Backup] (recommended)          ║
-   ║                                           ║
-   ║          [Cancel]  [Start Upgrade]        ║
-   ╚═══════════════════════════════════════════╝
-   ```
-
-4. ✅ **Dry Run Option**
-   - Checkbox: "Preview changes without saving"
-   - Shows migration plan without executing
-   - User can review before committing
-
----
-
-### 3.2 Migration Algorithm (ENHANCED WITH SAFEGUARDS)
-
-**CRITICAL SAFEGUARDS**: Before migration commits changes, comprehensive validation must pass.
-
----
-
-#### Pre-Commit Validation Checklist
-
-**Before any data modification**:
-
-```javascript
-async function validateBeforeMigration() {
+async function validateReadyForLegacyFieldRemoval() {
   const validation = {
     passed: true,
     errors: [],
-    warnings: [],
-    counts: {},
-    conflicts: []
+    warnings: []
   };
   
-  // 1. Verify all existing notes accounted for
+  // Check 1: All notes have category_node_id
   const allNotes = await getAllNotes();
-  validation.counts.totalNotes = allNotes.length;
-  validation.counts.notesWithPaths = allNotes.filter(n => 
-    n.category_path && n.category_path.length > 0
-  ).length;
-  validation.counts.uncategorized = allNotes.length - validation.counts.notesWithPaths;
+  const notesWithoutId = allNotes.filter(n => 
+    (n.category_path && n.category_path.length > 0) && !n.category_node_id
+  );
   
-  if (validation.counts.totalNotes === 0) {
-    validation.errors.push('No notes found - database may be empty or corrupted');
+  if (notesWithoutId.length > 0) {
     validation.passed = false;
-  }
-  
-  // 2. Verify all existing categories and sub-levels
-  const tree = await getCategoryTree();
-  const categoryNames = new Set();
-  const traverseForNames = (node) => {
-    if (node.name) categoryNames.add(node.name);
-    if (node.children) {
-      Object.values(node.children).forEach(traverseForNames);
-    }
-  };
-  Object.values(tree).forEach(traverseForNames);
-  validation.counts.existingCategories = categoryNames.size;
-  
-  // 3. Verify parent-child relationships in existing tree
-  const orphanedNodes = [];
-  const checkParentChild = (node, parent = null) => {
-    if (parent && !node.parent_id) {
-      orphanedNodes.push({ name: node.name, expectedParent: parent.name });
-    }
-    if (node.children) {
-      Object.values(node.children).forEach(child => 
-        checkParentChild(child, node)
-      );
-    }
-  };
-  Object.values(tree).forEach(node => checkParentChild(node));
-  
-  if (orphanedNodes.length > 0) {
-    validation.warnings.push({
-      type: 'orphaned_nodes',
-      count: orphanedNodes.length,
-      details: orphanedNodes
-    });
-  }
-  
-  // 4. Detect ambiguous paths and duplicate names
-  const pathMap = new Map(); // path_string -> [note_ids]
-  const duplicateNames = new Map(); // name -> count
-  
-  for (const note of allNotes) {
-    if (!note.category_path || note.category_path.length === 0) continue;
-    
-    const pathKey = note.category_path.join('\u241E');
-    if (!pathMap.has(pathKey)) pathMap.set(pathKey, []);
-    pathMap.get(pathKey).push(note.id);
-    
-    // Check for duplicate category names in different contexts
-    for (const segment of note.category_path) {
-      duplicateNames.set(segment, (duplicateNames.get(segment) || 0) + 1);
-    }
-  }
-  
-  // Flag paths that don't exist in tree
-  const ambiguousPaths = [];
-  for (const [pathKey, noteIds] of pathMap) {
-    const path = pathKey.split('\u241E');
-    let current = tree;
-    let exists = true;
-    
-    for (const segment of path) {
-      if (!current[segment]) {
-        exists = false;
-        break;
-      }
-      current = current[segment].children || {};
-    }
-    
-    if (!exists) {
-      ambiguousPaths.push({
-        path: path,
-        noteCount: noteIds.length,
-        noteIds: noteIds,
-        reason: 'path_not_in_tree'
-      });
-    }
-  }
-  
-  if (ambiguousPaths.length > 0) {
-    validation.conflicts.push({
-      type: 'ambiguous_paths',
-      count: ambiguousPaths.length,
-      details: ambiguousPaths,
-      resolution_required: true
-    });
     validation.errors.push(
-      `Found ${ambiguousPaths.length} note paths that don't exist in category tree. ` +
-      `Migration cannot proceed without resolving these conflicts.`
+      `${notesWithoutId.length} notes missing category_node_id`
     );
-    validation.passed = false;
   }
   
-  // 5. Preserve all original category paths (verification)
-  const originalPaths = allNotes.map(n => ({
-    noteId: n.id,
-    originalPath: n.category_path ? [...n.category_path] : []
-  }));
-  validation.originalPaths = originalPaths;
-  
-  // 6. Verify backup integrity
-  const backup = await createBackup();
-  const backupValid = await validateBackup(backup);
-  
-  if (!backupValid) {
-    validation.errors.push('Backup integrity check failed. Cannot proceed safely.');
-    validation.passed = false;
-  } else {
-    validation.counts.backupSize = JSON.stringify(backup).length;
-    validation.backupId = backup.id;
-  }
-  
-  // 7. Detect duplicate category names in different branches
-  const nameContexts = new Map(); // name -> [full_paths]
+  // Check 2: All category_node_ids resolve to valid categories
+  const orphaned = [];
   for (const note of allNotes) {
-    if (!note.category_path) continue;
-    for (let i = 0; i < note.category_path.length; i++) {
-      const name = note.category_path[i];
-      const fullPath = note.category_path.slice(0, i + 1).join(' → ');
-      
-      if (!nameContexts.has(name)) nameContexts.set(name, new Set());
-      nameContexts.get(name).add(fullPath);
+    if (note.category_node_id) {
+      const category = await getCategoryById(note.category_node_id);
+      if (!category) {
+        orphaned.push(note.id);
+      }
     }
   }
   
-  const duplicateContexts = [];
-  for (const [name, contexts] of nameContexts) {
-    if (contexts.size > 1) {
-      duplicateContexts.push({
-        name: name,
-        contexts: Array.from(contexts)
-      });
-    }
+  if (orphaned.length > 0) {
+    validation.passed = false;
+    validation.errors.push(
+      `${orphaned.length} notes point to deleted categories`
+    );
   }
   
-  if (duplicateContexts.length > 0) {
-    validation.warnings.push({
-      type: 'duplicate_names_different_contexts',
-      count: duplicateContexts.length,
-      details: duplicateContexts,
-      note: 'These categories have the same name in different locations. Each will get a unique ID.'
-    });
+  // Check 3: Backup exists and is recent
+  const backup = await getLatestBackup();
+  if (!backup) {
+    validation.warnings.push(
+      'No recent backup found. User MUST download backup before removal.'
+    );
+  }
+  
+  // Check 4: Code audit completed
+  const codeAudit = await getCodeAuditStatus();
+  if (!codeAudit || !codeAudit.completed) {
+    validation.passed = false;
+    validation.errors.push(
+      'Code audit not completed. Cannot confirm no dependencies.'
+    );
   }
   
   return validation;
 }
 ```
 
----
-
-#### Pre-Commit Validation UI
-
-**If validation passes**:
-```
-╔═══════════════════════════════════════════╗
-║  PRE-MIGRATION VALIDATION ✓               ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  ✓ 543 notes accounted for                ║
-║  ✓ 47 categories verified                 ║
-║  ✓ Parent-child relationships intact      ║
-║  ✓ No ambiguous paths detected            ║
-║  ✓ Backup created and verified            ║
-║                                           ║
-║  ⚠ 3 warnings (non-critical):             ║
-║    • 5 duplicate category names in        ║
-║      different branches (normal)          ║
-║                                           ║
-║  Ready to proceed.                        ║
-║                                           ║
-║  [View Detailed Report]                   ║
-║                                           ║
-║          [Cancel]  [Start Migration]      ║
-╚═══════════════════════════════════════════╝
-```
-
-**If validation fails**:
-```
-╔═══════════════════════════════════════════╗
-║  ⚠️ PRE-MIGRATION VALIDATION FAILED        ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  ❌ Critical issues detected:              ║
-║                                           ║
-║  • 12 notes have paths not in tree        ║
-║                                           ║
-║  Examples:                                ║
-║  - Note "Recipe ideas" has path:          ║
-║    Home → OldCategory → Deleted           ║
-║                                           ║
-║  - Note "Todo list" has path:             ║
-║    Work → NonExistent                     ║
-║                                           ║
-║  MIGRATION STOPPED                        ║
-║  Your data has NOT been modified.         ║
-║                                           ║
-║  REQUIRED ACTION:                         ║
-║  Review and fix these conflicts before    ║
-║  migration can proceed.                   ║
-║                                           ║
-║  [View Full Conflict Report]              ║
-║  [Download Diagnostic Log]                ║
-║                                           ║
-║               [Close]                     ║
-╚═══════════════════════════════════════════╝
-```
-
-**Critical**: If validation fails, migration **MUST NOT PROCEED**. Original data remains untouched.
+**If Validation Fails**: DO NOT remove fields. Fix issues first, then re-validate.
 
 ---
 
-#### Conflict Resolution Flow
+### 2.7 Consistency Verification During Compatibility Period
 
-**When ambiguous paths detected**:
-
-1. **Manual Review Interface**:
-```
-╔═══════════════════════════════════════════╗
-║  RESOLVE PATH CONFLICTS                   ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Conflict 1 of 12:                        ║
-║                                           ║
-║  Note: "Recipe ideas"                     ║
-║  Current path: Home → OldCategory         ║
-║                                           ║
-║  Problem: "OldCategory" doesn't exist     ║
-║           in current tree                 ║
-║                                           ║
-║  RESOLUTION OPTIONS:                      ║
-║                                           ║
-║  ( ) Create "OldCategory" in tree         ║
-║      Path: Home → OldCategory             ║
-║                                           ║
-║  ( ) Move note to existing category:      ║
-║      [Dropdown: Kitchen, Garden, Work...] ║
-║                                           ║
-║  ( ) Move to Uncategorized                ║
-║                                           ║
-║  ( ) Skip this note (review later)        ║
-║                                           ║
-║          [Previous]  [Next]  [Apply All]  ║
-╚═══════════════════════════════════════════╝
-```
-
-2. **Batch Resolution**:
-```
-"Apply same resolution to all 12 conflicts?"
-
-[ ] Create all missing categories
-[ ] Move all to: [Dropdown]
-[ ] Move all to Uncategorized
-
-[Cancel] [Apply to All]
-```
-
-3. **Resolution Required**: User MUST resolve conflicts before migration can proceed.
-
-**Never**: Auto-resolve, guess, or silently create categories without explicit user choice.
-
----
-
-**Phase 1: Build Enhanced Category Tree**
-
+**At Migration Completion**:
 ```javascript
-async function buildEnhancedCategoryTree() {
-  const oldTree = await getCategoryTree();  // Existing tree
+async function verifyLegacyFieldConsistency() {
   const allNotes = await getAllNotes();
-  
-  const newTree = {};
-  const categoryIdMap = new Map();  // name_path → category_id
-  
-  // Step 1: Traverse existing tree, assign IDs to all nodes
-  function traverseTree(node, parentId = null, parentPath = [], level = 0) {
-    const fullPath = [...parentPath, node.name];
-    const pathKey = fullPath.join('\u241E');
-    
-    // Assign ID if doesn't exist
-    if (!node.id) {
-      node.id = `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
-    
-    // Map path to ID for note linking
-    categoryIdMap.set(pathKey, node.id);
-    
-    // Add parent relationship
-    node.parent_id = parentId;
-    
-    // Initialize new structure fields
-    if (!node.sub_levels) node.sub_levels = {};
-    if (!node.category_branches) node.category_branches = {};
-    if (!node.level_branches) node.level_branches = {};
-    
-    // Recursively process children
-    if (node.children) {
-      for (const [childName, childNode] of Object.entries(node.children)) {
-        traverseTree(childNode, node.id, fullPath, level + 1);
-      }
-    }
-  }
-  
-  // Process each root category
-  for (const [rootName, rootNode] of Object.entries(oldTree)) {
-    traverseTree(rootNode, null, [], 0);
-    newTree[rootName] = rootNode;
-  }
-  
-  // Step 2: Discover sub-levels from note paths
-  for (const note of allNotes) {
-    if (!note.category_path || note.category_path.length === 0) continue;
-    
-    // For each segment in path, record as sub-level
-    let currentPath = [];
-    for (let i = 0; i < note.category_path.length; i++) {
-      currentPath.push(note.category_path[i]);
-      const pathKey = currentPath.join('\u241E');
-      const categoryId = categoryIdMap.get(pathKey);
-      
-      if (categoryId && i < note.category_path.length - 1) {
-        // This is not the leaf, so next segment is a sub-level
-        const nextSegment = note.category_path[i + 1];
-        const levelKey = `L${i + 1}`;
-        
-        const category = findCategoryById(newTree, categoryId);
-        if (category) {
-          if (!category.sub_levels[levelKey]) {
-            category.sub_levels[levelKey] = [];
-          }
-          if (!category.sub_levels[levelKey].includes(nextSegment)) {
-            category.sub_levels[levelKey].push(nextSegment);
-          }
-        }
-      }
-    }
-  }
-  
-  return { newTree, categoryIdMap };
-}
-```
-
----
-
-**Phase 2: Link Notes to Categories**
-
-```javascript
-async function linkNotesToCategories(categoryIdMap) {
-  const allNotes = await getAllNotes();
-  const migrationLog = [];
-  let successCount = 0;
-  let errorCount = 0;
+  const errors = [];
   
   for (const note of allNotes) {
-    try {
-      // Determine category_node_id from category_path
-      let categoryId = null;
-      
-      if (note.category_path && note.category_path.length > 0) {
-        // Try full path first
-        const fullPathKey = note.category_path.join('\u241E');
-        categoryId = categoryIdMap.get(fullPathKey);
-        
-        // If not found, find deepest matching category
-        if (!categoryId) {
-          for (let len = note.category_path.length; len > 0; len--) {
-            const partialPath = note.category_path.slice(0, len);
-            const partialKey = partialPath.join('\u241E');
-            categoryId = categoryIdMap.get(partialKey);
-            if (categoryId) break;
-          }
-        }
-      }
-      
-      // Fallback: try legacy fields
-      if (!categoryId && note.category) {
-        categoryId = categoryIdMap.get(note.category);
-      }
-      
-      // Add category_node_id to note
-      note.category_node_id = categoryId || null;
-      
-      // Preserve existing fields (don't delete anything)
-      // category, subcategory, category_path remain unchanged
-      
-      // Save updated note
-      await saveNote(note);
-      
-      successCount++;
-      migrationLog.push({
+    if (!note.category_node_id) continue;
+    
+    // Compute path from category_node_id
+    const computedPath = getCategoryPath(note.category_node_id);
+    
+    // Compare with stored legacy path
+    const storedPath = note.category_path || [];
+    
+    if (JSON.stringify(computedPath) !== JSON.stringify(storedPath)) {
+      errors.push({
         noteId: note.id,
         noteTitle: note.title,
-        categoryPath: note.category_path,
-        assignedCategoryId: categoryId,
-        status: categoryId ? 'success' : 'warning_no_category'
-      });
-      
-    } catch (error) {
-      errorCount++;
-      migrationLog.push({
-        noteId: note.id,
-        noteTitle: note.title,
-        error: error.message,
-        status: 'error'
+        stored: storedPath,
+        computed: computedPath,
+        issue: 'Migration mismatch'
       });
     }
   }
   
   return {
-    successCount,
-    errorCount,
-    migrationLog
+    totalChecked: allNotes.length,
+    mismatches: errors.length,
+    errors: errors
   };
 }
 ```
 
----
+**Run This Verification**:
+- ✅ At end of migration (before marking complete)
+- ✅ If verification fails, rollback migration automatically
 
-**Phase 3: Validate Migration**
-
+**Ongoing Spot-Check** (Post-Migration):
 ```javascript
-async function validateMigration() {
+// Run on app initialization
+async function spotCheckCategoryAssociations() {
   const allNotes = await getAllNotes();
-  const tree = await getCategoryTree();
   
-  const validation = {
-    totalNotes: allNotes.length,
-    notesWithCategoryId: 0,
-    notesWithoutCategoryId: 0,
-    orphanedNotes: [],
-    validLinks: 0,
-    brokenLinks: 0
+  // Check 10 random notes
+  const sample = allNotes.sort(() => 0.5 - Math.random()).slice(0, 10);
+  
+  for (const note of sample) {
+    if (!note.category_node_id) continue;
+    
+    // Verify category_node_id resolves to valid category
+    const category = await getCategoryById(note.category_node_id);
+    if (!category) {
+      console.error(
+        `Orphaned note: ${note.id} points to non-existent category ${note.category_node_id}`
+      );
+    }
+  }
+}
+```
+
+---
+
+### 2.8 Legacy Field Strategy Summary
+
+**Current Status** (Version 3.3):
+
+| Field | Status | Updated After Migration? | Removal Timeline |
+|-------|--------|-------------------------|------------------|
+| `category_node_id` | **PRIMARY** | ✅ Always (source of truth) | Never (permanent) |
+| `category` | Legacy | ❌ No (frozen at migration) | 12+ months eligibility |
+| `subcategory` | Legacy | ❌ No (frozen at migration) | 12+ months eligibility |
+| `category_path` | Legacy | ❌ No (frozen at migration) | 12+ months eligibility |
+
+**Key Principles**:
+1. ✅ Retain during migration (Phase 1)
+2. ✅ Mark as read-only frozen snapshots
+3. ✅ New code uses ONLY `category_node_id` + tree traversal (Phase 2)
+4. ✅ Document dependencies during deprecation review (Phase 3)
+5. ✅ Validate thoroughly before any removal (Phase 4)
+6. ✅ Minimum 12-month retention (not automatic deletion)
+7. ❌ NO removal authorized by this specification
+
+---
+
+## 🔄 SECTION 3: ENHANCED ROLLBACK STRATEGY (VERSION 3.3)
+
+### APPROVED: THREE-OPTION STRATEGY WITH DATA PRESERVATION
+
+---
+
+### 3.1 Rollback Overview
+
+**Problem Scenario**: User completes migration, creates 50 new notes, edits 8 notes, then requests rollback.
+
+**Requirement**: Rollback MUST NOT silently delete those 50 new notes.
+
+**Solution**: Three-option strategy with independent preservation archive.
+
+---
+
+### 3.2 Option 1 — Auto-Preserve (DEFAULT, RECOMMENDED)
+
+**User Experience**:
+1. User requests rollback
+2. System detects 50 new notes + 8 edited notes
+3. System shows rollback options dialog
+4. User selects "Auto-Preserve" (pre-selected)
+5. System creates independent preservation archive
+6. System creates "📦 Preserved from New System" category
+7. System adds all new/edited content to preservation category
+8. System restores old backup (now includes preservation category)
+9. User sees preserved notes in special folder for recategorization
+
+**Implementation**:
+```javascript
+async function rollbackWithAutoPreserve(backup, changes) {
+  // Step 1: Create independent preservation archive
+  const preservationArchive = {
+    timestamp: new Date().toISOString(),
+    type: 'auto_preserve',
+    newNotes: changes.newNotes,
+    editedNotes: changes.editedNotes,
+    categoryChanges: changes.categoryChanges
   };
   
-  for (const note of allNotes) {
-    if (note.category_node_id) {
-      validation.notesWithCategoryId++;
-      
-      // Verify category exists in tree
-      const categoryExists = findCategoryById(tree, note.category_node_id);
-      if (categoryExists) {
-        validation.validLinks++;
-      } else {
-        validation.brokenLinks++;
-        validation.orphanedNotes.push({
-          noteId: note.id,
-          noteTitle: note.title,
-          categoryNodeId: note.category_node_id
-        });
+  // Store archive independently (separate from backup)
+  await db.preservation_archives.add(preservationArchive);
+  
+  // Step 2: Verify archive before proceeding
+  const archiveValid = await validatePreservationArchive(preservationArchive);
+  if (!archiveValid) {
+    throw new Error('Preservation archive validation failed. Rollback stopped.');
+  }
+  
+  // Step 3: Offer downloadable copy
+  const downloadUrl = createDownloadLink(preservationArchive);
+  
+  // Step 4: Create preservation category in backup
+  const preservationCategory = {
+    id: "cat-post-migration-preserved",
+    name: "📦 Preserved from New System",
+    type: "M",
+    created_at: new Date().toISOString()
+  };
+  
+  // Step 5: Add new notes to preservation category
+  for (const newNote of changes.newNotes) {
+    const preservedNote = {
+      ...newNote,
+      category_path: ["📦 Preserved from New System"],
+      category: "📦 Preserved from New System",
+      subcategory: "",
+      _original_category: newNote.category_node_id || null,
+      _preservation_source: 'rollback',
+      _preservation_timestamp: new Date().toISOString()
+    };
+    
+    backup.notes.push(preservedNote);
+  }
+  
+  // Step 6: Add edited note versions to preservation subcategory
+  for (const edited of changes.editedNotes) {
+    const preservedEdit = {
+      ...edited.current,
+      id: `${edited.current.id}-edited-${Date.now()}`,
+      title: `${edited.current.title} (Edited Version)`,
+      category_path: ["📦 Preserved from New System", "Edited Notes"],
+      category: "📦 Preserved from New System",
+      subcategory: "Edited Notes",
+      _original_note_id: edited.current.id,
+      _preservation_source: 'rollback',
+      _preservation_timestamp: new Date().toISOString()
+    };
+    
+    backup.notes.push(preservedEdit);
+  }
+  
+  // Step 7: Add preservation category to tree
+  backup.settings.category_tree["📦 Preserved from New System"] = {
+    ...preservationCategory,
+    children: {
+      "Edited Notes": {
+        id: "cat-preserved-edited",
+        name: "Edited Notes",
+        type: "SC",
+        parent_id: "cat-post-migration-preserved"
       }
-    } else {
-      validation.notesWithoutCategoryId++;
     }
+  };
+  
+  // Step 8: Restore backup (includes preserved content)
+  await restoreBackup(backup);
+  
+  // Step 9: Verify restoration
+  const verification = await verifyRollback(backup, preservationArchive);
+  if (!verification.success) {
+    throw new Error('Rollback verification failed');
   }
   
-  return validation;
+  return {
+    success: true,
+    preservedNotes: changes.newNotes.length,
+    preservedEdits: changes.editedNotes.length,
+    archiveUrl: downloadUrl,
+    archiveId: preservationArchive.timestamp
+  };
 }
 ```
 
----
-
-### 3.3 Migration Progress UI (ENHANCED)
-
-**Phase 0: Pre-Migration Validation** (NEW)
+**Result**:
 ```
-╔═══════════════════════════════════════════╗
-║  VALIDATING DATA...                       ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Checking data integrity...               ║
-║  ████████████████████████████ 100%       ║
-║                                           ║
-║  ✓ 543 notes verified                     ║
-║  ✓ 47 categories verified                 ║
-║  ✓ Backup created                         ║
-║  ✓ No conflicts detected                  ║
-║                                           ║
-║  Validation complete!                     ║
-║                                           ║
-╚═══════════════════════════════════════════╝
+After Rollback:
+
+📦 Preserved from New System
+├─ (50 new notes here)
+└─ Edited Notes
+   └─ (8 edited versions here)
+
+Kitchen
+Garden
+Work
+(... old categories restored ...)
 ```
 
-**Phase 1: Building Category Tree**
-```
-╔═══════════════════════════════════════════╗
-║  UPGRADING IRON RABBIT...                 ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Step 1/3: Building category tree         ║
-║  ████████████████████░░░░░ 85%           ║
-║                                           ║
-║  Processed: 412 / 485 categories          ║
-║                                           ║
-║  Please wait...                           ║
-║                                           ║
-║  [Pause Migration]                        ║
-║                                           ║
-╚═══════════════════════════════════════════╝
-```
-
-**Phase 2: Linking Notes**
-```
-╔═══════════════════════════════════════════╗
-║  UPGRADING IRON RABBIT...                 ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Step 2/3: Linking notes to categories    ║
-║  ███████████████░░░░░░░░░ 68%            ║
-║                                           ║
-║  Linked: 372 / 543 notes                  ║
-║                                           ║
-║  Please wait...                           ║
-║                                           ║
-║  [Pause Migration]                        ║
-║                                           ║
-╚═══════════════════════════════════════════╝
-```
-
-**Phase 3: Final Validation**
-```
-╔═══════════════════════════════════════════╗
-║  UPGRADING IRON RABBIT...                 ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Step 3/3: Validating migration           ║
-║  ████████████████████████████ 100%       ║
-║                                           ║
-║  ✓ All notes linked correctly             ║
-║  ✓ No orphaned data                       ║
-║  ✓ Integrity verified                     ║
-║                                           ║
-║  Finalizing...                            ║
-║                                           ║
-╚═══════════════════════════════════════════╝
-```
-
-**Completion: Success**
-```
-╔═══════════════════════════════════════════╗
-║  UPGRADE COMPLETE ✓                       ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  ✓ 543 notes linked to categories         ║
-║  ✓ 47 categories enhanced                 ║
-║  ✓ 0 errors, 3 warnings                   ║
-║                                           ║
-║  MIGRATION REPORT:                        ║
-║                                           ║
-║  • All existing data preserved            ║
-║  • All parent-child relationships intact  ║
-║  • 5 duplicate names in different         ║
-║    branches (assigned unique IDs)         ║
-║                                           ║
-║  Your data is ready!                      ║
-║                                           ║
-║  [View Full Migration Report]             ║
-║  [Download Report as PDF]                 ║
-║                                           ║
-║  Rollback available for 7 days            ║
-║  [Download Backup for Safekeeping]        ║
-║                                           ║
-║               [Continue]                  ║
-╚═══════════════════════════════════════════╝
-```
-
-**Completion: With Warnings**
-```
-╔═══════════════════════════════════════════╗
-║  UPGRADE COMPLETE (with warnings)         ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  ✓ 541 notes linked successfully          ║
-║  ⚠ 2 notes require review                 ║
-║                                           ║
-║  WARNINGS:                                ║
-║                                           ║
-║  • 2 notes had ambiguous paths:           ║
-║    - "Old recipe" (assigned to Kitchen)   ║
-║    - "Todo" (left uncategorized)          ║
-║                                           ║
-║  These notes are accessible but may need  ║
-║  manual category assignment.              ║
-║                                           ║
-║  [View Warning Details]                   ║
-║  [Go to Affected Notes]                   ║
-║                                           ║
-║  Rollback available for 7 days            ║
-║                                           ║
-║          [Continue]  [Rollback]           ║
-╚═══════════════════════════════════════════╝
-```
-
-**Interruption & Resumption**
-```
-╔═══════════════════════════════════════════╗
-║  MIGRATION PAUSED                         ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Progress: 68% complete                   ║
-║  (372 of 543 notes processed)             ║
-║                                           ║
-║  You can safely close this window.        ║
-║                                           ║
-║  Resume migration when ready:             ║
-║  Settings → Resume Upgrade                ║
-║                                           ║
-║  Your data has NOT been modified yet.     ║
-║  Changes will be committed when           ║
-║  migration completes.                     ║
-║                                           ║
-║  [Resume Now]  [Cancel Migration]         ║
-╚═══════════════════════════════════════════╝
-```
-
-**On Next App Load (If Paused)**:
-```
-╔═══════════════════════════════════════════╗
-║  INCOMPLETE MIGRATION DETECTED            ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  An upgrade was started but not finished. ║
-║                                           ║
-║  Progress: 68% complete                   ║
-║  Last updated: Nov 4, 2026 4:23 PM       ║
-║                                           ║
-║  OPTIONS:                                 ║
-║                                           ║
-║  1. [Resume Upgrade]                      ║
-║     Continue from where it left off       ║
-║                                           ║
-║  2. [Cancel Upgrade]                      ║
-║     Discard progress, keep current system ║
-║                                           ║
-║  Your data is safe either way.            ║
-║                                           ║
-║               [Choose Option]             ║
-╚═══════════════════════════════════════════╝
-```
+**Advantages**:
+- ✅ No data loss
+- ✅ User doesn't need to remember to download
+- ✅ Automatic preservation
+- ✅ Clear visual distinction (emoji + folder name)
+- ✅ Notes immediately visible for recategorization
 
 ---
 
-### 3.4 Migration Error Handling
+### 3.3 Option 2 — Archive
 
-**Scenario 1: Note has invalid category_path**
+**User Experience**:
+1. User selects "Archive" option
+2. System creates independent preservation archive
+3. System offers download link
+4. System restores old backup (WITHOUT new notes)
+5. Post-rollback UI shows "Re-Import Preserved Notes" button
+6. User can review and selectively re-import
 
+**Implementation**:
 ```javascript
-// Note has: category_path: ["NonExistent", "Category"]
-// Tree doesn't have "NonExistent"
-
-// Action:
-// 1. Create category in tree with that name
-// 2. Assign ID
-// 3. Link note
-// 4. Log as "auto-created category"
-```
-
-**Scenario 2: Note has no category_path**
-
-```javascript
-// Note has: category_path: []
-
-// Action:
-// 1. Leave category_node_id as null
-// 2. Note remains in "Uncategorized"
-// 3. Log as "uncategorized note (normal)"
-```
-
-**Scenario 3: Duplicate category names in different branches**
-
-```javascript
-// Home → Kitchen
-// Work → Kitchen
-
-// Action:
-// 1. Each gets unique ID (already handled by tree structure)
-// 2. Notes linked to correct Kitchen based on full path
-// 3. No ambiguity
-```
-
-**Scenario 4: Migration interrupted (browser closed)**
-
-```javascript
-// Recovery:
-// 1. On next load, detect incomplete migration
-// 2. Show: "Previous upgrade incomplete. Resume or rollback?"
-// 3. [Resume Upgrade] [Rollback to Backup]
-// 4. If resume: continue from last checkpoint
-```
-
----
-
-### 3.5 Migration Checkpoints
-
-**Save state after each phase**:
-
-```javascript
-// localStorage key: 'ir_migration_state'
-{
-  status: 'in_progress',  // or 'complete', 'failed'
-  startTime: '2026-11-04T15:42:00Z',
-  phase: 2,  // 1=tree, 2=notes, 3=validation
-  notesProcessed: 412,
-  totalNotes: 543,
-  errors: [],
-  canRollback: true,
-  backupKey: 'ir_backup_2026_11_04_15_42'
-}
-```
-
-**If page reloaded during migration**:
-- Resume from last checkpoint
-- Show progress already made
-- Continue without re-processing completed items
-
----
-
-## SECTION 4: DETAILED ROLLBACK STRATEGY
-
-### 4.1 Rollback Window (ENHANCED)
-
-**Duration**: 7 days minimum from migration completion
-
-**Backup Storage**:
-- **Primary**: IndexedDB (separate store: `migration_backups`)
-  - Retained for 7 days minimum
-  - Auto-prompt after 7 days: Keep, Archive, or Delete
+async function rollbackWithArchive(backup, changes) {
+  // Step 1: Create independent preservation archive
+  const preservationArchive = {
+    timestamp: new Date().toISOString(),
+    type: 'archive',
+    description: "Notes created/edited after migration",
+    newNotes: changes.newNotes,
+    editedNotes: changes.editedNotes.map(e => ({
+      noteId: e.current.id,
+      backupVersion: e.backup,
+      currentVersion: e.current,
+      changes: {
+        titleChanged: e.current.title !== e.backup.title,
+        contentChanged: e.current.content !== e.backup.content,
+        categoryChanged: e.current.category_node_id !== e.backup.category_node_id
+      }
+    })),
+    deletedNotes: changes.deletedNotes,
+    categoryChanges: changes.categoryChanges
+  };
   
-- **Independent Downloadable Backup**: User can download JSON backup anytime
-  - Retained forever (user's responsibility)
-  - Can be re-imported manually at any time
-  - Provides long-term safety net beyond 7-day window
-
-**After 7 Days**:
-```
-╔═══════════════════════════════════════════╗
-║  MIGRATION BACKUP NOTICE                  ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  Your migration backup is 7 days old.     ║
-║                                           ║
-║  Backup from: Nov 4, 2026 3:42 PM        ║
-║  Size: 2.3 MB                             ║
-║                                           ║
-║  OPTIONS:                                 ║
-║                                           ║
-║  1. [Keep Backup Indefinitely]            ║
-║     Continue taking up storage space      ║
-║                                           ║
-║  2. [Download and Delete]                 ║
-║     Save externally, free up space        ║
-║                                           ║
-║  3. [Delete Backup]                       ║
-║     Cannot automatic rollback after this  ║
-║                                           ║
-║  Recommended: Download before deleting    ║
-║                                           ║
-║               [Choose Option]             ║
-╚═══════════════════════════════════════════╝
-```
-
-**Independent Backup Retention**:
-- User can download backup as JSON file anytime during or after migration
-- File stored on user's device/cloud storage
-- Can be manually re-imported to restore Iron Rabbit
-- Provides rollback capability beyond automated 7-day window
-- User controls retention period (not system-enforced)
-
-**Manual Restore from Downloaded Backup**:
-```
-Settings → Advanced → Import Data
-→ [Select Backup File]
-→ [Preview Data]
-→ [Restore from Backup]
-```
-
-This ensures users can rollback months or years later if they saved the backup file.
-
----
-
-### 4.2 Rollback Trigger
-
-**User can trigger rollback via**:
-
-1. Settings menu: "Advanced → Rollback Migration"
-2. Migration complete screen: "Rollback" button
-3. Error recovery: If validation fails, auto-offer rollback
-
-**Confirmation Required**:
-```
-╔═══════════════════════════════════════════╗
-║  ROLLBACK TO PREVIOUS VERSION             ║
-╠═══════════════════════════════════════════╣
-║                                           ║
-║  ⚠️ This will restore Iron Rabbit to      ║
-║     the state before the upgrade.         ║
-║                                           ║
-║  Backup from: Nov 4, 2026 3:42 PM        ║
-║                                           ║
-║  Current data will be replaced:           ║
-║  • 543 notes                              ║
-║  • 47 categories                          ║
-║                                           ║
-║  Changes made since upgrade will be lost. ║
-║                                           ║
-║  Are you sure?                            ║
-║                                           ║
-║          [Cancel]  [Rollback Now]         ║
-╚═══════════════════════════════════════════╝
-```
-
----
-
-### 4.3 Rollback Algorithm
-
-```javascript
-async function performRollback() {
-  try {
-    // Step 1: Load backup
-    const backup = await getBackup('ir_backup_2026_11_04_15_42');
-    if (!backup) {
-      throw new Error('Backup not found. Cannot rollback.');
-    }
-    
-    // Step 2: Validate backup
-    const isValid = validateBackup(backup);
-    if (!isValid) {
-      throw new Error('Backup is corrupted. Cannot rollback.');
-    }
-    
-    // Step 3: Create snapshot of current state (in case user wants to re-migrate later)
-    const currentSnapshot = {
-      notes: await getAllNotes(),
-      settings: await getSettings(),
-      timestamp: new Date().toISOString()
-    };
-    await saveSnapshot('pre_rollback_snapshot', currentSnapshot);
-    
-    // Step 4: Clear current data
-    await clearAllNotes();
-    await clearSettings();
-    
-    // Step 5: Restore from backup
-    for (const note of backup.notes) {
-      await saveNote(note);
-    }
-    await saveSettings(backup.settings);
-    
-    // Step 6: Verify restoration
-    const restoredNoteCount = (await getAllNotes()).length;
-    if (restoredNoteCount !== backup.notes.length) {
-      throw new Error('Restoration incomplete. Count mismatch.');
-    }
-    
-    // Step 7: Mark rollback complete
-    await saveRollbackState({
-      status: 'complete',
-      timestamp: new Date().toISOString(),
-      notesRestored: restoredNoteCount
-    });
-    
-    // Step 8: Clean up migration state
-    await clearMigrationState();
-    
-    return {
-      success: true,
-      notesRestored: restoredNoteCount
-    };
-    
-  } catch (error) {
-    // Rollback failed - critical situation
-    return {
-      success: false,
-      error: error.message,
-      action: 'manual_recovery_required'
-    };
+  // Step 2: Store archive in IndexedDB (separate store)
+  await db.preservation_archives.add(preservationArchive);
+  
+  // Step 3: Offer download
+  const downloadUrl = createDownloadLink(preservationArchive);
+  
+  // Step 4: Restore backup (WITHOUT new notes)
+  await restoreBackup(backup);
+  
+  // Step 5: Verify archive remains accessible
+  const archiveAccessible = await verifyArchiveAccessible(preservationArchive.timestamp);
+  if (!archiveAccessible) {
+    throw new Error('Preservation archive not accessible after rollback');
   }
+  
+  return {
+    success: true,
+    archiveId: preservationArchive.timestamp,
+    downloadUrl: downloadUrl,
+    requiresReconciliation: true
+  };
 }
 ```
 
----
-
-### 4.4 Rollback Verification
-
-**After rollback**:
-
-1. **Count Check**: Verify note count matches backup
-2. **Spot Check**: Display 10 random notes, user confirms they look correct
-3. **Category Check**: Verify category tree matches backup
-4. **Functionality Check**: Try creating/editing note
-
-**Verification UI**:
+**Post-Rollback Re-Import UI**:
 ```
 ╔═══════════════════════════════════════════╗
-║  ROLLBACK COMPLETE ✓                      ║
+║  RE-IMPORT PRESERVED NOTES                ║
 ╠═══════════════════════════════════════════╣
 ║                                           ║
-║  Iron Rabbit restored to:                 ║
-║  Nov 4, 2026 3:42 PM                     ║
+║  50 notes were created after migration    ║
+║  and preserved during rollback.           ║
 ║                                           ║
-║  ✓ 543 notes restored                     ║
-║  ✓ 47 categories restored                 ║
-║  ✓ All settings restored                  ║
+║  IMPORT OPTIONS:                          ║
 ║                                           ║
-║  Please verify your data looks correct.   ║
+║  1. ✅ Import all to "Preserved" folder   ║
+║     (You can re-categorize later)         ║
 ║                                           ║
-║  [View Random Notes]                      ║
+║  2. 📝 Review each note before import     ║
+║     (Choose category for each)            ║
 ║                                           ║
-║               [Continue]                  ║
+║  3. 🔍 Preview notes first                ║
+║     (See list, decide which to import)    ║
+║                                           ║
+║  [Download Archive] [View Details]        ║
+║                                           ║
+║          [Cancel]  [Choose Method]        ║
 ╚═══════════════════════════════════════════╝
 ```
 
+**Advantages**:
+- ✅ No data loss
+- ✅ User has explicit control
+- ✅ Can review before re-adding
+- ✅ Selective re-import
+
 ---
 
-### 4.5 Rollback Failure Recovery
+### 3.4 Option 3 — Discard (Requires Explicit Confirmation)
 
-**If rollback fails** (worst case scenario):
+**User Experience**:
+1. User selects "Discard" option
+2. System shows scary confirmation dialog
+3. User must type exact phrase: "DELETE 50 NOTES"
+4. System creates independent backup (even when discarding)
+5. System restores old backup (new notes not included)
+6. Discarded content documented in archive
 
+**Confirmation UI**:
 ```
 ╔═══════════════════════════════════════════╗
-║  ⚠️ ROLLBACK FAILED                        ║
+║  ⚠️ CONFIRM PERMANENT DATA LOSS            ║
 ╠═══════════════════════════════════════════╣
 ║                                           ║
-║  The automatic rollback encountered an    ║
-║  error. Your data is safe.                ║
+║  This will PERMANENTLY DELETE:            ║
 ║                                           ║
-║  Error: Backup restoration incomplete     ║
+║  • 50 new notes                           ║
+║  • 8 edited note versions                 ║
+║  • 37 category associations               ║
 ║                                           ║
-║  RECOVERY OPTIONS:                        ║
+║  This action cannot be undone.            ║
 ║                                           ║
-║  1. [Download Current Data]               ║
-║     Save everything as JSON file          ║
+║  To confirm, type exactly:                ║
 ║                                           ║
-║  2. [Download Backup]                     ║
-║     Save original backup as JSON          ║
+║      DELETE 50 NOTES                      ║
 ║                                           ║
-║  3. [Retry Rollback]                      ║
-║     Attempt restoration again             ║
+║  [____________________________]           ║
 ║                                           ║
-║  4. [Contact Support]                     ║
-║     Get help with manual recovery         ║
+║  Note: A backup archive will still be     ║
+║  created and available for download.      ║
 ║                                           ║
-║               [Choose Option]             ║
+║          [Cancel]  [Confirm]              ║
 ╚═══════════════════════════════════════════╝
 ```
 
-**Manual Recovery Steps** (if all else fails):
-1. User downloads both current data and backup as JSON
-2. User reloads app (clears IndexedDB)
-3. User imports backup JSON manually
-4. Support team assists if needed
+**Implementation**:
+```javascript
+async function rollbackWithDiscard(backup, changes, userConfirmation) {
+  // Step 1: Verify confirmation matches
+  const expectedConfirmation = `DELETE ${changes.newNotes.length} NOTES`;
+  if (userConfirmation !== expectedConfirmation) {
+    throw new Error('Confirmation does not match. Rollback cancelled.');
+  }
+  
+  // Step 2: Create preservation archive (even when discarding)
+  const preservationArchive = {
+    timestamp: new Date().toISOString(),
+    type: 'discard',
+    description: "Content discarded during rollback (user confirmed)",
+    newNotes: changes.newNotes,
+    editedNotes: changes.editedNotes,
+    categoryChanges: changes.categoryChanges,
+    userConfirmation: userConfirmation,
+    discardedAt: new Date().toISOString()
+  };
+  
+  // Store archive (for recovery if needed)
+  await db.preservation_archives.add(preservationArchive);
+  
+  // Step 3: Offer download
+  const downloadUrl = createDownloadLink(preservationArchive);
+  
+  // Step 4: Restore backup (WITHOUT new notes)
+  await restoreBackup(backup);
+  
+  return {
+    success: true,
+    discarded: true,
+    discardedNotes: changes.newNotes.length,
+    archiveUrl: downloadUrl,
+    archiveId: preservationArchive.timestamp
+  };
+}
+```
+
+**Important**: Even when "Discard" selected, independent backup preserved and documented.
 
 ---
 
-### 4.6 Preventing Rollback Data Loss
+### 3.5 Rollback Selection UI
 
-**Problem**: User creates notes after migration, then rolls back
-
-**Solution**: Warn user about data created since migration
-
+**Main Rollback Dialog**:
 ```
 ╔═══════════════════════════════════════════╗
-║  ⚠️ ROLLBACK WARNING                       ║
+║  ROLLBACK WITH DATA PRESERVATION          ║
 ╠═══════════════════════════════════════════╣
 ║                                           ║
 ║  You've created content since upgrade:    ║
 ║                                           ║
-║  • 12 new notes                           ║
+║  • 50 new notes                           ║
 ║  • 3 new categories                       ║
 ║  • 8 edited notes                         ║
+║  • 37 category changes                    ║
 ║                                           ║
-║  Rolling back will LOSE these changes.    ║
+║  CHOOSE ROLLBACK METHOD:                  ║
 ║                                           ║
-║  RECOMMENDED: Download current data first ║
-║  [Download Current Data as JSON]          ║
+║  (•) 1. ✅ Auto-Preserve (Recommended)    ║
+║      Restored system will include a       ║
+║      "📦 Preserved" folder with all new   ║
+║      notes. Re-categorize them later.     ║
 ║                                           ║
-║  Then rollback and manually re-add        ║
-║  important new content.                   ║
+║  ( ) 2. 📦 Archive                        ║
+║      New notes saved in separate archive. ║
+║      Re-import them manually later.       ║
 ║                                           ║
-║     [Cancel]  [Download & Rollback]       ║
+║  ( ) 3. ⚠️ Discard                         ║
+║      New notes will be PERMANENTLY LOST.  ║
+║      (Requires explicit confirmation)     ║
+║                                           ║
+║  [Download Current Data First]            ║
+║                                           ║
+║          [Cancel]  [Continue]             ║
+╚═══════════════════════════════════════════╝
+```
+
+**Default Selection**: Option 1 (Auto-Preserve) pre-selected.
+
+---
+
+### 3.6 Mandatory Rollback Safeguards
+
+**The following safeguards are MANDATORY for all rollback options**:
+
+1. ✅ **Never silently delete new notes**
+   - All rollback options preserve or require explicit confirmation
+   
+2. ✅ **Preserve edited note versions**
+   - Both original and edited versions preserved
+   
+3. ✅ **Preserve category changes and mappings**
+   - Track which notes moved between categories
+   
+4. ✅ **Preserve notes that cannot be automatically mapped**
+   - No silent category assignment
+   
+5. ✅ **Never silently assign note to incorrect category**
+   - Require explicit user decisions when uncertain
+   
+6. ✅ **Require explicit user decisions for reconciliation**
+   - Manual review for ambiguous cases
+   
+7. ✅ **Stop rollback if preservation cannot be verified**
+   - Fail-safe: Stop rather than lose data
+   
+8. ✅ **Never claim success until validation complete**
+   - Post-rollback verification required
+
+---
+
+### 3.7 Archive Retention Policy
+
+**APPROVED**: Archives retained **indefinitely** unless user explicitly deletes.
+
+**Key Points**:
+- ❌ NO automatic 30-day expiration
+- ❌ NO automatic 90-day expiration
+- ✅ User MUST have independent downloadable copy
+- ✅ Archives remain in IndexedDB until manually deleted
+- ✅ User can download archive at any time
+
+**Archive Management UI**:
+```
+Settings → Advanced → Preservation Archives
+
+╔═══════════════════════════════════════════╗
+║  PRESERVATION ARCHIVES                    ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  1. Auto-Preserve Archive                 ║
+║     Created: Nov 8, 2026 2:32 PM         ║
+║     Size: 2.4 MB                          ║
+║     Contains: 50 notes, 8 edits           ║
+║     [Download] [Delete]                   ║
+║                                           ║
+║  2. Manual Backup                         ║
+║     Created: Oct 15, 2026 10:00 AM       ║
+║     Size: 18.7 MB                         ║
+║     [Download] [Delete]                   ║
+║                                           ║
+║  Total storage: 21.1 MB                   ║
+║                                           ║
+║  [Create New Archive]                     ║
+║                                           ║
 ╚═══════════════════════════════════════════╝
 ```
 
 ---
 
-## SECTION 5: IMPLEMENTATION PHASES (REVISED)
+### 3.8 Category Reconciliation Strategy
 
-### Phase 0: Final Architecture Approval (Current)
+**Challenge**: New notes have `category_node_id` pointing to categories that may not exist in old system.
 
-**Tasks**:
-- ✅ User reviews this document
-- ❓ User answers remaining questions (Q1-Q8 in Section 2.2)
-- ✅ User provides explicit approval to begin Phase 1
-- ❌ NO IMPLEMENTATION YET
+**Solution**: Three-tier fallback matching.
 
-**Duration**: Awaiting user response
+**Reconciliation Algorithm**:
+```javascript
+async function reconcileCategoryAssociation(preservedNote, oldTree) {
+  // Step 1: Get resolved category path from new system
+  const newCategoryPath = preservedNote._resolved_category_path;
+  // e.g., ["Kitchen", "Recipes", "Desserts"]
+  
+  // Step 2: Try exact match
+  const exactMatch = findCategoryByPath(oldTree, newCategoryPath);
+  if (exactMatch) {
+    return {
+      strategy: 'exact_match',
+      targetPath: newCategoryPath,
+      confidence: 'high'
+    };
+  }
+  
+  // Step 3: Try partial match (deepest common ancestor)
+  for (let len = newCategoryPath.length - 1; len > 0; len--) {
+    const partialPath = newCategoryPath.slice(0, len);
+    const partialMatch = findCategoryByPath(oldTree, partialPath);
+    
+    if (partialMatch) {
+      return {
+        strategy: 'partial_match',
+        targetPath: partialPath,
+        unmatchedSegments: newCategoryPath.slice(len),
+        confidence: 'medium',
+        note: `Originally in ${newCategoryPath.join(' → ')}`
+      };
+    }
+  }
+  
+  // Step 4: No match — use preservation folder
+  return {
+    strategy: 'no_match',
+    targetPath: ["📦 Preserved from New System"],
+    originalPath: newCategoryPath,
+    confidence: 'low',
+    note: `Originally in ${newCategoryPath.join(' → ')} (not found in old system)`
+  };
+}
+```
 
----
+**Reconciliation Examples**:
 
-### Phase 1: Migration Infrastructure (FIRST)
+**Case 1: Exact Match** ✅
+- New: `["Kitchen", "Recipes"]`
+- Old: Has `["Kitchen", "Recipes"]`
+- Result: Import to `["Kitchen", "Recipes"]`
 
-**Tasks**:
-1. Implement backup system
-2. Implement migration algorithm (Section 3.2)
-3. Implement rollback algorithm (Section 4.3)
-4. Build migration UI (Section 3.3)
-5. Write comprehensive tests
-6. Test on copy of production data
+**Case 2: Partial Match** ⚠️
+- New: `["Kitchen", "Recipes", "Desserts"]`
+- Old: Has `["Kitchen", "Recipes"]` but NOT "Desserts"
+- Result: Import to `["Kitchen", "Recipes"]` + note "Originally in Desserts"
 
-**Deliverables**:
-- Backup/restore functions
-- Migration script with checkpoints
-- Rollback script with verification
-- Migration UI mockups
-- Test results
-
-**Duration**: 5-7 days
-
-**Approval Checkpoint**: User reviews migration plan before proceeding
-
----
-
-### Phase 2: Data Model Enhancement (FOUNDATION)
-
-**Tasks**:
-1. Add `category_node_id` field to note schema
-2. Enhance category tree structure
-3. Remove duplicate relationship tracking (no note_ids arrays)
-4. Implement single-source-of-truth queries
-5. Update storage service methods
-
-**Deliverables**:
-- Enhanced storageService.js
-- Database schema documentation
-- Unit tests for data layer
-
-**Duration**: 4-6 days
-
----
-
-### Phase 3: Two-Way Association Logic
-
-**Tasks**:
-1. Implement category_node_id assignment on note save
-2. Implement tree-based category discovery
-3. Update note move logic (change category_node_id)
-4. Update category rename logic (preserve IDs)
-5. Build category query functions
-
-**Deliverables**:
-- Note-category linking functions
-- Category operations (rename, move, delete)
-- Integration tests
-
-**Duration**: 5-7 days
+**Case 3: No Match** ❌
+- New: `["Garden", "Tips"]`
+- Old: Does NOT have "Garden"
+- Result: Import to `["📦 Preserved from New System"]` + note "Originally in Garden → Tips"
 
 ---
 
-### Phase 4: Blue Plus (Create Note) UI
+### 3.9 Post-Rollback Verification
 
-**Tasks**:
-1. Add blue plus buttons to sub-levels
-2. Wire blue plus to NoteModal with pre-set category_node_id
-3. Ensure category_node_id saved on note creation
-4. Update rendering to show notes from category queries
+**Verification Checklist**:
+```javascript
+async function verifyRollback(backup, preservationArchive) {
+  const verification = {
+    success: true,
+    errors: [],
+    warnings: []
+  };
+  
+  // Check 1: Note count matches backup
+  const currentCount = (await getAllNotes()).length;
+  const expectedCount = backup.notes.length;
+  
+  if (currentCount !== expectedCount) {
+    verification.success = false;
+    verification.errors.push(
+      `Note count mismatch: expected ${expectedCount}, got ${currentCount}`
+    );
+  }
+  
+  // Check 2: Preservation archive accessible
+  if (preservationArchive) {
+    const archiveExists = await db.preservation_archives.get(preservationArchive.timestamp);
+    if (!archiveExists) {
+      verification.success = false;
+      verification.errors.push('Preservation archive not found after rollback');
+    }
+  }
+  
+  // Check 3: Category tree restored
+  const currentTree = await getCategoryTree();
+  if (!currentTree || Object.keys(currentTree).length === 0) {
+    verification.success = false;
+    verification.errors.push('Category tree empty after rollback');
+  }
+  
+  // Check 4: Settings restored
+  const currentSettings = await getSettings();
+  if (!currentSettings) {
+    verification.success = false;
+    verification.errors.push('Settings not restored');
+  }
+  
+  return verification;
+}
+```
 
-**Deliverables**:
-- Blue plus button component
-- Modified NoteModal
-- End-to-end tests
-
-**Duration**: 3-4 days
-
-**Approval Checkpoint**: User tests two-way association working correctly
-
----
-
-### Phase 5: Recursive Branch Storage
-
-**Tasks**:
-1. Add `category_branches` and `level_branches` to tree
-2. Implement branch creation logic
-3. Implement branch identifier generation
-4. Add branch counter per-parent logic
-5. Store branch metadata (type, parent, etc.)
-
-**Deliverables**:
-- Enhanced category tree structure
-- Branch creation functions
-- categoryBranchHelpers.js
-- Storage tests
-
-**Duration**: 5-7 days
-
----
-
-### Phase 6: Green Plus (Create Branch) UI
-
-**Tasks**:
-1. Add green plus buttons to all M, SC, sub-levels
-2. Wire green plus to branch creation flow
-3. Implement accordion behavior (collapse, open, collapse)
-4. Implement branch naming input
-5. Play approved animation
-
-**Deliverables**:
-- Green plus button component
-- Branch creation modal/inline editor
-- Accordion state management
-- UI tests
-
-**Duration**: 4-6 days
+**If Verification Fails**: Stop and show error. Do NOT claim rollback succeeded.
 
 ---
 
-### Phase 7: Branch Rendering
+### 3.10 Rollback Strategy Summary
 
-**Tasks**:
-1. Build CategoryBranchNode component (recursive)
-2. Display branch identifiers (L3 M1, M-SC1, etc.)
-3. Transform sub-levels to accordions when branches added
-4. Render branch sub-levels
-5. Maintain display order (sub-levels before branches)
+**Version 3.3 Rollback Guarantees**:
 
-**Deliverables**:
-- CategoryBranchNode.jsx
-- Enhanced CategoryGroup.jsx
-- Enhanced NestedSubGroup.jsx
-- Rendering tests
-
-**Duration**: 6-8 days
+1. ✅ **Three user options**: Auto-Preserve (default), Archive, Discard
+2. ✅ **Independent archives**: Exist separately from restored data
+3. ✅ **No silent deletion**: All options preserve or require explicit confirmation
+4. ✅ **Downloadable backups**: Always available
+5. ✅ **Category reconciliation**: Best-effort matching with three-tier fallback
+6. ✅ **Indefinite retention**: No automatic archive expiration
+7. ✅ **Post-rollback verification**: Validation before claiming success
+8. ✅ **Fail-safe design**: Stop if preservation cannot be verified
 
 ---
 
-### Phase 8: Integration & Polish
+## SECTION 4: PLUS BUTTON PLACEMENT
 
-**Tasks**:
-1. Search integration (categories + branches + notes)
-2. Category deletion with warnings
-3. Move/rename cascade updates
-4. Empty category display
-5. Performance optimization
-6. Comprehensive regression testing
+*(Content from Version 3.2 preserved — see original document for full details)*
 
-**Deliverables**:
-- Complete feature set
-- All test suites passing
-- Performance benchmarks
-- User documentation
+### 4.1 Green Plus: Create Category/Branch
 
-**Duration**: 5-7 days
+**Appears on**:
+- ✅ Every Main Category (M)
+- ✅ Every Subcategory (SC, Sc)
+- ✅ Every ordinary sub-level (l1, l2, l3...)
 
-**Final Approval Checkpoint**: User acceptance testing
+**Does NOT appear on**: Notes
+
+**Action**: Creates category branch or subcategory beneath selected item
 
 ---
 
-### Phase 9: Migration Execution
+### 4.2 Blue Plus: Create Note
 
-**Tasks**:
-1. User triggers migration
-2. Monitor migration progress
-3. Validate results
-4. Provide rollback option
-5. Archive backup
+**Appears on**:
+- ✅ Every ordinary sub-level (l1, l2, l3...)
+- ✅ Includes sub-levels inside category branches
 
-**Duration**: 5-10 minutes (user-facing)
+**Does NOT appear on**:
+- ❌ Main Category headers (M)
+- ❌ Subcategory headers (SC, Sc)
 
----
+**Action**: Creates note in that exact sub-level location
 
-**TOTAL ESTIMATED**: 37-52 development days (7-10 weeks)
-
-**CRITICAL PATH**: Cannot skip Phase 1-4. Must validate foundation before Phase 5-8.
+**Rationale**: Notes belong IN sub-levels, not directly in category headers.
 
 ---
 
-## SECTION 6: FILES REQUIRING MODIFICATION
+## SECTION 5: IDENTIFIER CONVENTIONS
 
-### 6.1 Storage Layer
+*(Content from Version 3.2 preserved — see original document for full details)*
 
-**storageService.js** (+400 lines)
-- Enhanced `category_tree` structure
-- Add category_node_id handling
-- Remove note_ids tracking (single source of truth)
-- New methods:
-  - `addCategoryBranch(parentId, branchName, branchType)`
-  - `addLevelBranch(parentId, level, branchName)`
-  - `getCategoryById(categoryId)`
-  - `getCategoryPath(categoryId)` (traverse tree)
-  - `getNotesByCategory(categoryId)` (query notes)
-  - `updateCategoryName(categoryId, newName)`
-  - `deleteCategoryWithPrompt(categoryId)`
+### 5.1 Type Codes Summary
 
-**backupService.js** (NEW, ~300 lines)
-- `createBackup()`
-- `restoreBackup(backupId)`
-- `validateBackup(backup)`
-- `listBackups()`
-- `deleteBackup(backupId)`
+| Symbol | Meaning | Parent Type | Format Example |
+|--------|---------|-------------|----------------|
+| M | Main Category | (root) | `M` |
+| SC | Sub beneath Main | M or B | `M-SC1` |
+| Sc | Sub beneath Sub | SC or Sc | `M-Sc1` (compact) |
+| l | Ordinary level | Any | `l4,078` |
+| B | Branch at level | M | `l3-B1` |
 
-**migrationService.js** (NEW, ~500 lines)
-- `performMigration()`
-- `buildEnhancedCategoryTree()`
-- `linkNotesToCategories()`
-- `validateMigration()`
-- `rollbackMigration()`
+### 5.2 Capitalization Rules (LOCKED)
+
+**SC vs Sc Distinction**:
+- **SC** (capital C): Parent is Main Category
+- **Sc** (lowercase c): Parent is another Subcategory
+- **Never** normalize or convert between them
+
+### 5.3 Level Numbering (LOCKED)
+
+**l4,078 Interpretation**: Ordinary sub-level **number** 4,078
+
+**Comma**: Thousands separator (not component divider)
 
 ---
 
-### 6.2 UI Components
+## 🚀 SECTION 6: MIGRATION TRIGGER (VERSION 3.3)
 
-**CategoryGroup.jsx** (+250 lines)
-- Add green plus button
-- Add blue plus button to sub-levels
-- Display category branches
-- Transform sub-levels to accordions
-- Wire branch creation handlers
-
-**NestedSubGroup.jsx** (+250 lines)
-- Add green plus button
-- Add blue plus button
-- Detect branches beneath sub-level
-- Transform to accordion when needed
-- Recursive branch rendering
-
-**NotesApp.jsx** (+150 lines)
-- Load category tree for rendering
-- Manage branch accordion state
-- Handle empty category display
-- Pass tree to components
-
-**NoteModal.jsx** (+80 lines)
-- Accept `category_node_id` prop
-- Set category_node_id on save
-- Query category path from ID
-- Display category path from tree
+### APPROVED: PROMINENT BANNER PLUS SETTINGS ENTRY
 
 ---
 
-### 6.3 New Components
+### 6.1 Two Access Methods
 
-**CategoryBranchNode.jsx** (NEW, ~450 lines)
-- Recursive component for branches
-- Display branch identifiers
-- Independent accordion per branch
-- Green plus (sub-branch)
-- Blue plus on branch's sub-levels
-- Recursive rendering of nested branches
+**Method 1: Prominent Non-Blocking Banner**
 
-**TwoButtonControl.jsx** (NEW, ~120 lines)
-- Green plus button
-- Blue plus button
-- Tooltip management
-- Click handlers
+```
+╔═══════════════════════════════════════════╗
+║  📢 NEW HIERARCHY SYSTEM AVAILABLE        ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  Enhanced category features now ready:    ║
+║  • Recursive category branches            ║
+║  • Permanent category IDs                 ║
+║  • Enhanced organization                  ║
+║                                           ║
+║  [Learn More]  [Upgrade Now]  [Later]     ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+```
 
-**MigrationWizard.jsx** (NEW, ~400 lines)
-- Migration UI
-- Progress display
-- Error handling
-- Rollback interface
-
-**categoryBranchHelpers.js** (NEW, ~350 lines)
-- `generateBranchIdentifier(parent, type, counter)`
-- `findCategoryById(tree, id)`
-- `getChildBranches(category)`
-- `getCategoryPathFromId(tree, id)`
-- `validateBranchStructure(branch)`
-
----
-
-### 6.4 Files NOT Modified
-
-**Preserved (no changes)**:
-- All note content rendering
-- All attachment handling
-- All 205 gallery images
-- All theme/styling files (CSS unchanged)
-- All existing animations
-- NoteCard.jsx
-- NoteTile.jsx
-- All modal components (except NoteModal)
+**Behavior**:
+- ✅ Appears at top of app on first load after system update
+- ✅ Non-blocking: User can dismiss and continue using app
+- ✅ Reappears on next session if dismissed (until migration complete)
+- ❌ Does NOT force migration
+- ❌ Does NOT prevent normal application use
+- ✅ [Later] button dismisses for current session
+- ✅ [Upgrade Now] opens migration wizard
 
 ---
 
-## SECTION 7: TESTING STRATEGY
+**Method 2: Permanent Settings Entry**
 
-### 7.1 Migration Testing
+```
+Settings → Advanced → System
 
-**Test Suite: Migration**
+╔═══════════════════════════════════════════╗
+║  SYSTEM UPGRADES                          ║
+╠═══════════════════════════════════════════╣
+║                                           ║
+║  📢 Universal Hierarchy System            ║
+║     Status: Available                     ║
+║     [Start Upgrade]                       ║
+║                                           ║
+║  Other system information...              ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+```
 
-**Test M.1**: Backup Creation
-- Create backup of 500+ notes
-- Verify backup size reasonable
-- Verify backup contains all data
-- Verify backup downloadable
-
-**Test M.2**: Migration Execution
-- Run migration on test dataset
-- Verify all notes get category_node_id
-- Verify no data loss
-- Verify category tree enhanced
-
-**Test M.3**: Migration Validation
-- Check all notes linked correctly
-- Check no orphaned notes
-- Check category path consistency
-- Check no broken links
-
-**Test M.4**: Rollback Success
-- Perform rollback
-- Verify data restored exactly
-- Verify note count matches
-- Verify categories restored
-
-**Test M.5**: Rollback After Changes
-- Migrate
-- Create new notes
-- Rollback
-- Verify warning shown
-- Verify old data restored
-
-**Test M.6**: Migration Interruption
-- Start migration
-- Simulate browser close
-- Reopen
-- Verify resume offered
-- Complete migration
-
-**Test M.7**: Migration with Invalid Data
-- Notes with empty category_path
-- Notes with non-existent categories
-- Malformed note objects
-- Verify migration handles gracefully
+**Behavior**:
+- ✅ Always accessible via Settings menu
+- ✅ User can initiate migration at any time
+- ✅ Clear status indicator (Available / In Progress / Complete)
 
 ---
 
-### 7.2 Two-Way Association Testing
+### 6.2 Migration Initiation Rules (LOCKED)
 
-**Test Suite: Association**
-
-**Test A.1**: Note Creation with Blue Plus
-- Click blue plus on L2
-- Create note
-- Verify category_node_id set to L2's ID
-- Verify note appears under L2
-
-**Test A.2**: Note Move Between Categories
-- Move note from Kitchen L1 to Garden L2
-- Verify category_node_id updated
-- Verify note appears under Garden L2
-- Verify removed from Kitchen L1
-
-**Test A.3**: Category Rename Cascades
-- Rename "Kitchen" to "Cooking"
-- Verify all notes under Kitchen still linked (by ID)
-- Verify display path updated to "Cooking"
-
-**Test A.4**: Empty Category Display
-- Create category with no notes
-- Verify category visible in UI
-- Click blue plus on sub-level
-- Create note
-- Verify category now has note
-
-**Test A.5**: Query Notes by Category
-- Category has 10 notes
-- Query: `getNotesByCategory(categoryId)`
-- Verify returns all 10 notes
-- Verify performance acceptable
+1. ❌ **NEVER automatic**: Migration never starts without user action
+2. ❌ **NEVER forced**: User can postpone indefinitely
+3. ❌ **NEVER silent**: Always requires explicit user initiation
+4. ✅ **User control**: User decides when to migrate
+5. ✅ **Clear options**: Both banner and Settings provide access
 
 ---
 
-### 7.3 Recursive Branch Testing
+### 6.3 Migration Wizard Preservation
 
-**Test Suite: Branches**
+**All Previously Approved Safeguards Preserved**:
+- ✅ Pre-validation (8-point checklist)
+- ✅ Backup creation
+- ✅ Conflict resolution UI
+- ✅ Interruption and resumption
+- ✅ Post-validation
+- ✅ Rollback option (7-day window + indefinite downloadable backup)
 
-**Test B.1**: Create SC Beneath Main
-- Click green plus on Kitchen M
-- Create "M-SC1: Pantry"
-- Verify identifier correct
-- Verify Kitchen collapses
-- Verify Pantry opens during creation
-- Verify Pantry collapses after naming
-
-**Test B.2**: Create Branch Beneath L3
-- Note with path: M → L1 → L2 → L3 → L4
-- Click green plus on L3
-- Create "L3 M1: Branch"
-- Verify L3 becomes accordion
-- Verify L3 keeps "L3" designation
-- Verify L4 unchanged
-- Verify branch appears under L3
-
-**Test B.3**: Multiple Branches Same Parent
-- Create M-SC1, M-SC2, M-SC3 beneath Kitchen
-- Verify counters: 1, 2, 3
-- Create M-SC1 beneath Garden
-- Verify counter resets to 1
-
-**Test B.4**: Nested Branches (6 levels)
-- M → M-SC1 → SC-Sc1 → Sc-sc1 → sc-sc1 → sc-sc1
-- Verify all identifiers correct
-- Verify all accordions work
-- Verify unlimited depth supported
-
-**Test B.5**: Sub-Level Accordion Transformation
-- L3 has no branches (plain text)
-- Create L3 M1
-- Verify L3 becomes accordion
-- Verify L3 sub-levels (L4, L5) preserved
-- Verify branch renders correctly
-
-**Test B.6**: Display Order
-- Kitchen with: L1, L2, L3, M-SC1, M-SC2
-- Verify order: Direct notes → L1 → L2 → L3 → M-SC1 → M-SC2
+*(See Section 7 for complete migration algorithm)*
 
 ---
 
-### 7.4 Integration Testing
+## SECTION 7: MIGRATION ALGORITHM
 
-**Test Suite: Integration**
+*(Content from Version 3.2 preserved — see original document for complete migration strategy)*
 
-**Test I.1**: Create Note in Branch Sub-Level
-- Create branch: Kitchen → M-SC1: Pantry → L1: Canned
-- Click blue plus on "L1: Canned"
-- Create note
-- Verify note's category_node_id points to Canned
-- Verify note appears under Pantry → Canned
+### 7.1 Pre-Migration Validation
 
-**Test I.2**: Search Across Everything
-- Search "bread"
-- Verify finds:
-  - Category names containing "bread"
-  - Branch names containing "bread"
-  - Sub-level names containing "bread"
-  - Note titles containing "bread"
-  - Note content containing "bread"
+**8-Point Checklist** (must pass before migration proceeds):
+1. ✅ All existing notes accounted for
+2. ✅ All existing categories verified
+3. ✅ Parent-child relationships intact
+4. ✅ Ambiguous paths detected and flagged
+5. ✅ Original paths preserved for verification
+6. ✅ Backup integrity validated
+7. ✅ Duplicate names in different contexts identified
+8. ✅ No critical conflicts detected
 
-**Test I.3**: Delete Category with Notes
-- Pantry has 5 notes
-- Click delete on Pantry
-- Verify warning shown
-- Select "Move to parent"
-- Verify notes moved to Kitchen
-- Verify Pantry deleted
-
-**Test I.4**: Delete Branch with Sub-Branches
-- Kitchen → M-SC1: Pantry → SC-Sc1: Canned
-- Delete Pantry
-- Verify warning about sub-branches
-- Confirm deletion
-- Verify Pantry and Canned both deleted
-
-**Test I.5**: Offline Operation
-- Go offline
-- Create notes with blue plus
-- Create branches with green plus
-- Go online
-- Verify all changes persisted
+**If Validation Fails**: Migration MUST NOT PROCEED. Show conflict resolution UI.
 
 ---
 
-### 7.5 Regression Testing
+### 7.2 Migration Phases
 
-**Test Suite: Existing Functionality**
+**Phase 1: Build Enhanced Category Tree**
+- Traverse existing tree
+- Assign permanent IDs to all nodes
+- Add parent relationships
+- Discover sub-levels from note paths
+- Create categoryIdMap (path → ID)
 
-**Test R.1**: Note Editor Sub-Levels
-- Create note in note editor
-- Add M → L1 → L2 → L3 path manually
-- Save
-- Verify category_node_id assigned
-- Verify sub-levels render correctly
+**Phase 2: Link Notes to Categories**
+- For each note, determine `category_node_id` from `category_path`
+- ADD new field `category_node_id`
+- PRESERVE legacy fields (category, subcategory, category_path) — see Section 2
+- Save updated note
 
-**Test R.2**: Note Discovery
-- Create notes with various paths
-- Verify all notes discovered
-- Verify grouping by category
-- Verify sub-level nesting
-
-**Test R.3**: Pinned Notes
-- Pin notes
-- Verify appear in pinned rail
-- Verify not duplicated in categories
-
-**Test R.4**: Note Drag & Drop
-- Drag note between categories
-- Verify category_node_id updated
-- Verify note appears in new location
-
-**Test R.5**: Export/Import
-- Export notes to JSON
-- Clear database
-- Import notes
-- Verify all data restored
-- Verify categories recreated
+**Phase 3: Final Validation**
+- Verify all notes linked correctly
+- Check for orphaned notes
+- Verify category path consistency
+- Check for broken links
+- **If validation fails**: Automatic rollback
 
 ---
 
-## SECTION 8: RISK MITIGATION
+## 🧪 SECTION 8: TESTING STRATEGY (VERSION 3.3)
 
-### 8.1 Data Loss Prevention
-
-**Risk**: Migration fails, data corrupted
-
-**Mitigation**:
-- ✅ Full backup before migration
-- ✅ Checkpointed migration (resume if interrupted)
-- ✅ Validation after migration
-- ✅ 7-day rollback window
-- ✅ User can download backup externally
-- ✅ Migration log for forensics
-
-**Contingency**: If all else fails, user has backup JSON to manually restore
+### APPROVED: SYNTHETIC TEST DATA FIRST
 
 ---
 
-### 8.2 Performance Degradation
+### 8.1 Testing Data Source
 
-**Risk**: Tree-based rendering slower than discovery
+**Primary Approach**: Synthetic test data
 
-**Mitigation**:
-- ✅ Cache tree in memory
-- ✅ Index notes by category_node_id in IndexedDB
-- ✅ Lazy load collapsed branches
-- ✅ Virtual scrolling for large lists
-- ✅ Benchmark before/after
+**Rules**:
+1. ✅ Begin with synthetic test data
+2. ❌ Do NOT request user's actual IndexedDB without separate explicit permission
+3. ❌ Do NOT export, inspect, or modify user's actual data without authorization
+4. ✅ Synthetic data must cover all edge cases
 
-**Target**: Rendering time < 100ms for 500 notes, 50 categories
-
----
-
-### 8.3 User Confusion
-
-**Risk**: Users don't understand two plus buttons
-
-**Mitigation**:
-- ✅ Clear tooltips: "Create category" vs. "Create note here"
-- ✅ Different colors (green vs. blue)
-- ✅ Onboarding tutorial after migration
-- ✅ Help documentation
-- ✅ Visual examples in UI
+**If Real Data Ever Needed**: Requires separate explicit user authorization (not granted by this specification).
 
 ---
 
-### 8.4 Synchronization Bugs
+### 8.2 Synthetic Test Data Requirements
 
-**Risk**: category_node_id gets out of sync
+**Dataset Composition**:
+- 500+ notes with varied category paths
+- 50+ unique categories
+- 10+ deeply nested hierarchies (8+ levels)
+- 5+ empty categories
+- 10+ duplicate category names in different branches
+- 20+ notes with ambiguous paths
+- 10+ orphaned note scenarios
+- 5+ extremely deep sub-levels (l1000+)
 
-**Mitigation**:
-- ✅ Single source of truth (no duplicate tracking)
-- ✅ Validation on app load (repair broken links)
-- ✅ Comprehensive tests
-- ✅ Defensive coding (handle null gracefully)
-
----
-
-### 8.5 Migration Failure
-
-**Risk**: Migration stops midway, database in inconsistent state
-
-**Mitigation**:
-- ✅ Checkpoint system (resume from last successful phase)
-- ✅ Detection on load: "Incomplete migration detected"
-- ✅ Automatic offer to resume or rollback
-- ✅ Manual recovery option (download + reimport)
-
----
-
-## SECTION 9: FINAL CHECKLIST
-
-### 9.1 Before Implementation Begins
-
-- [ ] User answers Q1-Q8 (Section 2.2)
-- [ ] User approves migration strategy (Section 3)
-- [ ] User approves rollback strategy (Section 4)
-- [ ] User approves implementation phases (Section 5)
-- [ ] User provides explicit authorization: "Begin Phase 1"
+**Edge Cases to Include**:
+1. Notes with no category_path (uncategorized)
+2. Notes with invalid category_path (references non-existent categories)
+3. Categories with identical names in different branches
+4. Extremely deep nesting (10+ levels)
+5. Very long category names (100+ characters)
+6. Special characters in category names
+7. Unicode and emoji in category names
+8. Empty string category names
+9. Duplicate category_path arrays
+10. Notes created during migration interruption
 
 ---
 
-### 9.2 Before Phase 4 (Two-Way Association Validation)
+### 8.3 Test Scenarios (Comprehensive List)
 
-- [ ] Migration tested on copy of production data
-- [ ] Rollback tested successfully
-- [ ] All notes linked correctly
-- [ ] Performance acceptable
-- [ ] User approves continuing to recursive branches
+**Migration Testing**:
+1. ✅ Existing categories and subcategories preserved
+2. ✅ Empty categories remain visible
+3. ✅ Deeply nested branches migrated correctly
+4. ✅ Duplicate compact identifiers handled
+5. ✅ Permanent note-category associations created
+6. ✅ Legacy fields preserved (category, subcategory, category_path)
+7. ✅ Interrupted migration can resume
+8. ✅ Migration conflict resolution UI works
+9. ✅ Post-validation catches errors
+10. ✅ Automatic rollback on validation failure
+
+**Rollback Testing**:
+11. ✅ Rollback after new notes created (Auto-Preserve)
+12. ✅ Rollback with Archive option
+13. ✅ Rollback with Discard option (confirmation required)
+14. ✅ Preservation of edited notes
+15. ✅ Preservation of category relationships
+16. ✅ Category reconciliation (exact, partial, no match)
+17. ✅ Independent archive accessible after rollback
+18. ✅ Post-rollback verification
+
+**UI Testing**:
+19. ✅ Green plus button behavior (creates branches)
+20. ✅ Blue plus button behavior (creates notes)
+21. ✅ Blue plus appears only on sub-levels
+22. ✅ Green plus appears on M, SC, Sc, l
+23. ✅ Empty categories display correctly
+24. ✅ Accordion transformation when branch created
+25. ✅ Recursive branch rendering
+26. ✅ Identifier display (compact vs full)
+
+**Data Integrity Testing**:
+27. ✅ No data loss during migration
+28. ✅ All notes preserved
+29. ✅ All attachments preserved
+30. ✅ All metadata preserved
+31. ✅ Note count matches before/after
+32. ✅ Category tree structure intact
+33. ✅ Legacy fields frozen correctly
+34. ✅ Spot-check ongoing (orphan detection)
+
+**Offline & PWA Testing**:
+35. ✅ Migration works offline
+36. ✅ Rollback works offline
+37. ✅ IndexedDB persistence
+38. ✅ Capacitor compatibility
+39. ✅ Service worker integration
+40. ✅ Background sync (if applicable)
 
 ---
 
-### 9.3 Before Phase 9 (Production Migration)
+### 8.4 Testing Phases
 
-- [ ] All test suites passing
-- [ ] User acceptance testing complete
-- [ ] Migration UI reviewed and approved
-- [ ] Rollback procedure verified
-- [ ] Backup system tested
-- [ ] User provides explicit authorization: "Run production migration"
+**Phase 1: Unit Tests (Individual Functions)**
+- Category ID generation
+- Identifier formatting (l4,078 with comma)
+- Type validation (M, SC, Sc, l, B)
+- Capitalization preservation
+- Tree traversal
+- Path resolution
+
+**Phase 2: Integration Tests (Combined Features)**
+- Migration algorithm end-to-end
+- Rollback with preservation
+- Conflict resolution flow
+- Note creation with blue plus
+- Branch creation with green plus
+
+**Phase 3: UI Tests (User Interactions)**
+- Button placement verification
+- Modal interactions
+- Accordion behavior
+- Migration wizard flow
+- Rollback option selection
+
+**Phase 4: Regression Tests (Existing Functionality)**
+- Note creation still works
+- Note editing still works
+- Search still works
+- Filters still work
+- Gallery still works
+- All 205 gallery images load
+
+**Phase 5: Performance Tests**
+- Rendering time < 100ms for 500 notes
+- Migration completes in < 5 minutes for 500 notes
+- Tree traversal performance
+- IndexedDB query performance
 
 ---
 
-## SECTION 10: SUMMARY OF CORRECTIONS
+## SECTION 9: DATA PRESERVATION VALIDATION
 
-### What Changed from Previous Version
+### 9.1 Interaction Review
 
-1. ✅ **Blue plus placement**: Only on sub-levels, NOT category headers
-2. ✅ **Single source of truth**: Removed note_ids arrays, use category_node_id only
-3. ✅ **Identifier conventions**: Confirmed exact formats (L4 M1, M-SC1, SC-Sc1)
-4. ✅ **Branch counters**: Per-parent (decided)
-5. ✅ **Sub-level accordion**: Only when branch created (decided)
-6. ✅ **Styling**: Preserve existing green/blue, animations (decided)
-7. ✅ **Category deletion**: Never cascade silently (decided)
-8. ✅ **Search scope**: Include everything (decided)
-9. ✅ **Migration preservation**: All existing data preserved (decided)
-
-### Decisions Still Needed (8 Questions)
-
-See Section 2.2 for Q1-Q8 requiring user input.
+**Components in the System**:
+1. Permanent category IDs (`cat-uuid-001`)
+2. `category_node_id` (primary note-category link)
+3. Legacy category fields (frozen snapshots)
+4. Full hierarchy identifiers (`M-SC1-Sc1`)
+5. Compact identifiers (`M-Sc1`)
+6. Rollback archives (independent preservation)
+7. Post-migration note creation/editing
 
 ---
 
-## 🛑 DOCUMENT COMPLETE — AWAITING FINAL APPROVAL
+### 9.2 Potential Conflicts Analysis
 
-**Status**: ✅ REVISED ARCHITECTURE COMPLETE  
-**Corrections**: ✅ ALL INCORPORATED  
-**Code Changes**: ❌ NONE (Architecture only)  
-**Next Step**: USER FINAL REVIEW & EXPLICIT AUTHORIZATION
+**Conflict 1: Legacy Fields vs category_node_id**
+
+**Scenario**: Note moved after migration. Legacy `category_path` shows old location, `category_node_id` shows new location.
+
+**Resolution** (APPROVED):
+- ✅ Legacy fields remain frozen (not updated)
+- ✅ Display uses `category_node_id` + tree traversal (always current)
+- ✅ Legacy fields serve as archival snapshot only
+- ❌ No competing source of truth
+
+**Status**: ✅ Resolved by Section 2 (Legacy Field Strategy)
+
+---
+
+**Conflict 2: Compact Identifier Ambiguity**
+
+**Scenario**: Multiple categories have compact identifier `M-Sc1` in different branches.
+
+**Resolution** (APPROVED):
+- ✅ Permanent IDs are source of truth (unique)
+- ✅ Compact identifiers are display-only
+- ✅ UI shows full context (breadcrumbs, full paths)
+- ❌ Never use compact identifiers for queries or operations
+
+**Status**: ✅ Resolved by Section 1.1 (Locked Decision)
+
+---
+
+**Conflict 3: Rollback Archive vs Restored Data**
+
+**Scenario**: User rolls back with Auto-Preserve. Preservation category added to backup. Is this competing data?
+
+**Resolution** (APPROVED):
+- ✅ Preservation archive exists independently in IndexedDB (separate store)
+- ✅ Preservation category in restored data clearly marked (📦 emoji, special name)
+- ✅ User explicitly chose Auto-Preserve (aware of preservation)
+- ✅ Notes in preservation category are real notes in restored system
+- ❌ No hidden or competing data
+
+**Status**: ✅ Resolved by Section 3 (Rollback Strategy)
+
+---
+
+**Conflict 4: Post-Migration Edits in Rollback**
+
+**Scenario**: User edits note after migration, then rolls back. Which version preserved?
+
+**Resolution** (APPROVED):
+- ✅ Both versions preserved:
+  - Original (from backup)
+  - Edited (from preservation archive)
+- ✅ Edited version gets new ID to avoid conflict
+- ✅ Edited version clearly labeled "(Edited Version)"
+- ✅ User sees both and can choose
+
+**Status**: ✅ Resolved by Section 3.2 (Auto-Preserve Implementation)
+
+---
+
+**Conflict 5: Category Reconciliation Ambiguity**
+
+**Scenario**: New note was in `["Kitchen", "Recipes", "Desserts"]` (new system). Old system only has `["Kitchen", "Recipes"]`. Where to place note?
+
+**Resolution** (APPROVED):
+- ✅ Three-tier fallback matching:
+  1. Exact match (if exists)
+  2. Partial match (deepest common ancestor)
+  3. Preservation folder (if no match)
+- ✅ User notified of original location
+- ✅ User can manually recategorize
+- ❌ Never silent assignment to wrong category
+
+**Status**: ✅ Resolved by Section 3.8 (Category Reconciliation)
+
+---
+
+### 9.3 Unresolved Technical Details
+
+**After comprehensive review**: All potential conflicts identified have approved resolutions.
+
+**No items require additional user approval at this time.**
+
+---
+
+## SECTION 10: IMPLEMENTATION PHASES
+
+*(Content from Version 3.2 preserved — see original document for 9-phase implementation plan)*
+
+**Total Estimated Duration**: 37-52 development days (7-10 weeks)
+
+**Critical Path**: Phase 1-4 (foundation) must complete before Phase 5-8 (recursive branches)
+
+---
+
+## SECTION 11: FILES REQUIRING MODIFICATION
+
+*(Content from Version 3.2 preserved — see original document for complete file list)*
+
+**Summary**:
+- 6 existing files to modify
+- 5 new files to create
+- All styling/animation files preserved (no changes)
+- All 205 gallery images preserved
+
+---
+
+## 📋 SECTION 12: VERSION 3.3 SUMMARY
+
+### 12.1 What Changed in Version 3.3
+
+**New in This Version**:
+1. ✅ **Legacy Field Strategy** (Section 2)
+   - 4-phase hybrid approach approved
+   - Read-only frozen snapshots
+   - Minimum 12-month retention
+   - Validation requirements for eventual removal
+
+2. ✅ **Enhanced Rollback Strategy** (Section 3)
+   - Three-option strategy (Auto-Preserve, Archive, Discard)
+   - Independent preservation archives
+   - Category reconciliation algorithm
+   - Indefinite archive retention (no auto-expiration)
+
+3. ✅ **Migration Trigger Design** (Section 6)
+   - Prominent non-blocking banner
+   - Permanent Settings entry
+   - Never automatic, user-initiated only
+
+4. ✅ **Testing Strategy** (Section 8)
+   - Synthetic test data first
+   - Comprehensive test scenario list (40+ scenarios)
+   - No user data access without permission
+
+5. ✅ **Data Preservation Validation** (Section 9)
+   - All potential conflicts reviewed
+   - All conflicts resolved
+   - No unresolved technical details
+
+**Preserved from Version 3.2**:
+- All locked architectural decisions (Section 1)
+- Plus button placement (Section 4)
+- Identifier conventions (Section 5)
+- Migration algorithm (Section 7)
+- Implementation phases (Section 10)
+- File modification list (Section 11)
+
+---
+
+### 12.2 Authorization Status
+
+**✅ AUTHORIZED** (Architecture Design):
+- Complete architectural specification Version 3.3
+- Legacy field retention strategy
+- Enhanced rollback with preservation
+- Migration trigger design
+- Testing strategy
+
+**❌ NOT AUTHORIZED** (Implementation):
+- Writing JavaScript or React code
+- Modifying CSS, layouts, styling
+- Modifying IndexedDB or user data
+- Running migrations
+- Publishing or deploying application
+- Beginning implementation planning
+
+---
+
+### 12.3 Next Steps
+
+**Required from User**:
+1. Review Version 3.3 architecture specification
+2. Review Version 3.3 report (separate document)
+3. Approve or request changes
+4. If approved: Provide explicit implementation authorization
+
+**After User Approval**:
+1. Create detailed Phase 1 implementation plan
+2. Present plan for user approval
+3. Begin Phase 1 (Migration Infrastructure)
+4. Present completed Phase 1 for review before Phase 2
+
+**IRON RABBIT BOUNDARY remains in effect** until explicit implementation authorization provided.
+
+---
+
+## 🛑 DOCUMENT STATUS
+
+**Version**: 3.3 FINAL  
+**Date**: December 2025  
+**Status**: ✅ ARCHITECTURE COMPLETE — AWAITING USER REVIEW  
+**Authorization**: ❌ NO IMPLEMENTATION  
+**Next Action**: USER REVIEW AND APPROVAL  
 
 ---
 
 **This document supersedes**:
-- Previous consolidated architecture
+- Version 3.2 FINAL
 - All earlier specifications
 - Any conflicting information
 
-**This is the FINAL architectural specification** for implementation.
+**This is the FINAL architectural specification (Version 3.3)** for implementation.
 
 ---
 
-**END OF REVISED SPECIFICATION**
-
----
-
-## 🎯 FINAL ARCHITECTURAL SPECIFICATION — COMPLETE
-
-### All Decisions Finalized
-
-**16 Core Decisions**: ✅ ALL DECIDED
-- Plus button placement, icons, styling
-- Empty category display
-- Category renaming (preserve existing)
-- Animations (preserve existing)
-- Single source of truth (category_node_id)
-- Identifier conventions (L4 M1, M-SC1, SC-Sc1)
-- Branch counters (per-parent)
-- Sub-level accordions (transform when needed)
-- Migration timing (user-triggered wizard)
-- Rollback (7 days + downloadable forever)
-- Conflict resolution (flag for review)
-- Branch deletion (block until emptied)
-- Search scope (everything)
-- Data preservation (comprehensive)
-
-**8 Open Questions**: ✅ ALL ANSWERED
-1. Blue plus icon → Blue plus symbol, matching green
-2. Empty categories → Display all, always visible
-3. Renaming → Preserve existing editing behavior
-4. Animation → Preserve existing animations
-5. Migration → User-triggered wizard
-6. Rollback → 7 days minimum + downloadable backup
-7. Conflicts → Flag for review, never auto-resolve
-8. Deletion → Block until contents relocated
-
-**Additional Safeguards**: ✅ COMPREHENSIVE
-- Pre-commit validation (8-point checklist)
-- Conflict detection and resolution UI
-- Migration report generation
-- Interruption and safe resumption
-- Critical failure = stop without modifying data
-- All existing data preservation verified
-
----
-
-### Authorization Status
-
-**✅ AUTHORIZED**:
-- Complete architectural specification
-- Finalize documentation
-- Answer all design questions
-
-**❌ NOT AUTHORIZED**:
-- Writing code
-- Modifying CSS
-- Running migration
-- Publishing changes
-- Modifying live application
-
----
-
-### Next Steps
-
-**For Implementation Authorization**:
-User must provide explicit written statement:
-"I authorize implementation of Phase 1 (Migration Infrastructure) as specified in REVISED_CONSOLIDATED_ARCHITECTURE_FINAL.md version 3.0"
-
-**Required Before Phase 1**:
-- ✅ All decisions finalized (COMPLETE)
-- ✅ Migration strategy approved (COMPLETE)
-- ✅ Rollback strategy approved (COMPLETE)
-- ✅ Safeguards documented (COMPLETE)
-- ❓ User provides implementation authorization (PENDING)
-
----
-
-### Document Version
-
-**Version**: 3.0 FINAL  
-**Date**: November 4, 2026  
-**Status**: All decisions incorporated, ready for implementation authorization  
-**Supersedes**: All previous architecture documents
-
----
-
-**This is the authoritative specification for Iron Rabbit's Two-Way Association and Recursive Category Branches architecture.**
-
-**END OF SPECIFICATION**
+**END OF SPECIFICATION VERSION 3.3**
