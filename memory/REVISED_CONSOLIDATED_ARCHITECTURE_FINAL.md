@@ -130,40 +130,95 @@ Kitchen (M) [🟢]  ← No blue (category header)
 
 ---
 
-#### Category Structure (Simplified)
+#### Category Structure (Enhanced with Capitalization Rules)
 
 ```javascript
 {
-  "Baking": {
-    id: "cat-baking",
-    name: "Baking",
-    type: "M",  // or "SC", "Sc", "sc"
-    identifier: "L3 M1",
+  "Pantry": {
+    id: "cat-pantry",
+    name: "Pantry",
+    type: "SC",  // Capital C = directly beneath Main
+    
+    // IDENTIFIERS
+    identifier: "M-SC1",  // Compact identifier
+    full_identifier: "M-SC1",  // Same as compact (no intermediate levels)
     
     // PARENT RELATIONSHIP
     parent_id: "cat-kitchen",
-    parent_level: "L3",  // If attached to sub-level
-    parent_level_name: "Recipes",
+    parent_type: "M",  // Parent is Main Category
+    
+    // ANCESTRY (complete chain, reconstructable)
+    ancestry_ids: ["cat-kitchen", "cat-pantry"],
     
     // NO note_ids ARRAY (notes found by querying category_node_id)
     
     // SUB-LEVEL TRACKING
-    // Tracks which sub-level names exist (discovered from notes)
     sub_levels: {
-      "L1": ["Breads", "Pastries"],  // Names only
-      "L2": ["Cakes"]
+      "l1": ["Canned", "Dry Goods"],  // Lowercase 'l'
+      "l2": ["Spices"]
     },
     
     // RECURSIVE BRANCHES
     category_branches: {
-      "SC1": { ... }
+      "Sc1": {  // Lowercase 'c' = beneath another Subcategory
+        id: "cat-canned",
+        name: "Canned Goods",
+        type: "Sc",
+        identifier: "M-Sc1",  // Compact
+        full_identifier: "M-SC1-Sc1",  // Full shows SC1 parent
+        parent_id: "cat-pantry",
+        parent_type: "SC"
+      }
     },
     level_branches: {
-      "L1": { "M1": { ... } }
+      "l1": { "M1": { ... } }
     }
   }
 }
 ```
+
+**Nested Subcategory Example**:
+```javascript
+{
+  "Canned Goods": {
+    id: "cat-canned",
+    name: "Canned Goods",
+    type: "Sc",  // Lowercase 'c' = parent is another Subcategory
+    
+    // IDENTIFIERS
+    identifier: "M-Sc1",  // Compact (omits intermediate SC1)
+    full_identifier: "M-SC1-Sc1",  // Full path shows SC1
+    
+    // PARENT
+    parent_id: "cat-pantry",  // Parent is SC1 (Pantry)
+    parent_type: "SC",
+    
+    // ANCESTRY
+    ancestry_ids: ["cat-kitchen", "cat-pantry", "cat-canned"],
+    
+    // Further nesting possible
+    category_branches: {
+      "Sc1": {  // Still "Sc" (parent is Sc)
+        id: "cat-soups",
+        name: "Soups",
+        type: "Sc",
+        identifier: "M-Sc1",  // Compact (counter scoped to parent)
+        full_identifier: "M-SC1-Sc1-Sc1",  // Full shows complete path
+        parent_id: "cat-canned",
+        parent_type: "Sc"
+      }
+    }
+  }
+}
+```
+
+**Key Fields**:
+- `type`: "M", "SC" (capital), "Sc" (lowercase), or "l" (lowercase)
+- `identifier`: Compact reference (can omit intermediates)
+- `full_identifier`: Complete hierarchy path
+- `parent_id`: Source of truth for immediate parent
+- `parent_type`: Validates correct type usage
+- `ancestry_ids`: Complete chain (reconstructable from parent_id)
 
 **Key Change**: Removed `note_ids` array from categories. Notes discovered by:
 
@@ -180,24 +235,357 @@ const notes = await getAllNotes().filter(n => n.category_node_id === "cat-baking
 
 ---
 
-### 1.3 Identifier Conventions (CONFIRMED)
+### 1.3 Identifier Conventions (REVISED - CAPITALIZATION RULES)
 
-**These formats are FINAL and APPROVED**:
+**CRITICAL**: Capitalization is structurally significant and must be preserved exactly.
 
-| Parent | Branch Type | Identifier Format | Example |
-|--------|------------|------------------|---------|
-| Main | SC | M-SC{n} | M-SC1 |
-| SC | Sc | SC-Sc{n} | SC-Sc1 |
-| Sc | sc | Sc-sc{n} | Sc-sc1 |
-| sc | further | sc-sc{n} | sc-sc1 |
-| L{n} | M | L{n} M{m} | L4 M1 |
-| L{n} | SC | L{n} SC{m} | L4 SC1 |
+---
 
-**Notes**:
-- Hyphens between category levels (M-SC1, SC-Sc1)
-- Spaces for branches beneath sub-levels (L4 M1)
-- Lowercase progression: SC → Sc → sc → sc (infinite)
-- No parent counter in nested identifiers (SC-Sc1, not SC1-Sc1)
+#### Capitalization Defines Hierarchy Type
+
+**Uppercase vs. Lowercase Distinguishes Relationships**:
+
+| Identifier | Meaning | Parent Type |
+|-----------|---------|-------------|
+| **M** | Main Category | (root level) |
+| **SC** | Subcategory DIRECTLY beneath Main Category | Main Category |
+| **Sc** | Subcategory beneath ANOTHER Subcategory | Subcategory (SC or Sc) |
+| **l** | Ordinary sub-level | Any category |
+
+**Key Distinction**:
+- `SC` (capital C) = First-level subcategory (parent is Main Category)
+- `Sc` (lowercase c) = Nested subcategory (parent is another Subcategory)
+- These are **structurally different** and MUST NOT be normalized or converted
+
+---
+
+#### Example A: M-SC45-l4
+
+**Full Hierarchy**:
+```
+Main Category (M)
+└─ Subcategory 45 (SC45) ← DIRECTLY beneath Main
+   └─ Sub-level 4 (l4)
+```
+
+**Identifier**: `M-SC45-l4`
+
+**Interpretation**:
+- `M` = Main Category
+- `SC45` = 45th subcategory directly beneath this Main Category
+- `l4` = Ordinary sub-level 4
+
+**Parent Relationship**: SC45's immediate parent is M
+
+---
+
+#### Example B: M-Sc45-l4
+
+**Full Hierarchy** (actual data structure):
+```
+Main Category (M)
+└─ Subcategory 1 (SC1) ← DIRECTLY beneath Main
+   └─ Subcategory 45 (Sc45) ← Beneath SC1 (another Subcategory)
+      └─ Sub-level 4 (l4)
+```
+
+**Compact Identifier**: `M-Sc45-l4`
+
+**Interpretation**:
+- `M` = Main Category (shown)
+- `Sc45` = 45th nested subcategory somewhere in this Main's tree
+- `l4` = Ordinary sub-level 4
+
+**Important**: The compact identifier **omits** SC1 for brevity, but the **actual data structure** must maintain the complete chain: M → SC1 → Sc45 → l4
+
+**Parent Relationship**: Sc45's immediate parent is another Subcategory (SC1 in this case)
+
+---
+
+#### Distinction: SC vs. Sc
+
+**SC (capital C)**:
+```javascript
+{
+  id: "cat-sc1",
+  name: "Pantry",
+  type: "SC",
+  identifier: "M-SC1",
+  parent_id: "cat-main-kitchen",  // Parent is Main Category
+  parent_type: "M"
+}
+```
+
+**Sc (lowercase c)**:
+```javascript
+{
+  id: "cat-sc45",
+  name: "Canned Goods",
+  type: "Sc",
+  identifier: "M-Sc45",  // Compact (omits intermediate SC)
+  full_identifier: "M-SC1-Sc45",  // Complete path
+  parent_id: "cat-sc1",  // Parent is SC1 (another Subcategory)
+  parent_type: "SC"
+}
+```
+
+**Never**:
+- ❌ Convert `SC` to `Sc` or vice versa
+- ❌ Normalize capitalization
+- ❌ Treat them as equivalent
+- ❌ Discard the distinction
+
+---
+
+#### Complete Identifier Format Table
+
+| Structure | Type Code | Compact Identifier | Full Identifier | Parent Type |
+|-----------|-----------|-------------------|----------------|-------------|
+| Main Category | M | M | M | (root) |
+| Sub directly beneath Main | SC | M-SC{n} | M-SC{n} | M |
+| Sub beneath another Sub | Sc | M-Sc{n} | M-SC{x}-Sc{n} | SC or Sc |
+| Sub beneath nested Sub | Sc | M-Sc{n} | M-SC{x}-Sc{y}-Sc{n} | Sc |
+| Branch beneath L{n} | M | L{n} M{m} | L{n} M{m} | Sub-level |
+| Sub beneath L{n} branch | SC | L{n} M{m}-SC{k} | L{n} M{m}-SC{k} | M (branch) |
+| Ordinary sub-level | l | l{n} | l{n} | Any |
+
+**Examples with Full Hierarchy**:
+
+**Example 1: Two-Level Subcategories**
+```
+Main: Kitchen (M)
+├─ Pantry (SC1) ← First level sub
+   └─ Canned (Sc1) ← Nested sub
+```
+
+Identifiers:
+- Kitchen: `M`
+- Pantry: `M-SC1` (compact = full, parent is M)
+- Canned: `M-Sc1` (compact) or `M-SC1-Sc1` (full, parent is SC1)
+
+**Example 2: Three-Level Subcategories**
+```
+Main: Kitchen (M)
+├─ Pantry (SC1)
+   ├─ Canned (Sc1)
+      └─ Soups (Sc2)
+```
+
+Identifiers:
+- Kitchen: `M`
+- Pantry: `M-SC1`
+- Canned: `M-Sc1` (compact) or `M-SC1-Sc1` (full)
+- Soups: `M-Sc2` (compact) or `M-SC1-Sc1-Sc2` (full)
+
+**Example 3: Branch Beneath Sub-Level**
+```
+Main: Kitchen (M)
+├─ l3: Recipes (ordinary sub-level)
+   └─ l3 M1: Baking (branch beneath l3)
+      └─ SC1: Breads (sub beneath branch)
+         └─ Sc1: Sourdough (nested sub)
+```
+
+Identifiers:
+- Kitchen: `M`
+- Recipes: `l3`
+- Baking: `l3 M1`
+- Breads: `l3 M1-SC1`
+- Sourdough: `l3 M1-Sc1` (compact) or `l3 M1-SC1-Sc1` (full)
+
+---
+
+#### Counter Scoping Rules
+
+**Per-Parent Counters** (already decided):
+
+**SC Counter** (capital C):
+- Scoped to each Main Category
+- Kitchen has: M-SC1, M-SC2, M-SC3
+- Garden has: M-SC1, M-SC2 (independent counter)
+
+**Sc Counter** (lowercase c):
+- Scoped to each parent Subcategory
+- SC1 has: Sc1, Sc2, Sc3
+- SC2 has: Sc1, Sc2 (independent counter)
+- Sc1 can have its own: Sc1, Sc2 (nested)
+
+**Example**:
+```
+Kitchen (M)
+├─ SC1: Pantry
+│  ├─ Sc1: Canned ← First Sc beneath SC1
+│  │  └─ Sc1: Soups ← First Sc beneath Sc1 (different parent)
+│  └─ Sc2: Dry ← Second Sc beneath SC1
+└─ SC2: Storage
+   └─ Sc1: Tools ← First Sc beneath SC2 (independent counter)
+```
+
+Compact identifiers:
+- Pantry: M-SC1
+- Canned: M-Sc1 (45th would be M-Sc45)
+- Soups: M-Sc1 (within Canned's scope)
+- Dry: M-Sc2
+- Storage: M-SC2
+- Tools: M-Sc1 (within Storage's scope)
+
+---
+
+#### Compact vs. Full Identifiers
+
+**Compact Identifier** (for display/reference):
+- `M-Sc45-l4,078`
+- Omits intermediate categories for brevity
+- Quick reference/addressing
+- **NOT** the sole source of truth
+
+**Full Identifier** (internal, for complete path):
+- `M-SC12-Sc8-Sc45-l4,078`
+- Shows every intermediate category
+- Complete parent-child chain
+- Stored in data structure
+
+**Data Structure Requirements**:
+
+```javascript
+{
+  id: "cat-sc45",
+  name: "Specific Item",
+  type: "Sc",
+  
+  // Compact identifier (for reference)
+  identifier: "M-Sc45-l4",
+  
+  // Full identifier (complete path)
+  full_identifier: "M-SC12-Sc8-Sc45-l4",
+  
+  // Actual parent-child chain (source of truth)
+  parent_id: "cat-sc8",  // Immediate parent
+  parent_type: "Sc",
+  
+  // Complete ancestry (reconstructable from parent_id chain)
+  ancestry_ids: ["cat-main", "cat-sc12", "cat-sc8", "cat-sc45"]
+}
+```
+
+**Critical Rules**:
+1. ✅ Compact identifier used for display and quick reference
+2. ✅ Full identifier shows complete hierarchy
+3. ✅ `parent_id` chain is source of truth for relationships
+4. ❌ Never use compact identifier as sole data structure
+5. ❌ Never bypass intermediate nodes in actual data
+6. ✅ Complete hierarchy always recoverable from `parent_id` traversal
+
+---
+
+#### Validation Rules
+
+**On Category Creation**:
+```javascript
+function validateIdentifier(category) {
+  // 1. Check capitalization preserved
+  if (category.type === "SC" && category.parent_type !== "M") {
+    throw new Error("SC must have Main Category as parent");
+  }
+  
+  if (category.type === "Sc" && !["SC", "Sc"].includes(category.parent_type)) {
+    throw new Error("Sc must have Subcategory as parent");
+  }
+  
+  // 2. Verify parent_id exists and matches parent_type
+  const parent = await getCategoryById(category.parent_id);
+  if (!parent || parent.type !== category.parent_type) {
+    throw new Error("Parent type mismatch");
+  }
+  
+  // 3. Generate both compact and full identifiers
+  category.identifier = generateCompactIdentifier(category);
+  category.full_identifier = generateFullIdentifier(category);
+  
+  // 4. Verify full hierarchy chain intact
+  const ancestry = await getAncestry(category.parent_id);
+  if (!ancestry || ancestry.length === 0) {
+    throw new Error("Broken ancestry chain");
+  }
+}
+```
+
+**On Identifier Display**:
+```javascript
+// Use compact identifier for UI
+function displayCategory(category) {
+  return category.identifier;  // "M-Sc45-l4"
+}
+
+// Use full identifier for debugging/admin
+function displayFullPath(category) {
+  return category.full_identifier;  // "M-SC12-Sc8-Sc45-l4"
+}
+
+// Reconstruct complete hierarchy from data
+function getCompletePath(category) {
+  const path = [];
+  let current = category;
+  while (current) {
+    path.unshift(current);
+    current = await getCategoryById(current.parent_id);
+  }
+  return path;  // [M, SC12, Sc8, Sc45, l4]
+}
+```
+
+---
+
+#### Migration Implications
+
+**During Migration**:
+1. Analyze each category's immediate parent
+2. Assign type based on parent:
+   - Parent is Main → type = "SC"
+   - Parent is SC or Sc → type = "Sc"
+3. Generate compact identifier
+4. Generate full identifier
+5. Preserve complete `parent_id` chain
+6. Verify ancestry reconstructable
+
+**Example Migration Logic**:
+```javascript
+function assignCategoryType(category) {
+  if (!category.parent_id) {
+    return "M";  // Root level
+  }
+  
+  const parent = getCategoryById(category.parent_id);
+  
+  if (parent.type === "M") {
+    return "SC";  // Directly beneath Main
+  }
+  
+  if (parent.type === "SC" || parent.type === "Sc") {
+    return "Sc";  // Beneath another Subcategory
+  }
+  
+  throw new Error(`Unknown parent type: ${parent.type}`);
+}
+```
+
+---
+
+#### Summary of Capitalization Rules
+
+| Symbol | Meaning | Parent Must Be | Example |
+|--------|---------|---------------|---------|
+| M | Main Category | (none - root) | Kitchen |
+| SC | Subcategory | M (Main) | M-SC1: Pantry |
+| Sc | Nested Subcategory | SC or Sc | M-Sc1: Canned |
+| l | Ordinary sub-level | Any category | l4 |
+
+**Mandatory**:
+- Preserve exact capitalization in all identifiers
+- Never normalize or convert SC ↔ Sc
+- Distinguish them in all code, validation, and display
+- Use parent_type to verify correctness
+- Maintain complete hierarchy in data regardless of compact identifier
 
 ---
 
