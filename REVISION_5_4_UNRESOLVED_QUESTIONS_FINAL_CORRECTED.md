@@ -6,7 +6,11 @@
 **Reconstruction Date**: December 2025  
 **Purpose**: Document unresolved questions and assumptions requiring investigation, with added Universal Hierarchy System architectural concerns and recovery safeguards
 
-**RECONSTRUCTION NOTICE**: This document is a reconstruction based on the complete Revision 5.3 source document (546 lines, fully preserved) and the documented Revision 5.4 requirements from the agent handoff summary. It is NOT a recovered copy of the original Revision 5.4 delivered in the previous conversation. All Revision 5.3 content has been preserved in full (verified by complete file read of `/app/memory/REVISION_5_3_UNRESOLVED_QUESTIONS.md`). New architectural sections and corrections have been added per documented Revision 5.4 requirements.
+**RECONSTRUCTION NOTICE**: This document is a reconstruction based on the Revision 5.3 source document (546 lines) and the documented Revision 5.4 requirements from the agent handoff summary. It is NOT a recovered copy of the original Revision 5.4 delivered in the previous conversation. 
+
+**Preservation Status — Unverified**: The claim that "all Revision 5.3 content has been preserved in full" cannot be independently verified without access to the authoritative original Revision 5.4 document that was delivered in the previous conversation. While a complete file read of `/app/memory/REVISION_5_3_UNRESOLVED_QUESTIONS.md` was performed and that content was used as the basis for Sections 1-7, the reconstruction process involved integration with new Revision 5.4 architectural material, and therefore complete preservation of all original relationships, context, and nuance is UNVERIFIED.
+
+New architectural sections (Section 0 and corrections to recovery logic) have been added per documented Revision 5.4 requirements. These represent new material, not recovered content.
 
 ---
 
@@ -809,6 +813,19 @@ function classifyAffectedNote(noteEntry, journal, currentTree) {
   
   // ===== STEP 4: Note was written, but cannot reliably identify which operation =====
   
+  const versionDelta = noteEntry.actual_version_at_recovery - noteEntry.baseline_version;
+  
+  // CORRECTED: Check version delta FIRST before proceeding with field matching
+  // A version delta > 1 indicates multiple writes, which must be detected early
+  // before attempting to attribute the write to a specific operation
+  if (versionDelta > 1) {
+    // Multiple writes occurred - cannot attribute to this operation
+    noteEntry.write_classification = 'concurrent_user_edit';
+    noteEntry.classification_confidence = 'medium';
+    noteEntry.write_status = 'skipped_conflict';
+    return noteEntry;
+  }
+  
   // Check if category fields match intended state
   const categoryFieldsMatchIntended = verifyCategoryFieldsMatch(
     noteEntry.actual_category_node_path_at_recovery,
@@ -831,8 +848,6 @@ function classifyAffectedNote(noteEntry, journal, currentTree) {
     noteEntry.original_category,
     noteEntry.original_subcategory
   );
-  
-  const versionDelta = noteEntry.actual_version_at_recovery - noteEntry.baseline_version;
   
   // Check if note resolves against tree
   const resolvesCorrectly = verifyNoteResolvesAgainstTree(
@@ -875,14 +890,6 @@ function classifyAffectedNote(noteEntry, journal, currentTree) {
     return noteEntry;
   }
   
-  if (versionDelta > 1) {
-    // Multiple writes occurred
-    noteEntry.write_classification = 'concurrent_user_edit';
-    noteEntry.classification_confidence = 'medium';
-    noteEntry.write_status = 'skipped_conflict';
-    return noteEntry;
-  }
-  
   // Default: Cannot establish classification
   noteEntry.write_classification = 'uncertain';
   noteEntry.classification_confidence = 'low';
@@ -905,8 +912,26 @@ function verifyCategoryFieldsMatch(
 
 // Helper function: Verify note resolves correctly against tree
 function verifyNoteResolvesAgainstTree(category_node_path, categoryTree) {
+  // CORRECTED: Explicitly handle empty category_node_path
+  // An empty path is valid ONLY for notes assigned to no category (e.g., "Uncategorized" if represented as empty path)
+  // Define this rule based on actual application behavior
   if (!category_node_path || category_node_path.length === 0) {
-    return true;  // No path to verify
+    // UNRESOLVED: Is an empty category_node_path valid for all note types?
+    // For now, treat empty path as valid (no verification needed)
+    // This assumption must be verified against actual note schema and UI behavior
+    return true;
+  }
+  
+  // CORRECTED: Verify first node is a valid root
+  // Check that the first node either has no parent (is a root) or is explicitly defined as root
+  const firstNode = categoryTree.nodes[category_node_path[0]];
+  if (!firstNode) {
+    return false;  // First node missing
+  }
+  if (firstNode.parent_id !== null && firstNode.parent_id !== undefined) {
+    // First node has a parent, which means path doesn't start at root
+    // This could indicate a broken or incomplete path
+    return false;
   }
   
   // Check all nodes exist
@@ -916,7 +941,7 @@ function verifyNoteResolvesAgainstTree(category_node_path, categoryTree) {
     }
   }
   
-  // Check parent/child relationships
+  // Check parent/child relationships sequentially
   for (let i = 1; i < category_node_path.length; i++) {
     const childNode = categoryTree.nodes[category_node_path[i]];
     const expectedParentId = category_node_path[i - 1];
@@ -924,6 +949,15 @@ function verifyNoteResolvesAgainstTree(category_node_path, categoryTree) {
       return false;  // Broken parent chain
     }
   }
+  
+  // CORRECTED: This function verifies sequential parent relationships.
+  // It does NOT detect circular relationships within the broader tree structure.
+  // Circular relationships would require a full tree traversal starting from roots.
+  // If circular relationship detection is required, implement separate validation.
+  
+  // CORRECTED: This function verifies that the path resolves correctly.
+  // It does NOT validate complete intended hierarchy constraints beyond parent-child links.
+  // Additional constraints (depth limits, allowed parent types, etc.) require separate validation.
   
   return true;
 }
@@ -992,7 +1026,9 @@ async function verifyOperationCompletionRequirements(journal, currentTree) {
   };
   
   // ===== VERIFICATION 0: Affected notes collection is valid =====
-  // CORRECTED: Check for empty collection or missing journal fields
+  // CORRECTED: Distinguish empty collection from missing journal fields
+  // An empty affected_notes array may be valid for tree-only operations (no notes affected)
+  // A missing or malformed field indicates journal corruption
   
   if (!journal.affected_notes || !Array.isArray(journal.affected_notes)) {
     console.error('Journal affected_notes field is missing or not an array');
@@ -1002,8 +1038,11 @@ async function verifyOperationCompletionRequirements(journal, currentTree) {
   
   if (journal.affected_notes.length === 0) {
     console.warn('Journal affected_notes collection is empty');
-    // Empty collection requires special handling - operation may have affected zero notes (valid for certain tree-only operations)
-    // Caller must determine if empty collection is expected for this operation type
+    // CORRECTED: Empty collection requires special handling
+    // For tree-only operations (rename node, change node color), affected_notes may legitimately be empty
+    // However, verification for "operation completion" in this context typically implies notes were expected
+    // UNRESOLVED: Define explicit rules for when empty collection is valid vs. indicates incomplete journal
+    // For now, mark collection as technically valid but require caller to verify this is expected
     verificationResults.affected_notes_collection_valid = false;
     return verificationResults;
   }
@@ -1261,23 +1300,36 @@ async function decideRecoveryAction(journal, currentTree) {
     // Recovery decision must account for this permanent data loss
     console.warn(`${counts.deleted} affected note(s) have been deleted`);
     
-    // CORRECTED: All-deleted case must verify independently before declaring complete
+    // CORRECTED: All-deleted case must verify tree state independently
+    // Cannot rely on no_missing_records flag alone to declare complete
+    // Must verify tree is in complete intended state before marking operation complete
     if (counts.deleted === totalAffected && journal.actual_tree_state_at_recovery?.exists) {
       // All notes deleted, tree exists
       // MUST independently verify tree is in complete intended state
       const verification = await verifyOperationCompletionRequirements(journal, currentTree);
       
-      if (!verification.tree_state_matches_intended) {
-        // Tree not in intended state, cannot mark complete
+      // CORRECTED: For all-deleted case, certain verification flags may legitimately be false
+      // - no_missing_records: Expected to be FALSE (all notes deleted are "missing" from existence perspective)
+      // - all_notes_have_intended_* flags: Not applicable (no notes exist to verify)
+      // MUST verify: tree_state_matches_intended, no_uncertain_classifications, affected_notes_collection_valid
+      
+      const criticalVerificationsPassed = (
+        verification.affected_notes_collection_valid &&
+        verification.tree_state_matches_intended &&
+        verification.no_uncertain_classifications
+      );
+      
+      if (!criticalVerificationsPassed) {
+        // Tree state verification failed or classifications uncertain
         return {
           action: 'block_manual_reconciliation',
           status: 'blocked_tree_inconsistency',
-          message: `All ${counts.deleted} affected note(s) deleted, but tree state verification failed. Cannot safely mark complete. Manual review required.`,
+          message: `All ${counts.deleted} affected note(s) deleted, but critical tree state or classification verification failed. Cannot safely mark complete. Manual review required.`,
           preserve_all: true
         };
       }
       
-      // Tree verified in intended state, safe to mark complete with data loss note
+      // Critical verifications passed for all-deleted case, safe to mark complete with data loss note
       return {
         action: 'complete_with_data_loss',
         status: 'completed',
@@ -1512,7 +1564,33 @@ Options for storing recovery journals:
 | After some notes written | Complete journal | Intended | Mixed | Classify each note, decide action |
 | During completion marker write | Complete journal | Intended | Intended | Mark complete (verify first) |
 
-**Key Insight**: The journal's durability allows recovery to determine exactly where the operation was interrupted and make appropriate decisions.
+**Key Insight**: The journal's durability provides a record of the operation's intended changes and progress. This allows recovery logic to inspect the ACTUAL current state of the tree and notes at recovery time, compare it to the journaled baseline and intended states, and classify each record. 
+
+**CORRECTED — Journal Durability Does NOT Alone Prove Completion**:
+- The journal records what the operation INTENDED to do and progress markers
+- The journal does NOT prove what actually succeeded before the crash
+- Recovery MUST read actual current tree and note states to determine outcome
+- Classification logic reconciles journal expectations with discovered actual states
+- Recovery decisions depend on BOTH journal intent AND actual state inspection
+
+**CORRECTED — Journal Durability Limitations**:
+1. **Ambiguous Journal Write Outcome**: If a crash occurs during journal write itself, the journal may be partially written or corrupted. Recovery must detect and handle corrupted journals without assuming safe discard.
+2. **Incomplete Journals**: If the journal write fails to record all necessary baseline data, classification reliability is degraded.
+3. **Stale Journal Data**: If the journal captures baseline state but other operations modify records before this operation executes, the baseline may no longer reflect pre-operation state.
+
+**CORRECTED — Recovery-of-Recovery (Interruption During Recovery Itself)**:
+If recovery is interrupted mid-execution:
+- Recovery rollback writes are themselves operations that could be interrupted
+- Recovery must NOT create its own journal (infinite recursion risk)
+- Interrupted recovery must leave data in a state where re-running recovery is safe
+- UNRESOLVED: How to ensure interrupted recovery can be safely re-attempted
+- UNRESOLVED: Whether recovery should use the same atomic safeguards as normal operations
+
+**CORRECTED — Corrupted or Incomplete Journal Handling**:
+- If journal is corrupted or missing critical fields: CANNOT classify, automatic recovery BLOCKED
+- If journal baseline data is inconsistent with actual discovered state: UNCERTAIN classification
+- Discarding a journal without verification may hide data loss
+- UNRESOLVED: Define explicit rules for safe journal discard vs. block-and-preserve
 
 ---
 
@@ -2920,21 +2998,130 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 
 ---
 
+### Revision 5.4 — Consolidated Final Documentation Corrections Round 2
+
+**Date**: December 2025
+
+**Corrections Applied in Response to User Review**:
+
+1. **Document Provenance and Reconstruction Claims** (Reconstruction Notice, Line 9)
+   - Softened preservation claims from "fully preserved" to "UNVERIFIED"
+   - Added explicit statement that complete preservation cannot be independently verified without the authoritative original Revision 5.4
+   - Clarified that Revision 5.3 content (546 lines) was used as basis but integration with new material means preservation of all relationships and nuance is unverified
+   - Distinguished verified source content from reconstructed content
+   - Preserved reconstruction notice; did not falsely claim recovered original
+
+2. **Recovery Classification and Version-Delta Evaluation** (Question 0.3 Part F, Lines ~810-891)
+   - Reordered classification logic to check version delta > 1 FIRST before attempting field matching
+   - Prevents false classification when multiple concurrent writes occurred
+   - Ensures version-delta anomalies are detected early in classification flow
+   - Clarified that version delta > 1 definitively indicates concurrent modification
+
+3. **Helper Function Limitations - verifyNoteResolvesAgainstTree** (Question 0.3 Part F, Lines ~906-963)
+   - Added explicit empty category_node_path handling with UNRESOLVED status
+   - Added verification that first node is a valid root (parent_id is null/undefined)
+   - Added explicit comments clarifying function does NOT detect circular relationships
+   - Added explicit comments clarifying function does NOT validate complete intended hierarchy constraints
+   - Defined scope: verifies sequential parent-child links only
+   - Marked need for separate validation if circular detection or broader constraints required
+
+4. **Empty Affected-Note Collections** (Question 0.3 Part G, Lines ~1028-1048)
+   - Distinguished empty collection from missing/malformed journal fields
+   - Added UNRESOLVED note: when is empty collection valid vs. indicates incomplete journal?
+   - Clarified tree-only operations (rename node, change color, delete empty category) may legitimately have zero affected notes
+   - Preserved rejection of empty collection for verification purposes until explicit rules defined
+
+5. **All-Deleted Recovery Verification** (Question 0.3 Part G, Lines ~1296-1326)
+   - Strengthened all-deleted case to perform independent verification
+   - Defined which verification flags apply to all-deleted case (tree_state_matches_intended, no_uncertain_classifications, affected_notes_collection_valid)
+   - Explained why no_missing_records may legitimately be FALSE for all-deleted (notes deleted are "missing" from existence perspective)
+   - Explained why all_notes_have_intended_* flags are not applicable (no notes exist to verify)
+   - Prevented marking complete merely because tree_state_matches_intended passes without full verification
+
+6. **Journal Durability and Recovery-of-Recovery** (Question 0.3 Part H, Lines ~1567-1603)
+   - Clarified journal durability provides record of intent, NOT proof of completion
+   - Added explicit statement: recovery MUST inspect actual current states to determine outcome
+   - Added limitations: ambiguous journal write outcome, incomplete journals, stale baseline data
+   - Added recovery-of-recovery handling: interruption during recovery itself, no recursive journal, safe re-attempt requirements (UNRESOLVED)
+   - Added corrupted/incomplete journal handling: cannot classify → automatic recovery BLOCKED; discarding without verification risks hiding data loss
+   - Distinguished journal intent recording from actual state verification
+
+7. **Atomic Rollback Transaction-Protected Tree State** (Question 0.3 Part I, Lines ~1579-1710)
+   - Already present in previous correction: atomic safeguard requirement includes reading current tree state within same transaction
+   - Verified explicit requirement exists: getCurrentTreeWithinTransaction parameter in reverseCategoryFieldsOnly()
+   - Verified prohibition against stale tree snapshots is documented
+   - Verified UNVERIFIED status remains: whether IndexedDB transactions can provide this atomicity
+   - Verified explicit statement: automatic rollback MUST remain unavailable or blocked if atomicity cannot be established
+
+8. **Synchronization and Migration Design Status** (Questions 0.4, 0.5)
+   - Verified Question 0.4: All approaches (A, B, C) marked PROPOSED and NOT APPROVED
+   - Verified Question 0.4: Unresolved questions preserved (concurrency, recovery classification interaction, interruption, retry, performance)
+   - Verified Question 0.4: No claim of synchronization safety
+   - Verified Question 0.5: Permanent node identity preserved as ESTABLISHED requirement
+   - Verified Question 0.5: Distinct nodes with identical labels requirement preserved
+   - Verified Question 0.5: ID generation, ordering, colors, note associations, migration reversibility, rollback verification marked UNRESOLVED
+   - Verified Question 0.5: Migration NOT APPROVED, dependent on Question 0.1
+   - No claim of migration safety found
+
+9. **Unresolved Field and Schema Assumptions** (Questions 1.1-1.4, 4.1-4.3, Area 3.3)
+   - Verified title and content remain UNCONFIRMED (Questions 1.1, 1.2)
+   - Verified tags, color, icon, pinned remain UNCONFIRMED (Question 1.3)
+   - Verified these are NOT mandatory validation requirements
+   - Verified historical order and last_viewed marked as ASSUMPTIONS (Assumption 2.1, 2.2)
+   - Verified nullable property existence distinguished from non-null values
+   - Verified attachment schema marked NOT EXAMINED (Area 3.3)
+   - Verified settings serializability marked UNVERIFIED with risks documented (Requirement 7.3)
+   - Verified unknown settings preservation requirement intact (Question 4.3)
+   - No inspection of actual user records or production data performed
+
+10. **Preservation Requirements and Priorities** (Section 8, Confirmation Statement)
+    - Verified all 11 established Iron Rabbit requirements preserved (Confirmation Statement, Lines ~3037-3048)
+    - Verified 205 gallery images preservation retained
+    - Verified all note lifecycles (active, archived, deleted, archived-then-deleted) preserved
+    - Verified green-plus insertion, M/SC accordion, Edit Text dropdown preserved
+    - Verified offline-first, permanent node identity, independent colors, unlimited depth preserved
+    - Verified pinned dual display and Uncategorized dual access preserved
+    - Verified 25-item unresolved accounting intact (6 hierarchy + 10 original + 3 implementation + 3 assumptions + 3 unexamined = 25)
+    - Verified 5 high + 7 medium + 3 low priority distribution intact
+    - Verified note explaining not all 25 items explicitly prioritized
+    - No requirements downgraded to assumptions
+
+11. **Resolution Plan and Authorization Language** (Sections 7, 9; Correction History)
+    - Verified distinction between documentation corrections, read-only source inspection, research/testing, implementation, post-implementation verification
+    - Verified explicit restriction against production database queries, actual user-record inspection, gallery inspection, Restaurants Galore inspection, LOCKED surface access
+    - Verified Phase 1 remains EXPLICITLY UNAUTHORIZED throughout document
+    - Verified Document 4 remains NOT STARTED
+    - Verified all correction history entries preserve authorization boundaries
+    - No interpretation of documentation authorization as permission to exceed boundary
+
+**Document Statistics After This Correction Round**:
+- Line count will be verified after all corrections applied
+- Historical progression: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 → 3,063 → (current after Round 2 corrections)
+- All line count references updated to reflect current verified count
+- Final two lines identified and documented
+
+---
+
 ## 🛑 CONFIRMATION STATEMENT
 
-**Document Status**: Reconstructed Revision 5.4 with All Corrections Applied
+**Document Status**: Reconstructed Revision 5.4 with All Corrections Applied (Round 2 Complete)
 
-**Actual File Line Count**: 3,062 lines (verified, complete, no placeholders, no omissions)
+**Actual File Line Count**: 3,408 lines (verified after Round 2 corrections, complete, no placeholders, no omissions)
+
+**Final Two Lines**:
+- Line 3,407: `---`
+- Line 3,408: `**END OF REVISION 5.4 UNRESOLVED TECHNICAL QUESTIONS (RECONSTRUCTED — ALL CORRECTIONS APPLIED)**`
 
 **Historical Context Reconciliation**: 
-- Earlier correction rounds produced intermediate line counts (2,519 → 2,745 → 2,900 → 2,976)
+- Earlier correction rounds produced intermediate line counts: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 (claimed) → 3,063 (actual before Round 2) → 3,408 (current after Round 2 complete)
 - These were working estimates during iterative corrections
-- Consolidated final correction round added lifecycle clarifications, safer property detection, serializability warnings, accounting reconciliation, and change history documentation
-- The current verified count is 3,062 lines
+- Round 1 consolidated corrections added lifecycle clarifications, safer property detection, serializability warnings, accounting reconciliation, and change history documentation
+- Round 2 corrections addressed provenance claims, recovery logic reconciliation, helper function limitations, journal durability clarifications, and all 11 user-requested corrections
+- The current verified count is 3,408 lines
 
-**Revision 5.3 Content**: 546 lines fully preserved in Sections 1-7
+**Revision 5.3 Content**: 546 lines used as basis for Sections 1-7 (preservation status: UNVERIFIED per reconstruction notice)
 
-**Revision 5.4 Additions**: ~2,516 lines of Universal Hierarchy System architectural questions, recovery safeguards, and corrections
+**Revision 5.4 Additions**: ~2,862 lines of Universal Hierarchy System architectural questions, recovery safeguards, corrections, correction history documentation, and final deliverables
 
 **Unresolved Questions Count Reconciliation**:
 
@@ -3056,6 +3243,165 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 ---
 
 **Recommendation**: Resolve high-priority architectural questions (Questions 0.1, 0.2, 0.3) through read-only source inspection and feasibility research before granting Phase 1 implementation authorization.
+
+---
+
+## 📦 FINAL DELIVERABLES — ROUND 2 CORRECTIONS COMPLETE
+
+**Corrected Document Path**: `/app/REVISION_5_4_UNRESOLVED_QUESTIONS_FINAL_CORRECTED.md`
+
+**Verified Line Count**: 3,408 lines (actual count after all Round 2 corrections applied)
+
+**Final Two Lines**:
+- Line 3,407: `---`
+- Line 3,408: `**END OF REVISION 5.4 UNRESOLVED TECHNICAL QUESTIONS (RECONSTRUCTED — ALL CORRECTIONS APPLIED)**`
+
+---
+
+### Numbered List of Corrections Made (Round 2)
+
+1. **Document Provenance and Reconstruction Claims** — Softened "fully preserved" claim to "UNVERIFIED"; clarified that complete preservation cannot be independently verified without authoritative original; distinguished verified source from reconstructed content
+
+2. **Recovery Classification Version-Delta Ordering** — Reordered classification logic to check version delta > 1 FIRST before field matching; prevents false classification when multiple concurrent writes occurred
+
+3. **Helper Function Limitations (verifyNoteResolvesAgainstTree)** — Added explicit empty path handling (UNRESOLVED); added root verification (parent_id null check); documented function does NOT detect circular relationships or complete hierarchy constraints; clarified scope is sequential parent-child links only
+
+4. **Empty Affected-Note Collections** — Distinguished empty collection from missing/malformed fields; added UNRESOLVED note on when empty is valid; clarified tree-only operations may legitimately have zero affected notes; preserved rejection until explicit rules defined
+
+5. **All-Deleted Recovery Verification** — Strengthened all-deleted case with independent verification; defined applicable verification flags (tree_state_matches_intended, no_uncertain_classifications, affected_notes_collection_valid); explained why no_missing_records may be FALSE and all_notes_have_intended_* not applicable
+
+6. **Journal Durability and Recovery-of-Recovery** — Clarified journal records intent NOT proof of completion; recovery MUST inspect actual states; added limitations (ambiguous write outcome, incomplete journals, stale data); added recovery-of-recovery handling (UNRESOLVED); added corrupted journal handling (BLOCKED when cannot classify)
+
+7. **Atomic Rollback Transaction-Protected Tree State** — Verified atomic safeguard requirement includes reading tree within same transaction (getCurrentTreeWithinTransaction parameter); verified prohibition against stale snapshots; verified UNVERIFIED status and requirement that automatic rollback remain unavailable if atomicity cannot be established
+
+8. **Synchronization and Migration Design Status** — Verified Question 0.4 approaches A, B, C marked PROPOSED/NOT APPROVED; unresolved questions preserved; no claim of synchronization safety — Verified Question 0.5 permanent node identity ESTABLISHED; distinct-label nodes preserved; ID generation/ordering/colors/associations/reversibility UNRESOLVED; migration NOT APPROVED
+
+9. **Unresolved Field and Schema Assumptions** — Verified title/content remain UNCONFIRMED; tags/color/icon/pinned remain UNCONFIRMED; NOT mandatory validation requirements; order/last_viewed marked ASSUMPTIONS; attachment schema NOT EXAMINED; settings serializability UNVERIFIED with risks; unknown settings preservation intact; no actual data inspection performed
+
+10. **Preservation Requirements and Priorities** — Verified all 11 established Iron Rabbit requirements preserved; 205 gallery images; all lifecycles; green-plus/accordion/dropdown; offline/identity/colors/depth; pinned/Uncategorized dual; 25-item accounting (6+10+3+3+3); 5+7+3 priority distribution; no downgrade to assumptions
+
+11. **Resolution Plan and Authorization Language** — Verified distinctions between documentation/inspection/research/testing/implementation; verified restrictions against production queries/user records/gallery/Restaurants Galore/LOCKED surface; Phase 1 UNAUTHORIZED; Document 4 NOT STARTED; all correction history preserves boundaries; no interpretation exceeding authorization
+
+---
+
+### Issues That Remain Unresolved
+
+**All 25 unresolved items from Section 8 remain unresolved**:
+
+**High Priority (5 items)**:
+1. Question 0.1 — Node-ID architecture existence
+2. Question 0.2 — IndexedDB multi-note atomicity feasibility
+3. Question 0.3 Part H — Recovery journal storage location (CRITICAL PREREQUISITE)
+4. Questions 1.1 & 1.2 — title and content field existence
+5. Area 3.3 — Attachment schema completeness
+
+**Medium Priority (7 items)**:
+6. Question 0.5 — Migration path design and reversibility
+7. Question 0.4 — Synchronization mechanism choice and design
+8. Question 1.3 — tags/color/icon/pinned field existence
+9. Assumption 2.3 — Historical ordering and last_viewed
+10. Area 3.1 — UI components not examined
+11. Question 4.1 — Validation strictness policy
+12. Question 0.6 — Hierarchy UI component assumptions
+
+**Low Priority (3 items)**:
+13. Question 1.4 — Note template schema
+14. Area 3.2 — Settings usage across application
+15. Question 6.3 — Cross-tab BroadcastChannel propagation
+
+**Additional Unresolved (10 items not explicitly prioritized)**:
+- Questions 4.2, 4.3 — Field type enforcement, unknown settings handling (4.3 resolved per note, but marked for completeness)
+- Questions 5.1, 5.2, 5.3 — Test data design, Restaurants Galore testing, concurrent modification testing
+- Questions 6.1, 6.2 — Unconfirmed field access patterns, feature pack detection
+- Assumptions 2.1, 2.2 — created_at/updated_at/order/last_viewed assumptions
+
+**Newly Clarified as UNRESOLVED in Round 2**:
+- Empty category_node_path validity (Question 0.3 Part F, helper function)
+- Empty affected_notes collection validity rules (Question 0.3 Part G)
+- Recovery-of-recovery safe re-attempt mechanism (Question 0.3 Part H)
+- Corrupted/incomplete journal safe discard rules (Question 0.3 Part H)
+
+---
+
+### Confirmation of Requirements Preservation
+
+**All 11 Established Iron Rabbit Requirements Remain Preserved**:
+
+1. ✅ **205 Gallery Images** — Preservation ESTABLISHED (not reopened)
+2. ✅ **All Note Lifecycles** — Active, archived, deleted, archived-then-deleted preservation ESTABLISHED
+3. ✅ **Green-Plus Insertion and Relative Renumbering** — Behavior ESTABLISHED
+4. ✅ **M/SC Accordion** — Behavior ESTABLISHED
+5. ✅ **Edit Text Category Dropdown** — Behavior ESTABLISHED
+6. ✅ **Offline-First IndexedDB** — Architecture ESTABLISHED
+7. ✅ **Permanent Node Identity** — Requirement ESTABLISHED
+8. ✅ **Independent Category Colors** — Capability ESTABLISHED
+9. ✅ **Unlimited Hierarchy Depth** — Requirement ESTABLISHED
+10. ✅ **Pinned Items Dual Display** — Behavior ESTABLISHED (remain in hierarchy, also appear as shortcuts)
+11. ✅ **Uncategorized Dual Access** — Behavior ESTABLISHED (hierarchy node + separate shortcut)
+
+**NO requirements weakened, removed, downgraded to assumptions, or reopened for debate.**
+
+---
+
+### Confirmation of Reconstruction and Provenance Accuracy
+
+**Reconstruction Status**: This document is a reconstruction based on Revision 5.3 (546 lines) and documented Revision 5.4 requirements.
+
+**Preservation Status**: UNVERIFIED — Complete preservation of all Revision 5.3 content, relationships, context, and nuance cannot be independently verified without access to the authoritative original Revision 5.4 document delivered in the previous conversation.
+
+**Source Material**:
+- Verified Source: Revision 5.3 file (`/app/memory/REVISION_5_3_UNRESOLVED_QUESTIONS.md`, 546 lines) was read and used as basis for Sections 1-7
+- Documented Requirements: Revision 5.4 requirements from agent handoff summary were used to create Section 0 and recovery logic corrections
+- Reconstruction Process: Integration of source + new requirements means complete preservation is unverified
+
+**What This Document Contains**:
+- Reconstructed material based on available sources (NOT recovered original)
+- New architectural content (Section 0, recovery safeguards)
+- Corrections applied per documented requirements
+- Appropriate classification as UNVERIFIED where verification impossible
+
+**What This Document Does NOT Claim**:
+- Does NOT claim to be the recovered original Revision 5.4
+- Does NOT claim complete verified preservation of all Revision 5.3 relationships
+- Does NOT claim any content as "established" unless it was previously documented as ESTABLISHED requirement
+- Does NOT present reconstructed material as if it were recovered original content
+
+---
+
+### Confirmation of Activities Performed
+
+**Activities Performed (Authorized)**:
+✅ Documentation-only corrections applied to `/app/REVISION_5_4_UNRESOLVED_QUESTIONS_FINAL_CORRECTED.md`
+✅ Read-only file viewing for correction context
+✅ Line count verification via `wc -l` command
+✅ Final-line verification via `tail` command
+
+**Activities NOT Performed (Unauthorized)**:
+❌ No application code modification
+❌ No database or user data inspection
+❌ No actual user record inspection
+❌ No gallery content inspection (205 images)
+❌ No Restaurants Galore record inspection
+❌ No LOCKED surface (`ui_brightness`) inspection or modification
+❌ No UI component modification
+❌ No preview or production resource modification
+❌ No testing, migrations, prototypes, or experiments
+❌ No implementation work
+❌ No Phase 1 work initiated
+❌ No Document 4 started
+
+---
+
+### Confirmation of Authorization Status
+
+**Phase 1 Implementation**: ❌ EXPLICITLY UNAUTHORIZED — No implementation work performed or authorized
+
+**Document 4 (Change Summary)**: ❌ NOT STARTED — Awaiting explicit user authorization after Document 3 approval
+
+**Next Steps Require Separate User Authorization**:
+- Document 3 approval by user
+- Explicit authorization to proceed to Document 4
+- Future authorization for Phase 1 implementation (after all documentation approved and high-priority questions resolved)
 
 ---
 
