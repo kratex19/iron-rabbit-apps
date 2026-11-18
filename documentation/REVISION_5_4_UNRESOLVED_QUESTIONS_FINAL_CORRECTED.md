@@ -531,6 +531,29 @@ note.updated_at = new Date().toISOString();
 ```
 **Result**: Recovery writes a special `recovery_` prefixed operation ID to distinguish recovery rollbacks from normal hierarchy operations.
 
+**UNRESOLVED — Recovery-of-Recovery Identity Mismatch**:
+
+The classifier recognizes only an exact match to `journal.operation_id`. A recovery-written ID (`"recovery_" + journal.operation_id`) will NOT match.
+
+**Problem**: If recovery itself is interrupted mid-write, a subsequent recovery attempt encounters:
+- Original operation ID: `"op_a1b2c3d4"`
+- Recovery-written ID: `"recovery_op_a1b2c3d4"` (if first recovery partially succeeded)
+- Classifier expects: `"op_a1b2c3d4"` (exact match)
+
+**Identity mismatch prevents safe classification.**
+
+**UNRESOLVED Design Questions**:
+1. Should the classifier recognize `recovery_` prefixed IDs and extract the original operation ID?
+2. Should recovery use a different field (e.g., `last_recovery_operation_id`) to avoid overwriting the original?
+3. How does the classifier distinguish:
+   - Original hierarchy operation completed
+   - First recovery attempt completed
+   - Second recovery attempt interrupted
+   - Repeated recovery attempts
+4. What is the safe write-ordering rule for interrupted recovery?
+
+**Current Status**: Automatic recovery MUST remain BLOCKED for interrupted-recovery scenarios until identity and write-ordering rules are explicitly defined.
+
 ---
 
 **Critical Distinction**:
@@ -617,7 +640,7 @@ Even with `last_write_operation_id` present, the following scenarios prevent rel
       actual_exists_at_recovery: null,
       
       // Classification result
-      write_classification: "pending",  // 'written_by_this_operation', 'never_updated', 'concurrent_user_edit', 'another_operation', 'uncertain', 'deleted'
+      write_classification: "pending",  // 'written_by_this_operation', 'never_updated', 'unattributed_intervening_write', 'another_operation', 'uncertain', 'missing_or_unavailable'
       classification_confidence: null,  // 'high', 'medium', 'low'
       
       // Write progress tracking
@@ -654,10 +677,11 @@ async function inspectTreeState(journal) {
   journal.actual_tree_state_at_recovery = {
     exists: !!targetNode,
     node_id: journal.intended_tree_state.node_id,
-    label: targetNode?.label || null,
-    parent_id: targetNode?.parent_id || null,
-    order: targetNode?.order || null,
-    color: targetNode?.color || null,
+    label: targetNode?.label ?? null,
+    parent_id: targetNode?.parent_id ?? null,
+    // CORRECTED: Use nullish coalescing to preserve valid falsy values (e.g., order: 0)
+    order: (targetNode && 'order' in targetNode) ? targetNode.order : null,
+    color: targetNode?.color ?? null,
     // Capture ALL relevant properties
   };
 }
@@ -723,10 +747,14 @@ If ANY representation is inconsistent, the note's category assignment is corrupt
 ```javascript
 function classifyAffectedNote(noteEntry, journal, currentTree) {
   // ===== STEP 1: Check if note still exists =====
+  // CORRECTED: Missing lookup does NOT prove deletion
+  // Distinguish confirmed deletion from unavailability
   if (!noteEntry.actual_exists_at_recovery) {
-    noteEntry.write_classification = 'deleted';
-    noteEntry.classification_confidence = 'high';
-    noteEntry.write_status = 'skipped_deleted';
+    // Record not found, but cause is uncertain
+    // Could be: deleted, moved, unavailable, lost, incorrect journal ID
+    noteEntry.write_classification = 'missing_or_unavailable';
+    noteEntry.classification_confidence = 'low';  // Cannot establish actual status
+    noteEntry.write_status = 'blocked_uncertain';  // Automatic recovery BLOCKED
     return noteEntry;
   }
   
@@ -751,10 +779,12 @@ function classifyAffectedNote(noteEntry, journal, currentTree) {
     
     if (!categoryFieldsMatchIntended) {
       // Operation ID matches but category fields don't match intended state
-      // Another write must have occurred after this operation
-      noteEntry.write_classification = 'another_operation';
-      noteEntry.classification_confidence = 'medium';
-      noteEntry.write_status = 'skipped_conflict';
+      // CORRECTED: Mismatch could indicate another operation, corrupted data,
+      // incomplete write, or incorrectly maintained operation ID
+      // Cannot conclusively establish cause without additional evidence
+      noteEntry.write_classification = 'uncertain';
+      noteEntry.classification_confidence = 'low';  // Cause unclear
+      noteEntry.write_status = 'blocked_uncertain';  // Automatic recovery BLOCKED
       return noteEntry;
     }
     
@@ -779,10 +809,12 @@ function classifyAffectedNote(noteEntry, journal, currentTree) {
     if (versionDelta !== 1) {
       // Version delta is not exactly 1
       if (versionDelta > 1) {
-        // Multiple version increments: user edited after operation wrote category fields
-        noteEntry.write_classification = 'concurrent_user_edit';
-        noteEntry.classification_confidence = 'high';
-        noteEntry.write_status = 'skipped_conflict';
+        // CORRECTED: Multiple version increments indicate intervening writes
+        // Source cannot be reliably established: could be user edit, another hierarchy
+        // operation, synchronization, recovery, or combination
+        noteEntry.write_classification = 'unattributed_intervening_write';
+        noteEntry.classification_confidence = 'low';  // Cannot establish source
+        noteEntry.write_status = 'blocked_uncertain';  // Automatic recovery BLOCKED
         return noteEntry;
       } else if (versionDelta < 1) {
         // Version decreased or unchanged (should be impossible if operation_id matches)
@@ -816,13 +848,14 @@ function classifyAffectedNote(noteEntry, journal, currentTree) {
   const versionDelta = noteEntry.actual_version_at_recovery - noteEntry.baseline_version;
   
   // CORRECTED: Check version delta FIRST before proceeding with field matching
-  // A version delta > 1 indicates multiple writes, which must be detected early
-  // before attempting to attribute the write to a specific operation
+  // A version delta > 1 indicates multiple intervening writes occurred
+  // CANNOT reliably determine the source: could be user edit, another hierarchy operation,
+  // synchronization operation, recovery operation, or combination thereof
   if (versionDelta > 1) {
-    // Multiple writes occurred - cannot attribute to this operation
-    noteEntry.write_classification = 'concurrent_user_edit';
-    noteEntry.classification_confidence = 'medium';
-    noteEntry.write_status = 'skipped_conflict';
+    // Multiple writes occurred - source of intervening writes cannot be established
+    noteEntry.write_classification = 'unattributed_intervening_write';
+    noteEntry.classification_confidence = 'low';  // Low confidence: source unknown
+    noteEntry.write_status = 'blocked_uncertain';  // Automatic recovery BLOCKED
     return noteEntry;
   }
   
@@ -912,14 +945,15 @@ function verifyCategoryFieldsMatch(
 
 // Helper function: Verify note resolves correctly against tree
 function verifyNoteResolvesAgainstTree(category_node_path, categoryTree) {
-  // CORRECTED: Explicitly handle empty category_node_path
-  // An empty path is valid ONLY for notes assigned to no category (e.g., "Uncategorized" if represented as empty path)
-  // Define this rule based on actual application behavior
+  // CORRECTED: Empty category_node_path validity is UNRESOLVED
+  // Cannot treat empty path as automatically valid without application semantic verification
+  // The permanent Uncategorized root requirement must not be equated with empty array
   if (!category_node_path || category_node_path.length === 0) {
     // UNRESOLVED: Is an empty category_node_path valid for all note types?
-    // For now, treat empty path as valid (no verification needed)
-    // This assumption must be verified against actual note schema and UI behavior
-    return true;
+    // Is Uncategorized represented as empty array, or as a specific node ID?
+    // Automatic recovery MUST be blocked when path validity cannot be established
+    // For verification purposes: mark as UNRESOLVED and return false to block unsafe recovery
+    return false;  // Cannot verify - block automatic recovery
   }
   
   // CORRECTED: Verify first node is a valid root
@@ -964,9 +998,16 @@ function verifyNoteResolvesAgainstTree(category_node_path, categoryTree) {
 ```
 
 **Classification Confidence Levels**:
-- **High**: Classification is reliable based on operation_id match + all verifications passed, OR clear evidence (never_updated, deleted)
-- **Medium**: Classification is probable based on category field patterns and version deltas, but not certain
+- **High**: Classification is reliable based on operation_id match + all verifications passed, OR clear evidence (never_updated with version unchanged)
+- **Medium**: Classification is probable based on patterns, but not conclusively established
 - **Low**: Classification is uncertain; automatic recovery MUST be blocked
+
+**CORRECTED — Confidence Enforcement**:
+Automatic recovery MUST be blocked when EITHER condition holds:
+1. Classification label is 'uncertain', 'missing_or_unavailable', or 'unattributed_intervening_write', OR
+2. Classification confidence is 'low'
+
+Do not rely exclusively on classification label. A 'low' confidence value MUST block automatic recovery regardless of label.
 
 **🚫 UNVERIFIED — Classification Reliability**:
 - Without operation_id: Classification reliability is LOW for most cases
@@ -1038,11 +1079,17 @@ async function verifyOperationCompletionRequirements(journal, currentTree) {
   
   if (journal.affected_notes.length === 0) {
     console.warn('Journal affected_notes collection is empty');
-    // CORRECTED: Empty collection requires special handling
-    // For tree-only operations (rename node, change node color), affected_notes may legitimately be empty
-    // However, verification for "operation completion" in this context typically implies notes were expected
-    // UNRESOLVED: Define explicit rules for when empty collection is valid vs. indicates incomplete journal
-    // For now, mark collection as technically valid but require caller to verify this is expected
+    // CORRECTED: Define operation-specific rules for empty collections
+    // UNRESOLVED: Requires separate verification authorization to inspect operation_type semantics
+    
+    // Tree-only operations (rename node label, change node color) may legitimately have zero affected notes
+    // Operations expected to affect notes (reparent with children, delete non-empty category) should NOT be empty
+    
+    // Current status: Cannot establish whether empty collection is valid without operation-type rules
+    // Automatic recovery MUST be blocked until operation-specific empty-collection rules are defined
+    
+    // For now: Reject empty collection and require manual verification
+    // A future correction can refine this once operation-specific rules are established
     verificationResults.affected_notes_collection_valid = false;
     return verificationResults;
   }
@@ -1051,14 +1098,22 @@ async function verifyOperationCompletionRequirements(journal, currentTree) {
   
   // ===== VERIFICATION 1: Actual tree state matches complete intended tree state =====
   // CORRECTED: Verify ALL affected nodes and their COMPLETE state (not just existence)
+  // UNRESOLVED: Complete expected-state verification requires explicit expected state for EVERY affected node
   
   const affectedNodeIds = new Set();
   affectedNodeIds.add(journal.intended_tree_state.node_id);
   
-  // Collect all node IDs from affected notes
+  // CORRECTED: Collect node IDs from BOTH intended AND original note paths
+  // Original paths may contain nodes no longer in intended paths (e.g., after reparent)
   for (const noteEntry of journal.affected_notes) {
     if (noteEntry.intended_category_node_path) {
       for (const nodeId of noteEntry.intended_category_node_path) {
+        affectedNodeIds.add(nodeId);
+      }
+    }
+    // CORRECTED: Include original paths to catch affected nodes no longer in intended paths
+    if (noteEntry.original_category_node_path) {
+      for (const nodeId of noteEntry.original_category_node_path) {
         affectedNodeIds.add(nodeId);
       }
     }
@@ -1077,8 +1132,16 @@ async function verifyOperationCompletionRequirements(journal, currentTree) {
       // If node was not modified by operation, its intended state is original state
       intendedState = journal.original_tree_state;
     } else {
-      // Node should exist and be unmodified
-      // CORRECTED: Verify it exists AND validate all relevant properties
+      // CORRECTED: Node should exist but was not directly modified by operation
+      // UNRESOLVED: Without explicit expected state in journal, can only verify property validity
+      // Cannot confirm node is in correct intended state without comparing to expected values
+      // 
+      // A valid-looking node is NOT necessarily an unchanged or correctly intended node
+      // Proper verification requires journal to capture expected state for ALL affected nodes
+      //
+      // Current approach: Verify properties exist and have valid types
+      // This detects corrupted/missing nodes but NOT incorrect values
+      
       if (!actualNode) {
         console.error(`Affected node ${nodeId} is missing from tree`);
         allNodesMatchIntended = false;
@@ -1686,8 +1749,34 @@ async function reverseCategoryFieldsOnly(
       updatedNote.version++;
       updatedNote.updated_at = new Date().toISOString();
       
-      // SAFEGUARD 5: Verify resulting category_node_path resolves against CURRENT tree state
-      // CORRECTED: Verify against transaction-protected current tree, not stale snapshot
+      // SAFEGUARD 5: Verify resulting category_node_path resolves against tree state
+      // CORRECTED: UNRESOLVED — Rename Rollback Inconsistency
+      //
+      // PROBLEM: During a rename rollback, the current tree may contain the NEW label (intended state),
+      // but we are restoring the ORIGINAL category fields that reference the OLD label.
+      //
+      // Example:
+      //   Original tree label: "Work"
+      //   Intended tree label: "Career" (rename operation)
+      //   Original note path: ["Work", "Projects"]
+      //   Intended note path: ["Career", "Projects"]
+      //
+      // If the tree currently contains "Career", validating the original derived path
+      // ["Work", "Projects"] against that current tree will FAIL.
+      //
+      // UNRESOLVED DESIGN QUESTIONS:
+      // 1. Must rollback first restore the tree to original state, then restore notes?
+      // 2. Can notes be restored against intended tree if node IDs match (ignoring label mismatch)?
+      // 3. Does rollback require a separate tree snapshot or dual-state validation?
+      // 4. How are intermediate states prevented during multi-step rollback?
+      //
+      // CURRENT STATUS: This rollback sequence is NOT SAFE for rename operations.
+      // Automatic rollback MUST remain BLOCKED until a safe, internally consistent sequence is established.
+      //
+      // The design must preserve atomic conditional-write and transaction-protected tree state requirements.
+      //
+      // For now: Verification is marked UNRESOLVED and automatic rollback is BLOCKED.
+      
       const treeVerification = verifyNoteResolvesAgainstTree(
         updatedNote.category_node_path,
         currentTree
@@ -3102,26 +3191,128 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 
 ---
 
+### Revision 5.4 — Post-Round 2 Technical Review Corrections (Round 3)
+
+**Date**: November 2026 (Illustrative Example Timestamp - Document reconstruction date remains December 2025)
+
+**Corrections Applied in Response to Post-Round 2 Technical Review**:
+
+1. **Version-Delta Attribution Correction** (Question 0.3 Part F, classification logic)
+   - Changed `versionDelta > 1` classification from `'concurrent_user_edit'` to `'unattributed_intervening_write'`
+   - Reduced confidence from `'medium'`/`'high'` to `'low'`
+   - Changed write status to `'blocked_uncertain'` (automatic recovery BLOCKED)
+   - Rationale: Version increments occur for ALL write types (user edits, hierarchy operations, synchronization, recovery); version delta alone does NOT identify source
+   - Applied consistently in both classification branches (with and without operation_id)
+
+2. **Missing-Record Classification Correction** (Question 0.3 Part F, Step 1)
+   - Changed classification from `'deleted'` with high confidence to `'missing_or_unavailable'` with low confidence
+   - Changed write status to `'blocked_uncertain'` (automatic recovery BLOCKED)
+   - Rationale: Missing lookup does NOT prove deletion; could be deleted, moved, unavailable, lost, or incorrect journal ID
+
+3. **Operation-ID Mismatch Classification Correction** (Question 0.3 Part F, operation_id match branch)
+   - Changed classification from `'another_operation'` with medium confidence to `'uncertain'` with low confidence
+   - Changed write status to `'blocked_uncertain'` (automatic recovery BLOCKED)
+   - Rationale: Mismatch could indicate another operation, corrupted data, incomplete write, or incorrectly maintained operation ID; cannot conclusively establish cause
+
+4. **Classification Label Updates** (Question 0.3 Part D, journal schema)
+   - Updated write_classification possible values from `'concurrent_user_edit', 'deleted'` to `'unattributed_intervening_write', 'missing_or_unavailable'`
+   - Reflects corrected neutral terminology
+
+5. **Classification Confidence Enforcement** (Question 0.3 Part F, confidence levels)
+   - Added explicit enforcement rule: Automatic recovery BLOCKED when EITHER classification label is uncertain/missing/unattributed OR confidence is 'low'
+   - Clarified that 'low' confidence MUST block regardless of label
+   - Prevents reliance exclusively on classification label checks
+
+6. **Tree Inspection Truthiness Fix** (Question 0.3 Part E, tree state inspection)
+   - Changed `targetNode?.order || null` to `(targetNode && 'order' in targetNode) ? targetNode.order : null`
+   - Prevents legitimate `order: 0` from being converted to `null`
+   - Applied safe null/undefined handling using explicit property existence check
+
+7. **Empty Category Path Blocking** (Question 0.3 Part F, helper function)
+   - Changed empty `category_node_path` handling from `return true` (valid) to `return false` (block recovery)
+   - Added explicit UNRESOLVED status and blocking rationale
+   - Rationale: Permanent Uncategorized root requirement must not be equated with empty array; validity cannot be established without application semantic verification
+
+8. **Empty Affected-Notes Collection Rules** (Question 0.3 Part G, verification function)
+   - Added operation-specific rules requirement (tree-only vs. note-affecting operations)
+   - Retained rejection of empty collection until operation-type rules defined
+   - Added UNRESOLVED status for operation-specific empty-collection validity
+   - Automatic recovery remains BLOCKED until rules established
+
+9. **Rename Rollback Inconsistency Documentation** (Question 0.3 Part I, rollback safeguards)
+   - Added UNRESOLVED notice documenting that original label validation against intended/current tree fails during rename
+   - Provided concrete example (Work → Career rename, validating ["Work", "Projects"] against tree containing "Career")
+   - Listed unresolved design questions (rollback sequencing, tree restoration order, intermediate states)
+   - Marked automatic rollback as BLOCKED for rename operations until safe sequence established
+
+10. **Recovery-of-Recovery Identity Mismatch** (Question 0.3 Part D, Scenario E)
+    - Documented identity mismatch between `"recovery_" + operation_id` write and classifier expecting exact `operation_id` match
+    - Added UNRESOLVED design questions (prefix recognition, separate field, distinguishing attempts, write-ordering rules)
+    - Marked automatic recovery as BLOCKED for interrupted-recovery scenarios until identity rules defined
+
+11. **Tree Completion Verification — Original Paths Inclusion** (Question 0.3 Part G, verification logic)
+    - Added collection of node IDs from BOTH `intended_category_node_path` AND `original_category_node_path`
+    - Ensures affected nodes from original hierarchy (no longer in intended paths after reparent) are verified
+    - Added UNRESOLVED comment: without explicit expected state for all nodes, can only verify property validity, not correctness
+
+12. **Tree Completion Verification — Valid vs. Correct Distinction** (Question 0.3 Part G, unmodified node verification)
+    - Added UNRESOLVED notice: valid-looking properties do NOT prove node is in correct intended state
+    - Clarified that proper verification requires journal to capture expected state for ALL affected nodes
+    - Current approach detects corrupted/missing nodes but NOT incorrect values
+
+13. **Established Requirements Count Correction** (Section 8, Confirmation Statement)
+    - Corrected count from 11 to 12 established requirements
+    - Added missing requirement: **Blue Hierarchy Icon** (item #10 in list)
+    - Blue icon was present in Section 0 requirements but omitted from final confirmation statement
+
+14. **Priority Reference Corrections** (Section 8, Priority Lists)
+    - Medium Priority #9: Corrected from "Assumption 2.3 — Historical ordering and last_viewed" to "Assumptions 2.1, 2.2 — Historical notes may lack order or last_viewed fields"
+    - Low Priority #13: Corrected from "Question 1.4 — Note template schema" to "Question 1.4 — ui_brightness and the protected LOCKED surface"
+    - Low Priority #15: Corrected from "Question 6.3 — Cross-tab BroadcastChannel propagation" to "Question 6.3 — Overlapping feature-pack field names"
+
+15. **Additional Unresolved Items Correction** (Section 8, unresolved accounting)
+    - Moved Assumptions 2.1, 2.2 from "Additional Unresolved" to Medium Priority (consolidated with item #9)
+    - Moved Assumption 2.3 to "Additional Unresolved" (nullable field property existence)
+    - Maintained accurate total count
+
+16. **Newly Clarified Unresolved Items — Round 3** (Section 8, new items)
+    - Added 4 newly clarified UNRESOLVED items from Round 3 corrections
+    - Rename rollback tree-state sequencing
+    - Recovery-of-recovery operation ID recognition and write-ordering
+    - Operation-specific empty-collection validity rules
+    - Complete expected-state verification for all affected nodes
+
+**Document Statistics After This Correction Round**:
+- Line count will be verified after all corrections applied
+- Historical progression: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 (claimed) → 3,063 (before Round 2) → 3,408 (after Round 2) → (current after Round 3 complete)
+- Round 3 addressed classification attribution, rollback inconsistencies, tree verification completeness, and document accounting
+- All line count references updated to reflect current verified count
+- Final two lines identified and documented
+
+---
+
+
 ## 🛑 CONFIRMATION STATEMENT
 
 **Document Status**: Reconstructed Revision 5.4 with All Corrections Applied (Round 2 Complete)
 
-**Actual File Line Count**: 3,408 lines (verified after Round 2 corrections, complete, no placeholders, no omissions)
+**Actual File Line Count**: 3,605 lines (verified after Round 3 corrections, complete, no placeholders, no omissions)
 
 **Final Two Lines**:
-- Line 3,407: `---`
-- Line 3,408: `**END OF REVISION 5.4 UNRESOLVED TECHNICAL QUESTIONS (RECONSTRUCTED — ALL CORRECTIONS APPLIED)**`
+- Line 3,604: `---`
+- Line 3,605: `**END OF REVISION 5.4 UNRESOLVED TECHNICAL QUESTIONS (RECONSTRUCTED — ALL CORRECTIONS APPLIED)**`
 
 **Historical Context Reconciliation**: 
-- Earlier correction rounds produced intermediate line counts: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 (claimed) → 3,063 (actual before Round 2) → 3,408 (current after Round 2 complete)
+- Earlier correction rounds produced intermediate line counts: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 (claimed) → 3,063 (actual before Round 2) → 3,408 (after Round 2) → 3,605 (current after Round 3 complete)
 - These were working estimates during iterative corrections
 - Round 1 consolidated corrections added lifecycle clarifications, safer property detection, serializability warnings, accounting reconciliation, and change history documentation
 - Round 2 corrections addressed provenance claims, recovery logic reconciliation, helper function limitations, journal durability clarifications, and all 11 user-requested corrections
-- The current verified count is 3,408 lines
+- Round 3 corrections addressed classification attribution, rollback inconsistencies, tree verification completeness, and document accounting
+- The current verified count is 3,605 lines
 
 **Revision 5.3 Content**: 546 lines used as basis for Sections 1-7 (preservation status: UNVERIFIED per reconstruction notice)
 
-**Revision 5.4 Additions**: ~2,862 lines of Universal Hierarchy System architectural questions, recovery safeguards, corrections, correction history documentation, and final deliverables
+**Revision 5.4 Additions**: ~3,059 lines of Universal Hierarchy System architectural questions, recovery safeguards, corrections, correction history documentation, and final deliverables
 
 **Unresolved Questions Count Reconciliation**:
 
@@ -3299,21 +3490,21 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 6. Question 0.5 — Migration path design and reversibility
 7. Question 0.4 — Synchronization mechanism choice and design
 8. Question 1.3 — tags/color/icon/pinned field existence
-9. Assumption 2.3 — Historical ordering and last_viewed
+9. Assumptions 2.1, 2.2 — Historical notes may lack `order` or `last_viewed` fields
 10. Area 3.1 — UI components not examined
 11. Question 4.1 — Validation strictness policy
 12. Question 0.6 — Hierarchy UI component assumptions
 
 **Low Priority (3 items)**:
-13. Question 1.4 — Note template schema
+13. Question 1.4 — `ui_brightness` and the protected LOCKED surface
 14. Area 3.2 — Settings usage across application
-15. Question 6.3 — Cross-tab BroadcastChannel propagation
+15. Question 6.3 — Overlapping feature-pack field names
 
 **Additional Unresolved (10 items not explicitly prioritized)**:
-- Questions 4.2, 4.3 — Field type enforcement, unknown settings handling (4.3 resolved per note, but marked for completeness)
+- Questions 4.2, 4.3 — Field type enforcement, unknown settings handling
 - Questions 5.1, 5.2, 5.3 — Test data design, Restaurants Galore testing, concurrent modification testing
 - Questions 6.1, 6.2 — Unconfirmed field access patterns, feature pack detection
-- Assumptions 2.1, 2.2 — created_at/updated_at/order/last_viewed assumptions
+- Assumption 2.3 — Nullable fields always have the property (even when null)
 
 **Newly Clarified as UNRESOLVED in Round 2**:
 - Empty category_node_path validity (Question 0.3 Part F, helper function)
@@ -3321,11 +3512,17 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 - Recovery-of-recovery safe re-attempt mechanism (Question 0.3 Part H)
 - Corrupted/incomplete journal safe discard rules (Question 0.3 Part H)
 
+**Newly Clarified as UNRESOLVED in Round 3**:
+- Rename rollback tree-state sequencing (Question 0.3 Part I - rollback inconsistency)
+- Recovery-of-recovery operation ID recognition and write-ordering rules (Question 0.3 Part D)
+- Operation-specific empty-collection validity rules (Question 0.3 Part G)
+- Complete expected-state verification for all affected nodes (Question 0.3 Part G)
+
 ---
 
 ### Confirmation of Requirements Preservation
 
-**All 11 Established Iron Rabbit Requirements Remain Preserved**:
+**All 12 Established Iron Rabbit Requirements Remain Preserved**:
 
 1. ✅ **205 Gallery Images** — Preservation ESTABLISHED (not reopened)
 2. ✅ **All Note Lifecycles** — Active, archived, deleted, archived-then-deleted preservation ESTABLISHED
@@ -3336,8 +3533,9 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 7. ✅ **Permanent Node Identity** — Requirement ESTABLISHED
 8. ✅ **Independent Category Colors** — Capability ESTABLISHED
 9. ✅ **Unlimited Hierarchy Depth** — Requirement ESTABLISHED
-10. ✅ **Pinned Items Dual Display** — Behavior ESTABLISHED (remain in hierarchy, also appear as shortcuts)
-11. ✅ **Uncategorized Dual Access** — Behavior ESTABLISHED (hierarchy node + separate shortcut)
+10. ✅ **Blue Hierarchy Icon** — Design Element ESTABLISHED
+11. ✅ **Pinned Items Dual Display** — Behavior ESTABLISHED (remain in hierarchy, also appear as shortcuts)
+12. ✅ **Uncategorized Dual Access** — Behavior ESTABLISHED (hierarchy node + separate shortcut)
 
 **NO requirements weakened, removed, downgraded to assumptions, or reopened for debate.**
 
