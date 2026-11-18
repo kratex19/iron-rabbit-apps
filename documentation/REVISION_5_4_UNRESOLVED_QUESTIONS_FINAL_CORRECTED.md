@@ -3296,23 +3296,23 @@ snapshot.notes = allNotes;  // All notes, no lifecycle filtering
 
 **Document Status**: Reconstructed Revision 5.4 with All Corrections Applied (Round 2 Complete)
 
-**Actual File Line Count**: 3,605 lines (verified after Round 3 corrections, complete, no placeholders, no omissions)
+**Actual File Line Count**: 3,606 lines (verified after Round 3 corrections, complete, no placeholders, no omissions)
 
 **Final Two Lines**:
-- Line 3,604: `---`
 - Line 3,605: `**END OF REVISION 5.4 UNRESOLVED TECHNICAL QUESTIONS (RECONSTRUCTED — ALL CORRECTIONS APPLIED)**`
+- Line 3,606: (blank line / final newline)
 
 **Historical Context Reconciliation**: 
-- Earlier correction rounds produced intermediate line counts: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 (claimed) → 3,063 (actual before Round 2) → 3,408 (after Round 2) → 3,605 (current after Round 3 complete)
+- Earlier correction rounds produced intermediate line counts: 2,519 → 2,745 → 2,900 → 2,976 → 3,009 → 3,062 (claimed) → 3,063 (actual before Round 2) → 3,408 (after Round 2) → 3,606 (current after Round 3 complete)
 - These were working estimates during iterative corrections
 - Round 1 consolidated corrections added lifecycle clarifications, safer property detection, serializability warnings, accounting reconciliation, and change history documentation
 - Round 2 corrections addressed provenance claims, recovery logic reconciliation, helper function limitations, journal durability clarifications, and all 11 user-requested corrections
 - Round 3 corrections addressed classification attribution, rollback inconsistencies, tree verification completeness, and document accounting
-- The current verified count is 3,605 lines
+- The current verified count is 3,606 lines
 
 **Revision 5.3 Content**: 546 lines used as basis for Sections 1-7 (preservation status: UNVERIFIED per reconstruction notice)
 
-**Revision 5.4 Additions**: ~3,059 lines of Universal Hierarchy System architectural questions, recovery safeguards, corrections, correction history documentation, and final deliverables
+**Revision 5.4 Additions**: ~3,060 lines of Universal Hierarchy System architectural questions, recovery safeguards, corrections, correction history documentation, and final deliverables
 
 **Unresolved Questions Count Reconciliation**:
 
